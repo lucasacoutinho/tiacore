@@ -1,16 +1,11 @@
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync } from 'node:fs'
 import { expect, test } from 'bun:test'
 
 import { value } from '../src/b'
+import { recordSpan } from '../src/span'
 
 test('parallel bun b', async () => {
   appendFileSync('executions.log', 'bun-b\n')
-  const start = Date.now()
-  await Bun.sleep(300)
+  await recordSpan('bun-b', 'bun-a')
   expect(value).toBe('b')
-  mkdirSync('spans', { recursive: true })
-  writeFileSync(
-    'spans/bun-b.json',
-    JSON.stringify({ end: Date.now(), start }),
-  )
 })

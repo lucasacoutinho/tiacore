@@ -1,17 +1,12 @@
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { value } from '../src/b.mjs'
+import { recordSpan } from '../src/span.mjs'
 
 test('parallel node b', async () => {
   appendFileSync('executions.log', 'node-b\n')
-  const start = Date.now()
-  await new Promise((resolve) => setTimeout(resolve, 300))
+  await recordSpan('node-b', 'node-a')
   assert.equal(value, 'b')
-  mkdirSync('spans', { recursive: true })
-  writeFileSync(
-    'spans/node-b.json',
-    JSON.stringify({ end: Date.now(), start }),
-  )
 })

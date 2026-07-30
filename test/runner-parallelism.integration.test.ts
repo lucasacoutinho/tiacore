@@ -35,7 +35,7 @@ describe('bounded runner parallelism', () => {
       process.execPath,
       ['run-tia.mjs'],
       20_000,
-      { TIA_CONCURRENCY: '2' },
+      { TIA_CONCURRENCY: '2', TIA_EXPECT_PARALLEL: '1' },
     )
 
     expect(result.status, result.output).toBe(0)
@@ -61,7 +61,7 @@ describe('bounded runner parallelism', () => {
       'bun',
       ['run-tia.ts'],
       20_000,
-      { TIA_CONCURRENCY: '2' },
+      { TIA_CONCURRENCY: '2', TIA_EXPECT_PARALLEL: '1' },
     )
 
     expect(result.status, result.output).toBe(0)
