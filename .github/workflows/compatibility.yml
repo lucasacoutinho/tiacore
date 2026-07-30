@@ -1,0 +1,137 @@
+name: Compatibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  vitest:
+    name: Vitest ${{ matrix.vitest }} / Vite ${{ matrix.vite }} / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: 20.19.0
+            vite: 6.4.3
+            vitest: 4.1.0
+          - node: 22.15.0
+            vite: 7.3.6
+            vitest: 4.1.10
+          - node: 24
+            vite: 8.1.5
+            vitest: 4.1.10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm pack --pack-destination test/fixtures/package-install
+      - run: mv test/fixtures/package-install/tiajs-*.tgz test/fixtures/package-install/tiajs.tgz
+      - run: npm pkg set "devDependencies.vite=${{ matrix.vite }}" "devDependencies.vitest=${{ matrix.vitest }}"
+        working-directory: test/fixtures/package-install
+      - run: npm install --ignore-scripts
+        working-directory: test/fixtures/package-install
+      - run: npm test
+        working-directory: test/fixtures/package-install
+
+  node-test:
+    name: node:test / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22.10.0
+          - 22.15.0
+          - 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm install --ignore-scripts
+        working-directory: test/fixtures/node-runner
+      - run: npm run certify
+        working-directory: test/fixtures/node-runner
+
+  bun-test:
+    name: bun:test / Bun ${{ matrix.bun }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bun:
+          - 1.3.0
+          - 1.3.14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.bun }}
+      - run: npm ci
+      - run: npm run build
+      - run: bun install --ignore-scripts
+        working-directory: test/fixtures/bun-runner
+      - run: bun run certify
+        working-directory: test/fixtures/bun-runner
+
+  package-manager:
+    name: Install with ${{ matrix.manager }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        manager:
+          - npm
+          - pnpm
+          - yarn
+          - bun
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: npm ci
+      - run: npm pack --pack-destination test/fixtures/package-install
+      - run: mv test/fixtures/package-install/tiajs-*.tgz test/fixtures/package-install/tiajs.tgz
+      - if: matrix.manager == 'npm'
+        run: npm install --ignore-scripts
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'npm'
+        run: npm test
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'pnpm'
+        run: npx --yes pnpm@11.18.0 install --ignore-scripts
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'pnpm'
+        run: npx --yes pnpm@11.18.0 test
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'yarn'
+        run: npx --yes @yarnpkg/cli-dist@4.18.0 install
+        working-directory: test/fixtures/package-install
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+      - if: matrix.manager == 'yarn'
+        run: npx --yes @yarnpkg/cli-dist@4.18.0 test
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'bun'
+        run: bun install --ignore-scripts
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'bun'
+        run: bun run test
+        working-directory: test/fixtures/package-install

@@ -1,0 +1,12 @@
+{
+  "name": "tiajs-fixture-bun-runner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "certify": "bun test certification/adapter.test.ts",
+    "test": "bun ./run-tia.ts"
+  },
+  "dependencies": {
+    "tiajs": "file:../../.."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "tiajs-fixture-node-runner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "certify": "node --test certification/adapter.test.mjs",
+    "test": "node ./run-tia.mjs"
+  },
+  "dependencies": {
+    "tiajs": "file:../../.."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "tiajs-package-install-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run && vitest run && node --test verify.test.mjs"
+  },
+  "devDependencies": {
+    "tiajs": "file:./tiajs.tgz",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.0"
+  }
+}

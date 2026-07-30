@@ -1,0 +1,13 @@
+{
+  "name": "tia-fixture-subprocess-policy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tiajs": "file:../../..",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
+  }
+}

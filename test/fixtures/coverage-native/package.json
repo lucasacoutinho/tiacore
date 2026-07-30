@@ -1,0 +1,14 @@
+{
+  "name": "tia-fixture-coverage-native",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
+    "tiajs": "file:../../..",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
+  }
+}

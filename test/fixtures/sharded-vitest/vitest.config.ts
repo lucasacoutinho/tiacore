@@ -1,0 +1,22 @@
+import { defineConfig } from 'vitest/config'
+import { tia } from 'tiajs'
+
+export default defineConfig({
+  plugins: [
+    tia({
+      ...(process.env.TIA_FILESYSTEM_ARTIFACTS === '1'
+        ? {
+            artifacts: {
+              provider: 'filesystem',
+              paths: ['.tia-artifacts'],
+            } as const,
+          }
+        : {}),
+      cacheDir: process.env.TIA_CACHE_DIR ?? '.tia',
+      log: true,
+    }),
+  ],
+  test: {
+    include: ['test/**/*.test.ts'],
+  },
+})

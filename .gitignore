@@ -1,0 +1,8 @@
+node_modules/
+/dist/
+/coverage/
+.agents/
+.tia/
+*.tgz
+executions.log
+skills-lock.json
