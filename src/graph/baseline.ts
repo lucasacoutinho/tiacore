@@ -285,7 +285,11 @@ export function changedFilesSince(
     return null
   }
 
-  return unique([...tracked, ...untracked])
+  return unique([
+    ...Object.keys(baseline.workingTree),
+    ...tracked,
+    ...untracked,
+  ])
     .filter((file) => !isIgnored(file, ignoredPrefixes))
     .filter((file) => !VITE_TEMPORARY_CONFIG.test(file))
     .filter((file) => baseline.workingTree[file] !== hashFile(resolve(root, file)))

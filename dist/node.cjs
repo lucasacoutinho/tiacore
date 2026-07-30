@@ -1030,7 +1030,11 @@ function changedFilesSince(root, baseline, ignoredPrefixes) {
   if (tracked === null || untracked === null) {
     return null;
   }
-  return unique([...tracked, ...untracked]).filter((file) => !isIgnored(file, ignoredPrefixes)).filter((file) => !VITE_TEMPORARY_CONFIG.test(file)).filter((file) => baseline.workingTree[file] !== hashFile((0, import_node_path5.resolve)(root, file)));
+  return unique([
+    ...Object.keys(baseline.workingTree),
+    ...tracked,
+    ...untracked
+  ]).filter((file) => !isIgnored(file, ignoredPrefixes)).filter((file) => !VITE_TEMPORARY_CONFIG.test(file)).filter((file) => baseline.workingTree[file] !== hashFile((0, import_node_path5.resolve)(root, file)));
 }
 function captureBaseline(root, ignoredPrefixes) {
   const sha = currentSha(root);

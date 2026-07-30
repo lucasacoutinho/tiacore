@@ -336,6 +336,27 @@ describe('run planning', () => {
     expect(plan.affectedTestIds).toEqual(['b'])
   })
 
+  test('selects a file restored after a dirty baseline', () => {
+    const root = fixture()
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 3\n')
+    const cached = graph(root)
+    cached.results.b!.state = 'passed'
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 1\n')
+
+    const plan = createRunPlan({
+      cachePrefix: '.tia',
+      fingerprint: 'fingerprint',
+      graph: cached,
+      options,
+      root,
+    })
+
+    expect(plan.mode).toBe('replay')
+    expect(plan.changedFiles).toEqual(['src/a.ts'])
+    expect(plan.affectedTests).toEqual(['test/a.test.ts'])
+    expect(plan.affectedTestIds).toEqual(['a'])
+  })
+
   test('falls back to the whole linked file for a legacy graph', () => {
     const root = fixture()
     const cached = graph(root)
