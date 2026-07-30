@@ -31,10 +31,13 @@ Do not invent repository metadata before those choices exist.
    TIA_FRESH=1 npm run release:check
    ```
 
+   This requires `uv`; the gate runs the Python conformance suite and builds
+   the pytest SDK sdist and wheel offline under `sdks/python/dist`.
+
 4. Require the full CI, compatibility, cross-platform, shard/aggregate, and
    non-publishing release-candidate workflows at that exact commit.
-5. Inspect `npm pack --dry-run` and install the generated tarball in the real
-   package-install fixture.
+5. Inspect `npm pack --dry-run`, install the generated tarball in the real
+   package-install fixture, and inspect the Python sdist and wheel.
 6. Review `npm audit --omit=dev`, Publint, and Are The Types Wrong output.
 7. Optionally compare `npm run benchmark:parallel`; a regression needs
    investigation but benchmark variance alone does not override correctness.

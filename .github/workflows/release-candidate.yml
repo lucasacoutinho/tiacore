@@ -11,6 +11,7 @@ on:
       - "docs/**"
       - "package-lock.json"
       - "package.json"
+      - "sdks/**"
       - "src/**"
 
 permissions:
@@ -31,10 +32,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - uses: astral-sh/setup-uv@v6
       - run: npm ci
       - run: TIA_FRESH=1 npm run release:check
       - run: mkdir release-candidate
       - run: npm pack --pack-destination release-candidate
+      - run: cp sdks/python/dist/* release-candidate/
       - run: cp release-candidate/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
       - run: npm install --ignore-scripts
         working-directory: test/fixtures/package-install
@@ -44,5 +47,5 @@ jobs:
         with:
           if-no-files-found: error
           name: tiacore-${{ github.sha }}
-          path: release-candidate/*.tgz
+          path: release-candidate/*
           retention-days: 7

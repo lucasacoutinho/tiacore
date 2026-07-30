@@ -18,6 +18,7 @@ jobs:
           node-version: 24
           registry-url: https://npm.pkg.github.com
           scope: "@usescherie"
+      - uses: astral-sh/setup-uv@v6
       - run: npm ci
       - run: TIA_FRESH=1 npm run release:check
       - run: npm run publish:private

@@ -5,6 +5,8 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-30
+
 ### Added
 
 - Runtime test impact analysis for Vitest, Playwright, `node:test`, and
@@ -60,6 +62,8 @@ Semantic Versioning once a version is published.
 - Added the first non-JavaScript SDK: a dependency-free Python pytest adapter
   certified against the shared protocol vectors and real file-selection
   fixtures.
+- Added Python 3.10, 3.12, and 3.13 compatibility jobs and made the proprietary
+  release gate build both npm and Python distributions.
 
 ### Known boundaries
 

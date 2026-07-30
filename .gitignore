@@ -1,5 +1,6 @@
 node_modules/
 /dist/
+/sdks/python/dist/
 /coverage/
 .agents/
 .tia/
