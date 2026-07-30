@@ -1,0 +1,1 @@
+{"version":3,"file":"bun.js","sourceRoot":"","sources":["../src/bun.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,GAAG,EAAE,MAAM,kBAAkB,CAAA","sourcesContent":["export { tia } from './runners/bun.js'\nexport type {\n  TiaRunner,\n  TiaRunnerOptions,\n  TiaRunnerResult,\n} from './runners/types.js'\n"]}

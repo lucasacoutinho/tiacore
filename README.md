@@ -624,7 +624,10 @@ src/
 
 These folders are internal. Consumers should continue importing only `tiajs`,
 `tiajs/core`, `tiajs/node`, or `tiajs/bun`. The build clears `dist/` first so
-renamed internals cannot remain in packed releases as stale files.
+renamed internals cannot remain in packed releases as stale files. Generated
+`dist/` output is committed so Bun can install the package directly from Git
+without running dependency lifecycle scripts. `npm run check:vcs` rejects
+stale output.
 
 The parallel performance harness is a Vitest benchmark in `benchmark/`, not a
 standalone maintenance script. Run it with `npm run benchmark:parallel`.
