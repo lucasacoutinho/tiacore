@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tiacore.dev/schemas/artifact-envelope-v1.json",
+  "title": "tiacore artifact envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapter", "artifactId", "graph", "runId"],
+  "properties": {
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "artifactId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "graph": {
+      "$ref": "./tiacore-impact-v1.schema.json"
+    },
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "total"],
+      "properties": {
+        "group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    }
+  }
+}

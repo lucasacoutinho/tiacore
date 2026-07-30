@@ -720,6 +720,7 @@ have deterministic Win32 tests that also run on Linux. The
 - [Public API and compatibility policy](docs/public-api.md)
 - [Adapter capability contract](docs/architecture/capability-contract.md)
 - [Protocol-first portability decision](docs/architecture/decisions/0001-protocol-first.md)
+- [Protocol version 1 specification](spec/protocol-v1.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Non-publishing release process](docs/releasing.md)

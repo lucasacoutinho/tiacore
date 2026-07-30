@@ -42,6 +42,10 @@ Semantic Versioning once a version is published.
   cross-process environment variables, Playwright attachments, shared symbols,
   fixtures, and test infrastructure. No legacy alias is retained because no
   tagged release or known consumer uses the old identifiers.
+- Made protocol v1 bounded and canonical. Runtime validation now rejects
+  unknown fields, duplicate relations, dependency cycles, unsafe paths, and
+  oversized collections. Shipped schemas, an artifact-envelope validator, and
+  language-independent golden planning and rejection vectors.
 
 ### Known boundaries
 

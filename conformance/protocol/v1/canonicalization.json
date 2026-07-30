@@ -1,0 +1,87 @@
+{
+  "protocolVersion": 1,
+  "input": {
+    "protocolVersion": 1,
+    "complete": true,
+    "fingerprint": "project-v1",
+    "environmentFingerprint": "node-24",
+    "knownSources": ["docs\\README.md", "docs/CHANGELOG.md"],
+    "invalidators": [
+      {"pattern": "z/**", "reason": "z changed"},
+      {"pattern": "a/**", "reason": "a changed"}
+    ],
+    "suites": [
+      {
+        "adapter": "example",
+        "file": "test\\b.test.ts",
+        "id": "suite:b",
+        "project": "example",
+        "dependsOn": ["suite:a"],
+        "resourceLocks": ["database", "browser"],
+        "tags": ["slow", "e2e"]
+      },
+      {
+        "adapter": "example",
+        "file": "./test/a.test.ts",
+        "id": "suite:a",
+        "project": "example"
+      }
+    ],
+    "observations": [
+      {
+        "confidence": "observed",
+        "kind": "executed",
+        "source": "src\\b.ts",
+        "suiteId": "suite:b"
+      },
+      {
+        "confidence": "exact",
+        "kind": "import",
+        "source": "./src/a.ts",
+        "suiteId": "suite:a"
+      }
+    ]
+  },
+  "expected": {
+    "protocolVersion": 1,
+    "complete": true,
+    "fingerprint": "project-v1",
+    "environmentFingerprint": "node-24",
+    "knownSources": ["docs/CHANGELOG.md", "docs/README.md"],
+    "invalidators": [
+      {"pattern": "a/**", "reason": "a changed"},
+      {"pattern": "z/**", "reason": "z changed"}
+    ],
+    "suites": [
+      {
+        "adapter": "example",
+        "file": "test/a.test.ts",
+        "id": "suite:a",
+        "project": "example"
+      },
+      {
+        "adapter": "example",
+        "file": "test/b.test.ts",
+        "id": "suite:b",
+        "project": "example",
+        "dependsOn": ["suite:a"],
+        "resourceLocks": ["browser", "database"],
+        "tags": ["e2e", "slow"]
+      }
+    ],
+    "observations": [
+      {
+        "confidence": "exact",
+        "kind": "import",
+        "source": "src/a.ts",
+        "suiteId": "suite:a"
+      },
+      {
+        "confidence": "observed",
+        "kind": "executed",
+        "source": "src/b.ts",
+        "suiteId": "suite:b"
+      }
+    ]
+  }
+}

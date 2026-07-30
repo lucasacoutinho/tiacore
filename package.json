@@ -26,8 +26,10 @@
   ],
   "files": [
     "capabilities",
+    "conformance",
     "dist",
     "schemas",
+    "spec",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

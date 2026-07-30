@@ -73,6 +73,20 @@ function suiteId(project: string, file: string): string {
   return `maestro:${project}:${file}`
 }
 
+function protocolSuite(suite: MaestroSuite): TiaSuiteDescriptor {
+  return {
+    adapter: suite.adapter,
+    ...(suite.dependsOn === undefined ? {} : { dependsOn: suite.dependsOn }),
+    file: suite.file,
+    id: suite.id,
+    project: suite.project,
+    ...(suite.resourceLocks === undefined
+      ? {}
+      : { resourceLocks: suite.resourceLocks }),
+    ...(suite.tags === undefined ? {} : { tags: suite.tags }),
+  }
+}
+
 function includesTags(
   tags: readonly string[],
   include: readonly string[],
@@ -203,7 +217,7 @@ export function createMaestroGraph(
     knownSources: options.knownSources ?? [],
     observations: [...suiteObservations, ...(options.observations ?? [])],
     protocolVersion: TIA_PROTOCOL_VERSION,
-    suites: options.suites,
+    suites: options.suites.map(protocolSuite),
   }
 }
 

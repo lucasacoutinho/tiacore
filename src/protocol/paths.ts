@@ -5,15 +5,13 @@ const WINDOWS_ABSOLUTE_PATTERN = /^[a-z]:\//iu
 
 export function normalizeProtocolPath(value: string): string {
   const slashed = value.replaceAll('\\', '/')
-  if (URI_PATTERN.test(slashed) && !WINDOWS_ABSOLUTE_PATTERN.test(slashed)) {
-    return slashed
-  }
-
   const withoutDot = slashed.replace(/^(?:\.\/)+/u, '')
   const normalized = posix.normalize(withoutDot)
   if (
+    value.includes('\0') ||
     normalized === '.' ||
     normalized.startsWith('/') ||
+    URI_PATTERN.test(normalized) ||
     WINDOWS_ABSOLUTE_PATTERN.test(normalized) ||
     normalized === '..' ||
     normalized.startsWith('../')

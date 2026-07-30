@@ -21,13 +21,16 @@
     },
     "fingerprint": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 8192
     },
     "environmentFingerprint": {
-      "type": "string"
+      "type": "string",
+      "maxLength": 8192
     },
     "knownSources": {
       "type": "array",
+      "maxItems": 1000000,
       "items": {
         "$ref": "#/$defs/path"
       },
@@ -35,6 +38,7 @@
     },
     "invalidators": {
       "type": "array",
+      "maxItems": 10000,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -45,23 +49,27 @@
         "properties": {
           "pattern": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 8192
           },
           "reason": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 8192
           }
         }
       }
     },
     "suites": {
       "type": "array",
+      "maxItems": 100000,
       "items": {
         "$ref": "#/$defs/suite"
       }
     },
     "observations": {
       "type": "array",
+      "maxItems": 1000000,
       "items": {
         "$ref": "#/$defs/observation"
       }
@@ -71,7 +79,8 @@
     "path": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/|[A-Za-z]:[/\\\\]|\\.\\.(?:[/\\\\]|$)).+"
+      "maxLength": 4096,
+      "pattern": "^(?!/|[A-Za-z][A-Za-z0-9+.-]*:|\\.\\.(?:[/\\\\]|$)).+"
     },
     "suite": {
       "type": "object",
@@ -85,40 +94,49 @@
       "properties": {
         "adapter": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 8192
         },
         "file": {
           "$ref": "#/$defs/path"
         },
         "id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 8192
         },
         "project": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 8192
         },
         "dependsOn": {
           "type": "array",
+          "maxItems": 100000,
           "items": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 8192
           },
           "uniqueItems": true
         },
         "resourceLocks": {
           "type": "array",
+          "maxItems": 100000,
           "items": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 8192
           },
           "uniqueItems": true
         },
         "tags": {
           "type": "array",
+          "maxItems": 100000,
           "items": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 8192
           },
           "uniqueItems": true
         }
@@ -161,7 +179,8 @@
         },
         "suiteId": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 8192
         }
       }
     }
