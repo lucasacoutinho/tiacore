@@ -39,12 +39,14 @@ export class TiaCore {
     graphDigestAtStart = null;
     planValue = null;
     runner;
+    runnerFingerprint;
     runnerFiles;
     constructor(options) {
         this.root = resolve(options.root ?? process.cwd());
         this.options = normalizedOptions(this.root, options);
         this.cacheDir = resolve(this.options.cacheDir, options.runner);
         this.runner = options.runner;
+        this.runnerFingerprint = options.fingerprint ?? '';
         this.runnerFiles = [...options.files].sort();
         this.baselineAtStart = null;
     }
@@ -157,6 +159,7 @@ export class TiaCore {
         return hashBytes(JSON.stringify({
             core: projectFingerprint(this.root, this.options),
             files: this.runnerFiles,
+            fingerprint: this.runnerFingerprint,
             runner: this.runner,
         }));
     }

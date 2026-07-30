@@ -1,13 +1,14 @@
 {
   "name": "tiajs",
   "version": "0.1.0",
-  "description": "Coverage-driven test impact analysis for Vitest, node:test, and bun:test",
+  "description": "Runtime test impact analysis for Vitest, Playwright, node:test, and bun:test",
   "author": "Lucas Coutinho",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
   "keywords": [
     "vitest",
+    "playwright",
     "bun",
     "node-test",
     "test-impact-analysis",
@@ -61,6 +62,26 @@
         "types": "./dist/node.d.cts",
         "default": "./dist/node.cjs"
       }
+    },
+    "./playwright": {
+      "import": {
+        "types": "./dist/playwright.d.ts",
+        "default": "./dist/playwright.js"
+      },
+      "require": {
+        "types": "./dist/playwright.d.cts",
+        "default": "./dist/playwright.cjs"
+      }
+    },
+    "./playwright/reporter": {
+      "import": {
+        "types": "./dist/playwright/reporter.d.ts",
+        "default": "./dist/playwright/reporter.js"
+      },
+      "require": {
+        "types": "./dist/playwright-reporter.d.cts",
+        "default": "./dist/playwright-reporter.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
@@ -94,10 +115,14 @@
     "tinyglobby": "^0.2.17"
   },
   "peerDependencies": {
+    "@playwright/test": ">=1.46.0 <2.0.0",
     "vite": ">=6.0.0 <9.0.0",
     "vitest": ">=4.1.0 <5.0.0"
   },
   "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     },
@@ -107,6 +132,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@playwright/test": "^1.62.0",
     "@testing-library/react": "^16.3.2",
     "@types/istanbul-lib-instrument": "^1.7.8",
     "@types/istanbul-lib-report": "^3.0.3",

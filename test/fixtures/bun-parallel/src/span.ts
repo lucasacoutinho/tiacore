@@ -13,6 +13,7 @@ export async function recordSpan(name: string, peer: string): Promise<void> {
       }
       await Bun.sleep(10)
     }
+    await Bun.sleep(20)
   } else {
     await Bun.sleep(50)
   }

@@ -39,6 +39,7 @@ export interface TiaCoreOptions {
   exclude?: string[]
   files: string[]
   fresh?: boolean
+  fingerprint?: string
   artifacts?: import('../shared/types.js').TiaArtifactSource | import('../shared/types.js').TiaArtifactSource[]
   ignoreChanges?: string[]
   include?: string[]
@@ -95,6 +96,7 @@ export class TiaCore {
   private graphDigestAtStart: string | null = null
   private planValue: RunPlan | null = null
   private readonly runner: string
+  private readonly runnerFingerprint: string
   private readonly runnerFiles: string[]
 
   constructor(options: TiaCoreOptions) {
@@ -102,6 +104,7 @@ export class TiaCore {
     this.options = normalizedOptions(this.root, options)
     this.cacheDir = resolve(this.options.cacheDir, options.runner)
     this.runner = options.runner
+    this.runnerFingerprint = options.fingerprint ?? ''
     this.runnerFiles = [...options.files].sort()
     this.baselineAtStart = null
   }
@@ -257,6 +260,7 @@ export class TiaCore {
       JSON.stringify({
         core: projectFingerprint(this.root, this.options),
         files: this.runnerFiles,
+        fingerprint: this.runnerFingerprint,
         runner: this.runner,
       }),
     )

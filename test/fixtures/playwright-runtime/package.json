@@ -1,0 +1,5 @@
+{
+  "name": "tia-fixture-playwright-runtime",
+  "private": true,
+  "type": "module"
+}

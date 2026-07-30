@@ -13,6 +13,7 @@ export async function recordSpan(name, peer) {
       }
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
+    await new Promise((resolve) => setTimeout(resolve, 20))
   } else {
     await new Promise((resolve) => setTimeout(resolve, 50))
   }

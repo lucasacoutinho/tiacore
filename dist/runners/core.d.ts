@@ -4,6 +4,7 @@ export interface TiaCoreOptions {
     exclude?: string[];
     files: string[];
     fresh?: boolean;
+    fingerprint?: string;
     artifacts?: import('../shared/types.js').TiaArtifactSource | import('../shared/types.js').TiaArtifactSource[];
     ignoreChanges?: string[];
     include?: string[];
@@ -30,6 +31,7 @@ export declare class TiaCore {
     private graphDigestAtStart;
     private planValue;
     private readonly runner;
+    private readonly runnerFingerprint;
     private readonly runnerFiles;
     constructor(options: TiaCoreOptions);
     get plan(): RunPlan;

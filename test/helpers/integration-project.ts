@@ -131,6 +131,7 @@ test('b', async () => {
     mkdirSync(join(root, 'node_modules'))
 
     for (const dependency of [
+      '@playwright',
       '@testing-library',
       '@vitejs',
       '@vitest',
@@ -192,6 +193,7 @@ export function createFixtureProject(name: string): string {
   mkdirSync(join(root, 'node_modules'))
 
   for (const dependency of [
+    '@playwright',
     '@testing-library',
     '@vitejs',
     '@vitest',

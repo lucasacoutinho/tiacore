@@ -1,6 +1,7 @@
 # tiajs
 
-Coverage-driven test impact analysis for Vitest, `node:test`, and `bun:test`.
+Runtime test impact analysis for Vitest, Playwright, `node:test`, and
+`bun:test`.
 
 `tiajs` records which project files actually execute while each test case runs.
 On the next run, it compares the project with that baseline and runs only
@@ -28,7 +29,7 @@ npm install --save-dev tiajs
 
 The Vitest adapter requires Vitest 4.1 and Node.js 20 or newer. The `node:test`
 adapter requires Node.js 22.10 or newer. The Bun adapter is verified on Bun
-1.3.
+1.3. The Playwright adapter requires Playwright 1.46 or newer.
 
 Until the package is published, install this checkout through a local file link:
 
@@ -100,6 +101,71 @@ previously failed cases. Cached siblings in an affected file are skipped before
 their hooks and test bodies run. If nothing relevant changed, Vitest exits
 successfully without executing tests.
 
+### Playwright
+
+Wrap the Playwright test fixture once:
+
+```ts
+// e2e/fixture.ts
+import { expect, test as base } from '@playwright/test'
+import { tia } from 'tiajs/playwright'
+
+export const test = tia(base)
+export { expect }
+```
+
+Use that fixture in browser specs and append the tiajs reporter without
+removing the project’s normal reporters:
+
+```ts
+// playwright.config.ts
+import { defineConfig } from '@playwright/test'
+import { tia } from 'tiajs/playwright'
+
+export default defineConfig({
+  reporter: [['line'], ['html', { open: 'never' }], tia()],
+  testDir: './e2e',
+})
+```
+
+Run Playwright through a small runner:
+
+```ts
+// e2e/run-tia.ts
+import { tia } from 'tiajs/playwright'
+
+const result = await tia({
+  config: 'playwright.config.ts',
+  name: 'qa',
+  root: process.cwd(),
+}).run(process.argv.slice(2))
+
+process.exitCode = result.success ? 0 : 1
+```
+
+The first run executes the configured suite. The wrapped `page` fixture records
+the project files named by JavaScript and CSS source maps for every browser
+test. This includes route chunks and lazy `import()` bundles. tiajs also follows
+relative imports from each spec through its fixtures and support modules.
+Later runs execute whole affected spec files and preserve Playwright’s workers,
+retries, projects, and project dependencies. A no-change replay does not start
+Playwright or its configured web servers.
+
+Source maps are runtime evidence, not a required build format. If a script has
+no usable source map, tiajs records a direct project URL when possible. A
+changed project file with no recorded edge remains unknown and expands to the
+full configured Playwright suite by default. This is deliberately stricter
+than Playwright’s import-only `--only-changed` heuristic for end-to-end tests,
+where the application normally executes in a separate browser and server.
+
+Each Playwright config gets a separate cache such as
+`.tia/playwright-feature/graph.json`. `TIA_FRESH=1` rebuilds it with a full run.
+Use `name` when multiple lanes share one config but select different tests, so
+each lane keeps an independent graph.
+The runner accepts the same filesystem, GitHub Actions, and custom artifact
+providers as the runner-neutral core, so a CI worker can restore an ancestral
+graph before selecting files.
+
 ### Node test runner
 
 Create a small runner script:
@@ -148,7 +214,7 @@ Run it with `bun run-tia.ts`. Bun discovery uses an impossible name filter, so
 test bodies execute only during their isolated LCOV pass. Replay uses Bun's
 native name filter and stores state in `.tia/bun/graph.json`.
 
-All three adapters expose the factory as `tia()`. `tiajs/core` also exports the
+All adapters expose the factory as `tia()`. `tiajs/core` also exports the
 runner-neutral `TiaCore` and observation contract for custom runner adapters.
 Node and Bun test names should be unique within a file; duplicate matching
 names are conservatively observed together.
@@ -579,9 +645,9 @@ complete per-test metadata deliberately run the whole affected file.
 ## Current scope
 
 This first release targets Vitest projects using Node thread/fork pools or
-Browser Mode, Node's built-in test runner, and Bun's test runner. Git is used
-when available, but an uncommitted or non-Git project can reuse a local
-filesystem baseline.
+Browser Mode, Playwright end-to-end projects with browser source maps, Node's
+built-in test runner, and Bun's test runner. Git is used when available, but an
+uncommitted or non-Git project can reuse a local filesystem baseline.
 
 Inline Vitest 4 projects are supported when they inherit the root plugin with
 `extends: true`; affected files are intersected with each project's include and
@@ -612,12 +678,13 @@ have deterministic Win32 tests that also run on Linux. The
 ## Source layout
 
 The package keeps only its stable entry points at the source root:
-`index.ts`, `core.ts`, `node.ts`, and `bun.ts`. Implementation details are
-grouped by responsibility:
+`index.ts`, `core.ts`, `playwright.ts`, `node.ts`, and `bun.ts`.
+Implementation details are grouped by responsibility:
 
 ```text
 src/
 ├── artifacts/  provider-neutral restoration and built-in CI providers
+├── playwright/ Playwright runner, reporter, fixture, and source-map edges
 ├── coverage/   runtime coverage deltas and report generation
 ├── frameworks/ database, view, and custom dependency adapters
 ├── graph/      baselines, fingerprints, planning, merging, and storage
@@ -628,11 +695,11 @@ src/
 ```
 
 These folders are internal. Consumers should continue importing only `tiajs`,
-`tiajs/core`, `tiajs/node`, or `tiajs/bun`. The build clears `dist/` first so
-renamed internals cannot remain in packed releases as stale files. Generated
-`dist/` output is committed so Bun can install the package directly from Git
-without running dependency lifecycle scripts. `npm run check:vcs` rejects
-stale output.
+`tiajs/core`, `tiajs/playwright`, `tiajs/node`, or `tiajs/bun`. The build clears
+`dist/` first so renamed internals cannot remain in packed releases as stale
+files. Generated `dist/` output is committed so Bun can install the package
+directly from Git without running dependency lifecycle scripts.
+`npm run check:vcs` rejects stale output.
 
 The parallel performance harness is a Vitest benchmark in `benchmark/`, not a
 standalone maintenance script. Run it with `npm run benchmark:parallel`.

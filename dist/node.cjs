@@ -1358,12 +1358,14 @@ var TiaCore = class {
   graphDigestAtStart = null;
   planValue = null;
   runner;
+  runnerFingerprint;
   runnerFiles;
   constructor(options) {
     this.root = (0, import_node_path8.resolve)(options.root ?? process.cwd());
     this.options = normalizedOptions2(this.root, options);
     this.cacheDir = (0, import_node_path8.resolve)(this.options.cacheDir, options.runner);
     this.runner = options.runner;
+    this.runnerFingerprint = options.fingerprint ?? "";
     this.runnerFiles = [...options.files].sort();
     this.baselineAtStart = null;
   }
@@ -1490,6 +1492,7 @@ var TiaCore = class {
       JSON.stringify({
         core: projectFingerprint(this.root, this.options),
         files: this.runnerFiles,
+        fingerprint: this.runnerFingerprint,
         runner: this.runner
       })
     );

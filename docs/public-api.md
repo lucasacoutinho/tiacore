@@ -1,6 +1,6 @@
 # Public API
 
-tiajs has four supported entry points. Everything below `dist/` or an internal
+tiajs has five supported entry points. Everything below `dist/` or an internal
 `src/` folder is private and may change without notice.
 
 ## `tiajs`
@@ -21,6 +21,26 @@ not part of the API.
 Each exports named `tia(options?)`, returning a `TiaRunner` with an asynchronous
 `run()` method. Both share `TiaRunnerOptions` and `TiaRunnerResult`. Node also
 enforces its 22.10 runtime minimum when the adapter is executed.
+
+## `tiajs/playwright`
+
+Exports overloaded named `tia()`:
+
+- `tia(baseTest)` returns a Playwright fixture that records browser source-map
+  dependencies;
+- `tia()` returns the reporter tuple appended to `reporter`;
+- `tia(options)` returns a `TiaPlaywrightRunner` with an asynchronous `run()`
+  method.
+
+Public types include `TiaPlaywrightOptions`, `TiaPlaywrightResult`, and the
+reporter tuple. Selection is conservative and file-level. Normal Playwright
+workers, retries, projects, and dependency projects remain runner-owned. The
+optional `name` assigns an independent graph to a lane when multiple lanes
+share one Playwright config.
+
+`tiajs/playwright/reporter` is a supported configuration target used by the
+reporter tuple. Applications should obtain it through `tia()` instead of
+constructing the path.
 
 ## `tiajs/core`
 

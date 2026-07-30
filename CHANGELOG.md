@@ -7,11 +7,14 @@ Semantic Versioning once a version is published.
 
 ### Added
 
-- Coverage-driven test impact analysis for Vitest, `node:test`, and `bun:test`.
+- Runtime test impact analysis for Vitest, Playwright, `node:test`, and
+  `bun:test`.
 - Per-test runtime dependency and Istanbul coverage graphs with cached replay.
 - Exact Vitest case selection, conservative concurrent-test handling, Browser
   Mode, React Testing Library, lazy imports, asset edges, and multi-project
   support.
+- Playwright file selection from browser source maps, lazy route chunks, and
+  transitive spec/fixture imports while preserving native projects and workers.
 - Git and filesystem baselines, worktree-safe caches, transactional
   multi-process graph updates, and bounded runner parallelism.
 - Provider-neutral artifact restoration, GitHub Actions discovery, shard
@@ -30,3 +33,5 @@ Semantic Versioning once a version is published.
 - Code executed only in external subprocesses cannot be attributed to an
   individual test without a custom framework edge.
 - Watch mode and explicit Vitest selection flags remain owned by Vitest.
+- Playwright sources without usable maps or direct project URLs remain unknown
+  and conservatively expand to the full configured suite.
