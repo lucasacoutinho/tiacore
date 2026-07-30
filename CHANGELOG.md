@@ -32,6 +32,8 @@ Semantic Versioning once a version is published.
   point.
 - Provider-neutral private npm publication with an explicit public-registry
   refusal, plus generated-output-free VCS installs.
+- Reproducible Bun VCS source builds that bootstrap the package-locked
+  development toolchain before compiling uncommitted distribution output.
 
 ### Known boundaries
 
