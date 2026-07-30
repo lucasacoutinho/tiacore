@@ -544,7 +544,7 @@ describe('runnable fixture projects', () => {
       process.execPath,
       ['run-tia.mjs'],
       20_000,
-      { TIAJS_NODE_DISCOVERY_HOOKS: '0' },
+      { TIACORE_NODE_DISCOVERY_HOOKS: '0' },
     )
     expect(result.status, result.output).toBe(0)
     expect(executions(root).sort()).toEqual(['node-a', 'node-b'])

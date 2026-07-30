@@ -1,5 +1,5 @@
 {
-  "name": "tiajs-fixture-bun-runner",
+  "name": "tiacore-fixture-bun-runner",
   "private": true,
   "type": "module",
   "scripts": {

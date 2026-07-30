@@ -23,7 +23,7 @@ import type { TiaGraph } from '../src/shared/types.js'
 const temporaryDirectories: string[] = []
 
 function cacheWith(value: unknown): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-state-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-state-'))
   const cacheDir = join(root, '.tia')
   temporaryDirectories.push(root)
   mkdirSync(cacheDir)
@@ -137,7 +137,7 @@ describe('graph state', () => {
   })
 
   test('merges disjoint updates from processes that planned the same graph', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-state-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-state-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()
@@ -177,7 +177,7 @@ describe('graph state', () => {
   })
 
   test('fails closed when concurrent writers change the same value differently', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-state-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-state-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()
@@ -206,7 +206,7 @@ describe('graph state', () => {
   })
 
   test('recovers a lock left by a dead local writer', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-state-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-state-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()
@@ -236,7 +236,7 @@ describe('graph state', () => {
   })
 
   test('releases its lock and preserves the graph when serialization fails', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-state-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-state-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()

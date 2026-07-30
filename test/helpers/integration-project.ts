@@ -68,7 +68,7 @@ export function write(path: string, value: string): void {
 }
 
 export function createProject(options: ProjectOptions = {}): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-integration-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-integration-'))
   temporaryDirectories.push(root)
   const pluginSpecifier =
     options.packageImport || options.copyPackage || options.linkPackage
@@ -199,7 +199,7 @@ export function createFixtureProject(name: string): string {
     throw new Error(`Unknown integration fixture: ${name}`)
   }
 
-  const root = mkdtempSync(join(tmpdir(), `tiajs-${name}-`))
+  const root = mkdtempSync(join(tmpdir(), `tiacore-${name}-`))
   temporaryDirectories.push(root)
   cpSync(source, root, { recursive: true })
   mkdirSync(join(root, 'node_modules'))
@@ -243,7 +243,7 @@ export function createLinkedWorktree(
   root: string,
   name: string,
 ): string {
-  const parent = mkdtempSync(join(tmpdir(), 'tiajs-worktree-'))
+  const parent = mkdtempSync(join(tmpdir(), 'tiacore-worktree-'))
   temporaryDirectories.push(parent)
   const target = join(parent, 'checkout')
   git(root, [
@@ -251,7 +251,7 @@ export function createLinkedWorktree(
     'add',
     '-q',
     '-b',
-    `tiajs-${name}-${process.pid}-${Date.now()}`,
+    `tiacore-${name}-${process.pid}-${Date.now()}`,
     target,
   ])
   symlinkSync(join(packageRoot, 'node_modules'), join(target, 'node_modules'))
@@ -259,7 +259,7 @@ export function createLinkedWorktree(
 }
 
 export function cloneProjectWithGraph(source: string): string {
-  const parent = mkdtempSync(join(tmpdir(), 'tiajs-clone-'))
+  const parent = mkdtempSync(join(tmpdir(), 'tiacore-clone-'))
   temporaryDirectories.push(parent)
   const root = join(parent, 'project')
 

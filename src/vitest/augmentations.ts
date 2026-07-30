@@ -6,15 +6,15 @@ import type {
 
 declare module '@vitest/runner' {
   interface TaskMeta {
-    __tiajs_cached__?: boolean
-    __tiajs__?: TiaModuleMeta
-    __tiajs_replay__?: boolean
-    __tiajs_test__?: TiaTestMeta
+    __tiacore_cached__?: boolean
+    __tiacore__?: TiaModuleMeta
+    __tiacore_replay__?: boolean
+    __tiacore_test__?: TiaTestMeta
   }
 }
 
 declare module 'vitest' {
   interface ProvidedContext {
-    __tiajs_selection__: TiaTestSelection
+    __tiacore_selection__: TiaTestSelection
   }
 }

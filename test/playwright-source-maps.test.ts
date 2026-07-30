@@ -20,7 +20,7 @@ afterEach(() => {
 })
 
 test('maps only executed generated ranges to their original files', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-playwright-map-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-playwright-map-'))
   roots.push(root)
   mkdirSync(join(root, 'src'))
   writeFileSync(join(root, 'src/a.ts'), 'export const a = 1\n')

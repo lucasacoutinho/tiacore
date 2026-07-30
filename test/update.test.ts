@@ -69,7 +69,7 @@ afterEach(() => {
 
 describe('shared graph updates', () => {
   test('replaces whole files and prunes deleted files atomically', () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-update-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-update-'))
     temporaryDirectories.push(root)
     mkdirSync(join(root, 'test'))
     writeFileSync(join(root, 'test/a.test.ts'), 'test("a", () => {})\n')

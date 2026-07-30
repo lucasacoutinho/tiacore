@@ -51,7 +51,7 @@ function plugin(): CallablePlugin {
 const temporaryDirectories: string[] = []
 
 function temporaryRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-plugin-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-plugin-'))
   temporaryDirectories.push(root)
   return root
 }

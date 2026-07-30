@@ -40,7 +40,7 @@ vi.mock('../src/graph/plan.js', async (importOriginal) => {
 const temporaryDirectories: string[] = []
 
 function fixture(): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-core-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-core-'))
   temporaryDirectories.push(root)
   mkdirSync(join(root, 'src'))
   mkdirSync(join(root, 'test'))

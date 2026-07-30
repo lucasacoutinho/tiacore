@@ -17,7 +17,7 @@ type DefinitionFunction = Definition & {
   todo: Definition
 }
 
-const output = process.env.TIAJS_NODE_DISCOVERY_FILE
+const output = process.env.TIACORE_NODE_DISCOVERY_FILE
 const suites: Array<{ name: string; skipped: boolean }> = []
 
 function sourceLocation(): {

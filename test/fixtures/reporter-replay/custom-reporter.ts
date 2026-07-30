@@ -2,7 +2,7 @@ import { appendFileSync } from 'node:fs'
 import type { Reporter, TestCase } from 'vitest/node'
 
 function record(testCase: TestCase, phase: string): void {
-  const cached = testCase.meta().__tiajs_cached__ === true
+  const cached = testCase.meta().__tiacore_cached__ === true
   appendFileSync(
     new URL('./reporter-events.log', import.meta.url),
     `${phase}:${cached ? 'cached' : 'live'}:${testCase.fullName}:${testCase.result().state}\n`,

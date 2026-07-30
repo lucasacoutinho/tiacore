@@ -6,7 +6,7 @@ import { value } from '../src/value.mjs'
 
 test('worker crash case', () => {
   appendFileSync('executions.log', 'worker\n')
-  if (process.env.TIAJS_INJECT_WORKER_CRASH === '1') {
+  if (process.env.TIACORE_INJECT_WORKER_CRASH === '1') {
     process.kill(process.ppid, 'SIGKILL')
     process.exit(0)
   }

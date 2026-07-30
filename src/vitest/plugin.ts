@@ -62,7 +62,7 @@ interface SharedPluginState {
   selectedProjects: Set<object>
 }
 
-const sharedStateKey = Symbol.for(`tiajs@${PLUGIN_VERSION}/shared-state`)
+const sharedStateKey = Symbol.for(`tiacore@${PLUGIN_VERSION}/shared-state`)
 const sharedStates = (
   globalThis as typeof globalThis & {
     [sharedStateKey]?: WeakMap<object, SharedPluginState>
@@ -70,7 +70,7 @@ const sharedStates = (
 )[sharedStateKey] ??= new WeakMap<object, SharedPluginState>()
 
 const runtimeStateKey = Symbol.for(
-  `tiajs@${PLUGIN_VERSION}/browser-runtime-state`,
+  `tiacore@${PLUGIN_VERSION}/browser-runtime-state`,
 )
 const runtimeStates = (
   globalThis as typeof globalThis & {

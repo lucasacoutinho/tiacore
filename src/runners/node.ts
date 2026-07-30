@@ -87,7 +87,7 @@ function nodeVersionSupported(): boolean {
 }
 
 function nodeDiscoveryHooksSupported(): boolean {
-  if (process.env.TIAJS_NODE_DISCOVERY_HOOKS === '0') {
+  if (process.env.TIACORE_NODE_DISCOVERY_HOOKS === '0') {
     return false
   }
 
@@ -362,7 +362,7 @@ class NodeTiaRunner implements TiaRunner {
       return { ...aggregate, aggregate: true }
     }
 
-    const temporary = mkdtempSync(join(tmpdir(), 'tiajs-node-discovery-'))
+    const temporary = mkdtempSync(join(tmpdir(), 'tiacore-node-discovery-'))
     const output = join(temporary, 'cases.jsonl')
     writeFileSync(output, '')
 
@@ -430,7 +430,7 @@ class NodeTiaRunner implements TiaRunner {
   ): Promise<string | null> {
     const environment: NodeJS.ProcessEnv = {
       ...process.env,
-      TIAJS_NODE_DISCOVERY_FILE: output,
+      TIACORE_NODE_DISCOVERY_FILE: output,
     }
     delete environment.NODE_TEST_CONTEXT
 
@@ -460,7 +460,7 @@ class NodeTiaRunner implements TiaRunner {
     pattern: RegExp | undefined,
     coverage: boolean,
   ): Promise<NodeExecution> {
-    const temporary = mkdtempSync(join(tmpdir(), 'tiajs-node-execution-'))
+    const temporary = mkdtempSync(join(tmpdir(), 'tiacore-node-execution-'))
     const request = join(temporary, 'request.json')
     const output = join(temporary, 'result.json')
     writeFileSync(

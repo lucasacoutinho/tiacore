@@ -7,7 +7,7 @@ import {
 } from '../shared/constants.js'
 import type { CachedTestResult } from '../shared/types.js'
 
-export const TIA_CACHED_META_KEY = '__tiajs_cached__'
+export const TIA_CACHED_META_KEY = '__tiacore_cached__'
 
 function resultFor(
   cached: CachedTestResult,
@@ -84,7 +84,7 @@ export function cachedTestCase(
           },
     errors: () => [],
     fullName: cached.file,
-    id: `tiajs:cached:${cached.file}`,
+    id: `tiacore:cached:${cached.file}`,
     location: undefined,
     meta: () => metadata,
     moduleId,

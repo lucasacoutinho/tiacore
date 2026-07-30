@@ -79,7 +79,7 @@ afterEach(() => {
 
 describe('failure injection', () => {
   test('recovers a killed graph writer and removes its partial atomic file', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-writer-crash-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-writer-crash-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const expected = transactionGraph(new Date(0).toISOString())
@@ -117,7 +117,7 @@ describe('failure injection', () => {
       process.execPath,
       ['run-tia.mjs'],
       20_000,
-      { TIAJS_INJECT_WORKER_CRASH: '1' },
+      { TIACORE_INJECT_WORKER_CRASH: '1' },
     )
     expect(crashed.status, crashed.output).toBe(1)
     expect(
@@ -177,7 +177,7 @@ describe('failure injection', () => {
   test('fails closed when a Bun case crashes after discovery', () => {
     const root = createFixtureProject('bun-parallel')
     const markerDirectory = mkdtempSync(
-      join(tmpdir(), 'tiajs-bun-marker-'),
+      join(tmpdir(), 'tiacore-bun-marker-'),
     )
     temporaryDirectories.push(markerDirectory)
     const marker = join(markerDirectory, 'discovered')
@@ -187,7 +187,7 @@ describe('failure injection', () => {
 import { expect, test } from 'bun:test'
 import { value } from '../src/a'
 
-const marker = process.env.TIAJS_INJECT_BUN_MARKER
+const marker = process.env.TIACORE_INJECT_BUN_MARKER
 if (marker) {
   if (existsSync(marker)) {
     process.exit(42)
@@ -207,7 +207,7 @@ test('parallel bun a', () => {
       'bun',
       ['run-tia.ts'],
       20_000,
-      { TIAJS_INJECT_BUN_MARKER: marker },
+      { TIACORE_INJECT_BUN_MARKER: marker },
     )
 
     expect(failed.status, failed.output).toBe(1)
@@ -232,7 +232,7 @@ import { a } from '../src/a'
 
 test('worker exit case', () => {
   appendFileSync(new URL('../executions.log', import.meta.url), 'a\\n')
-  if (process.env.TIAJS_INJECT_VITEST_EXIT === '1') {
+  if (process.env.TIACORE_INJECT_VITEST_EXIT === '1') {
     process.kill(process.pid, 'SIGKILL')
   }
   expect(a()).toBe('a')
@@ -253,7 +253,7 @@ test('worker exit case', () => {
       root,
       ['run', '--pool=forks'],
       20_000,
-      { TIAJS_INJECT_VITEST_EXIT: '1' },
+      { TIACORE_INJECT_VITEST_EXIT: '1' },
     )
     expect(crashed.status).not.toBe(0)
     expect(readFileSync(graphFile, 'utf8')).toBe(before)

@@ -36,6 +36,13 @@ Semantic Versioning once a version is published.
   package-locked development toolchain before compiling uncommitted
   distribution output without shadowing consumer peer dependencies.
 
+### Changed
+
+- Completed the pre-release `tiacore` rename across reporter metadata,
+  cross-process environment variables, Playwright attachments, shared symbols,
+  fixtures, and test infrastructure. No legacy alias is retained because no
+  tagged release or known consumer uses the old identifiers.
+
 ### Known boundaries
 
 - `thresholds.autoUpdate` is enforced but does not rewrite configuration.

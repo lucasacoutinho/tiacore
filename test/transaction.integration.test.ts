@@ -85,7 +85,7 @@ afterEach(() => {
 
 describe('multi-process graph transactions', () => {
   test('retains every disjoint update from simultaneous writers', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-transactions-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-transactions-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const inputDir = join(root, 'inputs')

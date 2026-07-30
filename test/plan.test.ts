@@ -24,7 +24,7 @@ function git(root: string, args: string[]): void {
 }
 
 function fixture(): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-plan-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-plan-'))
   temporaryDirectories.push(root)
 
   mkdirSync(join(root, 'src'))
@@ -114,7 +114,7 @@ afterEach(() => {
 
 describe('run planning', () => {
   test('tracks nested source directories that share output directory names', () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-filesystem-baseline-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-filesystem-baseline-'))
     temporaryDirectories.push(root)
     mkdirSync(join(root, 'src/coverage'), { recursive: true })
     mkdirSync(join(root, 'coverage'), { recursive: true })
@@ -171,7 +171,7 @@ describe('run planning', () => {
   })
 
   test('normalizes repository changes to a nested project root', () => {
-    const repository = mkdtempSync(join(tmpdir(), 'tiajs-monorepo-'))
+    const repository = mkdtempSync(join(tmpdir(), 'tiacore-monorepo-'))
     temporaryDirectories.push(repository)
     const root = join(repository, 'packages/domain')
     mkdirSync(join(root, 'src'), { recursive: true })

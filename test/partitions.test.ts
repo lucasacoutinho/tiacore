@@ -66,7 +66,7 @@ afterEach(() => {
 
 describe('partition promotion failure injection', () => {
   test('leaves no promoted graph for a truncated shard and succeeds on retry', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'tiajs-partitions-'))
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-partitions-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
     const partition: TiaGraphPartition = {

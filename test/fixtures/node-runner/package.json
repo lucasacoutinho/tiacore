@@ -1,5 +1,5 @@
 {
-  "name": "tiajs-fixture-node-runner",
+  "name": "tiacore-fixture-node-runner",
   "private": true,
   "type": "module",
   "scripts": {

@@ -426,8 +426,8 @@ export default defineConfig({
 For each cached outcome, tiacore calls `onTestCaseReady` followed by
 `onTestCaseResult` with a detached TestCase-compatible facade. Its public
 `id`, `name`, `fullName`, `module`, `project`, `result()`, `diagnostic()`, and
-`meta()` APIs are populated. `meta().__tiajs_cached__` and
-`meta().__tiajs_replay__` are `true`.
+`meta()` APIs are populated. `meta().__tiacore_cached__` and
+`meta().__tiacore_replay__` are `true`.
 
 Only explicitly supplied instances receive these events. The facade is never
 registered in Vitest state, so built-in summaries, exit status, module trees,

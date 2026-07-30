@@ -57,16 +57,16 @@ function options(
 ): Parameters<typeof createGitHubActionsArtifactProvider>[0] {
   return {
     apiUrl: 'https://api.github.test',
-    artifactName: 'tiajs',
+    artifactName: 'tiacore',
     maxArtifacts: 20,
     repository: 'owner/repo',
-    tokenEnv: 'TIAJS_TEST_TOKEN',
+    tokenEnv: 'TIACORE_TEST_TOKEN',
     ...value,
   }
 }
 
 function cacheDir(): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiajs-artifacts-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-artifacts-'))
   temporaryDirectories.push(root)
   return join(root, '.tia')
 }
@@ -133,7 +133,7 @@ describe('GitHub Actions artifact discovery', () => {
   })
 
   test('restores the newest compatible graph without extracting other files', async () => {
-    vi.stubEnv('TIAJS_TEST_TOKEN', 'test-token')
+    vi.stubEnv('TIACORE_TEST_TOKEN', 'test-token')
     const incompatible = zipSync({
       'graph.json': strToU8(JSON.stringify(graph('old'))),
     })
@@ -150,7 +150,7 @@ describe('GitHub Actions artifact discovery', () => {
               created_at: '2026-07-29T12:00:00Z',
               expired: false,
               id: 2,
-              name: 'tiajs-new',
+              name: 'tiacore-new',
               size_in_bytes: incompatible.byteLength,
               workflow_run: { head_branch: 'main', id: 20 },
             },
@@ -159,7 +159,7 @@ describe('GitHub Actions artifact discovery', () => {
               created_at: '2026-07-28T12:00:00Z',
               expired: false,
               id: 1,
-              name: 'tiajs-old',
+              name: 'tiacore-old',
               size_in_bytes: compatible.byteLength,
               workflow_run: { head_branch: 'main', id: 10 },
             },
@@ -176,7 +176,7 @@ describe('GitHub Actions artifact discovery', () => {
       log: false,
       providers: [
         createGitHubActionsArtifactProvider(
-          options({ artifactName: 'tiajs-*', branch: 'main' }),
+          options({ artifactName: 'tiacore-*', branch: 'main' }),
           request,
         ),
       ],
@@ -215,7 +215,7 @@ describe('GitHub Actions artifact discovery', () => {
               created_at: '2026-07-29T12:00:00Z',
               expired: false,
               id: 7,
-              name: 'tiajs',
+              name: 'tiacore',
               size_in_bytes: archive.byteLength,
             },
           ],
@@ -238,7 +238,7 @@ describe('GitHub Actions artifact discovery', () => {
 
     expect(result.restored).toBe(true)
     expect(request.mock.calls[0]?.[0]).toContain(
-      '/actions/runs/99/artifacts?name=tiajs',
+      '/actions/runs/99/artifacts?name=tiacore',
     )
   })
 

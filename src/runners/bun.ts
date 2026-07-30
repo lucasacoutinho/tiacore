@@ -291,7 +291,7 @@ class BunTiaRunner implements TiaRunner {
     pattern: string,
     coverage: boolean,
   ): Promise<BunExecution> {
-    const temporary = mkdtempSync(join(tmpdir(), 'tiajs-bun-run-'))
+    const temporary = mkdtempSync(join(tmpdir(), 'tiacore-bun-run-'))
     const junitPath = join(temporary, 'results.xml')
     const args = [
       'test',

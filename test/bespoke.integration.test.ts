@@ -333,7 +333,7 @@ test('teardown owner', () => {
 afterAll(async () => {
   appendFileSync('executions.log', 'a-teardown\\n')
   const { shared } = await import('../src/shared')
-  if (process.env.TIAJS_FAIL_TEARDOWN === '1') {
+  if (process.env.TIACORE_FAIL_TEARDOWN === '1') {
     expect(shared).toBe('original')
   }
 })
@@ -362,7 +362,7 @@ test('shared consumer', async () => {
       root,
       ['run'],
       20_000,
-      { TIAJS_FAIL_TEARDOWN: '1' },
+      { TIACORE_FAIL_TEARDOWN: '1' },
     )
 
     expect(replay.status, replay.output).toBe(1)

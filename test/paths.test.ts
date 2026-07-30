@@ -12,14 +12,14 @@ describe('portable path handling', () => {
   test('normalizes drive-letter and mixed-separator paths', () => {
     expect(
       projectRelative(
-        'C:\\work\\tiajs',
-        'c:/work/tiajs/src\\feature.ts',
+        'C:\\work\\tiacore',
+        'c:/work/tiacore/src\\feature.ts',
       ),
     ).toBe('src/feature.ts')
     expect(
-      projectRelative('C:\\work\\tiajs', 'D:\\work\\tiajs\\src\\a.ts'),
+      projectRelative('C:\\work\\tiacore', 'D:\\work\\tiacore\\src\\a.ts'),
     ).toBeNull()
-    expect(projectRelative('C:\\work\\tiajs', 'C:\\work\\tiajs')).toBe('')
+    expect(projectRelative('C:\\work\\tiacore', 'C:\\work\\tiacore')).toBe('')
     expect(slash('test\\feature.test.ts')).toBe('test/feature.test.ts')
   })
 
@@ -49,8 +49,8 @@ describe('portable path handling', () => {
       'C:\\work\\repo\\.tia',
     )
     expect(
-      resolveCacheDir('C:\\work\\repo', 'D:/cache/tiajs'),
-    ).toBe('D:\\cache\\tiajs')
+      resolveCacheDir('C:\\work\\repo', 'D:/cache/tiacore'),
+    ).toBe('D:\\cache\\tiacore')
     expect(resolveCacheDir('/work/repo', '.tia')).toBe('/work/repo/.tia')
   })
 

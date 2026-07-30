@@ -1,9 +1,9 @@
 export const GRAPH_SCHEMA_VERSION = 3
 export const PLUGIN_VERSION = '0.1.0'
-export const TIA_META_KEY = '__tiajs__'
-export const TIA_REPLAY_META_KEY = '__tiajs_replay__'
-export const TIA_SELECTION_KEY = '__tiajs_selection__'
-export const TIA_TEST_META_KEY = '__tiajs_test__'
+export const TIA_META_KEY = '__tiacore__'
+export const TIA_REPLAY_META_KEY = '__tiacore_replay__'
+export const TIA_SELECTION_KEY = '__tiacore_selection__'
+export const TIA_TEST_META_KEY = '__tiacore_test__'
 
 export const DEFAULT_INCLUDE = ['**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}']
 
