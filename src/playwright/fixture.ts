@@ -12,7 +12,10 @@ import {
   PLAYWRIGHT_ROOT_ENV,
   PLAYWRIGHT_SESSION_ENV,
 } from './protocol.js'
-import { sourceMapFiles } from './source-maps.js'
+import {
+  coveredSourceMapFiles,
+  sourceMapFiles,
+} from './source-maps.js'
 
 function tracksSource(responseUrl: string, resourceType: string): boolean {
   return (
@@ -24,6 +27,8 @@ function tracksSource(responseUrl: string, resourceType: string): boolean {
 
 async function recordDependencies(
   context: BrowserContext,
+  initialPage: Page,
+  preciseCoverage: boolean,
   use: () => Promise<void>,
   testInfo: TestInfo,
 ): Promise<void> {
@@ -39,12 +44,23 @@ async function recordDependencies(
   const files = new Set<string>()
   const pending = new Set<Promise<void>>()
   const pages = new Set<Page>()
+  const coverageStarts = new Map<Page, Promise<boolean>>()
+  const fallbackFiles = new Map<Page, Set<string>>()
 
   const observe = (page: Page): void => {
     if (pages.has(page)) {
       return
     }
     pages.add(page)
+    fallbackFiles.set(page, new Set())
+    if (preciseCoverage) {
+      coverageStarts.set(
+        page,
+        page.coverage
+          .startJSCoverage({ resetOnNavigation: false })
+          .then(() => true, () => false),
+      )
+    }
     page.on('response', (response) => {
       const url = response.url()
       if (!tracksSource(url, response.request().resourceType())) {
@@ -52,8 +68,12 @@ async function recordDependencies(
       }
       const task = sourceMapFiles(url, root)
         .then((dependencies) => {
+          const target =
+            response.request().resourceType() === 'stylesheet'
+              ? files
+              : fallbackFiles.get(page)
           for (const dependency of dependencies) {
-            files.add(dependency)
+            target?.add(dependency)
           }
         })
         .finally(() => pending.delete(task))
@@ -61,12 +81,45 @@ async function recordDependencies(
     })
   }
 
+  observe(initialPage)
   for (const page of context.pages()) {
     observe(page)
   }
+  await (coverageStarts.get(initialPage) ?? Promise.resolve(false))
   context.on('page', observe)
   await use()
   await Promise.allSettled([...pending])
+
+  for (const page of pages) {
+    const coverageStarted =
+      preciseCoverage &&
+      await (coverageStarts.get(page) ?? Promise.resolve(false))
+    if (!coverageStarted) {
+      for (const file of fallbackFiles.get(page) ?? []) {
+        files.add(file)
+      }
+      continue
+    }
+
+    try {
+      const coverage = await page.coverage.stopJSCoverage()
+      for (const entry of coverage) {
+        for (const file of await coveredSourceMapFiles(
+          entry.url,
+          entry.source,
+          entry.functions,
+          root,
+        )) {
+          files.add(file)
+        }
+      }
+    } catch {
+      for (const file of fallbackFiles.get(page) ?? []) {
+        files.add(file)
+      }
+    }
+  }
+
   await testInfo.attach(PLAYWRIGHT_DEPENDENCIES_ATTACHMENT, {
     body: Buffer.from(JSON.stringify([...files].sort())),
     contentType: 'application/json',
@@ -80,22 +133,30 @@ export function withTiaFixture<
   test: TestType<TestArguments, WorkerArguments>,
 ): TestType<TestArguments, WorkerArguments> {
   const fixtures = {
-    context: async (
-      { context }: TestArguments & WorkerArguments,
-      use: (value: BrowserContext) => Promise<void>,
-      testInfo: TestInfo,
-    ) => {
-      await recordDependencies(
-        context,
-        async () => use(context),
-        testInfo,
-      )
-    },
+    _tiaDependencies: [
+      async (
+        { page }: TestArguments & WorkerArguments,
+        use: () => Promise<void>,
+        testInfo: TestInfo,
+      ) => {
+        await recordDependencies(
+          page.context(),
+          page,
+          page.context().browser()?.browserType().name() === 'chromium',
+          use,
+          testInfo,
+        )
+      },
+      { auto: true },
+    ],
   } as unknown as Fixtures<
-    {},
+    { _tiaDependencies: void },
     {},
     TestArguments,
     WorkerArguments
   >
-  return test.extend(fixtures)
+  return test.extend(fixtures) as unknown as TestType<
+    TestArguments,
+    WorkerArguments
+  >
 }

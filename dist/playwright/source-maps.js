@@ -1,10 +1,12 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { AnyMap, eachMapping, } from '@jridgewell/trace-mapping';
 import { projectRelative } from '../shared/paths.js';
 const MAX_SOURCE_MAP_BYTES = 32 * 1024 * 1024;
 const SOURCE_MAP_SUFFIX = /(?:\.bundle|\.m?js)$/i;
 const sourceMapCache = new Map();
+const textCache = new Map();
 function mappedSources(map) {
     return [
         ...(map.sources ?? []).map((source) => map.sourceRoot === undefined
@@ -27,7 +29,7 @@ function decodedDataUrl(value) {
         return null;
     }
 }
-async function boundedText(url) {
+async function uncachedBoundedText(url) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -45,6 +47,15 @@ async function boundedText(url) {
     catch {
         return null;
     }
+}
+function boundedText(url) {
+    const cached = textCache.get(url);
+    if (cached !== undefined) {
+        return cached;
+    }
+    const pending = uncachedBoundedText(url);
+    textCache.set(url, pending);
+    return pending;
 }
 function sourceMapUrl(scriptUrl, script) {
     const directive = /(?:\/\/[#@]\s*sourceMappingURL=([^\s]+)|\/\*[#@]\s*sourceMappingURL=([^*]+)\*\/)\s*$/.exec(script);
@@ -136,6 +147,105 @@ async function uncachedSourceMapFiles(scriptUrl, root) {
     }
     catch {
         return direct === null ? [] : [direct];
+    }
+}
+function lineOffsets(source) {
+    const offsets = [0];
+    for (let index = 0; index < source.length; index += 1) {
+        if (source.charCodeAt(index) === 10) {
+            offsets.push(index + 1);
+        }
+    }
+    return offsets;
+}
+function coverageRanges(functions) {
+    return functions
+        .flatMap((item) => item.ranges)
+        .filter((range) => range.startOffset >= 0 &&
+        range.endOffset > range.startOffset)
+        .map((range) => ({
+        count: range.count,
+        end: range.endOffset,
+        length: range.endOffset - range.startOffset,
+        start: range.startOffset,
+    }))
+        .sort((left, right) => left.start - right.start ||
+        left.length - right.length ||
+        left.count - right.count);
+}
+function executedMappedSources(map, script, functions) {
+    const ranges = coverageRanges(functions);
+    if (ranges.length === 0) {
+        return [];
+    }
+    const offsets = lineOffsets(script);
+    const files = new Set();
+    const active = [];
+    let rangeIndex = 0;
+    eachMapping(new AnyMap(map), (mapping) => {
+        if (mapping.source === null) {
+            return;
+        }
+        const lineStart = offsets[mapping.generatedLine - 1];
+        if (lineStart === undefined) {
+            return;
+        }
+        const offset = lineStart + mapping.generatedColumn;
+        while (rangeIndex < ranges.length &&
+            ranges[rangeIndex].start <= offset) {
+            active.push(ranges[rangeIndex]);
+            rangeIndex += 1;
+        }
+        let selected = null;
+        for (let index = active.length - 1; index >= 0; index -= 1) {
+            const range = active[index];
+            if (range.end <= offset) {
+                active.splice(index, 1);
+                continue;
+            }
+            if (selected === null ||
+                range.length < selected.length ||
+                (range.length === selected.length &&
+                    range.count < selected.count)) {
+                selected = range;
+            }
+        }
+        if (selected !== null && selected.count > 0) {
+            files.add(mapping.source);
+        }
+    });
+    return [...files];
+}
+export async function coveredSourceMapFiles(scriptUrl, suppliedScript, functions, root) {
+    const script = suppliedScript ?? await boundedText(scriptUrl);
+    if (script === null) {
+        return [];
+    }
+    const direct = sourcePath(root, new URL(scriptUrl).pathname);
+    const hasExecutedRange = functions.some((item) => item.ranges.some((range) => range.count > 0));
+    const mapUrl = sourceMapUrl(scriptUrl, script);
+    if (mapUrl === null) {
+        return direct !== null && hasExecutedRange ? [direct] : [];
+    }
+    const source = decodedDataUrl(mapUrl) ??
+        await boundedText(mapUrl);
+    if (source === null) {
+        return direct !== null && hasExecutedRange ? [direct] : [];
+    }
+    try {
+        const map = JSON.parse(source);
+        const sourceBase = mapUrl.startsWith('data:') ? scriptUrl : mapUrl;
+        return [
+            ...new Set([
+                ...(direct !== null && hasExecutedRange ? [direct] : []),
+                ...executedMappedSources(map, script, functions)
+                    .map((file) => sourcePath(root, file, sourceBase))
+                    .filter((file) => file !== null),
+            ]),
+        ].sort();
+    }
+    catch {
+        return direct !== null && hasExecutedRange ? [direct] : [];
     }
 }
 export function sourceMapFiles(scriptUrl, root) {

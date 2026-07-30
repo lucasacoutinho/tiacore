@@ -38,6 +38,20 @@ describe('Playwright adapter', () => {
         .split('\n')
         .sort(),
     ).toEqual(['lazy', 'shared'])
+    const graph = JSON.parse(
+      readFileSync(join(root, '.tia/playwright/graph.json'), 'utf8'),
+    ) as {
+      testEdges: Record<string, { file: string; files: string[] }>
+    }
+    const edges = Object.values(graph.testEdges)
+    const lazyEdge = edges.find((edge) =>
+      edge.file.endsWith('lazy.spec.ts'),
+    )
+    const sharedEdge = edges.find((edge) =>
+      edge.file.endsWith('shared.spec.ts'),
+    )
+    expect(lazyEdge?.files).toContain('src/lazy.js')
+    expect(sharedEdge?.files).not.toContain('src/lazy.js')
 
     writeFileSync(join(root, 'executions.log'), '')
     const replay = runCommand(

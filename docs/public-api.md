@@ -36,7 +36,9 @@ Public types include `TiaPlaywrightOptions`, `TiaPlaywrightResult`, and the
 reporter tuple. Selection is conservative and file-level. Normal Playwright
 workers, retries, projects, and dependency projects remain runner-owned. The
 optional `name` assigns an independent graph to a lane when multiple lanes
-share one Playwright config.
+share one Playwright config. Chromium uses executed JavaScript ranges for
+source-map attribution; other browser engines use conservative map-level
+attribution.
 
 `tiajs/playwright/reporter` is a supported configuration target used by the
 reporter tuple. Applications should obtain it through `tia()` instead of

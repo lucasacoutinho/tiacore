@@ -46,6 +46,7 @@ var PLAYWRIGHT_ROOT_ENV = "TIA_PLAYWRIGHT_ROOT";
 var import_node_fs = require("node:fs");
 var import_node_url = require("node:url");
 var import_node_path2 = require("node:path");
+var import_trace_mapping = require("@jridgewell/trace-mapping");
 
 // src/shared/paths.ts
 var import_node_path = require("node:path");
@@ -84,6 +85,7 @@ function resolveCacheDir(root, cacheDir) {
 var MAX_SOURCE_MAP_BYTES = 32 * 1024 * 1024;
 var SOURCE_MAP_SUFFIX = /(?:\.bundle|\.m?js)$/i;
 var sourceMapCache = /* @__PURE__ */ new Map();
+var textCache = /* @__PURE__ */ new Map();
 function mappedSources(map) {
   return [
     ...(map.sources ?? []).map(
@@ -107,7 +109,7 @@ function decodedDataUrl(value) {
     return null;
   }
 }
-async function boundedText(url) {
+async function uncachedBoundedText(url) {
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -122,6 +124,15 @@ async function boundedText(url) {
   } catch {
     return null;
   }
+}
+function boundedText(url) {
+  const cached = textCache.get(url);
+  if (cached !== void 0) {
+    return cached;
+  }
+  const pending = uncachedBoundedText(url);
+  textCache.set(url, pending);
+  return pending;
 }
 function sourceMapUrl(scriptUrl, script) {
   const directive = /(?:\/\/[#@]\s*sourceMappingURL=([^\s]+)|\/\*[#@]\s*sourceMappingURL=([^*]+)\*\/)\s*$/.exec(
@@ -203,6 +214,99 @@ async function uncachedSourceMapFiles(scriptUrl, root) {
     return direct === null ? [] : [direct];
   }
 }
+function lineOffsets(source) {
+  const offsets = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source.charCodeAt(index) === 10) {
+      offsets.push(index + 1);
+    }
+  }
+  return offsets;
+}
+function coverageRanges(functions) {
+  return functions.flatMap((item) => item.ranges).filter(
+    (range) => range.startOffset >= 0 && range.endOffset > range.startOffset
+  ).map((range) => ({
+    count: range.count,
+    end: range.endOffset,
+    length: range.endOffset - range.startOffset,
+    start: range.startOffset
+  })).sort(
+    (left, right) => left.start - right.start || left.length - right.length || left.count - right.count
+  );
+}
+function executedMappedSources(map, script, functions) {
+  const ranges = coverageRanges(functions);
+  if (ranges.length === 0) {
+    return [];
+  }
+  const offsets = lineOffsets(script);
+  const files = /* @__PURE__ */ new Set();
+  const active = [];
+  let rangeIndex = 0;
+  (0, import_trace_mapping.eachMapping)(
+    new import_trace_mapping.AnyMap(map),
+    (mapping) => {
+      if (mapping.source === null) {
+        return;
+      }
+      const lineStart = offsets[mapping.generatedLine - 1];
+      if (lineStart === void 0) {
+        return;
+      }
+      const offset = lineStart + mapping.generatedColumn;
+      while (rangeIndex < ranges.length && ranges[rangeIndex].start <= offset) {
+        active.push(ranges[rangeIndex]);
+        rangeIndex += 1;
+      }
+      let selected = null;
+      for (let index = active.length - 1; index >= 0; index -= 1) {
+        const range = active[index];
+        if (range.end <= offset) {
+          active.splice(index, 1);
+          continue;
+        }
+        if (selected === null || range.length < selected.length || range.length === selected.length && range.count < selected.count) {
+          selected = range;
+        }
+      }
+      if (selected !== null && selected.count > 0) {
+        files.add(mapping.source);
+      }
+    }
+  );
+  return [...files];
+}
+async function coveredSourceMapFiles(scriptUrl, suppliedScript, functions, root) {
+  const script = suppliedScript ?? await boundedText(scriptUrl);
+  if (script === null) {
+    return [];
+  }
+  const direct = sourcePath(root, new URL(scriptUrl).pathname);
+  const hasExecutedRange = functions.some(
+    (item) => item.ranges.some((range) => range.count > 0)
+  );
+  const mapUrl = sourceMapUrl(scriptUrl, script);
+  if (mapUrl === null) {
+    return direct !== null && hasExecutedRange ? [direct] : [];
+  }
+  const source = decodedDataUrl(mapUrl) ?? await boundedText(mapUrl);
+  if (source === null) {
+    return direct !== null && hasExecutedRange ? [direct] : [];
+  }
+  try {
+    const map = JSON.parse(source);
+    const sourceBase = mapUrl.startsWith("data:") ? scriptUrl : mapUrl;
+    return [
+      .../* @__PURE__ */ new Set([
+        ...direct !== null && hasExecutedRange ? [direct] : [],
+        ...executedMappedSources(map, script, functions).map((file) => sourcePath(root, file, sourceBase)).filter((file) => file !== null)
+      ])
+    ].sort();
+  } catch {
+    return direct !== null && hasExecutedRange ? [direct] : [];
+  }
+}
 function sourceMapFiles(scriptUrl, root) {
   const key = `${root}\0${scriptUrl}`;
   const cached = sourceMapCache.get(key);
@@ -218,7 +322,7 @@ function sourceMapFiles(scriptUrl, root) {
 function tracksSource(responseUrl, resourceType) {
   return resourceType === "script" || resourceType === "stylesheet" || /\.(?:bundle|css|[cm]?js)(?:\?|$)/i.test(responseUrl);
 }
-async function recordDependencies(context, use, testInfo) {
+async function recordDependencies(context, initialPage, preciseCoverage, use, testInfo) {
   const root = process.env[PLAYWRIGHT_ROOT_ENV];
   if (root === void 0 || process.env[PLAYWRIGHT_SESSION_ENV] === void 0) {
     await use();
@@ -227,30 +331,68 @@ async function recordDependencies(context, use, testInfo) {
   const files = /* @__PURE__ */ new Set();
   const pending = /* @__PURE__ */ new Set();
   const pages = /* @__PURE__ */ new Set();
+  const coverageStarts = /* @__PURE__ */ new Map();
+  const fallbackFiles = /* @__PURE__ */ new Map();
   const observe = (page) => {
     if (pages.has(page)) {
       return;
     }
     pages.add(page);
+    fallbackFiles.set(page, /* @__PURE__ */ new Set());
+    if (preciseCoverage) {
+      coverageStarts.set(
+        page,
+        page.coverage.startJSCoverage({ resetOnNavigation: false }).then(() => true, () => false)
+      );
+    }
     page.on("response", (response) => {
       const url = response.url();
       if (!tracksSource(url, response.request().resourceType())) {
         return;
       }
       const task = sourceMapFiles(url, root).then((dependencies) => {
+        const target = response.request().resourceType() === "stylesheet" ? files : fallbackFiles.get(page);
         for (const dependency of dependencies) {
-          files.add(dependency);
+          target?.add(dependency);
         }
       }).finally(() => pending.delete(task));
       pending.add(task);
     });
   };
+  observe(initialPage);
   for (const page of context.pages()) {
     observe(page);
   }
+  await (coverageStarts.get(initialPage) ?? Promise.resolve(false));
   context.on("page", observe);
   await use();
   await Promise.allSettled([...pending]);
+  for (const page of pages) {
+    const coverageStarted = preciseCoverage && await (coverageStarts.get(page) ?? Promise.resolve(false));
+    if (!coverageStarted) {
+      for (const file of fallbackFiles.get(page) ?? []) {
+        files.add(file);
+      }
+      continue;
+    }
+    try {
+      const coverage = await page.coverage.stopJSCoverage();
+      for (const entry of coverage) {
+        for (const file of await coveredSourceMapFiles(
+          entry.url,
+          entry.source,
+          entry.functions,
+          root
+        )) {
+          files.add(file);
+        }
+      }
+    } catch {
+      for (const file of fallbackFiles.get(page) ?? []) {
+        files.add(file);
+      }
+    }
+  }
   await testInfo.attach(PLAYWRIGHT_DEPENDENCIES_ATTACHMENT, {
     body: Buffer.from(JSON.stringify([...files].sort())),
     contentType: "application/json"
@@ -258,13 +400,18 @@ async function recordDependencies(context, use, testInfo) {
 }
 function withTiaFixture(test) {
   const fixtures = {
-    context: async ({ context }, use, testInfo) => {
-      await recordDependencies(
-        context,
-        async () => use(context),
-        testInfo
-      );
-    }
+    _tiaDependencies: [
+      async ({ page }, use, testInfo) => {
+        await recordDependencies(
+          page.context(),
+          page,
+          page.context().browser()?.browserType().name() === "chromium",
+          use,
+          testInfo
+        );
+      },
+      { auto: true }
+    ]
   };
   return test.extend(fixtures);
 }

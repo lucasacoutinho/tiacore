@@ -106,6 +106,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
     "fflate": "^0.8.3",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-instrument": "^6.0.3",

@@ -2,6 +2,11 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
+import {
+  AnyMap,
+  eachMapping,
+} from '@jridgewell/trace-mapping'
+
 import { projectRelative } from '../shared/paths.js'
 
 const MAX_SOURCE_MAP_BYTES = 32 * 1024 * 1024
@@ -13,7 +18,23 @@ interface SourceMapLike {
   sources?: string[]
 }
 
+export interface PlaywrightCoverageFunction {
+  ranges: Array<{
+    count: number
+    endOffset: number
+    startOffset: number
+  }>
+}
+
+interface CoverageRange {
+  count: number
+  end: number
+  length: number
+  start: number
+}
+
 const sourceMapCache = new Map<string, Promise<string[]>>()
+const textCache = new Map<string, Promise<string | null>>()
 
 function mappedSources(map: SourceMapLike): string[] {
   return [
@@ -45,7 +66,7 @@ function decodedDataUrl(value: string): string | null {
   }
 }
 
-async function boundedText(url: string): Promise<string | null> {
+async function uncachedBoundedText(url: string): Promise<string | null> {
   try {
     const response = await fetch(url)
     if (!response.ok) {
@@ -64,6 +85,16 @@ async function boundedText(url: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+function boundedText(url: string): Promise<string | null> {
+  const cached = textCache.get(url)
+  if (cached !== undefined) {
+    return cached
+  }
+  const pending = uncachedBoundedText(url)
+  textCache.set(url, pending)
+  return pending
 }
 
 function sourceMapUrl(scriptUrl: string, script: string): string | null {
@@ -179,6 +210,140 @@ async function uncachedSourceMapFiles(
     ].sort()
   } catch {
     return direct === null ? [] : [direct]
+  }
+}
+
+function lineOffsets(source: string): number[] {
+  const offsets = [0]
+  for (let index = 0; index < source.length; index += 1) {
+    if (source.charCodeAt(index) === 10) {
+      offsets.push(index + 1)
+    }
+  }
+  return offsets
+}
+
+function coverageRanges(
+  functions: PlaywrightCoverageFunction[],
+): CoverageRange[] {
+  return functions
+    .flatMap((item) => item.ranges)
+    .filter(
+      (range) =>
+        range.startOffset >= 0 &&
+        range.endOffset > range.startOffset,
+    )
+    .map((range) => ({
+      count: range.count,
+      end: range.endOffset,
+      length: range.endOffset - range.startOffset,
+      start: range.startOffset,
+    }))
+    .sort(
+      (left, right) =>
+        left.start - right.start ||
+        left.length - right.length ||
+        left.count - right.count,
+    )
+}
+
+function executedMappedSources(
+  map: SourceMapLike,
+  script: string,
+  functions: PlaywrightCoverageFunction[],
+): string[] {
+  const ranges = coverageRanges(functions)
+  if (ranges.length === 0) {
+    return []
+  }
+
+  const offsets = lineOffsets(script)
+  const files = new Set<string>()
+  const active: CoverageRange[] = []
+  let rangeIndex = 0
+
+  eachMapping(
+    new AnyMap(map as ConstructorParameters<typeof AnyMap>[0]),
+    (mapping) => {
+      if (mapping.source === null) {
+        return
+      }
+      const lineStart = offsets[mapping.generatedLine - 1]
+      if (lineStart === undefined) {
+        return
+      }
+      const offset = lineStart + mapping.generatedColumn
+      while (
+        rangeIndex < ranges.length &&
+        ranges[rangeIndex]!.start <= offset
+      ) {
+        active.push(ranges[rangeIndex]!)
+        rangeIndex += 1
+      }
+
+      let selected: CoverageRange | null = null
+      for (let index = active.length - 1; index >= 0; index -= 1) {
+        const range = active[index]!
+        if (range.end <= offset) {
+          active.splice(index, 1)
+          continue
+        }
+        if (
+          selected === null ||
+          range.length < selected.length ||
+          (range.length === selected.length &&
+            range.count < selected.count)
+        ) {
+          selected = range
+        }
+      }
+      if (selected !== null && selected.count > 0) {
+        files.add(mapping.source)
+      }
+    },
+  )
+
+  return [...files]
+}
+
+export async function coveredSourceMapFiles(
+  scriptUrl: string,
+  suppliedScript: string | undefined,
+  functions: PlaywrightCoverageFunction[],
+  root: string,
+): Promise<string[]> {
+  const script = suppliedScript ?? await boundedText(scriptUrl)
+  if (script === null) {
+    return []
+  }
+  const direct = sourcePath(root, new URL(scriptUrl).pathname)
+  const hasExecutedRange = functions.some((item) =>
+    item.ranges.some((range) => range.count > 0),
+  )
+  const mapUrl = sourceMapUrl(scriptUrl, script)
+  if (mapUrl === null) {
+    return direct !== null && hasExecutedRange ? [direct] : []
+  }
+  const source =
+    decodedDataUrl(mapUrl) ??
+    await boundedText(mapUrl)
+  if (source === null) {
+    return direct !== null && hasExecutedRange ? [direct] : []
+  }
+
+  try {
+    const map = JSON.parse(source) as SourceMapLike
+    const sourceBase = mapUrl.startsWith('data:') ? scriptUrl : mapUrl
+    return [
+      ...new Set([
+        ...(direct !== null && hasExecutedRange ? [direct] : []),
+        ...executedMappedSources(map, script, functions)
+          .map((file) => sourcePath(root, file, sourceBase))
+          .filter((file): file is string => file !== null),
+      ]),
+    ].sort()
+  } catch {
+    return direct !== null && hasExecutedRange ? [direct] : []
   }
 }
 

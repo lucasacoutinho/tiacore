@@ -15,6 +15,8 @@ Semantic Versioning once a version is published.
   support.
 - Playwright file selection from browser source maps, lazy route chunks, and
   transitive spec/fixture imports while preserving native projects and workers.
+  Chromium traces executed V8 ranges through large bundle maps; other engines
+  retain conservative map-level attribution.
 - Git and filesystem baselines, worktree-safe caches, transactional
   multi-process graph updates, and bounded runner parallelism.
 - Provider-neutral artifact restoration, GitHub Actions discovery, shard

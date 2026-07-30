@@ -143,10 +143,13 @@ const result = await tia({
 process.exitCode = result.success ? 0 : 1
 ```
 
-The first run executes the configured suite. The wrapped `page` fixture records
-the project files named by JavaScript and CSS source maps for every browser
-test. This includes route chunks and lazy `import()` bundles. tiajs also follows
-relative imports from each spec through its fixtures and support modules.
+The first run executes the configured suite. On Chromium, the wrapped fixture
+traces actually executed V8 ranges through JavaScript source maps and records
+CSS source-map edges for every browser test. This includes route chunks and
+lazy `import()` bundles without treating every module present in a large bundle
+as executed. Other browser engines use the conservative source-map file list.
+tiajs also follows relative imports from each spec through its fixtures and
+support modules.
 Later runs execute whole affected spec files and preserve Playwright’s workers,
 retries, projects, and project dependencies. A no-change replay does not start
 Playwright or its configured web servers.
