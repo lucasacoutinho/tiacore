@@ -1,11 +1,19 @@
 {
-  "name": "tiajs",
-  "version": "0.1.0",
-  "description": "Runtime test impact analysis for Vitest, Playwright, node:test, and bun:test",
+  "name": "@usescherie/tiacore",
+  "version": "0.2.0",
+  "description": "Runner-neutral test impact analysis with JavaScript, Maestro, and k6 adapters",
   "author": "Lucas Coutinho",
-  "private": true,
+  "private": false,
   "type": "module",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/usescherie/tiajs.git"
+  },
+  "homepage": "https://github.com/usescherie/tiajs#readme",
+  "bugs": {
+    "url": "https://github.com/usescherie/tiajs/issues"
+  },
   "keywords": [
     "vitest",
     "playwright",
@@ -18,6 +26,7 @@
   ],
   "files": [
     "dist",
+    "schemas",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -41,6 +50,36 @@
       "require": {
         "types": "./dist/core.d.cts",
         "default": "./dist/core.cjs"
+      }
+    },
+    "./protocol": {
+      "import": {
+        "types": "./dist/protocol.d.ts",
+        "default": "./dist/protocol.js"
+      },
+      "require": {
+        "types": "./dist/protocol.d.cts",
+        "default": "./dist/protocol.cjs"
+      }
+    },
+    "./maestro": {
+      "import": {
+        "types": "./dist/maestro.d.ts",
+        "default": "./dist/maestro.js"
+      },
+      "require": {
+        "types": "./dist/maestro.d.cts",
+        "default": "./dist/maestro.cjs"
+      }
+    },
+    "./k6": {
+      "import": {
+        "types": "./dist/k6.d.ts",
+        "default": "./dist/k6.js"
+      },
+      "require": {
+        "types": "./dist/k6.d.cts",
+        "default": "./dist/k6.cjs"
       }
     },
     "./bun": {
@@ -87,6 +126,9 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "tiacore": "./dist/cli.js"
+  },
   "sideEffects": [
     "./dist/vitest/setup.js"
   ],
@@ -98,22 +140,24 @@
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node config/build-cjs.mjs",
     "check": "npm run typecheck && npm run test",
     "check:package": "npm run build && publint && attw --pack . --profile node16",
-    "check:vcs": "npm run build && git diff --exit-code -- dist",
-    "prepack": "npm run build",
-    "release:check": "npm run check && npm run check:vcs && npm run check:package && npm audit --omit=dev && npm pack --dry-run",
+    "prepare": "npm run build",
+    "publish:private": "node config/publish-private.mjs",
+    "release:check": "npm run check && npm run check:package && npm audit --omit=dev && npm pack --dry-run",
     "test": "npm run build && vitest run",
     "test:cross-platform": "npm run build && vitest run test/paths.test.ts test/state.test.ts test/coverage.test.ts test/merge.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
+    "es-module-lexer": "^2.3.1",
     "fflate": "^0.8.3",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-instrument": "^6.0.3",
     "istanbul-lib-report": "^3.0.1",
     "istanbul-reports": "^3.2.0",
     "picomatch": "^4.0.3",
-    "tinyglobby": "^0.2.17"
+    "tinyglobby": "^0.2.17",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.46.0 <2.0.0",
@@ -143,8 +187,8 @@
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
-    "esbuild": "^0.28.1",
     "ejs": "^6.0.1",
+    "esbuild": "^0.28.1",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.0",
     "publint": "^0.3.22",

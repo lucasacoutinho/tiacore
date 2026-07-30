@@ -36,7 +36,7 @@ export interface TiaCoverageThresholdValues {
 export interface TiaCoverageThresholds
   extends TiaCoverageThresholdValues {
   /**
-   * Accepted for compatibility, but tiajs never rewrites the Vitest config.
+   * Accepted for compatibility, but tiacore never rewrites the Vitest config.
    */
   autoUpdate?: boolean | ((newThreshold: number) => number)
   /**
@@ -130,7 +130,7 @@ export interface TiaGitHubActionsOptions {
   /**
    * Artifact name or picomatch pattern uploaded by `actions/upload-artifact`.
    *
-   * @default "tiajs"
+   * @default "tiacore"
    */
   artifactName?: string
   /**
@@ -198,7 +198,7 @@ export interface TiaArtifactProvider {
    */
   name: string
   /**
-   * Return the best available candidate. Shared tiajs code still validates its
+   * Return the best available candidate. Shared tiacore code still validates its
    * schema, completeness, and structural fingerprint before persisting it.
    */
   load(

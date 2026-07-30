@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, resolve } from 'node:path'
 
-import { tia } from 'tiajs/playwright'
+import { tia } from '@usescherie/tiacore/playwright'
 
 const root = process.cwd()
 const contentTypes = {

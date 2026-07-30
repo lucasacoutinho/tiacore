@@ -1,1 +1,0 @@
-{"version":3,"file":"core.js","sourceRoot":"","sources":["../src/core.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,OAAO,GAGR,MAAM,mBAAmB,CAAA","sourcesContent":["export {\n  TiaCore,\n  type TiaCoreOptions,\n  type TiaObservation,\n} from './runners/core.js'\n"]}

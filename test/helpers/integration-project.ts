@@ -19,6 +19,7 @@ export const packageRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../..',
 )
+export const packageName = '@usescherie/tiacore'
 
 const temporaryDirectories: string[] = []
 const fixtureRoot = resolve(packageRoot, 'test/fixtures')
@@ -71,7 +72,7 @@ export function createProject(options: ProjectOptions = {}): string {
   temporaryDirectories.push(root)
   const pluginSpecifier =
     options.packageImport || options.copyPackage || options.linkPackage
-    ? 'tiajs'
+    ? packageName
     : pathToFileURL(join(packageRoot, 'dist/index.js')).href
 
   write(
@@ -150,7 +151,12 @@ test('b', async () => {
       symlinkSync(join(packageRoot, 'node_modules', dependency), destination)
     }
 
-    const packageDestination = join(root, 'node_modules/tiajs')
+    const packageDestination = join(
+      root,
+      'node_modules',
+      ...packageName.split('/'),
+    )
+    mkdirSync(dirname(packageDestination), { recursive: true })
     if (options.copyPackage) {
       mkdirSync(packageDestination)
       cpSync(join(packageRoot, 'dist'), join(packageDestination, 'dist'), {
@@ -169,7 +175,13 @@ test('b', async () => {
       join(packageRoot, 'node_modules/vitest'),
       join(root, 'node_modules/vitest'),
     )
-    symlinkSync(packageRoot, join(root, 'node_modules/tiajs'))
+    const packageDestination = join(
+      root,
+      'node_modules',
+      ...packageName.split('/'),
+    )
+    mkdirSync(dirname(packageDestination), { recursive: true })
+    symlinkSync(packageRoot, packageDestination)
   } else {
     symlinkSync(join(packageRoot, 'node_modules'), join(root, 'node_modules'))
   }
@@ -211,7 +223,13 @@ export function createFixtureProject(name: string): string {
     mkdirSync(dirname(destination), { recursive: true })
     symlinkSync(join(packageRoot, 'node_modules', dependency), destination)
   }
-  symlinkSync(packageRoot, join(root, 'node_modules/tiajs'))
+  const packageDestination = join(
+    root,
+    'node_modules',
+    ...packageName.split('/'),
+  )
+  mkdirSync(dirname(packageDestination), { recursive: true })
+  symlinkSync(packageRoot, packageDestination)
 
   git(root, ['init', '-q'])
   git(root, ['config', 'user.email', 'tia@example.test'])

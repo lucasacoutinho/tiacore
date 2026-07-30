@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to tiajs will be documented here. The project follows
+All notable changes to tiacore will be documented here. The project follows
 Semantic Versioning once a version is published.
 
 ## Unreleased
@@ -9,6 +9,8 @@ Semantic Versioning once a version is published.
 
 - Runtime test impact analysis for Vitest, Playwright, `node:test`, and
   `bun:test`.
+- A versioned runner-neutral protocol, deterministic planner and merger,
+  portable CLI, Maestro flow adapter, and k6 profile/import adapter.
 - Per-test runtime dependency and Istanbul coverage graphs with cached replay.
 - Exact Vitest case selection, conservative concurrent-test handling, Browser
   Mode, React Testing Library, lazy imports, asset edges, and multi-project
@@ -28,6 +30,8 @@ Semantic Versioning once a version is published.
   versions, package managers, workers, writers, shards, artifacts, and paths.
 - ESM and CommonJS runtime and declaration exports for every public entry
   point.
+- Provider-neutral private npm publication with an explicit public-registry
+  refusal, plus generated-output-free VCS installs.
 
 ### Known boundaries
 

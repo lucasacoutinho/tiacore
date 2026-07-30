@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { tia } from 'tiajs'
+import { tia } from '@usescherie/tiacore'
 
 const strict = process.env.TIA_STRICT_COVERAGE === '1'
 

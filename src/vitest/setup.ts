@@ -91,7 +91,7 @@ aroundEach(async (runTest, context) => {
     !selectedIds.has(context.task.id)
   ) {
     context.task.meta[TIA_REPLAY_META_KEY] = true
-    context.skip('replayed from the tiajs cache')
+    context.skip('replayed from the tiacore cache')
   }
 
   const before = snapshotCoverage(coverage())

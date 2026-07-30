@@ -1,1 +1,0 @@
-{"version":3,"file":"bun.d.ts","sourceRoot":"","sources":["../../src/runners/bun.ts"],"names":[],"mappings":"AAsBA,OAAO,KAAK,EACV,SAAS,EACT,gBAAgB,EAEjB,MAAM,YAAY,CAAA;AA0ZnB,wBAAgB,GAAG,CACjB,OAAO,GAAE,gBAAgB,GAAG;IAAE,MAAM,CAAC,EAAE,MAAM,CAAA;CAAO,GACnD,SAAS,CAEX;AAED,YAAY,EACV,SAAS,EACT,gBAAgB,EAChB,eAAe,GAChB,MAAM,YAAY,CAAA"}

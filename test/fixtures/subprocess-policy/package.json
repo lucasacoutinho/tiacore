@@ -6,7 +6,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "tiajs": "file:../../..",
+    "@usescherie/tiacore": "file:../../..",
     "vite": "^7.0.0",
     "vitest": "^4.1.10"
   }

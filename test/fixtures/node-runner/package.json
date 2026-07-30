@@ -7,6 +7,6 @@
     "test": "node ./run-tia.mjs"
   },
   "dependencies": {
-    "tiajs": "file:../../.."
+    "@usescherie/tiacore": "file:../../.."
   }
 }

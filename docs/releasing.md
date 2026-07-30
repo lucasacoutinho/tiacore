@@ -12,10 +12,10 @@ Before the first proprietary release:
 2. Add `repository`, `homepage`, and `bugs` metadata to `package.json`.
 3. Enable and test private vulnerability reporting, then replace the temporary
    instructions in `SECURITY.md` with its exact URL.
-4. Keep registry publishing disabled while tiajs is proprietary. The root
-   package is marked `private` and `UNLICENSED` on purpose.
-5. Confirm that release-candidate artifacts remain restricted to authorized
-   users and are not uploaded to a public package registry.
+4. Configure an access-controlled npm-compatible registry. The package remains
+   `UNLICENSED`; package access does not grant a software license.
+5. Confirm that release-candidate artifacts and registry packages remain
+   restricted to authorized users.
 
 Do not invent repository metadata before those choices exist.
 
@@ -41,8 +41,23 @@ Do not invent repository metadata before those choices exist.
 8. Verify the candidate has no `.tia`, coverage, execution logs, credentials,
    test fixtures, or development-only files in its tarball.
 
-## Publication policy
+## Private publication
+
+Publication is provider-neutral. Set `TIA_REGISTRY_URL` to an access-controlled
+npm-compatible registry and expose its credential as `NODE_AUTH_TOKEN`:
+
+```sh
+TIA_REGISTRY_URL=https://packages.example.test/npm/ \
+NODE_AUTH_TOKEN=... \
+npm run publish:private
+```
+
+The command creates an ephemeral npm configuration, always requests restricted
+access, and refuses the public npm registry. `--dry-run` verifies the package
+without requiring a token. The GitHub Actions workflow is one deployment
+adapter; GitLab, Artifactory, Verdaccio, and other npm-compatible registries can
+invoke the same package command.
 
 Public registry publication is not part of the proprietary release process.
 Changing that policy requires separate approval, a deliberate license and
-package-metadata update, and a fresh release verification.
+package-metadata update, and fresh release verification.

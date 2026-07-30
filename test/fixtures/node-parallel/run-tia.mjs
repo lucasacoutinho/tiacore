@@ -1,4 +1,4 @@
-import { tia } from 'tiajs/node'
+import { tia } from '@usescherie/tiacore/node'
 
 const result = await tia({
   concurrency: Number(process.env.TIA_CONCURRENCY ?? 2),

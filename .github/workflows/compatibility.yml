@@ -33,7 +33,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci
       - run: npm pack --pack-destination test/fixtures/package-install
-      - run: mv test/fixtures/package-install/tiajs-*.tgz test/fixtures/package-install/tiajs.tgz
+      - run: mv test/fixtures/package-install/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
       - run: npm pkg set "devDependencies.vite=${{ matrix.vite }}" "devDependencies.vitest=${{ matrix.vitest }}"
         working-directory: test/fixtures/package-install
       - run: npm install --ignore-scripts
@@ -108,7 +108,7 @@ jobs:
           bun-version: 1.3.14
       - run: npm ci
       - run: npm pack --pack-destination test/fixtures/package-install
-      - run: mv test/fixtures/package-install/tiajs-*.tgz test/fixtures/package-install/tiajs.tgz
+      - run: mv test/fixtures/package-install/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
       - if: matrix.manager == 'npm'
         run: npm install --ignore-scripts
         working-directory: test/fixtures/package-install

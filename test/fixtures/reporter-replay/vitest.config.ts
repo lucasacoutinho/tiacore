@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { tia } from 'tiajs'
+import { tia } from '@usescherie/tiacore'
 import { CustomThirdPartyReporter } from './custom-reporter'
 
 const reporter = new CustomThirdPartyReporter()

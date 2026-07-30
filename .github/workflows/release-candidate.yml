@@ -35,7 +35,7 @@ jobs:
       - run: TIA_FRESH=1 npm run release:check
       - run: mkdir release-candidate
       - run: npm pack --pack-destination release-candidate
-      - run: cp release-candidate/tiajs-*.tgz test/fixtures/package-install/tiajs.tgz
+      - run: cp release-candidate/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
       - run: npm install --ignore-scripts
         working-directory: test/fixtures/package-install
       - run: npm test
@@ -43,6 +43,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
-          name: tiajs-${{ github.sha }}
+          name: tiacore-${{ github.sha }}
           path: release-candidate/*.tgz
           retention-days: 7

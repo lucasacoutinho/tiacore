@@ -1,1 +1,0 @@
-{"version":3,"file":"plugin.d.ts","sourceRoot":"","sources":["../../src/vitest/plugin.ts"],"names":[],"mappings":"AA4CA,OAAO,KAAK,EAQV,UAAU,EACX,MAAM,oBAAoB,CAAA;AA0a3B,MAAM,WAAW,SAAS;IACxB,IAAI,EAAE,MAAM,CAAA;CACb;AAED,wBAAgB,GAAG,CAAC,OAAO,CAAC,EAAE,UAAU,GAAG,SAAS,CAAA"}

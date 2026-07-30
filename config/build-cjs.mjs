@@ -1,8 +1,17 @@
-import { writeFile } from 'node:fs/promises'
+import { chmod, writeFile } from 'node:fs/promises'
 
 import { build } from 'esbuild'
 
-const entryNames = ['index', 'core', 'bun', 'node', 'playwright']
+const entryNames = [
+  'index',
+  'core',
+  'protocol',
+  'maestro',
+  'k6',
+  'bun',
+  'node',
+  'playwright',
+]
 
 await build({
   banner: {
@@ -72,3 +81,5 @@ await Promise.all(
     ),
   ),
 )
+
+await chmod('dist/cli.js', 0o755)

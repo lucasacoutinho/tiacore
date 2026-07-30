@@ -1,9 +1,10 @@
-# tiajs
+# tiacore
 
-Runtime test impact analysis for Vitest, Playwright, `node:test`, and
-`bun:test`.
+Runner-neutral test impact analysis with adapters for Vitest, Playwright,
+`node:test`, `bun:test`, Maestro, and k6.
 
-`tiajs` records which project files actually execute while each test case runs.
+`@usescherie/tiacore` records which project files actually execute while each
+test case runs.
 On the next run, it compares the project with that baseline and runs only
 affected test IDs. Git repositories use a commit plus dirty-file hashes;
 projects without Git or without an initial commit use a full relevant-file
@@ -24,19 +25,23 @@ The design is adapted from Pest's TIA engine:
 ## Install
 
 ```sh
-npm install --save-dev tiajs
+npm install --save-dev @usescherie/tiacore
 ```
 
 The Vitest adapter requires Vitest 4.1 and Node.js 20 or newer. The `node:test`
 adapter requires Node.js 22.10 or newer. The Bun adapter is verified on Bun
 1.3. The Playwright adapter requires Playwright 1.46 or newer.
 
-Until the package is published, install this checkout through a local file link:
+Until a private package is published, install this checkout through a local
+file link or an exact VCS revision:
 
 ```sh
-npm install --save-dev ../tiajs
+npm install --save-dev ../tiacore
+npm install --save-dev \
+  git+ssh://git@github.com/usescherie/tiajs.git#<exact-commit>
 ```
 
+VCS installs build during `prepare`; generated `dist/` output is not committed.
 Packed, linked, workspace, and VCS installations are supported. Every public
 entry point provides both ESM and CommonJS exports, including Vitest configs
 loaded from packages without `"type": "module"`. The public plugin shape is
@@ -73,7 +78,7 @@ config-loader bundles are treated as tool state rather than project changes.
 ```ts
 // vitest.config.ts
 import { defineConfig } from 'vitest/config'
-import { tia } from 'tiajs'
+import { tia } from '@usescherie/tiacore'
 
 export default defineConfig({
   plugins: [tia()],
@@ -108,19 +113,19 @@ Wrap the Playwright test fixture once:
 ```ts
 // e2e/fixture.ts
 import { expect, test as base } from '@playwright/test'
-import { tia } from 'tiajs/playwright'
+import { tia } from '@usescherie/tiacore/playwright'
 
 export const test = tia(base)
 export { expect }
 ```
 
-Use that fixture in browser specs and append the tiajs reporter without
+Use that fixture in browser specs and append the tiacore reporter without
 removing the project’s normal reporters:
 
 ```ts
 // playwright.config.ts
 import { defineConfig } from '@playwright/test'
-import { tia } from 'tiajs/playwright'
+import { tia } from '@usescherie/tiacore/playwright'
 
 export default defineConfig({
   reporter: [['line'], ['html', { open: 'never' }], tia()],
@@ -132,7 +137,7 @@ Run Playwright through a small runner:
 
 ```ts
 // e2e/run-tia.ts
-import { tia } from 'tiajs/playwright'
+import { tia } from '@usescherie/tiacore/playwright'
 
 const result = await tia({
   config: 'playwright.config.ts',
@@ -148,14 +153,14 @@ traces actually executed V8 ranges through JavaScript source maps and records
 CSS source-map edges for every browser test. This includes route chunks and
 lazy `import()` bundles without treating every module present in a large bundle
 as executed. Other browser engines use the conservative source-map file list.
-tiajs also follows relative imports from each spec through its fixtures and
+tiacore also follows relative imports from each spec through its fixtures and
 support modules.
 Later runs execute whole affected spec files and preserve Playwright’s workers,
 retries, projects, and project dependencies. A no-change replay does not start
 Playwright or its configured web servers.
 
 Source maps are runtime evidence, not a required build format. If a script has
-no usable source map, tiajs records a direct project URL when possible. A
+no usable source map, tiacore records a direct project URL when possible. A
 changed project file with no recorded edge remains unknown and expands to the
 full configured Playwright suite by default. This is deliberately stricter
 than Playwright’s import-only `--only-changed` heuristic for end-to-end tests,
@@ -175,7 +180,7 @@ Create a small runner script:
 
 ```js
 // run-tia.mjs
-import { tia } from 'tiajs/node'
+import { tia } from '@usescherie/tiacore/node'
 
 const result = await tia({
   concurrency: 4,
@@ -203,7 +208,7 @@ parent execution.
 
 ```ts
 // run-tia.ts
-import { tia } from 'tiajs/bun'
+import { tia } from '@usescherie/tiacore/bun'
 
 const result = await tia({
   concurrency: 4,
@@ -217,7 +222,7 @@ Run it with `bun run-tia.ts`. Bun discovery uses an impossible name filter, so
 test bodies execute only during their isolated LCOV pass. Replay uses Bun's
 native name filter and stores state in `.tia/bun/graph.json`.
 
-All adapters expose the factory as `tia()`. `tiajs/core` also exports the
+All adapters expose the factory as `tia()`. `@usescherie/tiacore/core` also exports the
 runner-neutral `TiaCore` and observation contract for custom runner adapters.
 Node and Bun test names should be unique within a file; duplicate matching
 names are conservatively observed together.
@@ -226,6 +231,39 @@ Both standalone adapters observe separate test files concurrently, up to
 `min(4, available CPU parallelism)` by default. Set `concurrency` to a positive
 integer to change that bound. Cases within one file stay sequential so enabling
 TIA does not introduce new file-local races.
+
+### Maestro and k6
+
+The runner-neutral adapters discover real Maestro YAML flows and k6 profile
+entrypoints; they do not require a separate suite manifest. Record a baseline,
+then plan against a provider-supplied change list:
+
+```sh
+tiacore maestro record \
+  --root . --flows apps/mobile/e2e --project mobile \
+  --environment-fingerprint android-35 --output .tia/maestro.json
+
+tiacore maestro plan \
+  --root . --flows apps/mobile/e2e --project mobile \
+  --environment-fingerprint android-35 \
+  --graph .tia/maestro.json --changes .tia/changes.json
+
+tiacore k6 record \
+  --root . --profiles infra/load-testing/k6/profiles --project api \
+  --environment-fingerprint k6-container --output .tia/k6.json
+
+tiacore k6 plan \
+  --root . --profiles infra/load-testing/k6/profiles --project api \
+  --environment-fingerprint k6-container \
+  --graph .tia/k6.json --changes .tia/changes.json
+```
+
+Maestro `runFlow` relationships and k6’s transitive local imports become
+dependency edges. Native suites declare a device resource lock; k6 suites
+declare a performance-host lock so an orchestrator can serialize resource-heavy
+work while unrelated test lanes remain parallel. Plans never replay old native
+or performance measurements as fresh results: `cached` means “unaffected and
+not scheduled,” not “executed successfully.”
 
 ## Options
 
@@ -308,7 +346,7 @@ tia({
   direct API integration; it uses `GITHUB_REPOSITORY` and `GITHUB_TOKEN` and
   accepts `repository`, `artifactName`, `branch`, `runId`, `tokenEnv`, `apiUrl`,
   and `maxArtifacts`. Custom providers implement
-  `{ name, async load({ fingerprint, root, runner }) }`. Shared tiajs code
+  `{ name, async load({ fingerprint, root, runner }) }`. Shared tiacore code
   validates every returned graph before storing it.
 - `frameworks`: opt-in edges for files selected through runtime strings rather
   than imports. `views: true` recognizes common server-template formats and
@@ -337,12 +375,12 @@ Watch mode uses Vitest's native module graph and is left untouched. Running
 Vitest with explicit file, project, test-name, related-file, changed-file, tag,
 or CLI exclusion filters also uses Vitest's native selection and does not
 replace the reusable full-suite graph. Running Vitest with `--coverage`
-automatically enables tiajs coverage reconstruction:
+automatically enables tiacore coverage reconstruction:
 the affected cases execute, cached shards are merged, and the configured
 Istanbul reporters write into Vitest's report directory with their tuple
 options intact. `include`, `exclude`, `clean`, `reportOnFailure`, `skipFull`,
 and reporter watermarks retain their Vitest behavior. `cleanOnRerun` remains
-owned by Vitest because tiajs deliberately bypasses watch mode. The configured
+owned by Vitest because tiacore deliberately bypasses watch mode. The configured
 global, per-file, `100`, positive/negative, and glob thresholds are checked
 against the reconstructed map and set a failing exit status using
 Vitest-compatible diagnostics. This replaces the native provider for that run
@@ -351,7 +389,7 @@ so a partial provider report cannot masquerade as full-suite coverage.
 Thresholds are deferred for an individual CI shard because its map is
 deliberately incomplete; they run after a complete partition set is restored
 and merged. `thresholds.autoUpdate` still enforces its configured values, but
-tiajs warns instead of rewriting the Vitest configuration file.
+tiacore warns instead of rewriting the Vitest configuration file.
 
 Browser Mode is supported with the same recording, exact-case replay, and
 cached coverage behavior as Node-based Vitest projects. Configure a normal
@@ -360,7 +398,7 @@ replace or configure the browser provider.
 
 ### Third-party reporter replay
 
-By default, cached outcomes appear only in tiajs’s recap and replay-adapter
+By default, cached outcomes appear only in tiacore’s recap and replay-adapter
 callbacks. A third-party reporter that needs per-test events can opt in:
 
 ```ts
@@ -378,7 +416,7 @@ export default defineConfig({
 })
 ```
 
-For each cached outcome, tiajs calls `onTestCaseReady` followed by
+For each cached outcome, tiacore calls `onTestCaseReady` followed by
 `onTestCaseResult` with a detached TestCase-compatible facade. Its public
 `id`, `name`, `fullName`, `module`, `project`, `result()`, `diagnostic()`, and
 `meta()` APIs are populated. `meta().__tiajs_cached__` and
@@ -415,7 +453,7 @@ change therefore expands to a full run unless explicitly ignored.
 
 TIA attributes modules executed in Vitest workers and browser sessions. Code
 run only by a separately spawned Node, Bun, shell, or service process does not
-share that worker's Istanbul map, so tiajs does not claim a per-test dependency
+share that worker's Istanbul map, so tiacore does not claim a per-test dependency
 or executed coverage for it. An explicit coverage `include` still lists the
 source at zero hits.
 
@@ -502,9 +540,9 @@ runs:
 - uses: actions/cache@v4
   with:
     path: .tia
-    key: tiajs-${{ runner.os }}-${{ github.sha }}
+    key: tiacore-${{ runner.os }}-${{ github.sha }}
     restore-keys: |
-      tiajs-${{ runner.os }}-
+      tiacore-${{ runner.os }}-
 
 - run: npm test
 ```
@@ -517,9 +555,9 @@ Alternatively, opt into the built-in GitHub Actions artifact source with
 `tia({ artifacts: { provider: 'github-actions' } })`. The artifact subsystem
 itself is platform-neutral: an ordered provider contract handles other CI and
 object-storage systems without changing the planner. The GitHub source searches
-recent, unexpired artifacts named `tiajs` and downloads only enough candidates
+recent, unexpired artifacts named `tiacore` and downloads only enough candidates
 to find a graph with the current structural fingerprint. ZIP entries are read
-in memory; tiajs never extracts arbitrary archive paths. Unavailable,
+in memory; tiacore never extracts arbitrary archive paths. Unavailable,
 oversized, corrupt, or incompatible artifacts fall back to the next provider
 and ultimately a full run.
 
@@ -542,14 +580,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tiajs
+          name: tiacore
           path: .tia
           if-no-files-found: ignore
 ```
 
 The token needs Actions read access for private repositories. A full Git
-history lets tiajs use a compact, ancestry-verified commit baseline. Without a
-usable `HEAD`, tiajs stores a larger content-hash snapshot instead.
+history lets tiacore use a compact, ancestry-verified commit baseline. Without a
+usable `HEAD`, tiacore stores a larger content-hash snapshot instead.
 
 ### CI shards and partial coverage
 
@@ -570,7 +608,7 @@ discover the set with a pattern:
 tia({
   artifacts: {
     provider: 'github-actions',
-    artifactName: 'tiajs-shard-*',
+    artifactName: 'tiacore-shard-*',
   },
 })
 ```
@@ -590,7 +628,7 @@ steps:
       TIA_SHARD_GROUP: ${{ github.run_id }}-${{ github.run_attempt }}
   - uses: actions/upload-artifact@v4
     with:
-      name: tiajs-shard-${{ matrix.shard }}
+      name: tiacore-shard-${{ matrix.shard }}
       include-hidden-files: true
       path: .tia/fragments
 ```
@@ -615,7 +653,7 @@ tia({
 
 Set `TIA_SHARD_GROUP` to that platform's pipeline/run identifier while
 producing shards. The aggregation run validates and merges the downloaded
-fragments; the downloader itself remains outside tiajs. The repository CI
+fragments; the downloader itself remains outside tiacore. The repository CI
 workflow uses this provider-neutral ingestion path after its GitHub-specific
 artifact download step.
 
@@ -697,17 +735,19 @@ src/
 └── vitest/     plugin, setup hooks, module graph, reporter, and augmentations
 ```
 
-These folders are internal. Consumers should continue importing only `tiajs`,
-`tiajs/core`, `tiajs/playwright`, `tiajs/node`, or `tiajs/bun`. The build clears
+These folders are internal. Consumers should continue importing only
+`@usescherie/tiacore`, `@usescherie/tiacore/core`,
+`@usescherie/tiacore/protocol`, `@usescherie/tiacore/maestro`,
+`@usescherie/tiacore/k6`, `@usescherie/tiacore/playwright`,
+`@usescherie/tiacore/node`, or `@usescherie/tiacore/bun`. The build clears
 `dist/` first so renamed internals cannot remain in packed releases as stale
-files. Generated `dist/` output is committed so Bun can install the package
-directly from Git without running dependency lifecycle scripts.
-`npm run check:vcs` rejects stale output.
+files. Generated output is excluded from source control and rebuilt by
+`prepare` for both VCS installs and tarballs.
 
 The parallel performance harness is a Vitest benchmark in `benchmark/`, not a
 standalone maintenance script. Run it with `npm run benchmark:parallel`.
 
 ## License
 
-tiajs is proprietary software. All rights are reserved. See [LICENSE](LICENSE)
+tiacore is proprietary software. All rights are reserved. See [LICENSE](LICENSE)
 for the applicable terms.

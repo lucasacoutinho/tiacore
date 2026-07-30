@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { tia } from 'tiajs'
+import { tia } from '@usescherie/tiacore'
 
 const native = process.env.TIA_COVERAGE_MODE === 'native'
 

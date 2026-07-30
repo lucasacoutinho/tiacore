@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tiacore.dev/schemas/impact-v1.json",
+  "title": "tiacore impact graph v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "complete",
+    "fingerprint",
+    "environmentFingerprint",
+    "suites",
+    "observations"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": 1
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environmentFingerprint": {
+      "type": "string"
+    },
+    "knownSources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "uniqueItems": true
+    },
+    "invalidators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pattern",
+          "reason"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "suites": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/suite"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/|[A-Za-z]:[/\\\\]|\\.\\.(?:[/\\\\]|$)).+"
+    },
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter",
+        "file",
+        "id",
+        "project"
+      ],
+      "properties": {
+        "adapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "$ref": "#/$defs/path"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "resourceLocks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confidence",
+        "kind",
+        "source",
+        "suiteId"
+      ],
+      "properties": {
+        "confidence": {
+          "enum": [
+            "conservative",
+            "exact",
+            "inferred",
+            "observed"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "capability",
+            "configuration",
+            "conservative",
+            "database",
+            "executed",
+            "fixture",
+            "import",
+            "lazy",
+            "route",
+            "view"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/path"
+        },
+        "suiteId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

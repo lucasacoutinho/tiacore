@@ -45,7 +45,7 @@ function normalizedOptions(
 ): NormalizedGitHubActionsOptions {
   return {
     apiUrl: options.apiUrl ?? 'https://api.github.com',
-    artifactName: options.artifactName ?? 'tiajs',
+    artifactName: options.artifactName ?? 'tiacore',
     branch: options.branch ?? null,
     maxArtifacts: Math.max(
       1,

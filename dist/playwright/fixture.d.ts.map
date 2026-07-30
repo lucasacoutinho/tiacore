@@ -1,1 +1,0 @@
-{"version":3,"file":"fixture.d.ts","sourceRoot":"","sources":["../../src/playwright/fixture.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAIV,kBAAkB,EAElB,QAAQ,EACT,MAAM,kBAAkB,CAAA;AAyIzB,wBAAgB,cAAc,CAC5B,aAAa,SAAS,kBAAkB,EACxC,eAAe,SAAS,MAAM,EAE9B,IAAI,EAAE,QAAQ,CAAC,aAAa,EAAE,eAAe,CAAC,GAC7C,QAAQ,CAAC,aAAa,EAAE,eAAe,CAAC,CA4B1C"}

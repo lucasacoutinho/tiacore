@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve tiajs. Changes should preserve its core safety rule:
+Thanks for helping improve tiacore. Changes should preserve its core safety rule:
 when dependency information is uncertain, expand the test run rather than skip
 possibly affected tests.
 
@@ -32,8 +32,10 @@ compatibility workflow exercises Node 20/22/24, Vite 6/7/8, Vitest 4.1, Bun
 - Add a regression test that executes the real runner or framework path where
   practical. Use component tests for atomic-write, merge, parser, and explicit
   failure-injection boundaries.
-- Keep stable entry points limited to `tiajs`, `tiajs/node`, `tiajs/bun`, and
-  `tiajs/core`. Do not import package internals in consumer examples.
+- Keep stable entry points limited to `@usescherie/tiacore`,
+  `@usescherie/tiacore/node`, `@usescherie/tiacore/bun`, and
+  `@usescherie/tiacore/core`. Do not import package internals in consumer
+  examples.
 - Store cache paths with project-relative forward slashes.
 - Treat cache and artifact input as untrusted: validate before use and fail
   closed on incomplete, conflicting, or corrupt data.

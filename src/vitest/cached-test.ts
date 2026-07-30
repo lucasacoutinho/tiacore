@@ -15,7 +15,7 @@ function resultFor(
   if (cached.state === 'skipped') {
     return {
       errors: undefined,
-      note: 'replayed from the tiajs cache',
+      note: 'replayed from the tiacore cache',
       state: 'skipped',
     }
   }

@@ -374,7 +374,7 @@ function coverageRuntime(
     dirname(runtime.reportsDirectory) === runtime.reportsDirectory
   ) {
     throw new Error(
-      `tiajs cannot use the project or filesystem root as coverage.reportsDirectory: ${runtime.reportsDirectory}`,
+      `tiacore cannot use the project or filesystem root as coverage.reportsDirectory: ${runtime.reportsDirectory}`,
     )
   }
 
@@ -522,7 +522,7 @@ export function tia(options: TiaOptions = {}): Plugin {
   let excludeMatcher: picomatch.Matcher | null = null
 
   return {
-    name: 'tiajs',
+    name: 'tiacore',
     enforce: 'post',
 
     config(config) {
@@ -810,7 +810,7 @@ export function tia(options: TiaOptions = {}): Plugin {
         }
       } catch (error) {
         this.warn(
-          `tiajs could not instrument ${relativeId}: ${
+          `tiacore could not instrument ${relativeId}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         )

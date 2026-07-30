@@ -7,6 +7,6 @@
     "test": "bun ./run-tia.ts"
   },
   "dependencies": {
-    "tiajs": "file:../../.."
+    "@usescherie/tiacore": "file:../../.."
   }
 }
