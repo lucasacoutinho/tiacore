@@ -54,6 +54,9 @@ Semantic Versioning once a version is published.
   resource-lock scheduling and success-gated graph promotion.
 - Added explicit subprocess ownership mappings and shared those framework
   edges with the Playwright runner for backend, database, and view sources.
+- Added direct GitLab CI artifact discovery and a bounded, authenticated HTTP
+  manifest provider suitable for Buildkite, Jenkins, and signed object-storage
+  URLs.
 
 ### Known boundaries
 

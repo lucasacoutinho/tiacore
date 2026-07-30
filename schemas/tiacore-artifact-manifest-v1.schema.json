@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://usescherie.github.io/tiacore/schemas/tiacore-artifact-manifest-v1.schema.json",
+  "title": "tiacore HTTP artifact manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "artifacts"],
+  "properties": {
+    "version": { "const": 1 },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "url"],
+        "properties": {
+          "id": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string", "minLength": 1, "maxLength": 8192 }
+            ]
+          },
+          "url": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "group": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string", "minLength": 1, "maxLength": 8192 }
+            ]
+          },
+          "fingerprint": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "runner": { "type": "string", "minLength": 1, "maxLength": 8192 }
+        }
+      }
+    }
+  }
+}

@@ -176,6 +176,83 @@ export interface TiaFilesystemArtifactOptions {
   paths?: string[]
 }
 
+export interface TiaHttpManifestOptions {
+  /**
+   * Scheme used with the token environment variable.
+   *
+   * @default "Bearer"
+   */
+  authorizationScheme?: string
+  /**
+   * Maximum number of ordered manifest entries to inspect.
+   *
+   * @default 20
+   */
+  maxArtifacts?: number
+  /**
+   * Provider name used in diagnostics.
+   */
+  name?: string
+  /**
+   * Environment variable containing the manifest access token. Authorization
+   * is forwarded to same-origin archive URLs only.
+   */
+  tokenEnv?: string
+  /**
+   * URL of a version 1 tiacore artifact manifest.
+   */
+  url: string
+}
+
+export interface TiaGitLabCiOptions {
+  /**
+   * GitLab v4 API root.
+   *
+   * @default process.env.CI_API_V4_URL or "https://gitlab.com/api/v4"
+   */
+  apiUrl?: string
+  /**
+   * Branch whose successful pipelines should be inspected.
+   *
+   * @default process.env.CI_COMMIT_REF_NAME
+   */
+  branch?: string
+  /**
+   * Job name or picomatch pattern containing tiacore artifacts.
+   *
+   * @default "tiacore"
+   */
+  jobName?: string
+  /**
+   * Maximum number of successful pipelines to inspect.
+   *
+   * @default 20
+   */
+  maxPipelines?: number
+  /**
+   * Restrict discovery to one pipeline ID.
+   */
+  pipelineId?: number | string
+  /**
+   * GitLab project ID or URL-encoded project path.
+   *
+   * @default process.env.CI_PROJECT_ID
+   */
+  projectId?: number | string
+  /**
+   * GitLab authentication header.
+   *
+   * @default "JOB-TOKEN"
+   */
+  tokenHeader?: 'JOB-TOKEN' | 'PRIVATE-TOKEN'
+  /**
+   * Environment variable holding the GitLab token.
+   *
+   * @default "CI_JOB_TOKEN"
+   */
+  tokenEnv?: string
+}
+
 export interface TiaArtifactProviderContext {
   fingerprint: string
   root?: string
@@ -214,6 +291,8 @@ export type TiaArtifactSource =
   | TiaArtifactProvider
   | ({ provider: 'filesystem' } & TiaFilesystemArtifactOptions)
   | ({ provider: 'github-actions' } & TiaGitHubActionsOptions)
+  | ({ provider: 'gitlab-ci' } & TiaGitLabCiOptions)
+  | ({ provider: 'http-manifest' } & TiaHttpManifestOptions)
 
 export interface TiaReplayRunEvent {
   affectedTestIds: string[]

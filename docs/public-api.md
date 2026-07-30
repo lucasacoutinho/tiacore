@@ -9,7 +9,8 @@ Exports named and default `tia(options?)`, the Vitest plugin factory. Public
 types cover:
 
 - plugin, coverage, framework, artifact, and replay options;
-- provider-neutral artifact candidates and providers;
+- filesystem, GitHub Actions, GitLab CI, HTTP-manifest, and custom artifact
+  providers;
 - coverage thresholds, watermarks, and reporter tuples;
 - replay lifecycle events and framework edge contexts.
 

@@ -177,9 +177,9 @@ Each Playwright config gets a separate cache such as
 `.tia/playwright-feature/graph.json`. `TIA_FRESH=1` rebuilds it with a full run.
 Use `name` when multiple lanes share one config but select different tests, so
 each lane keeps an independent graph.
-The runner accepts the same filesystem, GitHub Actions, and custom artifact
-providers as the runner-neutral core, so a CI worker can restore an ancestral
-graph before selecting files.
+The runner accepts the same filesystem, GitHub Actions, GitLab CI, HTTP
+manifest, and custom artifact providers as the runner-neutral core, so a CI
+worker can restore an ancestral graph before selecting files.
 
 ### Node test runner
 
@@ -316,6 +316,15 @@ tia({
     {
       provider: 'github-actions',
     },
+    {
+      provider: 'gitlab-ci',
+      jobName: 'tiacore-*',
+    },
+    {
+      provider: 'http-manifest',
+      url: 'https://ci.example/tiacore/manifest.json',
+      tokenEnv: 'TIA_ARTIFACT_TOKEN',
+    },
   ],
   frameworks: {
     database: true,
@@ -355,10 +364,13 @@ tia({
 - `artifacts`: one source or an ordered array of sources for opt-in baseline
   discovery. `{ provider: 'filesystem', paths: ['.tia-artifacts'] }`
   recursively reads downloaded `graph.json` files and works with any CI or
-  object-storage downloader. `{ provider: 'github-actions' }` is the optional
-  direct API integration; it uses `GITHUB_REPOSITORY` and `GITHUB_TOKEN` and
-  accepts `repository`, `artifactName`, `branch`, `runId`, `tokenEnv`, `apiUrl`,
-  and `maxArtifacts`. Custom providers implement
+  object-storage downloader. `{ provider: 'github-actions' }` and
+  `{ provider: 'gitlab-ci' }` are direct API integrations. GitLab discovery
+  inspects successful prior pipeline jobs and accepts `projectId`, `jobName`,
+  `branch`, `pipelineId`, token, and API options. `{ provider:
+  'http-manifest', url }` consumes the bounded vendor-neutral v1 manifest and
+  supports same-origin bearer authentication plus cross-origin signed archive
+  URLs. Custom providers implement
   `{ name, async load({ fingerprint, root, runner }) }`. Shared tiacore code
   validates every returned graph before storing it.
 - `frameworks`: opt-in edges for files selected through runtime strings rather
@@ -667,9 +679,22 @@ should return the same `group` value on candidates belonging to one complete
 partition set. Once merged, normal replay and full coverage reconstruction use
 the combined graph.
 
-The artifact transport does not need to be GitHub. On GitLab, Buildkite,
-CircleCI, Jenkins, or an object-storage aggregation job, download every shard
-directory under one location and use:
+The artifact transport does not need to be GitHub. GitLab can discover
+successful prior jobs directly:
+
+```ts
+tia({
+  artifacts: {
+    provider: 'gitlab-ci',
+    jobName: 'tiacore-shard-*',
+  },
+})
+```
+
+Buildkite, CircleCI, Jenkins, and object storage can publish the
+[HTTP manifest v1](spec/artifact-manifest-v1.md), including signed S3-compatible
+archive URLs. Any platform can also download every shard directory under one
+location and use:
 
 ```ts
 tia({
@@ -682,9 +707,9 @@ tia({
 
 Set `TIA_SHARD_GROUP` to that platform's pipeline/run identifier while
 producing shards. The aggregation run validates and merges the downloaded
-fragments; the downloader itself remains outside tiacore. The repository CI
-workflow uses this provider-neutral ingestion path after its GitHub-specific
-artifact download step.
+fragments. The repository CI workflow exercises the filesystem path after its
+GitHub artifact download step, while real local-server suites certify the
+GitLab and HTTP transports.
 
 ## Safety model
 

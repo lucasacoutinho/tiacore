@@ -19,6 +19,8 @@ export type {
   TiaFrameworkOptions,
   TiaFilesystemArtifactOptions,
   TiaGitHubActionsOptions,
+  TiaGitLabCiOptions,
+  TiaHttpManifestOptions,
   TiaOptions,
   TiaReplayAdapter,
   TiaReplayCompleteEvent,

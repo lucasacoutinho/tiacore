@@ -6,6 +6,8 @@ import {
   readGraph,
 } from '../graph/state.js'
 import { createGitHubActionsArtifactProvider } from './github-actions.js'
+import { createGitLabCiArtifactProvider } from './gitlab-ci.js'
+import { createHttpManifestArtifactProvider } from './http-manifest.js'
 import { createFilesystemArtifactProvider } from './filesystem.js'
 import type {
   TiaArtifactProvider,
@@ -54,13 +56,19 @@ export function artifactProviders(
     return []
   }
 
-  return (Array.isArray(sources) ? sources : [sources]).map((source) =>
-    isProvider(source)
-      ? source
-      : source.provider === 'filesystem'
-        ? createFilesystemArtifactProvider(source)
-        : createGitHubActionsArtifactProvider(source),
-  )
+  return (Array.isArray(sources) ? sources : [sources]).map((source) => {
+    if (isProvider(source)) return source
+    switch (source.provider) {
+      case 'filesystem':
+        return createFilesystemArtifactProvider(source)
+      case 'github-actions':
+        return createGitHubActionsArtifactProvider(source)
+      case 'gitlab-ci':
+        return createGitLabCiArtifactProvider(source)
+      case 'http-manifest':
+        return createHttpManifestArtifactProvider(source)
+    }
+  })
 }
 
 export async function restoreGraphFromArtifacts(
