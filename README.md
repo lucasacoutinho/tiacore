@@ -42,6 +42,12 @@ npm install --save-dev \
 ```
 
 VCS installs build during `prepare`; generated `dist/` output is not committed.
+Because Bun blocks dependency lifecycle scripts and does not install a Git
+dependency’s development toolchain, Bun VCS consumers must pin a reviewed
+commit, list `@usescherie/tiacore` in root `trustedDependencies`, and provide
+the tiacore build dependencies from their workspace. The certified Bun
+distribution path is a private registry tarball, which already contains
+`dist/` and needs neither exception.
 Packed, linked, workspace, and VCS installations are supported. Every public
 entry point provides both ESM and CommonJS exports, including Vitest configs
 loaded from packages without `"type": "module"`. The public plugin shape is
