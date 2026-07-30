@@ -42,6 +42,7 @@ describe('adapter capability contract', () => {
       'maestro',
       'node-test',
       'playwright',
+      'pytest',
       'vitest',
     ])
     expect(new Set(contract.adapters.map(({ id }) => id)).size).toBe(
@@ -50,10 +51,17 @@ describe('adapter capability contract', () => {
     expect(packageJson.files).toContain('capabilities')
 
     for (const adapter of contract.adapters) {
-      const exportKey = adapter.entryPoint.replace('@usescherie/tiacore', '.')
-      expect(packageJson.exports).toHaveProperty(
-        exportKey === '.' ? '.' : exportKey,
-      )
+      if (adapter.entryPoint.startsWith('@usescherie/tiacore')) {
+        const exportKey = adapter.entryPoint.replace(
+          '@usescherie/tiacore',
+          '.',
+        )
+        expect(packageJson.exports).toHaveProperty(
+          exportKey === '.' ? '.' : exportKey,
+        )
+      } else {
+        expect(adapter.entryPoint).toBe('python:tiacore')
+      }
       expect(adapter.baselines.length).toBeGreaterThan(0)
       expect(adapter.boundaries.every((boundary) => boundary.length > 0)).toBe(
         true,

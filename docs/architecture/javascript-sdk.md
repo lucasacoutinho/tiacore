@@ -36,9 +36,13 @@ because they need cached native results and JavaScript coverage.
 k6 and Maestro currently emit `TiaImpactGraph` directly because they provide
 static impact selection and do not replay native runner results.
 
-A future adapter that needs JavaScript replay may use `TiaCore`. A future
-language SDK must implement protocol version 1 and pass the conformance vectors
-without reading `TiaRuntimeGraph`.
+The Python pytest SDK under `sdks/python` proves the protocol boundary is
+language-neutral. Its planner is certified against the same JSON vectors and
+emits the same `TiaImpactGraph` shape without importing JavaScript.
+
+A future adapter that needs JavaScript replay may use `TiaCore`. Every language
+SDK must implement protocol version 1 and pass the conformance vectors without
+reading `TiaRuntimeGraph`.
 
 ## Package layout decision
 

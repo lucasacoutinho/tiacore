@@ -96,6 +96,22 @@
         "the adapter executes selected flows but does not replay native results",
         "application binaries and device state require explicit invalidators"
       ]
+    },
+    {
+      "id": "pytest",
+      "entryPoint": "python:tiacore",
+      "factory": "tia",
+      "capabilityLevel": "static-impact",
+      "selectionGranularity": "test-file",
+      "dependencyEvidence": "static",
+      "cachedOutcomes": false,
+      "coverageReconstruction": false,
+      "nativeParallelism": false,
+      "baselines": ["filesystem", "explicit-changes"],
+      "boundaries": [
+        "the adapter follows local Python imports but does not claim runtime dependency evidence",
+        "pytest outcomes and coverage are not replayed"
+      ]
     }
   ]
 }

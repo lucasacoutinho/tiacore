@@ -17,6 +17,10 @@ types cover:
 The factory name is always `tia`; runner- or framework-prefixed variants are
 not part of the API.
 
+The separately packaged Python SDK in `sdks/python` exports the same `tia`
+factory for pytest. It is a protocol-v1 static-impact adapter and is not an npm
+entry point.
+
 ## `@usescherie/tiacore/node` and `@usescherie/tiacore/bun`
 
 Each exports named `tia(options?)`, returning a `TiaRunner` with an asynchronous

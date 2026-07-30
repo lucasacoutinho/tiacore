@@ -57,6 +57,9 @@ Semantic Versioning once a version is published.
 - Added direct GitLab CI artifact discovery and a bounded, authenticated HTTP
   manifest provider suitable for Buildkite, Jenkins, and signed object-storage
   URLs.
+- Added the first non-JavaScript SDK: a dependency-free Python pytest adapter
+  certified against the shared protocol vectors and real file-selection
+  fixtures.
 
 ### Known boundaries
 

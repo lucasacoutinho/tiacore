@@ -1,7 +1,7 @@
 # tiacore
 
 Runner-neutral test impact analysis with adapters for Vitest, Playwright,
-`node:test`, `bun:test`, Maestro, and k6.
+`node:test`, `bun:test`, Maestro, k6, and pytest.
 
 `@usescherie/tiacore` records which project files actually execute while each
 test case runs.
@@ -277,6 +277,19 @@ real files through `maestro test` or `k6 run`, honors declared resource locks,
 and atomically promotes the new static graph only after every selected command
 succeeds. `command` and `commandArguments` can point at a container or wrapper
 executable without changing selection semantics.
+
+### Python and pytest
+
+The dependency-free Python SDK lives in [`sdks/python`](sdks/python). It
+exports `tia(...)`, discovers real pytest files plus their transitive local
+imports and `conftest.py` dependencies, invokes pytest with the selected files,
+and promotes a protocol-v1 graph only after success. It is intentionally
+classified as static-impact at test-file granularity: it does not replay pytest
+outcomes or claim runtime coverage.
+
+Its planner runs the same language-independent vectors as the TypeScript core,
+and its committed certification receipt is tied to a digest of the Python SDK
+source.
 
 ## Options
 
