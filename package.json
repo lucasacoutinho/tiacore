@@ -127,7 +127,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "tiacore": "./dist/cli.js"
+    "tiacore": "dist/cli.js"
   },
   "sideEffects": [
     "./dist/vitest/setup.js"
