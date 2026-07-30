@@ -52,6 +52,7 @@
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "check": "npm run typecheck && npm run test",
     "check:package": "npm run build && publint && attw --pack . --profile esm-only",
+    "prepare": "npm run build",
     "prepack": "npm run build",
     "release:check": "npm run check && npm run check:package && npm audit --omit=dev && npm pack --dry-run",
     "test": "npm run build && vitest run",
