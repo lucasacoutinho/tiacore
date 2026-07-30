@@ -1,0 +1,101 @@
+{
+  "$schema": "../schemas/tiacore-adapter-capabilities-v1.schema.json",
+  "contractVersion": 1,
+  "adapters": [
+    {
+      "id": "vitest",
+      "entryPoint": "@usescherie/tiacore",
+      "factory": "tia",
+      "capabilityLevel": "runtime-tia",
+      "selectionGranularity": "test-case",
+      "dependencyEvidence": "runtime",
+      "cachedOutcomes": true,
+      "coverageReconstruction": true,
+      "nativeParallelism": true,
+      "baselines": ["filesystem", "git"],
+      "boundaries": [
+        "watch mode and explicit Vitest selection remain Vitest-owned",
+        "separate subprocesses require an explicit framework adapter"
+      ]
+    },
+    {
+      "id": "playwright",
+      "entryPoint": "@usescherie/tiacore/playwright",
+      "factory": "tia",
+      "capabilityLevel": "observed-file-tia",
+      "selectionGranularity": "test-file",
+      "dependencyEvidence": "runtime-and-static",
+      "cachedOutcomes": false,
+      "coverageReconstruction": false,
+      "nativeParallelism": true,
+      "baselines": ["filesystem", "git"],
+      "boundaries": [
+        "Chromium uses executed source-map ranges while other engines use conservative map-level attribution",
+        "backend and external-service code requires explicit dependency edges"
+      ]
+    },
+    {
+      "id": "node-test",
+      "entryPoint": "@usescherie/tiacore/node",
+      "factory": "tia",
+      "capabilityLevel": "runtime-tia",
+      "selectionGranularity": "test-case",
+      "dependencyEvidence": "runtime",
+      "cachedOutcomes": true,
+      "coverageReconstruction": false,
+      "nativeParallelism": true,
+      "baselines": ["filesystem", "git"],
+      "boundaries": [
+        "Node 22.10 through 22.14 records one aggregate dependency set for the file",
+        "dynamic subtests are attributed to their parent execution"
+      ]
+    },
+    {
+      "id": "bun-test",
+      "entryPoint": "@usescherie/tiacore/bun",
+      "factory": "tia",
+      "capabilityLevel": "runtime-tia",
+      "selectionGranularity": "test-case",
+      "dependencyEvidence": "runtime",
+      "cachedOutcomes": true,
+      "coverageReconstruction": false,
+      "nativeParallelism": true,
+      "baselines": ["filesystem", "git"],
+      "boundaries": [
+        "duplicate matching test names in one file are observed together"
+      ]
+    },
+    {
+      "id": "k6",
+      "entryPoint": "@usescherie/tiacore/k6",
+      "factory": null,
+      "capabilityLevel": "static-impact",
+      "selectionGranularity": "profile",
+      "dependencyEvidence": "static",
+      "cachedOutcomes": false,
+      "coverageReconstruction": false,
+      "nativeParallelism": false,
+      "baselines": ["explicit-changes"],
+      "boundaries": [
+        "the adapter plans profiles but does not execute k6 or replay native results",
+        "application code requires explicit capability observations"
+      ]
+    },
+    {
+      "id": "maestro",
+      "entryPoint": "@usescherie/tiacore/maestro",
+      "factory": null,
+      "capabilityLevel": "static-impact",
+      "selectionGranularity": "flow",
+      "dependencyEvidence": "static",
+      "cachedOutcomes": false,
+      "coverageReconstruction": false,
+      "nativeParallelism": false,
+      "baselines": ["explicit-changes"],
+      "boundaries": [
+        "the adapter plans flows but does not execute Maestro or replay native results",
+        "application binaries and device state require explicit invalidators"
+      ]
+    }
+  ]
+}

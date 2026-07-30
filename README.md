@@ -718,6 +718,8 @@ have deterministic Win32 tests that also run on Linux. The
 ## Project policy
 
 - [Public API and compatibility policy](docs/public-api.md)
+- [Adapter capability contract](docs/architecture/capability-contract.md)
+- [Protocol-first portability decision](docs/architecture/decisions/0001-protocol-first.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Non-publishing release process](docs/releasing.md)

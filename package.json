@@ -25,6 +25,7 @@
     "coverage"
   ],
   "files": [
+    "capabilities",
     "dist",
     "schemas",
     "README.md",
