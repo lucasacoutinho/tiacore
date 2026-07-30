@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import {
+  existsSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -44,6 +45,15 @@ interface NodeExecution {
   coverageFiles: string[]
   moduleFailures: string[]
   success: boolean
+}
+
+function runnerAsset(name: string): string {
+  const moduleAsset = fileURLToPath(new URL(`./${name}`, import.meta.url))
+  if (existsSync(moduleAsset)) {
+    return moduleAsset
+  }
+
+  return fileURLToPath(new URL(`./runners/${name}`, import.meta.url))
 }
 
 interface NodeDiscovery extends NodeExecution {
@@ -102,12 +112,10 @@ class NodeTiaRunner implements TiaRunner {
   private readonly files: string[]
   private readonly log: boolean
   private readonly root: string
-  private readonly discoveryRegister = fileURLToPath(
-    new URL('./node-discovery-register.js', import.meta.url),
+  private readonly discoveryRegister = runnerAsset(
+    'node-discovery-register.js',
   )
-  private readonly executionChild = fileURLToPath(
-    new URL('./node-execution-child.js', import.meta.url),
-  )
+  private readonly executionChild = runnerAsset('node-execution-child.js')
 
   constructor(options: TiaRunnerOptions) {
     this.root = resolve(options.root ?? process.cwd())

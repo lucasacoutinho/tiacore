@@ -21,6 +21,8 @@ Semantic Versioning once a version is published.
   cleaning, failed-test reporting, watermarks, reporter tuples, and thresholds.
 - Compatibility and failure-injection suites for supported runtimes, Vite
   versions, package managers, workers, writers, shards, artifacts, and paths.
+- ESM and CommonJS runtime and declaration exports for every public entry
+  point.
 
 ### Known boundaries
 

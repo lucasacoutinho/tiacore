@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,13 @@ import { TiaCore } from './core.js';
 import { groupBy, normalizedConcurrency, parallelMap, } from './parallel.js';
 import { fullyExecutedFiles, moduleFailureObservation, } from './observations.js';
 import { isInside, slash } from '../shared/paths.js';
+function runnerAsset(name) {
+    const moduleAsset = fileURLToPath(new URL(`./${name}`, import.meta.url));
+    if (existsSync(moduleAsset)) {
+        return moduleAsset;
+    }
+    return fileURLToPath(new URL(`./runners/${name}`, import.meta.url));
+}
 const DEFAULT_NODE_TESTS = [
     'test/**/*.test.{js,cjs,mjs,ts,cts,mts}',
     'test-*.{js,cjs,mjs,ts,cts,mts}',
@@ -40,8 +47,8 @@ class NodeTiaRunner {
     files;
     log;
     root;
-    discoveryRegister = fileURLToPath(new URL('./node-discovery-register.js', import.meta.url));
-    executionChild = fileURLToPath(new URL('./node-execution-child.js', import.meta.url));
+    discoveryRegister = runnerAsset('node-discovery-register.js');
+    executionChild = runnerAsset('node-execution-child.js');
     constructor(options) {
         this.root = resolve(options.root ?? process.cwd());
         this.concurrency = normalizedConcurrency(options.concurrency);

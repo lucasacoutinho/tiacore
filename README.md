@@ -36,9 +36,11 @@ Until the package is published, install this checkout through a local file link:
 npm install --save-dev ../tiajs
 ```
 
-Packed, linked, and workspace installations are supported. The plugin creates a
-small setup proxy inside its project-local cache so Vitest never needs to load
-an external package path as a setup file.
+Packed, linked, workspace, and VCS installations are supported. Every public
+entry point provides both ESM and CommonJS exports, including Vitest configs
+loaded from packages without `"type": "module"`. The plugin creates a small
+setup proxy inside its project-local cache so Vitest never needs to load an
+external package path as a setup file.
 
 ## Compatibility certification
 
@@ -51,7 +53,8 @@ then verifies that its test body executed exactly once.
 | Vitest adapter | Vitest 4.1.0 + Vite 6.4.3 + Node 20.19; Vitest 4.1.10 + Vite 7.3.6 + Node 22.15; Vitest 4.1.10 + Vite 8.1.5 + Node 24 |
 | `node:test` adapter | Node 22.10 aggregate discovery, Node 22.15 precise discovery, and Node 24 |
 | `bun:test` adapter | Bun 1.3.0 and 1.3.14 |
-| Package installation | npm, pnpm 11, Yarn 4 Plug'n'Play, and Bun |
+| Package installation | npm, pnpm 11, Yarn 4 Plug'n'Play, Bun, and VCS dependencies |
+| Module loading | ESM and CommonJS package modes |
 | Paths and storage | Linux and native Windows runners, plus deterministic drive-letter, UNC, and mixed-separator cases |
 
 The lower and upper Vite/Vitest combinations intentionally use the declared

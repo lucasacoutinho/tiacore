@@ -247,12 +247,18 @@ function setupProxyPath(root, cacheDir) {
     return resolve(localCache, 'runtime', `setup-${PLUGIN_VERSION}.mjs`);
 }
 function pluginSetupPath() {
-    const compiled = fileURLToPath(new URL('./setup.js', import.meta.url));
-    if (existsSync(compiled)) {
-        return compiled;
+    const localCompiled = fileURLToPath(new URL('./setup.js', import.meta.url));
+    const compiled = [
+        localCompiled,
+        fileURLToPath(new URL('./vitest/setup.js', import.meta.url)),
+    ];
+    for (const candidate of compiled) {
+        if (existsSync(candidate)) {
+            return candidate;
+        }
     }
     const source = fileURLToPath(new URL('./setup.ts', import.meta.url));
-    return existsSync(source) ? source : compiled;
+    return existsSync(source) ? source : localCompiled;
 }
 function ensureSetupProxy(root, cacheDir, setupPath) {
     const proxyPath = setupProxyPath(root, cacheDir);

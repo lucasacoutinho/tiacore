@@ -180,6 +180,18 @@ appendFileSync(new URL('../setup.log', import.meta.url), 'setup\\n')
     expect(readGraph(root).edges['test/a.test.ts']).toContain('src/a.ts')
   })
 
+  test('loads through package exports from a CommonJS-configured project', () => {
+    const root = createProject({ packageImport: true })
+    writeFileSync(join(root, 'package.json'), '{"private":true}\n')
+    git(root, ['add', 'package.json'])
+    git(root, ['commit', '-qm', 'use CommonJS package mode'])
+
+    const result = runVitest(root)
+    expect(result.status, result.output).toBe(0)
+    expect(executions(root).sort()).toEqual(['a', 'b'])
+    expect(readGraph(root).edges['test/a.test.ts']).toContain('src/a.ts')
+  })
+
   test('loads a linked package setup inside a jsdom project', () => {
     const root = createProject({
       linkPackage: true,
