@@ -38,7 +38,7 @@ file link or an exact VCS revision:
 ```sh
 npm install --save-dev ../tiacore
 npm install --save-dev \
-  git+ssh://git@github.com/usescherie/tiajs.git#<exact-commit>
+  git+ssh://git@github.com/usescherie/tiacore.git#<exact-commit>
 ```
 
 VCS installs build during `prepare`; generated `dist/` output is not committed.

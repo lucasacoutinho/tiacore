@@ -8,11 +8,11 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/usescherie/tiajs.git"
+    "url": "git+ssh://git@github.com/usescherie/tiacore.git"
   },
-  "homepage": "https://github.com/usescherie/tiajs#readme",
+  "homepage": "https://github.com/usescherie/tiacore#readme",
   "bugs": {
-    "url": "https://github.com/usescherie/tiajs/issues"
+    "url": "https://github.com/usescherie/tiacore/issues"
   },
   "keywords": [
     "vitest",
