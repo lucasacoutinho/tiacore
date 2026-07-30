@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 const requiredBuildFiles = [
@@ -26,7 +26,7 @@ function hasLocalBuildToolchain() {
 }
 
 function bootstrapGitDependencyBuild() {
-  if (hasLocalBuildToolchain()) return
+  if (hasLocalBuildToolchain()) return false
 
   const userAgent = process.env.npm_config_user_agent ?? ''
   if (!userAgent.startsWith('bun/')) {
@@ -42,12 +42,22 @@ function bootstrapGitDependencyBuild() {
   if (!hasLocalBuildToolchain()) {
     throw new Error('tiacore prepare could not provision its local build toolchain')
   }
+  return true
 }
 
-bootstrapGitDependencyBuild()
-run(process.execPath, [
-  '-e',
-  "require('node:fs').rmSync('dist',{recursive:true,force:true})",
-])
-run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.build.json'])
-run(process.execPath, ['config/build-cjs.mjs'])
+const bootstrapped = bootstrapGitDependencyBuild()
+try {
+  run(process.execPath, [
+    '-e',
+    "require('node:fs').rmSync('dist',{recursive:true,force:true})",
+  ])
+  run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.build.json'])
+  run(process.execPath, ['config/build-cjs.mjs'])
+} finally {
+  if (bootstrapped) {
+    rmSync(join(process.cwd(), 'node_modules'), {
+      force: true,
+      recursive: true,
+    })
+  }
+}

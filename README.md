@@ -45,9 +45,10 @@ VCS installs build during `prepare`; generated `dist/` output is not committed.
 Bun VCS consumers must pin a reviewed commit and list
 `@usescherie/tiacore` in the root `trustedDependencies`. Bun does not install a
 Git dependency's development toolchain, so tiacore's prepare hook provisions
-the versions pinned by `package-lock.json` before compiling. This VCS-only
-bootstrap requires `npm`; private registry tarballs already contain `dist/`
-and need neither the trust exception nor a source build.
+the versions pinned by `package-lock.json` before compiling, then removes that
+temporary toolchain so consumer peer dependencies remain authoritative. This
+VCS-only bootstrap requires `npm`; private registry tarballs already contain
+`dist/` and need neither the trust exception nor a source build.
 Packed, linked, workspace, and VCS installations are supported. Every public
 entry point provides both ESM and CommonJS exports, including Vitest configs
 loaded from packages without `"type": "module"`. The public plugin shape is
