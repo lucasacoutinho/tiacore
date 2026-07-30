@@ -338,7 +338,7 @@ async function recordDependencies(context, initialPage, preciseCoverage, use, te
       return;
     }
     pages.add(page);
-    fallbackFiles.set(page, /* @__PURE__ */ new Set());
+    fallbackFiles.set(page, /* @__PURE__ */ new Map());
     if (preciseCoverage) {
       coverageStarts.set(
         page,
@@ -351,9 +351,15 @@ async function recordDependencies(context, initialPage, preciseCoverage, use, te
         return;
       }
       const task = sourceMapFiles(url, root).then((dependencies) => {
-        const target = response.request().resourceType() === "stylesheet" ? files : fallbackFiles.get(page);
         for (const dependency of dependencies) {
-          target?.add(dependency);
+          if (response.request().resourceType() === "stylesheet") {
+            files.add(dependency);
+          } else {
+            const byUrl = fallbackFiles.get(page);
+            const target = byUrl?.get(url) ?? /* @__PURE__ */ new Set();
+            target.add(dependency);
+            byUrl?.set(url, target);
+          }
         }
       }).finally(() => pending.delete(task));
       pending.add(task);
@@ -370,13 +376,16 @@ async function recordDependencies(context, initialPage, preciseCoverage, use, te
   for (const page of pages) {
     const coverageStarted = preciseCoverage && await (coverageStarts.get(page) ?? Promise.resolve(false));
     if (!coverageStarted) {
-      for (const file of fallbackFiles.get(page) ?? []) {
-        files.add(file);
+      for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
+        for (const file of dependencies) {
+          files.add(file);
+        }
       }
       continue;
     }
     try {
       const coverage = await page.coverage.stopJSCoverage();
+      const coveredUrls = new Set(coverage.map((entry) => entry.url));
       for (const entry of coverage) {
         for (const file of await coveredSourceMapFiles(
           entry.url,
@@ -387,9 +396,19 @@ async function recordDependencies(context, initialPage, preciseCoverage, use, te
           files.add(file);
         }
       }
+      for (const [url, dependencies] of fallbackFiles.get(page) ?? []) {
+        if (coveredUrls.has(url)) {
+          continue;
+        }
+        for (const file of dependencies) {
+          files.add(file);
+        }
+      }
     } catch {
-      for (const file of fallbackFiles.get(page) ?? []) {
-        files.add(file);
+      for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
+        for (const file of dependencies) {
+          files.add(file);
+        }
       }
     }
   }

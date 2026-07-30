@@ -45,14 +45,14 @@ async function recordDependencies(
   const pending = new Set<Promise<void>>()
   const pages = new Set<Page>()
   const coverageStarts = new Map<Page, Promise<boolean>>()
-  const fallbackFiles = new Map<Page, Set<string>>()
+  const fallbackFiles = new Map<Page, Map<string, Set<string>>>()
 
   const observe = (page: Page): void => {
     if (pages.has(page)) {
       return
     }
     pages.add(page)
-    fallbackFiles.set(page, new Set())
+    fallbackFiles.set(page, new Map())
     if (preciseCoverage) {
       coverageStarts.set(
         page,
@@ -68,12 +68,15 @@ async function recordDependencies(
       }
       const task = sourceMapFiles(url, root)
         .then((dependencies) => {
-          const target =
-            response.request().resourceType() === 'stylesheet'
-              ? files
-              : fallbackFiles.get(page)
           for (const dependency of dependencies) {
-            target?.add(dependency)
+            if (response.request().resourceType() === 'stylesheet') {
+              files.add(dependency)
+            } else {
+              const byUrl = fallbackFiles.get(page)
+              const target = byUrl?.get(url) ?? new Set<string>()
+              target.add(dependency)
+              byUrl?.set(url, target)
+            }
           }
         })
         .finally(() => pending.delete(task))
@@ -95,14 +98,17 @@ async function recordDependencies(
       preciseCoverage &&
       await (coverageStarts.get(page) ?? Promise.resolve(false))
     if (!coverageStarted) {
-      for (const file of fallbackFiles.get(page) ?? []) {
-        files.add(file)
+      for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
+        for (const file of dependencies) {
+          files.add(file)
+        }
       }
       continue
     }
 
     try {
       const coverage = await page.coverage.stopJSCoverage()
+      const coveredUrls = new Set(coverage.map((entry) => entry.url))
       for (const entry of coverage) {
         for (const file of await coveredSourceMapFiles(
           entry.url,
@@ -113,9 +119,19 @@ async function recordDependencies(
           files.add(file)
         }
       }
+      for (const [url, dependencies] of fallbackFiles.get(page) ?? []) {
+        if (coveredUrls.has(url)) {
+          continue
+        }
+        for (const file of dependencies) {
+          files.add(file)
+        }
+      }
     } catch {
-      for (const file of fallbackFiles.get(page) ?? []) {
-        files.add(file)
+      for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
+        for (const file of dependencies) {
+          files.add(file)
+        }
       }
     }
   }
