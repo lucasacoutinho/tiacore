@@ -16,6 +16,7 @@ import {
   planMaestro,
   type MaestroGraphOptions,
 } from './adapters/maestro.js'
+import { certifyAdapterReceipt } from './conformance/certification.js'
 import { createImpactPlan, mergeImpactGraphs } from './core/impact.js'
 import type {
   TiaChangeSet,
@@ -38,6 +39,7 @@ function usage(): string {
     '  tiacore merge --graph graph-a.json --graph graph-b.json --output graph.json',
     '  tiacore inspect --graph graph.json',
     '  tiacore doctor --graph graph.json',
+    '  tiacore certify adapter --receipt receipt.json',
     '  tiacore maestro discover|record|plan --root DIR --flows DIR --project NAME',
     '  tiacore k6 discover|record|plan --root DIR --profiles DIR --project NAME',
     '',
@@ -48,7 +50,7 @@ function parseArguments(arguments_: readonly string[]): ParsedArguments {
   const primary = arguments_[0] ?? 'help'
   const nested = arguments_[1]
   const hasNestedCommand =
-    (primary === 'maestro' || primary === 'k6') &&
+    (primary === 'maestro' || primary === 'k6' || primary === 'certify') &&
     nested !== undefined &&
     !nested.startsWith('--')
   const command = hasNestedCommand ? `${primary}:${nested}` : primary
@@ -201,6 +203,15 @@ async function doctor(parsed: ParsedArguments): Promise<void> {
       protocolVersion: graph.protocolVersion,
       suites: graph.suites.length,
     },
+    option(parsed, 'output'),
+  )
+}
+
+async function certifyAdapter(parsed: ParsedArguments): Promise<void> {
+  await emit(
+    certifyAdapterReceipt(
+      await readJson(option(parsed, 'receipt', true)!),
+    ),
     option(parsed, 'output'),
   )
 }
@@ -363,6 +374,9 @@ async function k6Plan(parsed: ParsedArguments): Promise<void> {
 export async function runCli(arguments_: readonly string[]): Promise<void> {
   const parsed = parseArguments(arguments_)
   switch (parsed.command) {
+    case 'certify:adapter':
+      await certifyAdapter(parsed)
+      return
     case 'doctor':
       await doctor(parsed)
       return

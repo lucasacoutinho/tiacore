@@ -1,6 +1,6 @@
 # Public API
 
-tiacore has eight supported entry points. Everything below `dist/` or an
+tiacore has nine supported entry points. Everything below `dist/` or an
 internal `src/` folder is private and may change without notice.
 
 ## `@usescherie/tiacore`
@@ -68,6 +68,19 @@ stored in the protocol are project-relative with forward slashes.
 
 The protocol graph is `TiaImpactGraph`. It never contains JavaScript coverage
 or cached native test results.
+
+## `@usescherie/tiacore/conformance`
+
+Exports the adapter scenario catalog, receipt types, strict receipt parser, and
+`certifyAdapterReceipt()`. A receipt declares its capability level and optional
+features. Certification requires every scenario that applies to those claims,
+passing evidence, and at least one assertion per scenario.
+
+The CLI exposes the same gate through:
+
+```sh
+tiacore certify adapter --receipt adapter-certification.json
+```
 
 ## `@usescherie/tiacore/maestro`
 

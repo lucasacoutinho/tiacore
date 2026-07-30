@@ -6,6 +6,7 @@ const entryNames = [
   'index',
   'core',
   'protocol',
+  'conformance',
   'maestro',
   'k6',
   'bun',

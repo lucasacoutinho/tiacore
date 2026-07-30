@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tiacore.dev/schemas/adapter-certification-v1.json",
+  "title": "tiacore adapter certification receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adapter",
+    "capabilityLevel",
+    "contractVersion",
+    "environment",
+    "features",
+    "generatedAt",
+    "protocolVersion",
+    "runner",
+    "scenarios",
+    "selectionGranularity",
+    "sourceRevision"
+  ],
+  "properties": {
+    "adapter": {"$ref": "#/$defs/text"},
+    "capabilityLevel": {
+      "enum": ["runtime-tia", "observed-file-tia", "static-impact"]
+    },
+    "contractVersion": {"const": 1},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "operatingSystem"],
+      "properties": {
+        "architecture": {"$ref": "#/$defs/text"},
+        "operatingSystem": {"$ref": "#/$defs/text"}
+      }
+    },
+    "features": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "cached-outcomes",
+          "coverage-reconstruction",
+          "parallelism",
+          "partitions",
+          "subprocess-observation",
+          "worktrees"
+        ]
+      }
+    },
+    "generatedAt": {"$ref": "#/$defs/text"},
+    "protocolVersion": {"const": 1},
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"$ref": "#/$defs/text"},
+        "version": {"$ref": "#/$defs/text"}
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "maxItems": 18,
+      "items": {"$ref": "#/$defs/scenario"}
+    },
+    "selectionGranularity": {
+      "enum": ["test-case", "test-file", "profile", "flow"]
+    },
+    "sourceRevision": {"$ref": "#/$defs/text"}
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence", "id", "passed"],
+      "properties": {
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assertions", "fixture"],
+          "properties": {
+            "assertions": {"type": "number", "minimum": 0},
+            "command": {"$ref": "#/$defs/text"},
+            "durationMs": {"type": "number", "minimum": 0},
+            "fixture": {"$ref": "#/$defs/text"}
+          }
+        },
+        "id": {"$ref": "#/$defs/text"},
+        "passed": {"type": "boolean"}
+      }
+    }
+  }
+}

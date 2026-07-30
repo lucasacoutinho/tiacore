@@ -10,6 +10,11 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import {
+  TIA_ADAPTER_CONFORMANCE_SCENARIOS,
+  type TiaAdapterCertificationReceipt,
+} from '../src/conformance.js'
+
 const temporaryDirectories: string[] = []
 
 function fixture(): {
@@ -110,6 +115,52 @@ describe('tiacore CLI', () => {
       ok: true,
       protocolVersion: 1,
       suites: 1,
+    })
+  })
+
+  test('certifies an adapter receipt through the packaged CLI', () => {
+    const root = mkdtempSync(join(tmpdir(), 'tiacore-certify-'))
+    temporaryDirectories.push(root)
+    const path = join(root, 'receipt.json')
+    const receipt: TiaAdapterCertificationReceipt = {
+      adapter: 'example-static',
+      capabilityLevel: 'static-impact',
+      contractVersion: 1,
+      environment: {
+        architecture: 'x64',
+        operatingSystem: 'linux',
+      },
+      features: [],
+      generatedAt: '2026-07-30T00:00:00.000Z',
+      protocolVersion: 1,
+      runner: { name: 'example', version: '1.0.0' },
+      scenarios: TIA_ADAPTER_CONFORMANCE_SCENARIOS.filter(
+        (scenario) =>
+          scenario.feature === undefined &&
+          (
+            scenario.capabilityLevels === undefined ||
+            scenario.capabilityLevels.includes('static-impact')
+          ),
+      ).map(({ id }) => ({
+        evidence: { assertions: 1, fixture: `fixtures/${id}` },
+        id,
+        passed: true,
+      })),
+      selectionGranularity: 'profile',
+      sourceRevision: '0123456789abcdef',
+    }
+    writeFileSync(path, JSON.stringify(receipt))
+
+    const output = execFileSync(
+      process.execPath,
+      ['dist/cli.js', 'certify', 'adapter', '--receipt', path],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    )
+
+    expect(JSON.parse(output)).toMatchObject({
+      adapter: 'example-static',
+      capabilityLevel: 'static-impact',
+      passedScenarios: 9,
     })
   })
 })

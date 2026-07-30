@@ -48,6 +48,8 @@ Semantic Versioning once a version is published.
   language-independent golden planning and rejection vectors.
 - Renamed the JavaScript-only cache type to `TiaRuntimeGraph` and documented
   its boundary from the portable `TiaImpactGraph` protocol.
+- Added a capability-scoped adapter conformance catalog, strict certification
+  receipt, public validation API, schema, and `tiacore certify adapter` CLI.
 
 ### Known boundaries
 

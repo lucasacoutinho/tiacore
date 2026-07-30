@@ -722,6 +722,7 @@ have deterministic Win32 tests that also run on Linux. The
 - [Protocol-first portability decision](docs/architecture/decisions/0001-protocol-first.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)
 - [Protocol version 1 specification](spec/protocol-v1.md)
+- [Adapter conformance scenarios](conformance/adapter/v1/scenarios.json)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Non-publishing release process](docs/releasing.md)
