@@ -272,6 +272,12 @@ work while unrelated test lanes remain parallel. Plans never replay old native
 or performance measurements as fresh results: `cached` means “unaffected and
 not scheduled,” not “executed successfully.”
 
+Both adapters also expose `tia(options).run()`. The runner executes selected
+real files through `maestro test` or `k6 run`, honors declared resource locks,
+and atomically promotes the new static graph only after every selected command
+succeeds. `command` and `commandArguments` can point at a container or wrapper
+executable without changing selection semantics.
+
 ## Options
 
 ```ts
@@ -466,11 +472,27 @@ source at zero hits.
 
 This boundary fails safely: changing an unlinked subprocess source is an
 unknown change and therefore runs the full suite by default. If an application
-has a stable subprocess-to-test mapping, add those files with a custom
-framework edge adapter; do not use `ignoreChanges` for executable subprocess
-code. A checked-in fixture launches a real Node child, proves it is not
-misattributed, verifies zero-hit reporting, and verifies its edit expands to a
-full run.
+has a stable subprocess-to-test mapping, declare it:
+
+```ts
+tia({
+  frameworks: {
+    subprocess: {
+      mappings: [
+        {
+          tests: ['test/worker.test.ts'],
+          files: ['src/worker/**'],
+        },
+      ],
+    },
+  },
+})
+```
+
+The mapping is explicit because the parent cannot prove child execution. A
+checked-in fixture launches a real Node child, proves the unmapped path fails
+safely, then proves a mapped child edit selects only its owning test. Do not
+use `ignoreChanges` for executable subprocess code.
 
 ## Framework database and view edges
 

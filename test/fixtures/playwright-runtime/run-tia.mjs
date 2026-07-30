@@ -34,6 +34,16 @@ process.env.BASE_URL = `http://127.0.0.1:${address.port}`
 try {
   const result = await tia({
     config: 'playwright.config.ts',
+    frameworks: {
+      subprocess: {
+        mappings: [
+          {
+            files: ['backend/lazy-route.ts'],
+            tests: ['test/lazy.spec.ts'],
+          },
+        ],
+      },
+    },
     root,
   }).run()
   process.exitCode = result.success ? 0 : 1

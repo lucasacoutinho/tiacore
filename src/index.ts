@@ -25,6 +25,8 @@ export type {
   TiaReplayedTestEvent,
   TiaReplayRunEvent,
   TiaReplayReporter,
+  TiaSubprocessEdgeMapping,
+  TiaSubprocessEdgeOptions,
   TiaViewEdgeOptions,
 } from './shared/types.js'
 

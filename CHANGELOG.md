@@ -50,12 +50,16 @@ Semantic Versioning once a version is published.
   its boundary from the portable `TiaImpactGraph` protocol.
 - Added a capability-scoped adapter conformance catalog, strict certification
   receipt, public validation API, schema, and `tiacore certify adapter` CLI.
+- Added executable `tia(options).run()` paths for k6 and Maestro with
+  resource-lock scheduling and success-gated graph promotion.
+- Added explicit subprocess ownership mappings and shared those framework
+  edges with the Playwright runner for backend, database, and view sources.
 
 ### Known boundaries
 
 - `thresholds.autoUpdate` is enforced but does not rewrite configuration.
-- Code executed only in external subprocesses cannot be attributed to an
-  individual test without a custom framework edge.
+- Code executed only in external subprocesses cannot be attributed
+  automatically; stable ownership can be declared with a subprocess mapping.
 - Watch mode and explicit Vitest selection flags remain owned by Vitest.
 - Playwright sources without usable maps or direct project URLs remain unknown
   and conservatively expand to the full configured suite.

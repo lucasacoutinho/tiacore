@@ -6,6 +6,12 @@ import { init, parse } from 'es-module-lexer'
 import { glob } from 'tinyglobby'
 
 import { createImpactPlan } from '../core/impact.js'
+import {
+  executeSuites,
+  readAdapterGraph,
+  writeAdapterGraph,
+  type AdapterExecution,
+} from './execute.js'
 import { normalizeProtocolPath } from '../protocol/paths.js'
 import {
   TIA_PROTOCOL_VERSION,
@@ -208,4 +214,76 @@ export async function planK6(
       onUnknownChange: options.onUnknownChange ?? 'full',
     },
   })
+}
+
+export interface TiaK6Options extends Omit<PlanK6Options, 'graph'> {
+  command?: string
+  commandArguments?: string[]
+  environment?: NodeJS.ProcessEnv
+  graph?: TiaImpactGraph | null
+  graphPath?: string
+  maxConcurrency?: number
+}
+
+export interface TiaK6Result {
+  executions: AdapterExecution[]
+  plan: TiaImpactPlan
+  status: number
+  success: boolean
+}
+
+export class TiaK6Runner {
+  constructor(private readonly options: TiaK6Options) {}
+
+  async run(): Promise<TiaK6Result> {
+    const root = resolve(this.options.root)
+    const graphPath = resolve(
+      root,
+      this.options.graphPath ?? '.tia/k6/graph.json',
+    )
+    const graph =
+      this.options.graph === undefined
+        ? await readAdapterGraph(graphPath)
+        : this.options.graph
+    const suites = await discoverK6Suites(this.options)
+    const plan = await planK6({ ...this.options, graph })
+    const selected = new Set(plan.selected)
+    const executions = await executeSuites({
+      argumentsFor: (suite) => [
+        ...(this.options.commandArguments ?? ['run']),
+        resolve(root, suite.file),
+      ],
+      command: this.options.command ?? 'k6',
+      cwd: root,
+      ...(this.options.environment === undefined
+        ? {}
+        : { environment: this.options.environment }),
+      maxConcurrency: this.options.maxConcurrency ?? 1,
+      suites: suites.filter((suite) => selected.has(suite.id)),
+    })
+    const status =
+      executions.find((execution) => execution.status !== 0)?.status ?? 0
+    if (status === 0) {
+      await writeAdapterGraph(
+        graphPath,
+        await createK6Graph(root, {
+          environmentFingerprint: this.options.currentEnvironmentFingerprint,
+          ...(this.options.currentFingerprint === undefined
+            ? {}
+            : { fingerprint: this.options.currentFingerprint }),
+          suites,
+        }),
+      )
+    }
+    return {
+      executions,
+      plan,
+      status,
+      success: status === 0,
+    }
+  }
+}
+
+export function tia(options: TiaK6Options): TiaK6Runner {
+  return new TiaK6Runner(options)
 }

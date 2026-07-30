@@ -6,6 +6,12 @@ import { glob } from 'tinyglobby'
 import { parseAllDocuments } from 'yaml'
 
 import { createImpactPlan } from '../core/impact.js'
+import {
+  executeSuites,
+  readAdapterGraph,
+  writeAdapterGraph,
+  type AdapterExecution,
+} from './execute.js'
 import { normalizeProtocolPath } from '../protocol/paths.js'
 import {
   TIA_PROTOCOL_VERSION,
@@ -248,4 +254,77 @@ export async function planMaestro(
       onUnknownChange: options.onUnknownChange ?? 'full',
     },
   })
+}
+
+export interface TiaMaestroOptions
+  extends Omit<PlanMaestroOptions, 'graph'> {
+  command?: string
+  commandArguments?: string[]
+  environment?: NodeJS.ProcessEnv
+  graph?: TiaImpactGraph | null
+  graphPath?: string
+  maxConcurrency?: number
+}
+
+export interface TiaMaestroResult {
+  executions: AdapterExecution[]
+  plan: TiaImpactPlan
+  status: number
+  success: boolean
+}
+
+export class TiaMaestroRunner {
+  constructor(private readonly options: TiaMaestroOptions) {}
+
+  async run(): Promise<TiaMaestroResult> {
+    const root = resolve(this.options.root)
+    const graphPath = resolve(
+      root,
+      this.options.graphPath ?? '.tia/maestro/graph.json',
+    )
+    const graph =
+      this.options.graph === undefined
+        ? await readAdapterGraph(graphPath)
+        : this.options.graph
+    const suites = await discoverMaestroSuites(this.options)
+    const plan = await planMaestro({ ...this.options, graph })
+    const selected = new Set(plan.selected)
+    const executions = await executeSuites({
+      argumentsFor: (suite) => [
+        ...(this.options.commandArguments ?? ['test']),
+        resolve(root, suite.file),
+      ],
+      command: this.options.command ?? 'maestro',
+      cwd: root,
+      ...(this.options.environment === undefined
+        ? {}
+        : { environment: this.options.environment }),
+      maxConcurrency: this.options.maxConcurrency ?? 1,
+      suites: suites.filter((suite) => selected.has(suite.id)),
+    })
+    const status =
+      executions.find((execution) => execution.status !== 0)?.status ?? 0
+    if (status === 0) {
+      await writeAdapterGraph(
+        graphPath,
+        createMaestroGraph({
+          environmentFingerprint: this.options.currentEnvironmentFingerprint,
+          ...(this.options.currentFingerprint === undefined
+            ? {}
+            : { fingerprint: this.options.currentFingerprint }),
+          suites,
+        }),
+      )
+    }
+    return {
+      executions,
+      plan,
+      status,
+      success: status === 0,
+    }
+  }
+}
+
+export function tia(options: TiaMaestroOptions): TiaMaestroRunner {
+  return new TiaMaestroRunner(options)
 }

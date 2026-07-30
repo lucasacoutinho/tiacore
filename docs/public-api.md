@@ -39,6 +39,8 @@ optional `name` assigns an independent graph to a lane when multiple lanes
 share one Playwright config. Chromium uses executed JavaScript ranges for
 source-map attribution; other browser engines use conservative map-level
 attribution.
+`frameworks` accepts the same database, view, subprocess, and custom edge
+adapters as Vitest so browser specs can own backend or external-service files.
 
 `@usescherie/tiacore/playwright/reporter` is a supported configuration target used by the
 reporter tuple. Applications should obtain it through `tia()` instead of
@@ -85,15 +87,17 @@ tiacore certify adapter --receipt adapter-certification.json
 ## `@usescherie/tiacore/maestro`
 
 Discovers real Maestro YAML flows, tags, and `runFlow` relationships. It exports
-catalog fingerprinting, graph recording, and impact planning. Every selected
-suite declares a device resource lock.
+catalog fingerprinting, graph recording, impact planning, and `tia(options)`.
+The returned runner executes selected flows and promotes its graph only after
+the command succeeds. Every selected suite declares a device resource lock.
 
 ## `@usescherie/tiacore/k6`
 
 Discovers real k6 profile entrypoints and follows their transitive local ESM
-imports. It exports catalog fingerprinting, graph recording, and lane-bounded
-impact planning. Every selected suite declares a performance-host resource
-lock.
+imports. It exports catalog fingerprinting, graph recording, lane-bounded
+impact planning, and `tia(options)`. The returned runner executes selected
+profiles and promotes its graph only after the command succeeds. Every selected
+suite declares a performance-host resource lock.
 
 ## Compatibility policy
 

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -14,7 +14,16 @@ import {
 } from 'node:path'
 
 import { TiaCore } from '../runners/core.js'
-import type { TiaArtifactSource, RunPlan } from '../shared/types.js'
+import {
+  frameworkAdapters,
+  frameworkFingerprint,
+} from '../frameworks/index.js'
+import { resolveFrameworkEdges } from '../frameworks/resolve.js'
+import type {
+  TiaArtifactSource,
+  TiaFrameworkOptions,
+  RunPlan,
+} from '../shared/types.js'
 import { slash } from '../shared/paths.js'
 import {
   importedFilesFingerprint,
@@ -32,6 +41,7 @@ export interface TiaPlaywrightOptions {
   config?: string
   cwd?: string
   fresh?: boolean
+  frameworks?: TiaFrameworkOptions
   ignoreChanges?: string[]
   log?: boolean
   name?: string
@@ -165,13 +175,18 @@ export class TiaPlaywrightRunner {
     const runner = configuredRunnerName(config, this.options.name)
     const cacheDir = resolve(root, this.options.cacheDir ?? '.tia')
     const configFingerprint = importedFilesFingerprint(config, root)
+    const adapters = frameworkAdapters(this.options.frameworks)
+    const runnerFingerprint = createHash('sha256')
+      .update(configFingerprint)
+      .update(frameworkFingerprint(adapters))
+      .digest('hex')
     const core = new TiaCore({
       ...(this.options.artifacts === undefined
         ? {}
         : { artifacts: this.options.artifacts }),
       cacheDir,
       files: [slash(relative(root, config)), ...arguments_],
-      fingerprint: configFingerprint,
+      fingerprint: runnerFingerprint,
       fresh:
         this.options.fresh ??
         process.env.TIA_FRESH === '1',
@@ -241,9 +256,9 @@ export class TiaPlaywrightRunner {
         return { plan, status, success: status === 0 }
       }
 
-      const observations = report.observations.map((observation) => ({
-        ...observation,
-        files: [
+      let frameworkEvidenceComplete = true
+      const observations = report.observations.map((observation) => {
+        const runtimeFiles = [
           ...new Set([
             ...observation.files,
             ...importedProjectFiles(
@@ -251,8 +266,28 @@ export class TiaPlaywrightRunner {
               root,
             ),
           ]),
-        ].sort(),
-      }))
+        ].sort()
+        const framework = resolveFrameworkEdges(adapters, {
+          files: runtimeFiles,
+          root,
+          testFile: observation.file,
+        })
+        frameworkEvidenceComplete &&= framework.complete
+        return {
+          ...observation,
+          dependenciesComplete:
+            observation.dependenciesComplete && framework.complete,
+          files: [...new Set([...runtimeFiles, ...framework.files])].sort(),
+        }
+      })
+      if (!frameworkEvidenceComplete) {
+        if (this.options.log ?? true) {
+          console.warn(
+            'TIA graph was not updated because a Playwright framework edge adapter failed.',
+          )
+        }
+        return { plan, status, success: status === 0 }
+      }
       await core.commit(
         observations,
         [...new Set(observations.map((observation) => observation.file))],

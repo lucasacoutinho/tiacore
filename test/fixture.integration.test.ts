@@ -176,6 +176,32 @@ describe('runnable fixture projects', () => {
     expect(executions(root).sort()).toEqual(['child', 'sibling'])
   })
 
+  test('selects a subprocess-owning test through an explicit process mapping', () => {
+    const root = createFixtureProject('subprocess-policy')
+    const environment = { TIA_SUBPROCESS_MAP: '1' }
+    const initial = runVitest(root, ['run'], 20_000, environment)
+    expect(initial.status, initial.output).toBe(0)
+
+    const graph = readGraph(root)
+    const childResult = Object.values(graph.results).find((result) =>
+      result.fullName.includes('external Node process'),
+    )
+    expect(childResult).toBeDefined()
+    expect(graph.testEdges[childResult!.id]?.files).toContain('src/child.mjs')
+
+    resetExecutions(root)
+    writeFileSync(
+      join(root, 'src/child.mjs'),
+      "process.stdout.write('child-v1')\n// mapped external change\n",
+    )
+    const changed = runVitest(root, ['run'], 20_000, environment)
+    expect(changed.status, changed.output).toBe(0)
+    expect(changed.output).toContain(
+      '1 affected test case in 1 test file; 1 cached test result',
+    )
+    expect(executions(root)).toEqual(['child'])
+  })
+
   test('preserves native coverage reporter tuples and enforces cached thresholds', () => {
     const root = createFixtureProject('coverage-native')
     const initial = runVitest(root)

@@ -51,7 +51,9 @@ describe('Playwright adapter', () => {
       edge.file.endsWith('shared.spec.ts'),
     )
     expect(lazyEdge?.files).toContain('src/lazy.js')
+    expect(lazyEdge?.files).toContain('backend/lazy-route.ts')
     expect(sharedEdge?.files).not.toContain('src/lazy.js')
+    expect(sharedEdge?.files).not.toContain('backend/lazy-route.ts')
 
     writeFileSync(join(root, 'executions.log'), '')
     const replay = runCommand(
@@ -79,6 +81,26 @@ describe('Playwright adapter', () => {
     expect(
       readFileSync(join(root, 'executions.log'), 'utf8'),
       affected.output,
+    ).toBe('lazy\n')
+
+    writeFileSync(join(root, 'executions.log'), '')
+    appendFileSync(
+      join(root, 'backend/lazy-route.ts'),
+      '\nexport const lazyRouteRevision = "two"\n',
+    )
+    const backendAffected = runCommand(
+      root,
+      process.execPath,
+      ['run-tia.mjs'],
+      30_000,
+    )
+    expect(backendAffected.status, backendAffected.output).toBe(0)
+    expect(backendAffected.output).toContain(
+      'TIA replay: 1 affected file, 1 cached test.',
+    )
+    expect(
+      readFileSync(join(root, 'executions.log'), 'utf8'),
+      backendAffected.output,
     ).toBe('lazy\n')
   }, 90_000)
 })

@@ -8,6 +8,19 @@ export default defineConfig({
         include: ['src/**/*.{mjs,ts}'],
         reporters: ['json'],
       },
+      frameworks:
+        process.env.TIA_SUBPROCESS_MAP === '1'
+          ? {
+              subprocess: {
+                mappings: [
+                  {
+                    files: ['src/child.mjs'],
+                    tests: ['test/child.test.ts'],
+                  },
+                ],
+              },
+            }
+          : undefined,
       log: true,
     }),
   ],

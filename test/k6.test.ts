@@ -1,14 +1,31 @@
+import { readFileSync } from 'node:fs'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test } from 'vitest'
 
 import {
   createK6Graph,
   discoverK6Suites,
   planK6,
+  tia,
 } from '../src/adapters/k6.js'
 
 const root = fileURLToPath(new URL('fixtures/k6-project', import.meta.url))
+const fakeRunner = fileURLToPath(
+  new URL('fixtures/fake-adapter-runner.mjs', import.meta.url),
+)
+const temporaryDirectories: string[] = []
+
+afterEach(async () => {
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) =>
+      rm(directory, { force: true, recursive: true }),
+    ),
+  )
+})
 
 describe('k6 adapter', () => {
   test('discovers real profile entrypoints', async () => {
@@ -79,5 +96,41 @@ describe('k6 adapter', () => {
       mode: 'skip',
       selected: [],
     })
+  })
+
+  test('executes the selected real profiles and promotes a reusable graph', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'tiacore-k6-runner-'))
+    temporaryDirectories.push(directory)
+    const graphPath = join(directory, 'graph.json')
+    const log = join(directory, 'executions.log')
+    const options = {
+      changes: [] as string[],
+      command: process.execPath,
+      commandArguments: [fakeRunner],
+      currentEnvironmentFingerprint: 'k6-container',
+      environment: { TIACORE_FAKE_RUNNER_LOG: log },
+      graphPath,
+      profiles: 'k6/profiles',
+      project: 'fixture',
+      root,
+    }
+
+    const baseline = await tia(options).run()
+    expect(baseline.success).toBe(true)
+    expect(baseline.plan.mode).toBe('full')
+    expect(
+      readFileSync(log, 'utf8').trim().split('\n').sort(),
+    ).toEqual([
+      'k6/profiles/baseline.js',
+      'k6/profiles/smoke.js',
+    ])
+    expect(JSON.parse(await readFile(graphPath, 'utf8'))).toMatchObject({
+      complete: true,
+      protocolVersion: 1,
+    })
+
+    const skipped = await tia(options).run()
+    expect(skipped.plan.mode).toBe('skip')
+    expect(skipped.executions).toEqual([])
   })
 })

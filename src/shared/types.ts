@@ -291,9 +291,29 @@ export interface TiaViewEdgeOptions {
   roots?: string[]
 }
 
+export interface TiaSubprocessEdgeMapping {
+  /**
+   * Project-relative files or glob patterns owned by the subprocess.
+   */
+  files: string[]
+  /**
+   * Test-file globs whose processes execute those files.
+   */
+  tests: string[]
+}
+
+export interface TiaSubprocessEdgeOptions {
+  /**
+   * Explicit, reviewable mappings for process boundaries that cannot share
+   * runtime instrumentation with the parent test worker.
+   */
+  mappings: TiaSubprocessEdgeMapping[]
+}
+
 export interface TiaFrameworkOptions {
   adapters?: TiaFrameworkEdgeAdapter | TiaFrameworkEdgeAdapter[]
   database?: boolean | TiaDatabaseEdgeOptions
+  subprocess?: TiaSubprocessEdgeOptions
   views?: boolean | TiaViewEdgeOptions
 }
 
