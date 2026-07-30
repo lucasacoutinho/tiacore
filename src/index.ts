@@ -1,6 +1,7 @@
 import type {} from './vitest/augmentations.js'
 
 export { tia } from './vitest/plugin.js'
+export type { TiaPlugin } from './vitest/plugin.js'
 export type {
   TiaArtifactCandidate,
   TiaArtifactProvider,

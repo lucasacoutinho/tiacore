@@ -38,9 +38,11 @@ npm install --save-dev ../tiajs
 
 Packed, linked, workspace, and VCS installations are supported. Every public
 entry point provides both ESM and CommonJS exports, including Vitest configs
-loaded from packages without `"type": "module"`. The plugin creates a small
-setup proxy inside its project-local cache so Vitest never needs to load an
-external package path as a setup file.
+loaded from packages without `"type": "module"`. The public plugin shape is
+version-neutral, so supported Vite versions do not leak incompatible nominal
+types into consumer configs. The plugin creates a small setup proxy inside its
+project-local cache so Vitest never needs to load an external package path as a
+setup file.
 
 ## Compatibility certification
 

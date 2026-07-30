@@ -1,4 +1,6 @@
-import type { Plugin } from 'vite';
 import type { TiaOptions } from '../shared/types.js';
-export declare function tia(options?: TiaOptions): Plugin;
+export interface TiaPlugin {
+    name: string;
+}
+export declare function tia(options?: TiaOptions): TiaPlugin;
 //# sourceMappingURL=plugin.d.ts.map

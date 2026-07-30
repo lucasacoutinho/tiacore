@@ -477,6 +477,11 @@ function affectedTestsForProject(
     .map((file) => file.projectRelative)
 }
 
+export interface TiaPlugin {
+  name: string
+}
+
+export function tia(options?: TiaOptions): TiaPlugin
 export function tia(options: TiaOptions = {}): Plugin {
   const normalized = normalizeOptions(options)
   const setupPath = pluginSetupPath()
