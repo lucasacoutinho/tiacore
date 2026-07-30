@@ -879,6 +879,16 @@ function gitPaths(root, args) {
   }
   return value.toString("utf8").split("\0").filter(Boolean).map(slash);
 }
+function repositoryPaths(root, args) {
+  const repositoryRoot = gitText(root, ["rev-parse", "--show-toplevel"]);
+  if (repositoryRoot === null) {
+    return null;
+  }
+  const paths = gitPaths(repositoryRoot, args);
+  return paths?.map(
+    (file) => slash((0, import_node_path5.relative)(root, (0, import_node_path5.resolve)(repositoryRoot, file)))
+  ) ?? null;
+}
 function currentSha(root) {
   return gitText(root, ["rev-parse", "--verify", "HEAD"]);
 }
@@ -886,10 +896,15 @@ function isAncestor(root, ancestor, descendant) {
   return runGit(root, ["merge-base", "--is-ancestor", ancestor, descendant]) !== null;
 }
 function untrackedFiles(root) {
-  return gitPaths(root, ["ls-files", "-z", "--others", "--exclude-standard"]);
+  return repositoryPaths(root, [
+    "ls-files",
+    "-z",
+    "--others",
+    "--exclude-standard"
+  ]);
 }
 function filesDifferentFrom(root, revision) {
-  return gitPaths(root, [
+  return repositoryPaths(root, [
     "diff",
     "--name-only",
     "--no-renames",

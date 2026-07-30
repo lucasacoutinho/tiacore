@@ -4,7 +4,7 @@ import {
   readFileSync,
   readdirSync,
 } from 'node:fs'
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 
 import picomatch from 'picomatch'
 
@@ -65,6 +65,18 @@ function gitPaths(root: string, args: string[]): string[] | null {
     .map(slash)
 }
 
+function repositoryPaths(root: string, args: string[]): string[] | null {
+  const repositoryRoot = gitText(root, ['rev-parse', '--show-toplevel'])
+  if (repositoryRoot === null) {
+    return null
+  }
+
+  const paths = gitPaths(repositoryRoot, args)
+  return paths?.map((file) =>
+    slash(relative(root, resolve(repositoryRoot, file))),
+  ) ?? null
+}
+
 export function currentSha(root: string): string | null {
   return gitText(root, ['rev-parse', '--verify', 'HEAD'])
 }
@@ -78,11 +90,16 @@ export function isAncestor(
 }
 
 function untrackedFiles(root: string): string[] | null {
-  return gitPaths(root, ['ls-files', '-z', '--others', '--exclude-standard'])
+  return repositoryPaths(root, [
+    'ls-files',
+    '-z',
+    '--others',
+    '--exclude-standard',
+  ])
 }
 
 function filesDifferentFrom(root: string, revision: string): string[] | null {
-  return gitPaths(root, [
+  return repositoryPaths(root, [
     'diff',
     '--name-only',
     '--no-renames',

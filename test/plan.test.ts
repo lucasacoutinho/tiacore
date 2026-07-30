@@ -170,6 +170,45 @@ describe('run planning', () => {
     expect(plan.replayedTests).toBe(0)
   })
 
+  test('normalizes repository changes to a nested project root', () => {
+    const repository = mkdtempSync(join(tmpdir(), 'tiajs-monorepo-'))
+    temporaryDirectories.push(repository)
+    const root = join(repository, 'packages/domain')
+    mkdirSync(join(root, 'src'), { recursive: true })
+    mkdirSync(join(root, 'test'))
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 1\n')
+    writeFileSync(join(root, 'test/a.test.ts'), 'test("a", () => {})\n')
+    writeFileSync(join(root, 'package.json'), '{"type":"module"}\n')
+    writeFileSync(join(repository, 'package.json'), '{"private":true}\n')
+    git(repository, ['init', '-q'])
+    git(repository, ['config', 'user.email', 'tia@example.test'])
+    git(repository, ['config', 'user.name', 'TIA'])
+    git(repository, ['add', '.'])
+    git(repository, ['commit', '-qm', 'baseline'])
+
+    const baseline = captureBaseline(root, '.tia')
+    if (baseline === null) {
+      throw new Error('expected nested Git baseline')
+    }
+    const cached = graph(root)
+    cached.baseline = baseline
+    cached.results.b!.state = 'passed'
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 2\n')
+
+    const plan = createRunPlan({
+      cachePrefix: '.tia',
+      fingerprint: 'fingerprint',
+      graph: cached,
+      options,
+      root,
+    })
+
+    expect(plan.mode).toBe('replay')
+    expect(plan.changedFiles).toEqual(['src/a.ts'])
+    expect(plan.affectedTests).toEqual(['test/a.test.ts'])
+    expect(plan.affectedTestIds).toEqual(['a'])
+  })
+
   test('falls back to the full suite for any unknown file change', () => {
     const root = fixture()
     const cached = graph(root)

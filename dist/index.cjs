@@ -880,6 +880,16 @@ function gitPaths(root, args) {
   }
   return value.toString("utf8").split("\0").filter(Boolean).map(slash);
 }
+function repositoryPaths(root, args) {
+  const repositoryRoot = gitText(root, ["rev-parse", "--show-toplevel"]);
+  if (repositoryRoot === null) {
+    return null;
+  }
+  const paths = gitPaths(repositoryRoot, args);
+  return paths?.map(
+    (file) => slash((0, import_node_path5.relative)(root, (0, import_node_path5.resolve)(repositoryRoot, file)))
+  ) ?? null;
+}
 function currentSha(root) {
   return gitText(root, ["rev-parse", "--verify", "HEAD"]);
 }
@@ -887,10 +897,15 @@ function isAncestor(root, ancestor, descendant) {
   return runGit(root, ["merge-base", "--is-ancestor", ancestor, descendant]) !== null;
 }
 function untrackedFiles(root) {
-  return gitPaths(root, ["ls-files", "-z", "--others", "--exclude-standard"]);
+  return repositoryPaths(root, [
+    "ls-files",
+    "-z",
+    "--others",
+    "--exclude-standard"
+  ]);
 }
 function filesDifferentFrom(root, revision) {
-  return gitPaths(root, [
+  return repositoryPaths(root, [
     "diff",
     "--name-only",
     "--no-renames",
@@ -1620,8 +1635,8 @@ function matches(file, root, value) {
     return false;
   }
   const absolute = slash((0, import_node_path12.resolve)(file));
-  const relative5 = slash(absolute.slice(slash((0, import_node_path12.resolve)(root)).length + 1));
-  return value(absolute) || value(relative5);
+  const relative6 = slash(absolute.slice(slash((0, import_node_path12.resolve)(root)).length + 1));
+  return value(absolute) || value(relative6);
 }
 function zeroCoverage(file) {
   const instrumenter = (0, import_istanbul_lib_instrument.createInstrumenter)({
@@ -1745,9 +1760,9 @@ function resolveFrameworkEdges(adapters, context) {
   for (const adapter of adapters) {
     try {
       for (const file of adapter.resolve(context)) {
-        const relative5 = projectRelative(context.root, (0, import_node_path14.resolve)(context.root, file));
-        if (relative5 !== null && relative5 !== "") {
-          files.add(relative5);
+        const relative6 = projectRelative(context.root, (0, import_node_path14.resolve)(context.root, file));
+        if (relative6 !== null && relative6 !== "") {
+          files.add(relative6);
         }
       }
     } catch {
@@ -1794,9 +1809,9 @@ function importedAssetFiles(graph, moduleId, root) {
       if (file === null || EXECUTABLE_SOURCE_PATTERN.test(file)) {
         continue;
       }
-      const relative5 = projectRelative(root, file);
-      if (relative5 !== null && relative5 !== "") {
-        assets.add(relative5);
+      const relative6 = projectRelative(root, file);
+      if (relative6 !== null && relative6 !== "") {
+        assets.add(relative6);
       }
     }
   }
@@ -1810,9 +1825,9 @@ function directlyImportedAssetFiles(graph, moduleId, root) {
       if (file === null || EXECUTABLE_SOURCE_PATTERN.test(file)) {
         continue;
       }
-      const relative5 = projectRelative(root, file);
-      if (relative5 !== null && relative5 !== "") {
-        assets.add(relative5);
+      const relative6 = projectRelative(root, file);
+      if (relative6 !== null && relative6 !== "") {
+        assets.add(relative6);
       }
     }
   }
@@ -2432,9 +2447,9 @@ var TiaReporter = class {
       for (const project of this.vitest.projects) {
         const files = await project.globTestFiles();
         for (const file of files.testFiles) {
-          const relative5 = projectRelative(this.runtime.root, file);
-          if (relative5 !== null && relative5 !== "") {
-            expected.add(relative5);
+          const relative6 = projectRelative(this.runtime.root, file);
+          if (relative6 !== null && relative6 !== "") {
+            expected.add(relative6);
           }
         }
       }
