@@ -7,7 +7,7 @@ import type {
   TiaArtifactProvider,
   TiaArtifactProviderContext,
   TiaGitHubActionsOptions,
-  TiaGraph,
+  TiaRuntimeGraph,
 } from '../shared/types.js'
 
 const MAX_ARCHIVE_BYTES = 25 * 1024 * 1024
@@ -81,7 +81,7 @@ function headers(token: string | undefined): Record<string, string> {
 export function archiveGraph(
   archive: Uint8Array,
   runner: string | undefined,
-): TiaGraph | null {
+): TiaRuntimeGraph | null {
   if (archive.byteLength > MAX_ARCHIVE_BYTES) {
     return null
   }

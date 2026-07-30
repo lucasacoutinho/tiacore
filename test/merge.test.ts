@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest'
 
 import { mergePartitionedGraphs } from '../src/graph/merge.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
-function fragment(index: number, total = 2): TiaGraph {
+function fragment(index: number, total = 2): TiaRuntimeGraph {
   const id = `case-${index}`
   const file = `test/${index}.test.ts`
   return {

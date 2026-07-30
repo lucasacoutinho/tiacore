@@ -22,7 +22,7 @@ import {
   runVitest,
   runVitestAsync,
 } from './helpers/integration-project.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
 afterEach(() => {
   cleanupProjects()
@@ -321,7 +321,7 @@ describe('runnable fixture projects', () => {
           ),
           'utf8',
         ),
-      ) as TiaGraph,
+      ) as TiaRuntimeGraph,
     )
     expect(fragments.map((graph) => graph.partition)).toEqual([
       { group: 'local-suite', index: 1, total: 2 },

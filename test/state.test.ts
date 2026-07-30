@@ -18,7 +18,7 @@ import {
   readGraph,
   writeGraph,
 } from '../src/graph/state.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
 
@@ -53,7 +53,7 @@ function legacyGraph(): Record<string, unknown> {
   }
 }
 
-function currentGraph(): TiaGraph {
+function currentGraph(): TiaRuntimeGraph {
   return {
     baseline: { sha: 'old', workingTree: {} },
     collectionCoverage: {},
@@ -241,7 +241,7 @@ describe('graph state', () => {
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()
     writeGraph(cacheDir, expected)
-    const invalid = structuredClone(expected) as TiaGraph & {
+    const invalid = structuredClone(expected) as TiaRuntimeGraph & {
       invalid?: bigint
     }
     invalid.invalid = 1n

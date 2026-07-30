@@ -10,7 +10,7 @@ import { createFilesystemArtifactProvider } from './filesystem.js'
 import type {
   TiaArtifactProvider,
   TiaArtifactSource,
-  TiaGraph,
+  TiaRuntimeGraph,
 } from '../shared/types.js'
 
 export interface RestoreArtifactsInput {
@@ -35,10 +35,10 @@ function isProvider(source: TiaArtifactSource): source is TiaArtifactProvider {
 }
 
 function usableGraph(
-  graph: TiaGraph | null,
+  graph: TiaRuntimeGraph | null,
   fingerprint: string,
   coverageRequested: boolean,
-): graph is TiaGraph {
+): graph is TiaRuntimeGraph {
   return (
     graph !== null &&
     graph.fingerprint === fingerprint &&

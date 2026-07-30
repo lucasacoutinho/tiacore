@@ -46,6 +46,8 @@ Semantic Versioning once a version is published.
   unknown fields, duplicate relations, dependency cycles, unsafe paths, and
   oversized collections. Shipped schemas, an artifact-envelope validator, and
   language-independent golden planning and rejection vectors.
+- Renamed the JavaScript-only cache type to `TiaRuntimeGraph` and documented
+  its boundary from the portable `TiaImpactGraph` protocol.
 
 ### Known boundaries
 

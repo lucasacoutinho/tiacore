@@ -51,15 +51,23 @@ runner adapter. This is an advanced API: callers prepare a run plan, execute
 the selected work, and commit normalized observations. They must preserve
 whole-file fallback and failed-test rerun semantics.
 
+`TiaRuntimeGraph` and `TiaRuntimeGraphPartition` describe the JavaScript SDK's
+persisted runner cache. They are public so adapter authors can inspect a
+successful commit, but their schema is not the portable language contract. A
+schema change may force a safe cache rebuild during `0.x`.
+
 It also exports the runner-neutral `createImpactPlan()` and
 `mergeImpactGraphs()` functions plus protocol types.
 
 ## `@usescherie/tiacore/protocol`
 
 Exports the versioned runner-neutral graph, suite, observation, change, policy,
-plan, and artifact-envelope types. It also exports portable path normalization
-and strict graph validation. Paths stored in the protocol are project-relative
-with forward slashes.
+plan, and artifact-envelope types. It also exports portable path normalization,
+strict graph and artifact validation, and the version 1 resource limits. Paths
+stored in the protocol are project-relative with forward slashes.
+
+The protocol graph is `TiaImpactGraph`. It never contains JavaScript coverage
+or cached native test results.
 
 ## `@usescherie/tiacore/maestro`
 

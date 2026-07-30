@@ -9,8 +9,8 @@ import {
 } from './state.js'
 import type {
   Baseline,
-  TiaGraph,
-  TiaGraphPartition,
+  TiaRuntimeGraph,
+  TiaRuntimeGraphPartition,
 } from '../shared/types.js'
 
 export function partitionGroup(
@@ -30,7 +30,7 @@ export function partitionGroup(
 
 export function partitionCacheDir(
   cacheDir: string,
-  partition: TiaGraphPartition,
+  partition: TiaRuntimeGraphPartition,
 ): string {
   const group = partition.group ?? 'ungrouped'
   return join(
@@ -43,9 +43,9 @@ export function partitionCacheDir(
 
 export async function aggregateLocalPartitions(
   cacheDir: string,
-  partition: TiaGraphPartition,
-): Promise<TiaGraph | null> {
-  const fragments: TiaGraph[] = []
+  partition: TiaRuntimeGraphPartition,
+): Promise<TiaRuntimeGraph | null> {
+  const fragments: TiaRuntimeGraph[] = []
   for (let index = 1; index <= partition.total; index += 1) {
     const graph = readGraph(
       partitionCacheDir(cacheDir, { ...partition, index }),

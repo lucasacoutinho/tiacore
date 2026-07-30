@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import { readGraph, writeGraph } from '../src/graph/state.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
 const packageRoot = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
@@ -21,8 +21,8 @@ const writer = fileURLToPath(
 )
 const stateModule = join(packageRoot, 'dist/graph/state.js')
 
-function graph(size: number): TiaGraph {
-  const value: TiaGraph = {
+function graph(size: number): TiaRuntimeGraph {
+  const value: TiaRuntimeGraph = {
     baseline: { sha: 'old', workingTree: {} },
     collectionCoverage: {},
     complete: true,

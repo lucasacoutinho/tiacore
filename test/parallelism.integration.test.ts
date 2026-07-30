@@ -9,7 +9,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 import {
   cleanupProjects,
   createFixtureProject,
@@ -27,7 +27,7 @@ interface Span {
   threadId: number
 }
 
-function comparableGraph(graph: TiaGraph): unknown {
+function comparableGraph(graph: TiaRuntimeGraph): unknown {
   const value = structuredClone(graph)
   value.updatedAt = ''
   for (const result of Object.values(value.results)) {

@@ -29,14 +29,14 @@ import {
   readGraph as readStateGraph,
   writeGraph,
 } from '../src/graph/state.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
 const lockHolder = fileURLToPath(
   new URL('./fixtures/transaction-lock-holder.mjs', import.meta.url),
 )
 
-function transactionGraph(updatedAt: string): TiaGraph {
+function transactionGraph(updatedAt: string): TiaRuntimeGraph {
   return {
     baseline: { sha: 'baseline', workingTree: {} },
     collectionCoverage: {},

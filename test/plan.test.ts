@@ -14,7 +14,7 @@ import { captureBaseline } from '../src/graph/baseline.js'
 import { createRunPlan } from '../src/graph/plan.js'
 import type {
   NormalizedOptions,
-  TiaGraph,
+  TiaRuntimeGraph,
 } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
@@ -60,7 +60,7 @@ const options: NormalizedOptions = {
       replayReporters: [],
 }
 
-function graph(root: string): TiaGraph {
+function graph(root: string): TiaRuntimeGraph {
   const baseline = captureBaseline(root, '.tia')
   if (baseline === null) {
     throw new Error('expected Git baseline')

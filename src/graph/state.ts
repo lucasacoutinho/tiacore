@@ -15,19 +15,19 @@ import {
 } from 'node:path'
 
 import { GRAPH_SCHEMA_VERSION } from '../shared/constants.js'
-import type { TiaGraph } from '../shared/types.js'
+import type { TiaRuntimeGraph } from '../shared/types.js'
 
 export function graphPath(cacheDir: string): string {
   return join(cacheDir, 'graph.json')
 }
 
-export function graphDigest(graph: TiaGraph | null): string | null {
+export function graphDigest(graph: TiaRuntimeGraph | null): string | null {
   return graph === null
     ? null
     : createHash('sha256').update(JSON.stringify(graph)).digest('hex')
 }
 
-export function readGraph(cacheDir: string): TiaGraph | null {
+export function readGraph(cacheDir: string): TiaRuntimeGraph | null {
   try {
     return parseGraph(readFileSync(graphPath(cacheDir), 'utf8'))
   } catch {
@@ -35,7 +35,7 @@ export function readGraph(cacheDir: string): TiaGraph | null {
   }
 }
 
-export function parseGraph(source: string | unknown): TiaGraph | null {
+export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
   try {
     const value =
       typeof source === 'string'
@@ -54,16 +54,16 @@ export function parseGraph(source: string | unknown): TiaGraph | null {
         schema: GRAPH_SCHEMA_VERSION,
         testCoverage: {},
         testEdges: value.schema === 1 ? {} : value.testEdges,
-      } as TiaGraph
+      } as TiaRuntimeGraph
     }
 
-    return value as unknown as TiaGraph
+    return value as unknown as TiaRuntimeGraph
   } catch {
     return null
   }
 }
 
-export function writeGraph(cacheDir: string, graph: TiaGraph): void {
+export function writeGraph(cacheDir: string, graph: TiaRuntimeGraph): void {
   const target = graphPath(cacheDir)
   const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`
 
@@ -88,14 +88,14 @@ interface GraphLockOwner {
 }
 
 export interface GraphCommitResult {
-  graph: TiaGraph | null
+  graph: TiaRuntimeGraph | null
   status: 'committed' | 'conflict' | 'merged'
 }
 
 export interface GraphCommitOptions {
-  expected: TiaGraph | null
+  expected: TiaRuntimeGraph | null
   expectedDigest: string | null
-  graph: TiaGraph
+  graph: TiaRuntimeGraph
   lockTimeoutMs?: number
   staleLockMs?: number
 }
@@ -268,7 +268,7 @@ function mergeChangedRecord(
   return true
 }
 
-function compatibleCommit(left: TiaGraph, right: TiaGraph): boolean {
+function compatibleCommit(left: TiaRuntimeGraph, right: TiaRuntimeGraph): boolean {
   return (
     left.schema === right.schema &&
     left.fingerprint === right.fingerprint &&
@@ -280,10 +280,10 @@ function compatibleCommit(left: TiaGraph, right: TiaGraph): boolean {
 }
 
 function mergeConcurrentGraphs(
-  expected: TiaGraph | null,
-  current: TiaGraph,
-  proposed: TiaGraph,
-): TiaGraph | null {
+  expected: TiaRuntimeGraph | null,
+  current: TiaRuntimeGraph,
+  proposed: TiaRuntimeGraph,
+): TiaRuntimeGraph | null {
   if (!compatibleCommit(current, proposed)) {
     return null
   }

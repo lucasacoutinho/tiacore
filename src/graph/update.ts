@@ -5,7 +5,7 @@ import { GRAPH_SCHEMA_VERSION } from '../shared/constants.js'
 import type {
   CachedTestResult,
   TiaCoverageMap,
-  TiaGraph,
+  TiaRuntimeGraph,
   TiaTestEdge,
 } from '../shared/types.js'
 
@@ -14,14 +14,14 @@ export interface GraphUpdateInput {
   executedFiles: Iterable<string>
   fallbackEdges?: ReadonlyMap<string, string[]>
   fullyExecutedFiles: Iterable<string>
-  previous: TiaGraph | null
+  previous: TiaRuntimeGraph | null
   results: ReadonlyMap<string, CachedTestResult>
   root: string
   testCoverage?: ReadonlyMap<string, TiaCoverageMap>
   testEdges: ReadonlyMap<string, TiaTestEdge>
 }
 
-export function emptyGraph(): TiaGraph {
+export function emptyGraph(): TiaRuntimeGraph {
   return {
     baseline: { sha: '', workingTree: {} },
     collectionCoverage: {},
@@ -37,7 +37,7 @@ export function emptyGraph(): TiaGraph {
   }
 }
 
-function deleteFileRecords(graph: TiaGraph, file: string): void {
+function deleteFileRecords(graph: TiaRuntimeGraph, file: string): void {
   const ids = new Set([
     ...Object.keys(graph.results),
     ...Object.keys(graph.testEdges),
@@ -55,7 +55,7 @@ function deleteFileRecords(graph: TiaGraph, file: string): void {
   }
 }
 
-export function updateGraph(input: GraphUpdateInput): TiaGraph {
+export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
   const graph =
     input.previous === null
       ? emptyGraph()

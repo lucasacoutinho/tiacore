@@ -10,11 +10,11 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import { updateGraph } from '../src/graph/update.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
 
-function graph(): TiaGraph {
+function graph(): TiaRuntimeGraph {
   return {
     baseline: { sha: 'baseline', workingTree: {} },
     collectionCoverage: {

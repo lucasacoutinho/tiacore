@@ -20,11 +20,11 @@ import {
   readGraph,
   writeGraph,
 } from '../src/graph/state.js'
-import type { TiaGraph } from '../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
 
-function graph(fingerprint: string): TiaGraph {
+function graph(fingerprint: string): TiaRuntimeGraph {
   return {
     baseline: { sha: 'abc', workingTree: {} },
     collectionCoverage: {},
@@ -308,12 +308,12 @@ describe('GitHub Actions artifact discovery', () => {
     const target = cacheDir()
     let release:
       | ((value: {
-          graph: TiaGraph
+          graph: TiaRuntimeGraph
           id: string
         }) => void)
       | undefined
     const loading = new Promise<{
-      graph: TiaGraph
+      graph: TiaRuntimeGraph
       id: string
     }>((resolve) => {
       release = resolve

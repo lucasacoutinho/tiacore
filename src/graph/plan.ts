@@ -11,20 +11,20 @@ import { changedFilesSince } from './baseline.js'
 import type {
   NormalizedOptions,
   RunPlan,
-  TiaGraph,
+  TiaRuntimeGraph,
 } from '../shared/types.js'
 
 interface PlanInput {
   cachePrefix: string
   coverageRequested?: boolean
   fingerprint: string
-  graph: TiaGraph | null
+  graph: TiaRuntimeGraph | null
   ignoredPrefixes?: string[]
   options: NormalizedOptions
   root: string
 }
 
-function fullRun(reason: string, graph: TiaGraph | null): RunPlan {
+function fullRun(reason: string, graph: TiaRuntimeGraph | null): RunPlan {
   return {
     affectedTestIds: [],
     affectedTests: [],
@@ -38,7 +38,7 @@ function fullRun(reason: string, graph: TiaGraph | null): RunPlan {
 }
 
 function replayedResultCount(
-  graph: TiaGraph,
+  graph: TiaRuntimeGraph,
   affectedIds: Set<string>,
   wholeFiles: Set<string>,
 ): number {

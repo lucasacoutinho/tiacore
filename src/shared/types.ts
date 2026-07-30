@@ -428,14 +428,21 @@ export interface Baseline {
   workingTree: Record<string, string>
 }
 
-export interface TiaGraph {
+/**
+ * JavaScript SDK cache graph.
+ *
+ * This graph stores runner results and Istanbul coverage needed by Vitest,
+ * Node, Bun, and Playwright replay. It is not the portable protocol graph and
+ * may rebuild safely when its internal schema changes.
+ */
+export interface TiaRuntimeGraph {
   baseline: Baseline
   collectionCoverage: Record<string, TiaCoverageMap>
   complete: boolean
   coverageComplete: boolean
   edges: Record<string, string[]>
   fingerprint: string
-  partition?: TiaGraphPartition
+  partition?: TiaRuntimeGraphPartition
   results: Record<string, CachedTestResult>
   schema: number
   testCoverage: Record<string, TiaCoverageMap>
@@ -443,7 +450,7 @@ export interface TiaGraph {
   updatedAt: string
 }
 
-export interface TiaGraphPartition {
+export interface TiaRuntimeGraphPartition {
   group?: string
   index: number
   total: number
@@ -460,7 +467,7 @@ export interface RunPlan {
   affectedTestIds: string[]
   affectedTests: string[]
   changedFiles: string[]
-  graph: TiaGraph | null
+  graph: TiaRuntimeGraph | null
   mode: RunMode
   reason: string
   replayedTests: number
@@ -494,12 +501,12 @@ export interface TiaRuntime {
   baselineAtStart: Baseline | null
   coverage: TiaCoverageRuntime
   fingerprintAtStart: string
-  graphAtStart: TiaGraph | null
+  graphAtStart: TiaRuntimeGraph | null
   graphDigestAtStart: string | null
   ignoredPrefixes: string[]
   instrumenter: Instrumenter | null
   options: NormalizedOptions
-  partition: TiaGraphPartition | null
+  partition: TiaRuntimeGraphPartition | null
   plan: RunPlan | null
   root: string
   structuralFiles: string[]

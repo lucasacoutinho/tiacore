@@ -19,15 +19,15 @@ import {
   writeGraph,
 } from '../src/graph/state.js'
 import type {
-  TiaGraph,
-  TiaGraphPartition,
+  TiaRuntimeGraph,
+  TiaRuntimeGraphPartition,
 } from '../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
 
 function fragment(
-  partition: TiaGraphPartition,
-): TiaGraph {
+  partition: TiaRuntimeGraphPartition,
+): TiaRuntimeGraph {
   const id = `case-${partition.index}`
   const file = `test/${partition.index}.test.ts`
   return {
@@ -69,7 +69,7 @@ describe('partition promotion failure injection', () => {
     const root = mkdtempSync(join(tmpdir(), 'tiacore-partitions-'))
     temporaryDirectories.push(root)
     const cacheDir = join(root, '.tia')
-    const partition: TiaGraphPartition = {
+    const partition: TiaRuntimeGraphPartition = {
       group: 'retryable-run',
       index: 1,
       total: 2,

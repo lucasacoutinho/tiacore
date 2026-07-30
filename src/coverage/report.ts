@@ -9,7 +9,7 @@ import { projectRelative } from '../shared/paths.js'
 import type {
   TiaCoverageMap,
   TiaCoverageRuntime,
-  TiaGraph,
+  TiaRuntimeGraph,
 } from '../shared/types.js'
 import {
   coverageThresholdFailures,
@@ -63,7 +63,7 @@ function absoluteCoverageMap(
 }
 
 export function mergedGraphCoverage(
-  graph: TiaGraph,
+  graph: TiaRuntimeGraph,
   root: string,
 ): ReturnType<typeof coverageLibrary.createCoverageMap> {
   const merged = coverageLibrary.createCoverageMap()
@@ -79,7 +79,7 @@ export function mergedGraphCoverage(
 }
 
 export function writeCoverageReports(
-  graph: TiaGraph,
+  graph: TiaRuntimeGraph,
   root: string,
   options: TiaCoverageRuntime,
 ): CoverageReportResult {

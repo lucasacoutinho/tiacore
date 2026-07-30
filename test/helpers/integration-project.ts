@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import type { TiaGraph } from '../../src/shared/types.js'
+import type { TiaRuntimeGraph } from '../../src/shared/types.js'
 
 export const packageRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -362,13 +362,13 @@ export function resetExecutions(root: string): void {
   writeFileSync(join(root, 'executions.log'), '')
 }
 
-export function readGraph(root: string, runner?: 'bun' | 'node'): TiaGraph {
+export function readGraph(root: string, runner?: 'bun' | 'node'): TiaRuntimeGraph {
   return JSON.parse(
     readFileSync(
       join(root, '.tia', ...(runner === undefined ? [] : [runner]), 'graph.json'),
       'utf8',
     ),
-  ) as TiaGraph
+  ) as TiaRuntimeGraph
 }
 
 export function cleanupProjects(): void {

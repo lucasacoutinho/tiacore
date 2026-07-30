@@ -29,7 +29,7 @@ import type {
   Baseline,
   NormalizedOptions,
   RunPlan,
-  TiaGraph,
+  TiaRuntimeGraph,
   TiaReplayAdapter,
   TiaTestEdge,
 } from '../shared/types.js'
@@ -170,7 +170,7 @@ export class TiaCore {
   async commit(
     observations: TiaObservation[],
     wholeTestFiles: string[],
-  ): Promise<TiaGraph | null> {
+  ): Promise<TiaRuntimeGraph | null> {
     const plan = this.plan
     const cachePrefix =
       projectRelative(this.root, this.options.cacheDir) ?? ''

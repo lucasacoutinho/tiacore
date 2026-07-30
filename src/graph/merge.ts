@@ -1,4 +1,4 @@
-import type { TiaGraph } from '../shared/types.js'
+import type { TiaRuntimeGraph } from '../shared/types.js'
 
 function same(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
@@ -19,8 +19,8 @@ function mergeRecord<T>(
 }
 
 export function mergePartitionedGraphs(
-  fragments: TiaGraph[],
-): TiaGraph | null {
+  fragments: TiaRuntimeGraph[],
+): TiaRuntimeGraph | null {
   if (fragments.length === 0) {
     return null
   }
@@ -34,7 +34,7 @@ export function mergePartitionedGraphs(
   const group = first.partition.group
   const baseline = JSON.stringify(first.baseline)
   const fingerprint = first.fingerprint
-  const partitions = new Map<number, TiaGraph>()
+  const partitions = new Map<number, TiaRuntimeGraph>()
 
   for (const fragment of fragments) {
     const partition = fragment.partition
@@ -65,7 +65,7 @@ export function mergePartitionedGraphs(
     return null
   }
 
-  const merged: TiaGraph = {
+  const merged: TiaRuntimeGraph = {
     baseline: structuredClone(first.baseline),
     collectionCoverage: {},
     complete: true,
