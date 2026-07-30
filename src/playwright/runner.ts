@@ -77,8 +77,8 @@ function configuredRunnerName(
     : `playwright-${stem}`
 }
 
-function playwrightCli(root: string): string {
-  return createRequire(resolve(root, 'package.json')).resolve(
+function playwrightCli(cwd: string): string {
+  return createRequire(resolve(cwd, 'package.json')).resolve(
     '@playwright/test/cli',
   )
 }
@@ -214,7 +214,7 @@ export class TiaPlaywrightRunner {
 
     try {
       const cliArguments = [
-        playwrightCli(root),
+        playwrightCli(cwd),
         'test',
         '--config',
         config,

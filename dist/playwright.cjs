@@ -1777,8 +1777,8 @@ function configuredRunnerName(config, name) {
   }
   return stem.startsWith("playwright-") || stem === "playwright" ? stem : `playwright-${stem}`;
 }
-function playwrightCli(root) {
-  return (0, import_node_module.createRequire)((0, import_node_path11.resolve)(root, "package.json")).resolve(
+function playwrightCli(cwd) {
+  return (0, import_node_module.createRequire)((0, import_node_path11.resolve)(cwd, "package.json")).resolve(
     "@playwright/test/cli"
   );
 }
@@ -1872,7 +1872,7 @@ var TiaPlaywrightRunner = class {
     const filters = affected.join("").length > 24e3 ? [] : affected;
     try {
       const cliArguments = [
-        playwrightCli(root),
+        playwrightCli(cwd),
         "test",
         "--config",
         config,

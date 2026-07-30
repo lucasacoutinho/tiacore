@@ -33,8 +33,8 @@ function configuredRunnerName(config, name) {
         ? stem
         : `playwright-${stem}`;
 }
-function playwrightCli(root) {
-    return createRequire(resolve(root, 'package.json')).resolve('@playwright/test/cli');
+function playwrightCli(cwd) {
+    return createRequire(resolve(cwd, 'package.json')).resolve('@playwright/test/cli');
 }
 function nodeExecutable() {
     const npmNode = process.env.npm_node_execpath;
@@ -130,7 +130,7 @@ export class TiaPlaywrightRunner {
         const filters = affected.join('').length > 24_000 ? [] : affected;
         try {
             const cliArguments = [
-                playwrightCli(root),
+                playwrightCli(cwd),
                 'test',
                 '--config',
                 config,
