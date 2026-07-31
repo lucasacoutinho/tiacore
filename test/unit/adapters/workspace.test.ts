@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import { runCli } from '../../../src/cli/index.js'
-import { tia } from '../../../src/workspace.js'
+import { tia } from '../../../src/entries/workspace.js'
 
 const temporaryDirectories: string[] = []
 

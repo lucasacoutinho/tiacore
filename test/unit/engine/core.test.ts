@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -10,7 +11,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import { TiaCore } from '../../../src/core.js'
+import { TiaCore } from '../../../src/entries/core.js'
 
 const race = vi.hoisted(() => ({
   contents: '',
@@ -164,5 +165,49 @@ describe('runner-neutral TIA core', () => {
     expect(plan.affectedTests).toEqual([])
     expect(plan.wholeTestFiles).toEqual([])
     expect(plan.replayedTests).toBe(1)
+  })
+
+  test('reports the provider and artifact that supplied a baseline', async () => {
+    const root = fixture()
+    const options = {
+      files: ['test/**/*.test.ts'],
+      root,
+      runner: 'custom',
+    }
+    const initial = new TiaCore(options)
+    await initial.prepare()
+    await initial.commit(
+      [{
+        file: 'test/a.test.ts',
+        files: ['src/a.ts', 'test/a.test.ts'],
+        fullName: 'a',
+        id: 'custom:a',
+        state: 'passed',
+      }],
+      ['test/a.test.ts'],
+    )
+    const graph = readFileSync(
+      join(root, '.tia/custom/graph.json'),
+      'utf8',
+    )
+    rmSync(join(root, '.tia'), { force: true, recursive: true })
+
+    const replay = new TiaCore({
+      ...options,
+      artifacts: {
+        load: () => ({ graph, id: 'artifact-42' }),
+        name: 'fixture registry',
+      },
+    })
+    const plan = await replay.prepare()
+
+    expect(plan.mode).toBe('replay')
+    expect(plan.baseline).toMatchObject({
+      artifactId: 'artifact-42',
+      origin: 'artifact',
+      provider: 'fixture registry',
+      reason: 'compatible artifact restored',
+      source: 'git',
+    })
   })
 })

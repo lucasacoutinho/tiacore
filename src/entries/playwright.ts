@@ -4,12 +4,12 @@ import type {
 } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
-import { withTiaFixture } from './adapters/playwright/fixture.js'
+import { withTiaFixture } from '../adapters/playwright/fixture.js'
 import {
   TiaPlaywrightRunner,
   type TiaPlaywrightOptions,
   type TiaPlaywrightResult,
-} from './adapters/playwright/runner.js'
+} from '../adapters/playwright/runner.js'
 
 export type TiaPlaywrightReporter = [string]
 
@@ -33,7 +33,7 @@ export function tia<
   if (value === undefined) {
     return [
       fileURLToPath(
-        new URL('./adapters/playwright/reporter.js', import.meta.url),
+        new URL('../adapters/playwright/reporter.js', import.meta.url),
       ),
     ]
   }

@@ -3,8 +3,8 @@
 import { realpathSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
-export { runCli } from './cli/index.js'
-import { runCli } from './cli/index.js'
+export { runCli } from '../cli/index.js'
+import { runCli } from '../cli/index.js'
 
 const invokedPath = process.argv[1]
 if (

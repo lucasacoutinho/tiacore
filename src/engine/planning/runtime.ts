@@ -10,11 +10,14 @@ import {
 import { changedFilesSince } from '../baseline/capture.js'
 import type {
   RunPlan,
+  RunPlanBaseline,
+  RunPlanDecision,
   RuntimePlanOptions,
   TiaRuntimeGraph,
 } from '../types.js'
 
 interface PlanInput {
+  baseline?: RunPlanBaseline
   cachePrefix: string
   coverageRequested?: boolean
   fingerprint: string
@@ -25,11 +28,102 @@ interface PlanInput {
   testFiles?: string[]
 }
 
-function fullRun(reason: string, graph: TiaRuntimeGraph | null): RunPlan {
+type DecisionTarget =
+  | { target: 'run' }
+  | { file: string; target: 'test-file' }
+  | { file: string; id: string; target: 'test-case' }
+
+type DecisionAccumulator = DecisionTarget & {
+  reasons: Set<string>
+}
+
+function defaultBaseline(graph: TiaRuntimeGraph | null): RunPlanBaseline {
+  if (graph === null) {
+    return {
+      origin: 'none',
+      reason: 'no graph supplied to the planner',
+      sha: null,
+      source: null,
+    }
+  }
+
+  return {
+    origin: 'local',
+    reason: 'graph supplied directly to the planner',
+    sha: graph.baseline.sha || null,
+    source: graph.baseline.source ?? null,
+  }
+}
+
+function addDecision(
+  decisions: Map<string, DecisionAccumulator>,
+  decision: DecisionTarget,
+  reason: string,
+): void {
+  const file = 'file' in decision ? decision.file : ''
+  const id = 'id' in decision ? decision.id : ''
+  const key = `${decision.target}\0${file}\0${id}`
+  const current = decisions.get(key) ?? {
+    ...decision,
+    reasons: new Set<string>(),
+  }
+  current.reasons.add(reason)
+  decisions.set(key, current)
+}
+
+function finalizeDecisions(
+  decisions: Map<string, DecisionAccumulator>,
+  affectedIds?: ReadonlySet<string>,
+): RunPlanDecision[] {
+  return [...decisions.values()]
+    .filter(
+      (decision) =>
+        decision.target !== 'test-case' ||
+        affectedIds === undefined ||
+        affectedIds.has(decision.id),
+    )
+    .map((decision): RunPlanDecision => {
+      const reasons = [...decision.reasons].sort()
+      if (decision.target === 'run') {
+        return { reasons, target: 'run' }
+      }
+      if (decision.target === 'test-case') {
+        return {
+          file: decision.file,
+          id: decision.id,
+          reasons,
+          target: 'test-case',
+        }
+      }
+      return {
+        file: decision.file,
+        reasons,
+        target: 'test-file',
+      }
+    })
+    .sort((left, right) => {
+      const leftFile = 'file' in left ? left.file : ''
+      const rightFile = 'file' in right ? right.file : ''
+      const leftId = 'id' in left ? left.id : ''
+      const rightId = 'id' in right ? right.id : ''
+      return `${left.target}\0${leftFile}\0${leftId}`.localeCompare(
+        `${right.target}\0${rightFile}\0${rightId}`,
+      )
+    })
+}
+
+function fullRun(
+  reason: string,
+  graph: TiaRuntimeGraph | null,
+  baseline: RunPlanBaseline,
+  changedFiles: string[] = [],
+): RunPlan {
   return {
     affectedTestIds: [],
     affectedTests: [],
-    changedFiles: [],
+    baseline,
+    changedFiles,
+    decisions: [{ reasons: [reason], target: 'run' }],
     graph,
     mode: 'record',
     reason,
@@ -61,35 +155,41 @@ export function createRunPlan(input: PlanInput): RunPlan {
     options,
     root,
   } = input
+  const baseline = input.baseline ?? defaultBaseline(graph)
 
   if (options.fresh) {
-    return fullRun('fresh graph requested', graph)
+    return fullRun('fresh graph requested', graph, baseline)
   }
 
   if (graph === null) {
-    return fullRun('no compatible graph found', null)
+    return fullRun('no compatible graph found', null, baseline)
   }
 
   if (!graph.complete) {
-    return fullRun('the previous graph is incomplete', graph)
+    return fullRun('the previous graph is incomplete', graph, baseline)
   }
 
   if (coverageRequested && !graph.coverageComplete) {
-    return fullRun('the cached coverage graph is incomplete', graph)
+    return fullRun(
+      'the cached coverage graph is incomplete',
+      graph,
+      baseline,
+    )
   }
 
   if (graph.fingerprint !== fingerprint) {
-    return fullRun('project structure changed', graph)
+    return fullRun('project structure changed', graph, baseline)
   }
 
   const changedFiles = changedFilesSince(root, graph.baseline, ignoredPrefixes)
 
   if (changedFiles === null) {
-    return fullRun('the recorded commit is unavailable', graph)
+    return fullRun('the recorded commit is unavailable', graph, baseline)
   }
 
   const affectedIds = new Set<string>()
   const affected = new Set<string>()
+  const decisions = new Map<string, DecisionAccumulator>()
   const wholeFiles = new Set<string>()
   const ignoredUnknownChange = picomatch(options.ignoreChanges, { dot: true })
   const directTestFile =
@@ -132,20 +232,40 @@ export function createRunPlan(input: PlanInput): RunPlan {
   for (const result of Object.values(graph.results)) {
     if (result.state === 'failed' && existsSync(resolve(root, result.file))) {
       affected.add(result.file)
+      const failedReason = `previous test failed: ${result.fullName}`
       if (
         result.id.startsWith('module:') ||
         completeTestEdges.get(result.file) === false
       ) {
         wholeFiles.add(result.file)
+        addDecision(
+          decisions,
+          { file: result.file, target: 'test-file' },
+          failedReason,
+        )
       } else {
         affectedIds.add(result.id)
+        addDecision(
+          decisions,
+          {
+            file: result.file,
+            id: result.id,
+            target: 'test-case',
+          },
+          failedReason,
+        )
       }
     }
   }
 
   for (const file of changedFiles) {
     if (STRUCTURAL_FILE_PATTERN.test(file)) {
-      return fullRun(`structural file changed: ${file}`, graph)
+      return fullRun(
+        `structural file changed: ${file}`,
+        graph,
+        baseline,
+        changedFiles,
+      )
     }
 
     const isTestFile = TEST_FILE_PATTERN.test(file)
@@ -153,6 +273,11 @@ export function createRunPlan(input: PlanInput): RunPlan {
       if (existsSync(resolve(root, file))) {
         affected.add(file)
         wholeFiles.add(file)
+        addDecision(
+          decisions,
+          { file, target: 'test-file' },
+          `test file changed: ${file}`,
+        )
       }
       continue
     }
@@ -170,6 +295,11 @@ export function createRunPlan(input: PlanInput): RunPlan {
       if (testFile !== undefined && existsSync(resolve(root, testFile))) {
         affected.add(testFile)
         affectedIds.add(id)
+        addDecision(
+          decisions,
+          { file: testFile, id, target: 'test-case' },
+          `observed dependency changed: ${file}`,
+        )
       }
     }
 
@@ -182,6 +312,16 @@ export function createRunPlan(input: PlanInput): RunPlan {
         completeTestEdges.get(testFile) === false
       ) {
         wholeFiles.add(testFile)
+        addDecision(
+          decisions,
+          { file: testFile, target: 'test-file' },
+          `observed dependency changed: ${file}`,
+        )
+        addDecision(
+          decisions,
+          { file: testFile, target: 'test-file' },
+          `test-level dependency metadata is incomplete for change: ${file}`,
+        )
       }
     }
 
@@ -191,7 +331,12 @@ export function createRunPlan(input: PlanInput): RunPlan {
       !ignoredUnknownChange(file) &&
       options.onUnknownChange === 'full'
     ) {
-      return fullRun(`changed file is unknown to the graph: ${file}`, graph)
+      return fullRun(
+        `changed file is unknown to the graph: ${file}`,
+        graph,
+        baseline,
+        changedFiles,
+      )
     }
   }
 
@@ -210,7 +355,9 @@ export function createRunPlan(input: PlanInput): RunPlan {
   return {
     affectedTestIds,
     affectedTests,
+    baseline,
     changedFiles,
+    decisions: finalizeDecisions(decisions, affectedIds),
     graph,
     mode: 'replay',
     reason:

@@ -167,6 +167,25 @@ describe('run planning', () => {
     ])
     expect(plan.changedFiles).toEqual(['src/a.ts'])
     expect(plan.affectedTestIds).toEqual(['a', 'b'])
+    expect(plan.baseline).toMatchObject({
+      origin: 'local',
+      reason: 'graph supplied directly to the planner',
+      source: 'git',
+    })
+    expect(plan.decisions).toEqual([
+      {
+        file: 'test/a.test.ts',
+        id: 'a',
+        reasons: ['observed dependency changed: src/a.ts'],
+        target: 'test-case',
+      },
+      {
+        file: 'test/b.test.ts',
+        id: 'b',
+        reasons: ['previous test failed: b'],
+        target: 'test-case',
+      },
+    ])
     expect(plan.wholeTestFiles).toEqual([])
     expect(plan.replayedTests).toBe(0)
   })
@@ -225,6 +244,13 @@ describe('run planning', () => {
 
     expect(plan.mode).toBe('record')
     expect(plan.reason).toContain('src/styles.css')
+    expect(plan.changedFiles).toEqual(['src/styles.css'])
+    expect(plan.decisions).toEqual([
+      {
+        reasons: ['changed file is unknown to the graph: src/styles.css'],
+        target: 'run',
+      },
+    ])
   })
 
   test('ignores Vite temporary config bundles created during startup', () => {
@@ -424,6 +450,16 @@ describe('run planning', () => {
     expect(plan.affectedTestIds).toEqual([])
     expect(plan.wholeTestFiles).toEqual(['test/a.test.ts'])
     expect(plan.replayedTests).toBe(1)
+    expect(plan.decisions).toEqual([
+      {
+        file: 'test/a.test.ts',
+        reasons: [
+          'observed dependency changed: src/a.ts',
+          'test-level dependency metadata is incomplete for change: src/a.ts',
+        ],
+        target: 'test-file',
+      },
+    ])
   })
 
   test('reruns an imprecise failed test as a whole file', () => {
@@ -466,5 +502,12 @@ describe('run planning', () => {
     expect(plan.affectedTests).toEqual(['test/a.test.ts'])
     expect(plan.affectedTestIds).toEqual([])
     expect(plan.wholeTestFiles).toEqual(['test/a.test.ts'])
+    expect(plan.decisions).toEqual([
+      {
+        file: 'test/a.test.ts',
+        reasons: ['test file changed: test/a.test.ts'],
+        target: 'test-file',
+      },
+    ])
   })
 })

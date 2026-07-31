@@ -5,6 +5,19 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+### Added
+
+- Added runtime baseline provenance and per-target selection decisions to run
+  plans and replay lifecycle events, with bounded human-readable explanations
+  across Vitest, Playwright, Node, and Bun.
+
+### Changed
+
+- Isolated package subpath shims and the CLI launcher under `src/entries`,
+  leaving `src/index.ts` as the only source-root file.
+- Replaced the monolithic README with a concise project overview and focused
+  guides for setup, configuration, CI, parallelism, shards, and worktrees.
+
 ## 0.4.1 - 2026-07-31
 
 ### Fixed

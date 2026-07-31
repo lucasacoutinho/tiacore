@@ -14,7 +14,8 @@ types cover:
 - filesystem, GitHub Actions, GitLab CI, HTTP-manifest, and custom artifact
   providers;
 - coverage thresholds, watermarks, and reporter tuples;
-- replay lifecycle events and framework edge contexts.
+- replay lifecycle events, baseline provenance, selection decisions, and
+  framework edge contexts.
 
 The factory name is always `tia`; runner- or framework-prefixed variants are
 not part of the API.
@@ -65,6 +66,13 @@ Exports `TiaCore`, `TiaCoreOptions`, and `TiaObservation` for authors building a
 runner adapter. This is an advanced API: callers prepare a run plan, execute
 the selected work, and commit normalized observations. They must preserve
 whole-file fallback and failed-test rerun semantics.
+
+`RunPlan`, `RunPlanBaseline`, and `RunPlanDecision` describe the runtime
+selection receipt. Baseline data distinguishes a local graph from a restored
+artifact and includes its provider, artifact identifier, baseline kind, and
+commit when available. Decisions identify a full run, exact test case, or whole
+test file and list the reasons that selected it. `formatRunPlanDetails()` turns
+that data into bounded human-readable log lines.
 
 Custom adapters should set `testFiles` to their project-relative suite paths or
 globs. A changed test outside that inventory is not scheduled directly, while

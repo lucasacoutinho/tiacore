@@ -40,7 +40,9 @@ export function replayRunEvent(plan: RunPlan): TiaReplayRunEvent {
   return {
     affectedTestIds: [...plan.affectedTestIds],
     affectedTests: [...plan.affectedTests],
+    baseline: structuredClone(plan.baseline),
     changedFiles: [...plan.changedFiles],
+    decisions: structuredClone(plan.decisions),
     mode: plan.mode,
     reason: plan.reason,
     replayedTests: plan.replayedTests,

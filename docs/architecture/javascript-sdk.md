@@ -14,8 +14,9 @@ Its physical boundaries are explicit:
 - `orchestration` schedules independent adapter or command lanes;
 - `cli` exposes protocol, adapter, and orchestration operations.
 
-Supported entry points stay as thin files in `src/`. Internal modules are not
-package exports.
+Supported subpath entry points stay as thin files in `src/entries/`; only the
+default compatibility entry remains at `src/index.ts`. Internal modules are
+not package exports.
 
 The repository name is broader than the package implementation because the
 portable protocol and conformance vectors are intended for other language

@@ -8,7 +8,7 @@ import {
   certifyAdapterReceipt,
   parseAdapterCertificationReceipt,
   type TiaAdapterCertificationReceipt,
-} from '../../../src/conformance.js'
+} from '../../../src/entries/conformance.js'
 
 function receipt(): TiaAdapterCertificationReceipt {
   return {

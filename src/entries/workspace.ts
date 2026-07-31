@@ -7,4 +7,4 @@ export {
   type TiaWorkspaceLaneStatus,
   type TiaWorkspaceOptions,
   type TiaWorkspaceResult,
-} from './orchestration/workspace.js'
+} from '../orchestration/workspace.js'

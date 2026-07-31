@@ -47,92 +47,92 @@
     },
     "./vitest": {
       "import": {
-        "types": "./dist/vitest.d.ts",
-        "default": "./dist/vitest.js"
+        "types": "./dist/entries/vitest.d.ts",
+        "default": "./dist/entries/vitest.js"
       },
       "require": {
-        "types": "./dist/vitest.d.cts",
-        "default": "./dist/vitest.cjs"
+        "types": "./dist/entries/vitest.d.cts",
+        "default": "./dist/entries/vitest.cjs"
       }
     },
     "./core": {
       "import": {
-        "types": "./dist/core.d.ts",
-        "default": "./dist/core.js"
+        "types": "./dist/entries/core.d.ts",
+        "default": "./dist/entries/core.js"
       },
       "require": {
-        "types": "./dist/core.d.cts",
-        "default": "./dist/core.cjs"
+        "types": "./dist/entries/core.d.cts",
+        "default": "./dist/entries/core.cjs"
       }
     },
     "./protocol": {
       "import": {
-        "types": "./dist/protocol.d.ts",
-        "default": "./dist/protocol.js"
+        "types": "./dist/entries/protocol.d.ts",
+        "default": "./dist/entries/protocol.js"
       },
       "require": {
-        "types": "./dist/protocol.d.cts",
-        "default": "./dist/protocol.cjs"
+        "types": "./dist/entries/protocol.d.cts",
+        "default": "./dist/entries/protocol.cjs"
       }
     },
     "./conformance": {
       "import": {
-        "types": "./dist/conformance.d.ts",
-        "default": "./dist/conformance.js"
+        "types": "./dist/entries/conformance.d.ts",
+        "default": "./dist/entries/conformance.js"
       },
       "require": {
-        "types": "./dist/conformance.d.cts",
-        "default": "./dist/conformance.cjs"
+        "types": "./dist/entries/conformance.d.cts",
+        "default": "./dist/entries/conformance.cjs"
       }
     },
     "./maestro": {
       "import": {
-        "types": "./dist/maestro.d.ts",
-        "default": "./dist/maestro.js"
+        "types": "./dist/entries/maestro.d.ts",
+        "default": "./dist/entries/maestro.js"
       },
       "require": {
-        "types": "./dist/maestro.d.cts",
-        "default": "./dist/maestro.cjs"
+        "types": "./dist/entries/maestro.d.cts",
+        "default": "./dist/entries/maestro.cjs"
       }
     },
     "./k6": {
       "import": {
-        "types": "./dist/k6.d.ts",
-        "default": "./dist/k6.js"
+        "types": "./dist/entries/k6.d.ts",
+        "default": "./dist/entries/k6.js"
       },
       "require": {
-        "types": "./dist/k6.d.cts",
-        "default": "./dist/k6.cjs"
+        "types": "./dist/entries/k6.d.cts",
+        "default": "./dist/entries/k6.cjs"
       }
     },
     "./bun": {
       "import": {
-        "types": "./dist/bun.d.ts",
-        "default": "./dist/bun.js"
+        "types": "./dist/entries/bun.d.ts",
+        "default": "./dist/entries/bun.js"
       },
       "require": {
-        "types": "./dist/bun.d.cts",
-        "default": "./dist/bun.cjs"
+        "types": "./dist/entries/bun.d.cts",
+        "default": "./dist/entries/bun.cjs"
       }
     },
     "./node": {
       "import": {
-        "types": "./dist/node.d.ts",
-        "default": "./dist/node.js"
+        "types": "./dist/entries/node.d.ts",
+        "default": "./dist/entries/node.js"
       },
       "require": {
-        "types": "./dist/node.d.cts",
-        "default": "./dist/node.cjs"
+        "types": "./dist/entries/node.d.cts",
+        "default": "./dist/entries/node.cjs"
       }
     },
     "./playwright": {
       "import": {
-        "types": "./dist/playwright.d.ts",
-        "default": "./dist/playwright.js"
+        "types": "./dist/entries/playwright.d.ts",
+        "default": "./dist/entries/playwright.js"
       },
       "require": {
-        "types": "./dist/playwright.d.cts",
-        "default": "./dist/playwright.cjs"
+        "types": "./dist/entries/playwright.d.cts",
+        "default": "./dist/entries/playwright.cjs"
       }
     },
     "./playwright/reporter": {
@@ -147,12 +147,12 @@
     },
     "./workspace": {
       "import": {
-        "types": "./dist/workspace.d.ts",
-        "default": "./dist/workspace.js"
+        "types": "./dist/entries/workspace.d.ts",
+        "default": "./dist/entries/workspace.js"
       },
       "require": {
-        "types": "./dist/workspace.d.cts",
-        "default": "./dist/workspace.cjs"
+        "types": "./dist/entries/workspace.d.cts",
+        "default": "./dist/entries/workspace.cjs"
       }
     }
   },
@@ -160,7 +160,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "tiacore": "dist/cli.js"
+    "tiacore": "dist/entries/cli.js"
   },
   "sideEffects": [
     "./dist/adapters/vitest/setup.js"

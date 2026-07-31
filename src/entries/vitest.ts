@@ -1,7 +1,7 @@
-import type {} from './adapters/vitest/augmentations.js'
+import type {} from '../adapters/vitest/augmentations.js'
 
-export { tia } from './adapters/vitest/plugin.js'
-export type { TiaPlugin } from './adapters/vitest/plugin.js'
+export { tia } from '../adapters/vitest/plugin.js'
+export type { TiaPlugin } from '../adapters/vitest/plugin.js'
 export type {
   TiaArtifactCandidate,
   TiaArtifactProvider,
@@ -30,6 +30,6 @@ export type {
   TiaSubprocessEdgeMapping,
   TiaSubprocessEdgeOptions,
   TiaViewEdgeOptions,
-} from './shared/types.js'
+} from '../shared/types.js'
 
-export { tia as default } from './adapters/vitest/plugin.js'
+export { tia as default } from '../adapters/vitest/plugin.js'

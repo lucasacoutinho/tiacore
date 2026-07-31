@@ -416,6 +416,7 @@ function pluginSetupPath(): string {
   )
   const compiled = [
     localCompiled,
+    fileURLToPath(new URL('../adapters/vitest/setup.js', import.meta.url)),
     fileURLToPath(new URL('./adapters/vitest/setup.js', import.meta.url)),
   ]
   for (const candidate of compiled) {

@@ -531,7 +531,11 @@ test('cached b case', async () => {
         log: true,
         replayAdapters: [{
           onRunStart(event) {
-            appendFileSync('.tia/replay-events.log', 'start:' + event.mode + '\\n')
+            appendFileSync(
+              '.tia/replay-events.log',
+              'start:' + event.mode + ':' + event.baseline.origin + ':' +
+                event.decisions.length + '\\n',
+            )
           },
           onTestReplayed(event) {
             appendFileSync('.tia/replay-events.log', 'cached:' + event.result.fullName + '\\n')
@@ -555,11 +559,13 @@ test('cached b case', async () => {
     const replay = runVitest(root)
     expect(replay.status, replay.output).toBe(0)
     expect(executions(root)).toEqual(['a'])
+    expect(replay.output).toContain('TIA baseline: local git graph')
+    expect(replay.output).toContain('observed dependency changed: src/a.ts')
     expect(
       readFileSync(join(root, '.tia/replay-events.log'), 'utf8')
         .trim()
         .split('\n'),
-    ).toEqual(['start:replay', 'cached:b', 'complete:1:1'])
+    ).toEqual(['start:replay:local:1', 'cached:b', 'complete:1:1'])
   })
 
   test('reruns only a previously failed case in its file', () => {

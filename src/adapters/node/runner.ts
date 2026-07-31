@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { globSync } from 'tinyglobby'
 
 import { TiaCore, type TiaObservation } from '../../engine/run.js'
+import { formatRunPlanDetails } from '../../engine/explain.js'
 import {
   groupBy,
   normalizedConcurrency,
@@ -104,6 +105,9 @@ class NodeTiaRunner implements TiaRunner {
             plan.replayedTests === 1 ? '' : 's'
           }.`,
     )
+    for (const line of formatRunPlanDetails(plan)) {
+      this.print(line)
+    }
 
     const observations: TiaObservation[] = []
     const wholeFiles =

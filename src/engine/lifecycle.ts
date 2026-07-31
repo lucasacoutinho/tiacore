@@ -1,4 +1,5 @@
 import { restoreGraphFromArtifacts } from './artifacts/restore.js'
+import type { RestoreArtifactResult } from './artifacts/restore.js'
 import { captureBaseline } from './baseline/capture.js'
 import { projectFingerprint } from './baseline/fingerprint.js'
 import { createRunPlan } from './planning/runtime.js'
@@ -11,6 +12,7 @@ import type {
   Baseline,
   EngineOptions,
   RunPlan,
+  RunPlanBaseline,
   TiaRuntimeGraph,
 } from './types.js'
 
@@ -38,6 +40,43 @@ export interface BegunRuntimeRun {
   plan: RunPlan
 }
 
+function runPlanBaseline(
+  graph: TiaRuntimeGraph | null,
+  restore: RestoreArtifactResult | null,
+  partitioned: boolean,
+): RunPlanBaseline {
+  if (partitioned) {
+    return {
+      origin: 'none',
+      reason: 'partitioned run records an isolated graph fragment',
+      sha: null,
+      source: null,
+    }
+  }
+
+  if (graph === null) {
+    return {
+      origin: 'none',
+      reason: restore?.reason ?? 'no local graph found',
+      sha: null,
+      source: null,
+    }
+  }
+
+  return {
+    ...(restore?.artifactId === undefined
+      ? {}
+      : { artifactId: restore.artifactId }),
+    origin: restore?.restored === true ? 'artifact' : 'local',
+    ...(restore?.provider === undefined
+      ? {}
+      : { provider: restore.provider }),
+    reason: restore?.reason ?? 'local graph loaded',
+    sha: graph.baseline.sha || null,
+    source: graph.baseline.source ?? null,
+  }
+}
+
 export function snapshotRuntimeProject(input: {
   fingerprint?: string
   ignoredPrefixes: string[]
@@ -61,13 +100,15 @@ export async function beginRuntimeRun(
   input: BeginRuntimeRunInput,
 ): Promise<BegunRuntimeRun> {
   const writeCacheDir = input.writeCacheDir ?? input.cacheDir
+  let restore: RestoreArtifactResult | null = null
   if (input.options.fresh) {
     purgeGraph(writeCacheDir)
+    restore = { reason: 'fresh graph requested', restored: false }
   } else if (
     !input.partitioned &&
     input.options.artifactProviders.length > 0
   ) {
-    await restoreGraphFromArtifacts({
+    restore = await restoreGraphFromArtifacts({
       cacheDir: input.cacheDir,
       ...(input.coverageRequested === undefined
         ? {}
@@ -81,16 +122,18 @@ export async function beginRuntimeRun(
   }
 
   const graph = readGraph(writeCacheDir)
+  const plannedGraph = input.partitioned ? null : graph
   return {
     graph,
     graphDigest: graphDigest(graph),
     plan: createRunPlan({
+      baseline: runPlanBaseline(graph, restore, input.partitioned ?? false),
       cachePrefix: '',
       ...(input.coverageRequested === undefined
         ? {}
         : { coverageRequested: input.coverageRequested }),
       fingerprint: input.fingerprint,
-      graph: input.partitioned ? null : graph,
+      graph: plannedGraph,
       ignoredPrefixes: input.ignoredPrefixes,
       options: input.options,
       root: input.root,

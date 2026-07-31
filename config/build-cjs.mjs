@@ -2,8 +2,7 @@ import { chmod, writeFile } from 'node:fs/promises'
 
 import { build } from 'esbuild'
 
-const entryNames = [
-  'index',
+const subpathEntryNames = [
   'core',
   'protocol',
   'conformance',
@@ -14,6 +13,13 @@ const entryNames = [
   'playwright',
   'vitest',
   'workspace',
+]
+const packageEntries = [
+  { output: 'index', source: 'src/index.ts' },
+  ...subpathEntryNames.map((name) => ({
+    output: `entries/${name}`,
+    source: `src/entries/${name}.ts`,
+  })),
 ]
 
 await build({
@@ -27,7 +33,9 @@ await build({
   define: {
     'import.meta.url': '__tiaImportMetaUrl',
   },
-  entryPoints: entryNames.map((name) => `src/${name}.ts`),
+  entryPoints: Object.fromEntries(
+    packageEntries.map(({ output, source }) => [output, source]),
+  ),
   format: 'cjs',
   logLevel: 'warning',
   outdir: 'dist',
@@ -67,15 +75,20 @@ await build({
 })
 
 await Promise.all(
-  [...entryNames, 'playwright-reporter'].map((name) =>
+  [
+    ...packageEntries.map(({ output }) => ({
+      declarationTarget: `./${output.split('/').at(-1)}.js`,
+      output,
+    })),
+    {
+      declarationTarget: './adapters/playwright/reporter.js',
+      output: 'playwright-reporter',
+    },
+  ].map(({ declarationTarget, output }) =>
     writeFile(
-      `dist/${name}.d.cts`,
+      `dist/${output}.d.cts`,
       [
-        `declare const moduleExports: typeof import('./${
-          name === 'playwright-reporter'
-            ? 'adapters/playwright/reporter'
-            : name
-        }.js', {`,
+        `declare const moduleExports: typeof import('${declarationTarget}', {`,
         `  with: { 'resolution-mode': 'import' },`,
         '})',
         'export = moduleExports',
@@ -85,4 +98,4 @@ await Promise.all(
   ),
 )
 
-await chmod('dist/cli.js', 0o755)
+await chmod('dist/entries/cli.js', 0o755)

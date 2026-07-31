@@ -11,4 +11,4 @@ export {
   type PlanK6Options,
   type TiaK6Options,
   type TiaK6Result,
-} from './adapters/k6/index.js'
+} from '../adapters/k6/index.js'

@@ -39,7 +39,8 @@ coverage and database, view, subprocess, and custom framework edges.
 and resource locks. It never decides which tests are affected.
 
 `cli` parses user input and invokes protocol, adapter, or orchestration APIs.
-Top-level source files are thin package entry points. `test/unit` mirrors
+`entries` contains thin package shims and the executable launcher. The source
+root contains only the default `index.ts` entry. `test/unit` mirrors
 component boundaries; `test/integration` proves real runner, storage, CLI, and
 package behavior; `test/fixtures` contains reusable real projects.
 

@@ -1,12 +1,16 @@
 import type {
   CachedTestResult,
+  RunPlanBaseline,
+  RunPlanDecision,
   RunMode,
 } from '../types.js'
 
 export interface TiaReplayRunEvent {
   affectedTestIds: string[]
   affectedTests: string[]
+  baseline: RunPlanBaseline
   changedFiles: string[]
+  decisions: RunPlanDecision[]
   mode: RunMode
   reason: string
   replayedTests: number

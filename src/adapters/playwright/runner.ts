@@ -14,6 +14,7 @@ import {
 } from 'node:path'
 
 import { TiaCore } from '../../engine/run.js'
+import { formatRunPlanDetails } from '../../engine/explain.js'
 import {
   frameworkAdapters,
   frameworkFingerprint,
@@ -150,6 +151,9 @@ function completeReport(report: PlaywrightRunReport): boolean {
 function logPlan(plan: RunPlan): void {
   if (plan.mode === 'record') {
     console.log(`TIA record: ${plan.reason}.`)
+    for (const line of formatRunPlanDetails(plan)) {
+      console.log(line)
+    }
     return
   }
   console.log(
@@ -159,6 +163,9 @@ function logPlan(plan: RunPlan): void {
       plan.replayedTests === 1 ? '' : 's'
     }.`,
   )
+  for (const line of formatRunPlanDetails(plan)) {
+    console.log(line)
+  }
 }
 
 export class TiaPlaywrightRunner {

@@ -13,7 +13,7 @@ import { afterEach, describe, expect, test } from 'vitest'
 import {
   TIA_ADAPTER_CONFORMANCE_SCENARIOS,
   type TiaAdapterCertificationReceipt,
-} from '../../../src/conformance.js'
+} from '../../../src/entries/conformance.js'
 
 const temporaryDirectories: string[] = []
 
@@ -69,7 +69,7 @@ describe('tiacore CLI', () => {
     const root = mkdtempSync(join(tmpdir(), 'tiacore-bin-'))
     temporaryDirectories.push(root)
     const binary = join(root, 'tiacore')
-    symlinkSync(join(process.cwd(), 'dist/cli.js'), binary)
+    symlinkSync(join(process.cwd(), 'dist/entries/cli.js'), binary)
 
     expect(execFileSync(binary, ['--help'], { encoding: 'utf8' })).toContain(
       'tiacore plan',
@@ -81,7 +81,7 @@ describe('tiacore CLI', () => {
     const output = execFileSync(
       process.execPath,
       [
-        'dist/cli.js',
+        'dist/entries/cli.js',
         'plan',
         '--catalog',
         files.catalog,
@@ -107,7 +107,7 @@ describe('tiacore CLI', () => {
     const files = fixture()
     const output = execFileSync(
       process.execPath,
-      ['dist/cli.js', 'doctor', '--graph', files.graph],
+      ['dist/entries/cli.js', 'doctor', '--graph', files.graph],
       { cwd: process.cwd(), encoding: 'utf8' },
     )
 
@@ -153,7 +153,7 @@ describe('tiacore CLI', () => {
 
     const output = execFileSync(
       process.execPath,
-      ['dist/cli.js', 'certify', 'adapter', '--receipt', path],
+      ['dist/entries/cli.js', 'certify', 'adapter', '--receipt', path],
       { cwd: process.cwd(), encoding: 'utf8' },
     )
 

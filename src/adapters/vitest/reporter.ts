@@ -15,6 +15,7 @@ import {
   TIA_TEST_META_KEY,
 } from '../../shared/constants.js'
 import { snapshotRuntimeProject } from '../../engine/lifecycle.js'
+import { formatRunPlanDetails } from '../../engine/explain.js'
 import {
   portableCoverageMap,
   writeCoverageReports,
@@ -103,6 +104,9 @@ export class TiaReporter implements Reporter {
             plan.replayedTests === 1 ? '' : 's'
           }.`,
         )
+      }
+      for (const line of formatRunPlanDetails(plan)) {
+        this.log(line)
       }
     }
 

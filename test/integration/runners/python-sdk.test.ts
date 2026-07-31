@@ -11,7 +11,7 @@ import {
 
 import { describe, expect, test } from 'vitest'
 
-import { certifyAdapterReceipt } from '../../../src/conformance.js'
+import { certifyAdapterReceipt } from '../../../src/entries/conformance.js'
 
 const sdkRoot = join(process.cwd(), 'sdks/python')
 

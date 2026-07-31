@@ -1,9 +1,9 @@
-export { normalizeProtocolPath, normalizeProtocolPaths } from './protocol/paths.js'
+export { normalizeProtocolPath, normalizeProtocolPaths } from '../protocol/paths.js'
 export {
   TIA_PROTOCOL_LIMITS,
   parseArtifactEnvelope,
   parseImpactGraph,
-} from './protocol/validate.js'
+} from '../protocol/validate.js'
 export {
   TIA_PROTOCOL_VERSION,
   type TiaArtifactEnvelope,
@@ -19,4 +19,4 @@ export {
   type TiaInvalidator,
   type TiaProtocolVersion,
   type TiaSuiteDescriptor,
-} from './protocol/types.js'
+} from '../protocol/types.js'

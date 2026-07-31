@@ -9,4 +9,4 @@ export {
   type TiaAdapterFeature,
   type TiaAdapterScenarioEvidence,
   type TiaAdapterScenarioResult,
-} from './conformance/certification.js'
+} from '../conformance/certification.js'

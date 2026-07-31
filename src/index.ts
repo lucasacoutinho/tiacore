@@ -1,2 +1,2 @@
-export * from './vitest.js'
-export { default } from './vitest.js'
+export * from './entries/vitest.js'
+export { default } from './entries/vitest.js'
