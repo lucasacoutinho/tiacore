@@ -1,6 +1,6 @@
-export { tia } from './runners/bun.js'
+export { tia } from './adapters/bun/runner.js'
 export type {
   TiaRunner,
   TiaRunnerOptions,
   TiaRunnerResult,
-} from './runners/types.js'
+} from './engine/runner.js'

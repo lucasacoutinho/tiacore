@@ -12,6 +12,8 @@ const entryNames = [
   'bun',
   'node',
   'playwright',
+  'vitest',
+  'workspace',
 ]
 
 await build({
@@ -50,7 +52,7 @@ await build({
     'import.meta.url': '__tiaImportMetaUrl',
   },
   entryPoints: {
-    'playwright-reporter': 'src/playwright/reporter.ts',
+    'playwright-reporter': 'src/adapters/playwright/reporter.ts',
   },
   format: 'cjs',
   logLevel: 'warning',
@@ -71,7 +73,7 @@ await Promise.all(
       [
         `declare const moduleExports: typeof import('./${
           name === 'playwright-reporter'
-            ? 'playwright/reporter'
+            ? 'adapters/playwright/reporter'
             : name
         }.js', {`,
         `  with: { 'resolution-mode': 'import' },`,

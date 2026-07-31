@@ -71,7 +71,9 @@ export function createProject(options: ProjectOptions = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'tiacore-integration-'))
   temporaryDirectories.push(root)
   const pluginSpecifier =
-    options.packageImport || options.copyPackage || options.linkPackage
+    options.packageImport
+    ? `${packageName}/vitest`
+    : options.copyPackage || options.linkPackage
     ? packageName
     : pathToFileURL(join(packageRoot, 'dist/index.js')).href
 

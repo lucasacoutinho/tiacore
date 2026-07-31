@@ -11,4 +11,4 @@ export {
   type PlanMaestroOptions,
   type TiaMaestroOptions,
   type TiaMaestroResult,
-} from './adapters/maestro.js'
+} from './adapters/maestro/index.js'

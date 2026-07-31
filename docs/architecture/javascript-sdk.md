@@ -4,6 +4,19 @@ The repository currently ships one npm package, `@usescherie/tiacore`. That
 package is the JavaScript SDK. It owns integrations with Vitest, Vite,
 Istanbul, Playwright, Node, Bun, k6, and Maestro.
 
+Its physical boundaries are explicit:
+
+- `protocol` defines portable data and deterministic planning behavior;
+- `engine` owns JavaScript baselines, runtime plans, replay, persistence, and
+  scheduling;
+- `adapters` translate runner-native discovery and results;
+- `integrations` add coverage and framework-specific dependency evidence;
+- `orchestration` schedules independent adapter or command lanes;
+- `cli` exposes protocol, adapter, and orchestration operations.
+
+Supported entry points stay as thin files in `src/`. Internal modules are not
+package exports.
+
 The repository name is broader than the package implementation because the
 portable protocol and conformance vectors are intended for other language
 SDKs. Those SDKs do not import JavaScript runner state.
@@ -35,6 +48,11 @@ because they need cached native results and JavaScript coverage.
 
 k6 and Maestro currently emit `TiaImpactGraph` directly because they provide
 static impact selection and do not replay native runner results.
+
+The workspace coordinator composes adapter runners without becoming another
+impact engine. Each lane keeps its own graph, selection semantics, and native
+parallelism. The coordinator owns only cross-lane concurrency, dependencies,
+failure propagation, and resource locks.
 
 The Python pytest SDK under `sdks/python` proves the protocol boundary is
 language-neutral. Its planner is certified against the same JSON vectors and

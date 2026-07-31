@@ -85,7 +85,7 @@ config-loader bundles are treated as tool state rather than project changes.
 ```ts
 // vitest.config.ts
 import { defineConfig } from 'vitest/config'
-import { tia } from '@usescherie/tiacore'
+import { tia } from '@usescherie/tiacore/vitest'
 
 export default defineConfig({
   plugins: [tia()],
@@ -94,6 +94,10 @@ export default defineConfig({
   },
 })
 ```
+
+The root `@usescherie/tiacore` export remains a compatibility alias for the
+Vitest adapter. New configurations should use the explicit `/vitest` entry
+point so every runner has the same import shape.
 
 Keep the graph out of source control:
 
@@ -290,6 +294,37 @@ outcomes or claim runtime coverage.
 Its planner runs the same language-independent vectors as the TypeScript core,
 and its committed certification receipt is tied to a digest of the Python SDK
 source.
+
+### Workspace coordinator
+
+Run independent quality lanes concurrently while preserving dependencies and
+exclusive resources:
+
+```js
+// tiacore.config.mjs
+import { tia } from '@usescherie/tiacore/workspace'
+
+export default tia({
+  concurrency: 4,
+  lanes: [
+    { id: 'unit', command: 'npm', arguments: ['run', 'test:unit'] },
+    { id: 'types', command: 'npm', arguments: ['run', 'typecheck'] },
+    {
+      id: 'mobile-qa',
+      command: 'npm',
+      arguments: ['run', 'test:mobile'],
+      dependsOn: ['types'],
+      resourceLocks: ['android-emulator'],
+    },
+  ],
+})
+```
+
+Execute it with `tiacore run --config tiacore.config.mjs`. A lane may provide
+either a command or a runner returned by another adapter's `tia()`. The
+coordinator bounds total concurrency, serializes matching resource locks,
+blocks dependents after failure, and can stop pending work with `failFast`.
+Selection and caching remain owned by each lane's adapter.
 
 ## Options
 
@@ -781,6 +816,7 @@ have deterministic Win32 tests that also run on Linux. The
 - [Adapter capability contract](docs/architecture/capability-contract.md)
 - [Protocol-first portability decision](docs/architecture/decisions/0001-protocol-first.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)
+- [Target architecture](docs/architecture/target.md)
 - [Protocol version 1 specification](spec/protocol-v1.md)
 - [Adapter conformance scenarios](conformance/adapter/v1/scenarios.json)
 - [Contributing](CONTRIBUTING.md)
@@ -790,28 +826,28 @@ have deterministic Win32 tests that also run on Linux. The
 
 ## Source layout
 
-The package keeps only its stable entry points at the source root:
-`index.ts`, `core.ts`, `playwright.ts`, `node.ts`, and `bun.ts`.
-Implementation details are grouped by responsibility:
+The source root contains only supported package entry points and the CLI
+launcher. Implementation details are grouped by responsibility:
 
 ```text
 src/
-├── artifacts/  provider-neutral restoration and built-in CI providers
-├── playwright/ Playwright runner, reporter, fixture, and source-map edges
-├── coverage/   runtime coverage deltas and report generation
-├── frameworks/ database, view, and custom dependency adapters
-├── graph/      baselines, fingerprints, planning, merging, and storage
-├── runners/    runner-neutral core plus Node and Bun adapters
-├── runtime/    shared replay lifecycle behavior
-├── shared/     portable types, constants, and path utilities
-└── vitest/     plugin, setup hooks, module graph, reporter, and augmentations
+├── adapters/      Vitest, Playwright, Node, Bun, Maestro, and k6 bridges
+├── cli/           command parsing and command handlers
+├── engine/        baselines, planning lifecycle, replay, state, and scheduling
+├── integrations/  coverage and framework-specific dependency edges
+├── orchestration/ cross-runner workspace coordination
+├── protocol/      portable graph types, validation, paths, and planner
+├── public/        shared public option contracts
+└── shared/        low-level constants, paths, and compatibility type exports
 ```
 
 These folders are internal. Consumers should continue importing only
-`@usescherie/tiacore`, `@usescherie/tiacore/core`,
+`@usescherie/tiacore/vitest`, `@usescherie/tiacore/core`,
 `@usescherie/tiacore/protocol`, `@usescherie/tiacore/maestro`,
 `@usescherie/tiacore/k6`, `@usescherie/tiacore/playwright`,
-`@usescherie/tiacore/node`, or `@usescherie/tiacore/bun`. The build clears
+`@usescherie/tiacore/node`, `@usescherie/tiacore/bun`, or
+`@usescherie/tiacore/workspace`. The root export remains the Vitest compatibility
+alias. The build clears
 `dist/` first so renamed internals cannot remain in packed releases as stale
 files. Generated output is excluded from source control and rebuilt by
 `prepare` for both VCS installs and tarballs.

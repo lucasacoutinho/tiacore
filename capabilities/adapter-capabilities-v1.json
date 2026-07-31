@@ -4,7 +4,7 @@
   "adapters": [
     {
       "id": "vitest",
-      "entryPoint": "@usescherie/tiacore",
+      "entryPoint": "@usescherie/tiacore/vitest",
       "factory": "tia",
       "capabilityLevel": "runtime-tia",
       "selectionGranularity": "test-case",

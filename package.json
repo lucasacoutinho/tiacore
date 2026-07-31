@@ -1,6 +1,6 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Runner-neutral test impact analysis with JavaScript, Maestro, and k6 adapters",
   "author": "Lucas Coutinho",
   "private": false,
@@ -43,6 +43,16 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
+      }
+    },
+    "./vitest": {
+      "import": {
+        "types": "./dist/vitest.d.ts",
+        "default": "./dist/vitest.js"
+      },
+      "require": {
+        "types": "./dist/vitest.d.cts",
+        "default": "./dist/vitest.cjs"
       }
     },
     "./core": {
@@ -127,12 +137,22 @@
     },
     "./playwright/reporter": {
       "import": {
-        "types": "./dist/playwright/reporter.d.ts",
-        "default": "./dist/playwright/reporter.js"
+        "types": "./dist/adapters/playwright/reporter.d.ts",
+        "default": "./dist/adapters/playwright/reporter.js"
       },
       "require": {
         "types": "./dist/playwright-reporter.d.cts",
         "default": "./dist/playwright-reporter.cjs"
+      }
+    },
+    "./workspace": {
+      "import": {
+        "types": "./dist/workspace.d.ts",
+        "default": "./dist/workspace.js"
+      },
+      "require": {
+        "types": "./dist/workspace.d.cts",
+        "default": "./dist/workspace.cjs"
       }
     }
   },
@@ -143,7 +163,7 @@
     "tiacore": "dist/cli.js"
   },
   "sideEffects": [
-    "./dist/vitest/setup.js"
+    "./dist/adapters/vitest/setup.js"
   ],
   "engines": {
     "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
@@ -160,7 +180,7 @@
     "release:check": "npm run check && npm run check:package && npm run check:python && npm audit --omit=dev && npm pack --dry-run",
     "test": "npm run build && vitest run",
     "test:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
-    "test:cross-platform": "npm run build && vitest run test/paths.test.ts test/state.test.ts test/coverage.test.ts test/merge.test.ts",
+    "test:cross-platform": "npm run build && vitest run test/unit/protocol/paths.test.ts test/unit/engine/state.test.ts test/unit/engine/coverage.test.ts test/unit/engine/merge.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

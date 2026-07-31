@@ -1,11 +1,13 @@
 # Public API
 
-tiacore has nine supported entry points. Everything below `dist/` or an
-internal `src/` folder is private and may change without notice.
+tiacore has eleven primary supported entry points plus the Playwright reporter
+configuration target. Everything below `dist/` or an internal `src/` folder is
+private and may change without notice.
 
 ## `@usescherie/tiacore`
 
-Exports named and default `tia(options?)`, the Vitest plugin factory. Public
+Remains a compatibility alias for `@usescherie/tiacore/vitest`. It exports
+named and default `tia(options?)`, the Vitest plugin factory. Public
 types cover:
 
 - plugin, coverage, framework, artifact, and replay options;
@@ -16,6 +18,12 @@ types cover:
 
 The factory name is always `tia`; runner- or framework-prefixed variants are
 not part of the API.
+
+## `@usescherie/tiacore/vitest`
+
+The explicit Vitest entry point. It has the same named and default `tia()`
+factory and public option types as the root compatibility export. New Vitest
+configurations should prefer this path.
 
 The separately packaged Python SDK in `sdks/python` exports the same `tia`
 factory for pytest. It is a protocol-v1 static-impact adapter and is not an npm
@@ -109,6 +117,19 @@ imports. It exports catalog fingerprinting, graph recording, lane-bounded
 impact planning, and `tia(options)`. The returned runner executes selected
 profiles and promotes its graph only after the command succeeds. Every selected
 suite declares a performance-host resource lock.
+
+## `@usescherie/tiacore/workspace`
+
+Exports named `tia(options)`, `TiaWorkspaceRunner`, and workspace lane and
+result types. A lane defines exactly one command or runner, optional
+dependencies, and optional resource locks. Independent lanes run concurrently
+up to the configured bound. Matching locks serialize lanes, failed dependencies
+block downstream lanes, and `failFast` blocks pending work after the first
+failure.
+
+The workspace coordinator does not merge runner graphs or reinterpret cached
+results. Each adapter remains responsible for its own impact plan and native
+parallelism.
 
 ## Compatibility policy
 

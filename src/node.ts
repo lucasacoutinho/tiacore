@@ -1,6 +1,6 @@
-export { tia } from './runners/node.js'
+export { tia } from './adapters/node/runner.js'
 export type {
   TiaRunner,
   TiaRunnerOptions,
   TiaRunnerResult,
-} from './runners/types.js'
+} from './engine/runner.js'

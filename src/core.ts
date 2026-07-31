@@ -2,7 +2,7 @@ export {
   TiaCore,
   type TiaCoreOptions,
   type TiaObservation,
-} from './runners/core.js'
+} from './engine/run.js'
 export type {
   TiaRuntimeGraph,
   TiaRuntimeGraphPartition,
@@ -10,5 +10,5 @@ export type {
 export {
   createImpactPlan,
   mergeImpactGraphs,
-} from './core/impact.js'
+} from './protocol/planner.js'
 export * from './protocol.js'

@@ -5,6 +5,25 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+## 0.4.0 - 2026-07-31
+
+### Added
+
+- Added an explicit `@usescherie/tiacore/vitest` entry point while preserving
+  the root Vitest compatibility export.
+- Added `@usescherie/tiacore/workspace` and `tiacore run` for bounded parallel
+  command and adapter lanes with dependencies, fail-fast behavior, and
+  resource locks.
+
+### Changed
+
+- Reorganized implementation code into protocol, engine, adapter, integration,
+  orchestration, CLI, and public-contract boundaries.
+- Grouped tests by unit and integration domain while retaining real runner and
+  package fixtures.
+- Centralized runtime lifecycle preparation across the runner-neutral core and
+  Vitest adapter.
+
 ## 0.3.1 - 2026-07-30
 
 ### Fixed
