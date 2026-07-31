@@ -22,6 +22,7 @@ interface PlanInput {
   ignoredPrefixes?: string[]
   options: NormalizedOptions
   root: string
+  testFiles?: string[]
 }
 
 function fullRun(reason: string, graph: TiaRuntimeGraph | null): RunPlan {
@@ -91,6 +92,10 @@ export function createRunPlan(input: PlanInput): RunPlan {
   const affected = new Set<string>()
   const wholeFiles = new Set<string>()
   const ignoredUnknownChange = picomatch(options.ignoreChanges, { dot: true })
+  const directTestFile =
+    input.testFiles === undefined
+      ? null
+      : picomatch(input.testFiles, { dot: true })
   const reverseEdges = new Map<string, string[]>()
   const reverseTestEdges = new Map<string, string[]>()
   const testFileById = new Map<string, string>()
@@ -143,7 +148,8 @@ export function createRunPlan(input: PlanInput): RunPlan {
       return fullRun(`structural file changed: ${file}`, graph)
     }
 
-    if (TEST_FILE_PATTERN.test(file)) {
+    const isTestFile = TEST_FILE_PATTERN.test(file)
+    if (isTestFile && (directTestFile === null || directTestFile(file))) {
       if (existsSync(resolve(root, file))) {
         affected.add(file)
         wholeFiles.add(file)
@@ -181,6 +187,7 @@ export function createRunPlan(input: PlanInput): RunPlan {
 
     if (
       linkedTests.length === 0 &&
+      !isTestFile &&
       !ignoredUnknownChange(file) &&
       options.onUnknownChange === 'full'
     ) {

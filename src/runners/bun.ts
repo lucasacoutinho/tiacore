@@ -90,6 +90,9 @@ class BunTiaRunner implements TiaRunner {
       files: options.files ?? DEFAULT_BUN_TESTS,
       root: this.root,
       runner: 'bun',
+      testFiles: this.files.map((file) =>
+        slash(relative(this.root, file)),
+      ),
     })
   }
 

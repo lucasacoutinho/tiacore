@@ -58,6 +58,12 @@ runner adapter. This is an advanced API: callers prepare a run plan, execute
 the selected work, and commit normalized observations. They must preserve
 whole-file fallback and failed-test rerun semantics.
 
+Custom adapters should set `testFiles` to their project-relative suite paths or
+globs. A changed test outside that inventory is not scheduled directly, while
+an observed dependency edge from that file can still invalidate an in-scope
+test. This keeps multiple runners and acceptance lanes isolated in one
+repository.
+
 `TiaRuntimeGraph` and `TiaRuntimeGraphPartition` describe the JavaScript SDK's
 persisted runner cache. They are public so adapter authors can inspect a
 successful commit, but their schema is not the portable language contract. A

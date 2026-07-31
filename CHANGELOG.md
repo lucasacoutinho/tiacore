@@ -5,6 +5,11 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+### Fixed
+
+- Scoped direct changed-test selection to each custom, Node, or Bun runner's
+  declared test inventory so unrelated suites cannot leak across lanes.
+
 ## 0.3.0 - 2026-07-30
 
 ### Added

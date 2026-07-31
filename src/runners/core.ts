@@ -48,6 +48,7 @@ export interface TiaCoreOptions {
   replayAdapters?: TiaReplayAdapter | TiaReplayAdapter[]
   root?: string
   runner: string
+  testFiles?: string[]
 }
 
 export interface TiaObservation {
@@ -98,6 +99,7 @@ export class TiaCore {
   private readonly runner: string
   private readonly runnerFingerprint: string
   private readonly runnerFiles: string[]
+  private readonly runnerTestFiles: string[] | undefined
 
   constructor(options: TiaCoreOptions) {
     this.root = resolve(options.root ?? process.cwd())
@@ -106,6 +108,10 @@ export class TiaCore {
     this.runner = options.runner
     this.runnerFingerprint = options.fingerprint ?? ''
     this.runnerFiles = [...options.files].sort()
+    this.runnerTestFiles =
+      options.testFiles === undefined
+        ? undefined
+        : [...options.testFiles].sort()
     this.baselineAtStart = null
   }
 
@@ -147,6 +153,9 @@ export class TiaCore {
       ignoredPrefixes: cachePrefix === '' ? [] : [cachePrefix],
       options: this.options,
       root: this.root,
+      ...(this.runnerTestFiles === undefined
+        ? {}
+        : { testFiles: this.runnerTestFiles }),
     })
 
     await notifyReplayAdapters(
@@ -262,6 +271,7 @@ export class TiaCore {
         files: this.runnerFiles,
         fingerprint: this.runnerFingerprint,
         runner: this.runner,
+        testFiles: this.runnerTestFiles,
       }),
     )
   }

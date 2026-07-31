@@ -127,6 +127,9 @@ class NodeTiaRunner implements TiaRunner {
       files: options.files ?? DEFAULT_NODE_TESTS,
       root: this.root,
       runner: 'node',
+      testFiles: this.files.map((file) =>
+        slash(relative(this.root, file)),
+      ),
     })
   }
 

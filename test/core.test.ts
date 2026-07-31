@@ -131,4 +131,38 @@ describe('runner-neutral TIA core', () => {
     expect(plan.mode).toBe('replay')
     await expect(replay.commit([], [])).resolves.toBeNull()
   })
+
+  test('does not select a changed test outside a custom runner inventory', async () => {
+    const root = fixture()
+    const options = {
+      files: ['test/**/*.test.ts'],
+      root,
+      runner: 'custom',
+      testFiles: ['test/**/*.test.ts'],
+    }
+    const initial = new TiaCore(options)
+    await initial.prepare()
+    await initial.commit(
+      [{
+        file: 'test/a.test.ts',
+        files: ['src/a.ts', 'test/a.test.ts'],
+        fullName: 'a',
+        id: 'custom:a',
+        state: 'passed',
+      }],
+      ['test/a.test.ts'],
+    )
+
+    mkdirSync(join(root, 'other'))
+    writeFileSync(
+      join(root, 'other/unrelated.test.ts'),
+      'test("unrelated", () => {})\n',
+    )
+    const plan = await new TiaCore(options).prepare()
+
+    expect(plan.mode).toBe('replay')
+    expect(plan.affectedTests).toEqual([])
+    expect(plan.wholeTestFiles).toEqual([])
+    expect(plan.replayedTests).toBe(1)
+  })
 })
