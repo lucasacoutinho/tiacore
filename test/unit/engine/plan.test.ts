@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   rmSync,
@@ -249,6 +250,52 @@ describe('run planning', () => {
     expect(plan.mode).toBe('replay')
     expect(plan.changedFiles).toEqual([])
   })
+
+  test('ignores Bun temporary build files created during a concurrent build', () => {
+    const root = fixture()
+    const cached = graph(root)
+    cached.results.b!.state = 'passed'
+    mkdirSync(join(root, 'apps'))
+    writeFileSync(
+      join(root, 'apps/.18c767bfb8edfdfd-00000000.bun-build'),
+      'temporary output\n',
+      { flag: 'w' },
+    )
+
+    const plan = createRunPlan({
+      cachePrefix: '.tia',
+      fingerprint: 'fingerprint',
+      graph: cached,
+      options,
+      root,
+    })
+
+    expect(plan.mode).toBe('replay')
+    expect(plan.changedFiles).toEqual([])
+  })
+
+  test.skipIf(process.platform === 'win32')(
+    'fails closed when a relevant file cannot be read',
+    () => {
+      const root = fixture()
+      const cached = graph(root)
+      cached.results.b!.state = 'passed'
+      const unreadable = join(root, 'src/unreadable.ts')
+      writeFileSync(unreadable, 'export const unreadable = true\n')
+      chmodSync(unreadable, 0o000)
+
+      expect(captureBaseline(root, '.tia')).toBeNull()
+      const plan = createRunPlan({
+        cachePrefix: '.tia',
+        fingerprint: 'fingerprint',
+        graph: cached,
+        options,
+        root,
+      })
+      expect(plan.mode).toBe('record')
+      expect(plan.reason).toContain('recorded commit is unavailable')
+    },
+  )
 
   test('can explicitly ignore all unknown changes', () => {
     const root = fixture()

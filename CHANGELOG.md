@@ -5,6 +5,14 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+## 0.4.1 - 2026-07-31
+
+### Fixed
+
+- Ignored Bun's transient `.bun-build` files and failed closed instead of
+  throwing when a relevant file becomes unreadable during a concurrent
+  baseline snapshot.
+
 ## 0.4.0 - 2026-07-31
 
 ### Added

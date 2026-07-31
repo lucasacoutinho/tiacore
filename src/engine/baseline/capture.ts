@@ -10,7 +10,10 @@ import picomatch from 'picomatch'
 
 import { slash } from '../../shared/paths.js'
 import type { Baseline } from '../types.js'
-import { hashFile } from './fingerprint.js'
+import {
+  hashFile,
+  UNAVAILABLE_HASH,
+} from './fingerprint.js'
 
 const ALWAYS_IGNORED_DIRECTORIES = new Set([
   '.git',
@@ -28,6 +31,8 @@ const ROOT_OUTPUT_DIRECTORIES = new Set([
 
 const VITE_TEMPORARY_CONFIG =
   /\.config\.[cm]?[jt]s\.timestamp-\d+-[a-z\d]+\.mjs$/i
+const BUN_TEMPORARY_BUILD =
+  /(?:^|\/)\.[a-z\d]+-\d+\.bun-build$/i
 
 interface IgnoreRule {
   ignored: boolean
@@ -112,6 +117,13 @@ function filesDifferentFrom(root: string, revision: string): string[] | null {
 
 function unique(paths: string[]): string[] {
   return [...new Set(paths)].sort()
+}
+
+function isTemporaryToolFile(file: string): boolean {
+  return (
+    VITE_TEMPORARY_CONFIG.test(file) ||
+    BUN_TEMPORARY_BUILD.test(file)
+  )
 }
 
 function isIgnored(file: string, prefixes: string | string[]): boolean {
@@ -230,12 +242,12 @@ function projectFiles(
 
   return listed === null
     ? walkProjectFiles(root, ignoredPrefixes)?.filter(
-        (file) => !VITE_TEMPORARY_CONFIG.test(file),
+        (file) => !isTemporaryToolFile(file),
       ) ?? null
     : unique(listed).filter(
         (file) =>
           !isIgnored(file, ignoredPrefixes) &&
-          !VITE_TEMPORARY_CONFIG.test(file),
+          !isTemporaryToolFile(file),
       )
 }
 
@@ -255,12 +267,19 @@ function filesystemChanges(
   ])
   const currentFiles = new Set(current)
 
-  return candidates.filter((file) => {
+  const changes: string[] = []
+  for (const file of candidates) {
     const hash = currentFiles.has(file)
       ? hashFile(resolve(root, file))
       : null
-    return baseline.workingTree[file] !== hash
-  })
+    if (hash === UNAVAILABLE_HASH) {
+      return null
+    }
+    if (baseline.workingTree[file] !== hash) {
+      changes.push(file)
+    }
+  }
+  return changes
 }
 
 export function changedFilesSince(
@@ -285,14 +304,24 @@ export function changedFilesSince(
     return null
   }
 
-  return unique([
+  const candidates = unique([
     ...Object.keys(baseline.workingTree),
     ...tracked,
     ...untracked,
   ])
     .filter((file) => !isIgnored(file, ignoredPrefixes))
-    .filter((file) => !VITE_TEMPORARY_CONFIG.test(file))
-    .filter((file) => baseline.workingTree[file] !== hashFile(resolve(root, file)))
+    .filter((file) => !isTemporaryToolFile(file))
+  const changes: string[] = []
+  for (const file of candidates) {
+    const hash = hashFile(resolve(root, file))
+    if (hash === UNAVAILABLE_HASH) {
+      return null
+    }
+    if (baseline.workingTree[file] !== hash) {
+      changes.push(file)
+    }
+  }
+  return changes
 }
 
 export function captureBaseline(
@@ -307,16 +336,15 @@ export function captureBaseline(
       return null
     }
 
-    return {
-      sha: '',
-      source: 'filesystem',
-      workingTree: Object.fromEntries(
-        files.map((file) => [
-          file,
-          hashFile(resolve(root, file)),
-        ]),
-      ),
+    const workingTree: Record<string, string> = {}
+    for (const file of files) {
+      const hash = hashFile(resolve(root, file))
+      if (hash === UNAVAILABLE_HASH) {
+        return null
+      }
+      workingTree[file] = hash
     }
+    return { sha: '', source: 'filesystem', workingTree }
   }
 
   const tracked = filesDifferentFrom(root, sha)
@@ -335,7 +363,11 @@ export function captureBaseline(
 
     const absolute = resolve(root, file)
     if (existsSync(absolute) || tracked.includes(file)) {
-      workingTree[file] = hashFile(absolute)
+      const hash = hashFile(absolute)
+      if (hash === UNAVAILABLE_HASH) {
+        return null
+      }
+      workingTree[file] = hash
     }
   }
 

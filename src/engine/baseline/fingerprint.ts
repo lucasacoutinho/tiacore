@@ -9,6 +9,7 @@ import {
 import type { FingerprintOptions } from '../types.js'
 
 export const DELETED_HASH = '<deleted>'
+export const UNAVAILABLE_HASH = '<unavailable>'
 
 export function hashBytes(value: string | Buffer): string {
   return createHash('sha256').update(value).digest('hex')
@@ -19,7 +20,18 @@ export function hashFile(path: string): string {
     return DELETED_HASH
   }
 
-  return hashBytes(readFileSync(path))
+  try {
+    return hashBytes(readFileSync(path))
+  } catch (error) {
+    return (
+      error !== null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    )
+      ? DELETED_HASH
+      : UNAVAILABLE_HASH
+  }
 }
 
 export function projectFingerprint(
