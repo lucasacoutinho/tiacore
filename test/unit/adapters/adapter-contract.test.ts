@@ -1,10 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -41,21 +36,23 @@ function definition(executions: string[]): TiaAdapterDefinition {
     apiVersion: TIA_TYPESCRIPT_ADAPTER_VERSION,
     discover: () => ({
       files: ['package.json'],
-      tests: [{
-        file: 'test/value.test.ts',
-        fullName: 'custom value case',
-        id: 'custom:value',
-      }],
+      tests: [
+        {
+          file: 'test/value.test.ts',
+          fullName: 'custom value case',
+          id: 'custom:value',
+        },
+      ],
     }),
     execute: ({ tests }) => {
-      executions.push(...tests.map((test) => test.id))
+      executions.push(...tests.map((selectedTest) => selectedTest.id))
       return {
         complete: true,
-        observations: tests.map((test) => ({
-          file: test.file,
-          files: [test.file, 'src/value.ts'],
-          fullName: test.fullName,
-          id: test.id,
+        observations: tests.map((selectedTest) => ({
+          file: selectedTest.file,
+          files: [selectedTest.file, 'src/value.ts'],
+          fullName: selectedTest.fullName,
+          id: selectedTest.id,
           state: 'passed',
         })),
       }
@@ -118,11 +115,13 @@ describe('TypeScript adapter contract', () => {
     const adapter = definition([])
     adapter.execute = () => ({ complete: true, observations: [] })
 
-    await expect(tia(adapter, {
-      fresh: false,
-      log: false,
-      root,
-    }).run()).resolves.toMatchObject({
+    await expect(
+      tia(adapter, {
+        fresh: false,
+        log: false,
+        root,
+      }).run(),
+    ).resolves.toMatchObject({
       complete: false,
       graph: null,
       graphSaved: false,
@@ -133,10 +132,15 @@ describe('TypeScript adapter contract', () => {
 
   test('rejects unsafe names, duplicate ids, and escaping paths', async () => {
     const root = project()
-    expect(() => tia({
-      ...definition([]),
-      name: '../outside',
-    }, { fresh: false, root })).toThrow('safe lowercase cache key')
+    expect(() =>
+      tia(
+        {
+          ...definition([]),
+          name: '../outside',
+        },
+        { fresh: false, root },
+      ),
+    ).toThrow('safe lowercase cache key')
 
     const duplicate = definition([])
     duplicate.discover = () => ({

@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
-const [modulePath, cacheDir, expectedPath, proposedPath] =
-  process.argv.slice(2)
+const [modulePath, cacheDir, expectedPath, proposedPath] = process.argv.slice(2)
 if (
   modulePath === undefined ||
   cacheDir === undefined ||

@@ -22,8 +22,8 @@ publication gates.
 
 ## Candidate checklist
 
-1. Choose the version and move the relevant `Unreleased` changelog entries
-   under a dated version heading.
+1. Choose the version and move the relevant `Unreleased` changelog entries under
+   a dated version heading.
 2. Start from a clean checkout of the exact candidate commit.
 3. Run:
 
@@ -32,8 +32,8 @@ publication gates.
    TIA_FRESH=1 npm run release:check
    ```
 
-   This requires `uv`; the gate runs the Python conformance suite and builds
-   the pytest SDK sdist and wheel offline under `sdks/python/dist`.
+   This requires `uv`; the gate runs the Python conformance suite and builds the
+   pytest SDK sdist and wheel offline under `sdks/python/dist`.
 
 4. Require the full CI, compatibility, cross-platform, shard/aggregate, and
    non-publishing release-candidate workflows at that exact commit. This

@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for helping improve tiacore. Changes should preserve its core safety rule:
-when dependency information is uncertain, expand the test run rather than skip
-possibly affected tests.
+Thanks for helping improve tiacore. Changes should preserve its core safety
+rule: when dependency information is uncertain, expand the test run rather than
+skip possibly affected tests.
 
 ## Development setup
 
@@ -14,18 +14,24 @@ npm ci
 npm run check
 ```
 
+`npm run check` verifies Oxfmt, runs Oxlint, type-checks the repository, and
+executes the test suite. Use `npm run fmt` and `npm run lint:fix` before
+committing.
+
 Useful focused commands:
 
 ```sh
 npm run typecheck
+npm run fmt:check
+npm run lint
 npm run test:cross-platform
 npm run check:package
 npm run benchmark:parallel
 ```
 
 The benchmark is informational; correctness tests decide acceptance. The
-compatibility workflow exercises Node 20/22/24, Vite 6/7/8, Vitest 4.1, Bun
-1.3, npm, pnpm, Yarn Plug'n'Play, and Bun installs.
+compatibility workflow exercises Node 20/22/24, Vite 6/7/8, Vitest 4.1, Bun 1.3,
+npm, pnpm, Yarn Plug'n'Play, and Bun installs.
 
 ## Change expectations
 

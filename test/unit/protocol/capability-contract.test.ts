@@ -24,10 +24,7 @@ interface CapabilityContract {
 
 const root = process.cwd()
 const contract = JSON.parse(
-  readFileSync(
-    join(root, 'capabilities/adapter-capabilities-v1.json'),
-    'utf8',
-  ),
+  readFileSync(join(root, 'capabilities/adapter-capabilities-v1.json'), 'utf8'),
 ) as CapabilityContract
 const packageJson = JSON.parse(
   readFileSync(join(root, 'package.json'), 'utf8'),
@@ -56,10 +53,7 @@ describe('adapter capability contract', () => {
 
     for (const adapter of contract.adapters) {
       if (adapter.entryPoint.startsWith('@usescherie/tiacore')) {
-        const exportKey = adapter.entryPoint.replace(
-          '@usescherie/tiacore',
-          '.',
-        )
+        const exportKey = adapter.entryPoint.replace('@usescherie/tiacore', '.')
         expect(packageJson.exports).toHaveProperty(
           exportKey === '.' ? '.' : exportKey,
         )

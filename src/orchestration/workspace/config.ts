@@ -13,7 +13,7 @@ export async function runWorkspaceCommand(options: {
   output?: string
 }): Promise<void> {
   const configPath = resolve(options.config)
-  const loaded = await import(pathToFileURL(configPath).href) as {
+  const loaded = (await import(pathToFileURL(configPath).href)) as {
     default?: TiaWorkspaceOptions | TiaWorkspaceRunner
     workspace?: TiaWorkspaceOptions | TiaWorkspaceRunner
   }
@@ -24,9 +24,7 @@ export async function runWorkspaceCommand(options: {
     )
   }
   const runner =
-    configured instanceof TiaWorkspaceRunner
-      ? configured
-      : tia(configured)
+    configured instanceof TiaWorkspaceRunner ? configured : tia(configured)
   const result = await runner.run()
   const serialized = `${JSON.stringify(result, null, 2)}\n`
   if (options.output === undefined || options.output === '-') {

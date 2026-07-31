@@ -11,44 +11,47 @@ import {
   TIA_TYPESCRIPT_ADAPTER_VERSION,
 } from '@usescherie/tiacore/adapter'
 
-const runner = tia({
-  apiVersion: TIA_TYPESCRIPT_ADAPTER_VERSION,
-  name: 'acme-test',
-  version: '2.4.0',
-  features: ['cached-outcomes', 'parallelism'],
+const runner = tia(
+  {
+    apiVersion: TIA_TYPESCRIPT_ADAPTER_VERSION,
+    name: 'acme-test',
+    version: '2.4.0',
+    features: ['cached-outcomes', 'parallelism'],
 
-  async discover({ root }) {
-    return {
-      fingerprint: 'runner-config-v3',
-      files: ['acme.config.ts'],
-      tests: await discoverAcmeTests(root),
-    }
+    async discover({ root }) {
+      return {
+        fingerprint: 'runner-config-v3',
+        files: ['acme.config.ts'],
+        tests: await discoverAcmeTests(root),
+      }
+    },
+
+    async execute({ plan, root, tests, wholeTestFiles }) {
+      const nativeResults = await runAcme({
+        root,
+        tests,
+        wholeTestFiles,
+      })
+
+      return {
+        complete: nativeResults.processExitedNormally,
+        fullyExecutedFiles: nativeResults.completeFiles,
+        observations: nativeResults.tests.map((test) => ({
+          id: test.id,
+          file: test.file,
+          fullName: test.fullName,
+          state: test.state,
+          duration: test.duration,
+          files: test.filesReached,
+        })),
+      }
+    },
   },
-
-  async execute({ plan, root, tests, wholeTestFiles }) {
-    const nativeResults = await runAcme({
-      root,
-      tests,
-      wholeTestFiles,
-    })
-
-    return {
-      complete: nativeResults.processExitedNormally,
-      fullyExecutedFiles: nativeResults.completeFiles,
-      observations: nativeResults.tests.map((test) => ({
-        id: test.id,
-        file: test.file,
-        fullName: test.fullName,
-        state: test.state,
-        duration: test.duration,
-        files: test.filesReached,
-      })),
-    }
+  {
+    cacheDir: '.tia',
+    onUnknownChange: 'full',
   },
-}, {
-  cacheDir: '.tia',
-  onUnknownChange: 'full',
-})
+)
 
 const result = await runner.run()
 process.exitCode = result.success ? 0 : 1
@@ -59,8 +62,8 @@ process.exitCode = result.success ? 0 : 1
 Discovery runs before planning and must not execute test bodies. It returns a
 stable ID, project-relative test file, and display name for every owned test.
 `files` lists runner configuration or catalog inputs that affect discovery.
-`fingerprint` covers inputs that cannot be represented by those paths, such as
-a remote schema version.
+`fingerprint` covers inputs that cannot be represented by those paths, such as a
+remote schema version.
 
 Test IDs must be unique and stable across runs. Paths use forward slashes and
 cannot escape the project. A changed catalog, adapter version, file inventory,
@@ -73,12 +76,12 @@ The execution callback receives only the selected tests. A test sourced from
 adapter should attempt it using the supplied ID, file, and name so a stale or
 failed case cannot disappear silently.
 
-Every selected test needs one observation. `files` is the runtime dependency
-set reached by that test. Set `complete` only when discovery and the native
-runner finished without losing results. Declare a file in `fullyExecutedFiles`
-only when every test it currently contains ran. Missing observations,
-duplicate IDs, invalid paths, or incomplete execution prevent graph commit.
-Failed observations are committed so they are forced to rerun next time.
+Every selected test needs one observation. `files` is the runtime dependency set
+reached by that test. Set `complete` only when discovery and the native runner
+finished without losing results. Declare a file in `fullyExecutedFiles` only
+when every test it currently contains ran. Missing observations, duplicate IDs,
+invalid paths, or incomplete execution prevent graph commit. Failed observations
+are committed so they are forced to rerun next time.
 
 The adapter owns native workers, filters, retries, and process management. TIA
 owns baseline comparison, conservative fallback, cached failures, artifact

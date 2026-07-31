@@ -17,9 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         python:
-          - "3.10"
-          - "3.12"
-          - "3.13"
+          - '3.10'
+          - '3.12'
+          - '3.13'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -89,13 +89,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - bun: "1.3.0"
+          - bun: '1.3.0'
             os: ubuntu-latest
-          - bun: "1.3.14"
+          - bun: '1.3.14'
             os: ubuntu-latest
-          - bun: "1.3.14"
+          - bun: '1.3.14'
             os: windows-latest
-          - bun: "1.3.14"
+          - bun: '1.3.14'
             os: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -126,8 +126,7 @@ jobs:
       - run: npm run build
       - run: npx vitest run test/integration/vitest/playwright.integration.test.ts
       - run: >-
-          npx vitest run test/integration/vitest/fixture.integration.test.ts
-          -t "selects one Browser Mode case"
+          npx vitest run test/integration/vitest/fixture.integration.test.ts -t "selects one Browser Mode case"
 
   package-manager:
     name: Install with ${{ matrix.manager }}
@@ -167,7 +166,7 @@ jobs:
         run: npx --yes @yarnpkg/cli-dist@4.18.0 install
         working-directory: test/fixtures/package-install
         env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
+          YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
       - if: matrix.manager == 'yarn'
         run: npx --yes @yarnpkg/cli-dist@4.18.0 test
         working-directory: test/fixtures/package-install

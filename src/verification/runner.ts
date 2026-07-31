@@ -71,9 +71,7 @@ async function snapshots(
       await readFile(resolve(root, entry), 'utf8'),
     ) as unknown
     if (!validSnapshot(value, phase)) {
-      throw new Error(
-        `invalid TIA verification snapshot: ${basename(entry)}`,
-      )
+      throw new Error(`invalid TIA verification snapshot: ${basename(entry)}`)
     }
     values.push(value)
   }
@@ -154,10 +152,9 @@ function comparePhases(
   const issues: TiaVerificationIssue[] = []
   const selectiveByRunner = indexedSnapshots(selective, issues)
   const fullByRunner = indexedSnapshots(full, issues)
-  const runnerNames = [...new Set([
-    ...selectiveByRunner.keys(),
-    ...fullByRunner.keys(),
-  ])].sort()
+  const runnerNames = [
+    ...new Set([...selectiveByRunner.keys(), ...fullByRunner.keys()]),
+  ].sort()
   const runners: TiaVerificationRunnerResult[] = []
 
   for (const runner of runnerNames) {
@@ -193,10 +190,7 @@ function comparePhases(
       })
       continue
     }
-    const result = compareVerificationSnapshots(
-      selectiveSnapshot,
-      fullSnapshot,
-    )
+    const result = compareVerificationSnapshots(selectiveSnapshot, fullSnapshot)
     issues.push(...result.issues)
     runners.push(result)
   }
@@ -237,8 +231,7 @@ function accuracyReceipt(
   return {
     executedTests,
     expectedTests,
-    falseNegativeRate:
-      expectedTests === 0 ? 0 : missedTests / expectedTests,
+    falseNegativeRate: expectedTests === 0 ? 0 : missedTests / expectedTests,
     missedTests,
     precision:
       executedTests === 0 ? null : relevantExecutedTests / executedTests,
@@ -262,13 +255,10 @@ function phaseResult(phase: ExecutedPhase): TiaVerificationPhaseResult {
 }
 
 function total(
-  snapshots: TiaVerificationSnapshot[],
+  phaseSnapshots: TiaVerificationSnapshot[],
   value: (snapshot: TiaVerificationSnapshot) => number,
 ): number {
-  return snapshots.reduce(
-    (sum, snapshot) => sum + value(snapshot),
-    0,
-  )
+  return phaseSnapshots.reduce((sum, snapshot) => sum + value(snapshot), 0)
 }
 
 function performanceReceipt(
@@ -301,9 +291,7 @@ function performanceReceipt(
       (snapshot) => snapshot.plan.replayedTests,
     ),
     speedup:
-      selective.duration === 0
-        ? null
-        : full.duration / selective.duration,
+      selective.duration === 0 ? null : full.duration / selective.duration,
   }
 }
 
@@ -346,10 +334,7 @@ export class TiaVerifier {
         phase: 'selective',
       })
       const full = await executePhase({ ...common, phase: 'full' })
-      const comparison = comparePhases(
-        selective.snapshots,
-        full.snapshots,
-      )
+      const comparison = comparePhases(selective.snapshots, full.snapshots)
       if (selective.status !== 0) {
         comparison.issues.push({
           code: 'selective-run-failed',
@@ -362,11 +347,13 @@ export class TiaVerifier {
           message: `full command exited with status ${full.status}`,
         })
       }
-      const verified = comparison.runners.length > 0 &&
+      const verified =
+        comparison.runners.length > 0 &&
         comparison.runners.every((runner) => runner.verified) &&
-        !comparison.issues.some((item) =>
-          item.code !== 'selective-run-failed' &&
-          item.code !== 'full-run-failed'
+        !comparison.issues.some(
+          (item) =>
+            item.code !== 'selective-run-failed' &&
+            item.code !== 'full-run-failed',
         )
       const completedAt = new Date()
       const receipt: TiaVerificationReceipt = {
@@ -383,8 +370,7 @@ export class TiaVerifier {
         runners: comparison.runners,
         schema: TIA_VERIFICATION_RECEIPT_VERSION,
         startedAt: startedAt.toISOString(),
-        success:
-          verified && selective.status === 0 && full.status === 0,
+        success: verified && selective.status === 0 && full.status === 0,
         verified,
       }
       if (this.options.output !== undefined) {

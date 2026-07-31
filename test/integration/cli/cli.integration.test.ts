@@ -1,10 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import {
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -146,10 +141,8 @@ describe('tiacore CLI', () => {
       scenarios: TIA_ADAPTER_CONFORMANCE_SCENARIOS.filter(
         (scenario) =>
           scenario.feature === undefined &&
-          (
-            scenario.capabilityLevels === undefined ||
-            scenario.capabilityLevels.includes('static-impact')
-          ),
+          (scenario.capabilityLevels === undefined ||
+            scenario.capabilityLevels.includes('static-impact')),
       ).map(({ id }) => ({
         evidence: { assertions: 1, fixture: `fixtures/${id}` },
         id,

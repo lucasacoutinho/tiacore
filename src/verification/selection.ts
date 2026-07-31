@@ -2,10 +2,7 @@ import {
   STRUCTURAL_FILE_PATTERN,
   TEST_FILE_PATTERN,
 } from '../shared/constants.js'
-import type {
-  CachedTestResult,
-  TiaRuntimeGraph,
-} from '../engine/types.js'
+import type { CachedTestResult, TiaRuntimeGraph } from '../engine/types.js'
 import type {
   TiaVerificationSelection,
   TiaVerificationSnapshot,
@@ -18,8 +15,7 @@ function runnableResults(
     Object.values(graph.results)
       .filter(
         (result) =>
-          result.state !== 'skipped' &&
-          !result.id.startsWith('module:'),
+          result.state !== 'skipped' && !result.id.startsWith('module:'),
       )
       .map((result) => [result.id, result]),
   )
@@ -35,9 +31,7 @@ function addToIndex(
   index.set(key, values)
 }
 
-function dependencyIndexes(
-  graphs: TiaRuntimeGraph[],
-): {
+function dependencyIndexes(graphs: TiaRuntimeGraph[]): {
   collectionFilesBySource: Map<string, Set<string>>
   testFilesById: Map<string, Set<string>>
   testIdsBySource: Map<string, Set<string>>
@@ -131,8 +125,7 @@ export function auditVerificationSelection(
         if (allTestIds.has(id)) expected.add(id)
       }
 
-      const linkedFiles = indexes.collectionFilesBySource.get(file) ??
-        new Set()
+      const linkedFiles = indexes.collectionFilesBySource.get(file) ?? new Set()
       for (const testFile of linkedFiles) {
         const preciseIds = [...linkedIds].filter(
           (id) => indexes.testFilesById.get(id)?.has(testFile) === true,
@@ -159,9 +152,7 @@ export function auditVerificationSelection(
   const expectedTestIds = [...expected].sort()
   const executedTestIds = [...executed].sort()
   const missedTestIds = expectedTestIds.filter((id) => !executed.has(id))
-  const unnecessaryTestIds = executedTestIds.filter(
-    (id) => !expected.has(id),
-  )
+  const unnecessaryTestIds = executedTestIds.filter((id) => !expected.has(id))
   const relevantExecuted = executedTestIds.length - unnecessaryTestIds.length
 
   return {

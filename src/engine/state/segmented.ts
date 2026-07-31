@@ -27,7 +27,7 @@ const SEGMENT_DOMAINS = [
   'testEdges',
 ] as const
 
-type SegmentDomain = typeof SEGMENT_DOMAINS[number]
+type SegmentDomain = (typeof SEGMENT_DOMAINS)[number]
 
 interface SegmentReference {
   bucket: number
@@ -69,8 +69,9 @@ function digest(value: string | Uint8Array): string {
 }
 
 function bucketFor(key: string): number {
-  return createHash('sha256').update(key).digest()[0]! %
-    TIA_RUNTIME_STORE_BUCKETS
+  return (
+    createHash('sha256').update(key).digest()[0]! % TIA_RUNTIME_STORE_BUCKETS
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -120,10 +121,12 @@ function manifest(value: unknown): RuntimeStateManifestV1 | null {
   }
 
   const candidate = value as unknown as RuntimeStateManifestV1
-  const generation = digest(JSON.stringify({
-    metadata: candidate.metadata,
-    segments: candidate.segments,
-  }))
+  const generation = digest(
+    JSON.stringify({
+      metadata: candidate.metadata,
+      segments: candidate.segments,
+    }),
+  )
   return generation === candidate.generation ? candidate : null
 }
 
@@ -225,13 +228,13 @@ function serializeSegments(
   return [...buckets.entries()]
     .sort(([left], [right]) => left - right)
     .map(([bucket, entries]) => {
-      const records = Object.fromEntries(
+      const bucketRecords = Object.fromEntries(
         entries.sort(([left], [right]) => left.localeCompare(right)),
       )
       const body = `${JSON.stringify({
         bucket,
         domain,
-        records,
+        records: bucketRecords,
         version: TIA_RUNTIME_STORE_VERSION,
       } satisfies RuntimeStateSegmentV1)}\n`
       const bytes = Buffer.byteLength(body)
@@ -262,10 +265,7 @@ function atomicWrite(path: string, body: string): void {
   }
 }
 
-function storeObject(
-  cacheDir: string,
-  segment: SerializedSegment,
-): void {
+function storeObject(cacheDir: string, segment: SerializedSegment): void {
   const path = join(
     stateObjectsPath(cacheDir),
     `${segment.reference.sha256}.json`,

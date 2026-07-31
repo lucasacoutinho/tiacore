@@ -1,7 +1,4 @@
-import {
-  mkdirSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
 

@@ -27,32 +27,25 @@ function readArchive(
     return null
   }
 
-  const graphPaths = [
-    ...(runner === undefined
+  const graphPaths =
+    runner === undefined
       ? ['graph.json', '.tia/graph.json']
-      : [
-          `${runner}/graph.json`,
-          `.tia/${runner}/graph.json`,
-        ]),
-  ]
-  const attestationPaths = [
-    ...(runner === undefined
+      : [`${runner}/graph.json`, `.tia/${runner}/graph.json`]
+  const attestationPaths =
+    runner === undefined
       ? ['attestation.json', '.tia/attestation.json']
       : [
           `${runner}/attestation.json`,
           `.tia/${runner}/attestation.json`,
           'attestation.json',
-        ]),
-  ]
+        ]
   const allowedPaths = new Set([...graphPaths, ...attestationPaths])
   let entries: Record<string, Uint8Array>
   try {
     entries = unzipSync(archive, {
       filter: (entry) =>
-        (
-          allowedPaths.has(entry.name) ||
-          (depth === 0 && NESTED_ARCHIVE_PATTERN.test(entry.name))
-        ) &&
+        (allowedPaths.has(entry.name) ||
+          (depth === 0 && NESTED_ARCHIVE_PATTERN.test(entry.name))) &&
         entry.originalSize <= MAX_ARTIFACT_GRAPH_BYTES,
     })
   } catch {
@@ -61,10 +54,7 @@ function readArchive(
 
   for (const path of graphPaths) {
     const bytes = entries[path]
-    if (
-      bytes === undefined ||
-      bytes.byteLength > MAX_ARTIFACT_GRAPH_BYTES
-    ) {
+    if (bytes === undefined || bytes.byteLength > MAX_ARTIFACT_GRAPH_BYTES) {
       continue
     }
 
@@ -124,10 +114,7 @@ export async function readBoundedResponse(
   maximumBytes: number,
 ): Promise<Uint8Array | null> {
   const declaredLength = Number(response.headers.get('content-length'))
-  if (
-    Number.isFinite(declaredLength) &&
-    declaredLength > maximumBytes
-  ) {
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
     return null
   }
 

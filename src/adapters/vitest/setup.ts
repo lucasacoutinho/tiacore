@@ -21,7 +21,8 @@ import type {
 } from '../../shared/types.js'
 
 const coverage = (): CoverageMapLike | undefined =>
-  (globalThis as typeof globalThis & { __coverage__?: CoverageMapLike }).__coverage__
+  (globalThis as typeof globalThis & { __coverage__?: CoverageMapLike })
+    .__coverage__
 
 const baseline = snapshotCoverage(coverage())
 let boundary = baseline

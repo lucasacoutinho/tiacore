@@ -1,5 +1,5 @@
-import http from "k6/http";
+import http from 'k6/http'
 
 export function member(baseUrl) {
-  return http.get(`${baseUrl}/v1/me`);
+  return http.get(`${baseUrl}/v1/me`)
 }

@@ -10,15 +10,12 @@ import {
   type TiaVerificationSnapshot,
 } from './types.js'
 
-export const TIA_VERIFICATION_DIRECTORY_ENV =
-  'TIA_VERIFICATION_DIRECTORY'
+export const TIA_VERIFICATION_DIRECTORY_ENV = 'TIA_VERIFICATION_DIRECTORY'
 export const TIA_VERIFICATION_PHASE_ENV = 'TIA_VERIFICATION_PHASE'
 
 function verificationPhase(value: string): TiaVerificationPhase {
   if (value === 'selective' || value === 'full') return value
-  throw new Error(
-    `${TIA_VERIFICATION_PHASE_ENV} must be selective or full`,
-  )
+  throw new Error(`${TIA_VERIFICATION_PHASE_ENV} must be selective or full`)
 }
 
 function snapshotName(runner: string, fingerprint: string): string {

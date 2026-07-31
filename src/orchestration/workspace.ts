@@ -118,9 +118,7 @@ export class TiaWorkspaceRunner {
   async run(): Promise<TiaWorkspaceResult> {
     const root = resolve(this.options.root ?? process.cwd())
     const concurrency = normalizedConcurrency(this.options.concurrency)
-    const pending = new Map(
-      this.options.lanes.map((lane) => [lane.id, lane]),
-    )
+    const pending = new Map(this.options.lanes.map((lane) => [lane.id, lane]))
     const activeLocks = new Set<string>()
     const running = new Map<string, Promise<void>>()
     const results = new Map<string, TiaWorkspaceLaneResult>()
@@ -166,7 +164,7 @@ export class TiaWorkspaceRunner {
 
     while (pending.size > 0 || running.size > 0) {
       let progressed = false
-      for (const lane of [...pending.values()]) {
+      for (const lane of pending.values()) {
         const dependencies = lane.dependsOn ?? []
         const blockedBy = dependencies.find(
           (id) => results.get(id)?.status !== 'passed',
@@ -193,9 +191,7 @@ export class TiaWorkspaceRunner {
           continue
         }
         if (running.size >= concurrency) continue
-        if (
-          (lane.resourceLocks ?? []).some((lock) => activeLocks.has(lock))
-        ) {
+        if ((lane.resourceLocks ?? []).some((lock) => activeLocks.has(lock))) {
           continue
         }
         launch(lane)

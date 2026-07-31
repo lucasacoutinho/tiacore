@@ -1,8 +1,7 @@
 # Configuration and safety
 
-tiacore defaults are conservative. A setting may narrow known irrelevant
-files, but uncertainty still expands to a full run unless you explicitly opt
-out.
+tiacore defaults are conservative. A setting may narrow known irrelevant files,
+but uncertainty still expands to a full run unless you explicitly opt out.
 
 ## Vitest options
 
@@ -37,25 +36,25 @@ tia({
 })
 ```
 
-| Option | Behavior |
-| --- | --- |
-| `enabled` | Overrides automatic run and CI detection. |
-| `cacheDir` | Sets the graph location relative to the project root. |
-| `include`, `exclude` | Control which project modules receive instrumentation. |
-| `ignoreChanges` | Ignores narrow, known-safe patterns. Test and structural files cannot be ignored. |
-| `fresh` | Discards the reusable plan and records a full baseline. |
-| `onUnknownChange` | Defaults to `full`. The `ignore` value is a global unsafe opt-out. |
-| `shardGroup` | Identifies fragments belonging to one complete sharded run. |
-| `artifacts` | Restores baseline candidates from one or more providers. |
-| `artifactTrust` | Authenticates candidates and restricts keys, producers, age, promotion, and baseline sources. |
-| `frameworks` | Adds explicit view, database, subprocess, or custom edges. |
-| `replayAdapters` | Receives cached lifecycle events without mutating Vitest state. |
-| `replayReporters` | Sends detached cached-test events to named reporter instances. |
-| `log` | Prints baseline provenance, selection reasons, and a bounded recap. |
+| Option               | Behavior                                                                                      |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `enabled`            | Overrides automatic run and CI detection.                                                     |
+| `cacheDir`           | Sets the graph location relative to the project root.                                         |
+| `include`, `exclude` | Control which project modules receive instrumentation.                                        |
+| `ignoreChanges`      | Ignores narrow, known-safe patterns. Test and structural files cannot be ignored.             |
+| `fresh`              | Discards the reusable plan and records a full baseline.                                       |
+| `onUnknownChange`    | Defaults to `full`. The `ignore` value is a global unsafe opt-out.                            |
+| `shardGroup`         | Identifies fragments belonging to one complete sharded run.                                   |
+| `artifacts`          | Restores baseline candidates from one or more providers.                                      |
+| `artifactTrust`      | Authenticates candidates and restricts keys, producers, age, promotion, and baseline sources. |
+| `frameworks`         | Adds explicit view, database, subprocess, or custom edges.                                    |
+| `replayAdapters`     | Receives cached lifecycle events without mutating Vitest state.                               |
+| `replayReporters`    | Sends detached cached-test events to named reporter instances.                                |
+| `log`                | Prints baseline provenance, selection reasons, and a bounded recap.                           |
 
-Node and Bun share `cacheDir`, `concurrency`, `files`, `fresh`,
-`ignoreChanges`, `log`, `onUnknownChange`, `replayAdapters`, and `root`. Their
-cache paths are namespaced by runner.
+Node and Bun share `cacheDir`, `concurrency`, `files`, `fresh`, `ignoreChanges`,
+`log`, `onUnknownChange`, `replayAdapters`, and `root`. Their cache paths are
+namespaced by runner.
 
 Artifact candidates are signed by default. If no trusted public key verifies a
 candidate, TIA ignores it and records a full baseline. `allowUnsigned: true` is
@@ -95,19 +94,19 @@ tia({
 
 Positive thresholds are minimum percentages. Negative thresholds are maximum
 uncovered counts. Global, per-file, `100`, and glob sets are supported.
-Thresholds wait for a complete CI shard set. `thresholds.autoUpdate` is
-enforced but does not rewrite the Vitest config.
+Thresholds wait for a complete CI shard set. `thresholds.autoUpdate` is enforced
+but does not rewrite the Vitest config.
 
 ## React and lazy imports
 
 React Testing Library works through Vitest's normal jsdom or Browser Mode
 environment. tiacore records modules and assets executed when a component
-renders. `React.lazy()` and other dynamic imports become edges when a test
-loads them.
+renders. `React.lazy()` and other dynamic imports become edges when a test loads
+them.
 
-A lazy component no test has loaded has no runtime edge. Changing it follows
-the unknown-file policy, which defaults to a full run. This is intentional:
-the graph cannot prove an owner for code it has never observed.
+A lazy component no test has loaded has no runtime edge. Changing it follows the
+unknown-file policy, which defaults to a full run. This is intentional: the
+graph cannot prove an owner for code it has never observed.
 
 ## Database, view, and subprocess edges
 
@@ -140,14 +139,13 @@ tia({
 
 The database adapter maps detected table use to matching migrations and schema
 files. The view adapter resolves common render calls to existing templates.
-Subprocess mappings are declarations, because a parent process cannot prove
-what a child executed. Custom adapters can implement
-`TiaFrameworkEdgeAdapter`.
+Subprocess mappings are declarations, because a parent process cannot prove what
+a child executed. Custom adapters can implement `TiaFrameworkEdgeAdapter`.
 
 ## Cached reporter events
 
-Built-in Vitest reporters describe only work executed in the current process.
-An external reporter can explicitly receive detached cached outcomes:
+Built-in Vitest reporters describe only work executed in the current process. An
+external reporter can explicitly receive detached cached outcomes:
 
 ```ts
 const externalReporter = new ExternalReporter()
@@ -179,13 +177,13 @@ custom logs.
   full suite.
 - Lockfile, runner config, environment, or structural fingerprint changes run
   the full suite.
-- Unknown changed files run the full suite unless a narrow `ignoreChanges`
-  rule applies.
+- Unknown changed files run the full suite unless a narrow `ignoreChanges` rule
+  applies.
 - Cached failures always rerun.
 - Changes made during execution prevent graph promotion.
 - A failed or incomplete run does not replace the last valid graph.
-- Concurrent cases share conservative whole-file evidence because their
-  coverage counters overlap.
+- Concurrent cases share conservative whole-file evidence because their coverage
+  counters overlap.
 
 See the [public API](../public-api.md) for exported types and runner-specific
 contracts.

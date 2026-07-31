@@ -18,14 +18,10 @@ export interface TiaAdapterDefinition<Metadata = unknown> {
   apiVersion: typeof TIA_TYPESCRIPT_ADAPTER_VERSION
   discover(
     context: TiaAdapterDiscoveryContext,
-  ):
-    | Promise<TiaAdapterCatalog<Metadata>>
-    | TiaAdapterCatalog<Metadata>
+  ): Promise<TiaAdapterCatalog<Metadata>> | TiaAdapterCatalog<Metadata>
   execute(
     context: TiaAdapterExecutionContext<Metadata>,
-  ):
-    | Promise<TiaAdapterExecution>
-    | TiaAdapterExecution
+  ): Promise<TiaAdapterExecution> | TiaAdapterExecution
   features?: TiaTypescriptAdapterFeature[]
   name: string
   version: string
@@ -48,8 +44,9 @@ export interface TiaAdapterTest<Metadata = unknown> {
   id: string
 }
 
-export interface TiaAdapterSelectedTest<Metadata = unknown>
-  extends TiaAdapterTest<Metadata> {
+export interface TiaAdapterSelectedTest<
+  Metadata = unknown,
+> extends TiaAdapterTest<Metadata> {
   source: 'baseline' | 'catalog'
 }
 

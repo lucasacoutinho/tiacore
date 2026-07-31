@@ -15,8 +15,18 @@ function graph(count: number): TiaImpactGraph {
     environmentFingerprint: 'benchmark',
     fingerprint: 'benchmark',
     observations: suites.flatMap((suite, index) => [
-      { confidence: 'exact' as const, kind: 'configuration' as const, source: suite.file, suiteId: suite.id },
-      { confidence: 'observed' as const, kind: 'executed' as const, source: `src/domain-${index % 2_000}.ts`, suiteId: suite.id },
+      {
+        confidence: 'exact' as const,
+        kind: 'configuration' as const,
+        source: suite.file,
+        suiteId: suite.id,
+      },
+      {
+        confidence: 'observed' as const,
+        kind: 'executed' as const,
+        source: `src/domain-${index % 2_000}.ts`,
+        suiteId: suite.id,
+      },
     ]),
     protocolVersion: 1,
     suites,

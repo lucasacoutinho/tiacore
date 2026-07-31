@@ -1,8 +1,4 @@
-import type {
-  CoverageFile,
-  CoverageMapLike,
-  TiaCoverageMap,
-} from './types.js'
+import type { CoverageFile, CoverageMapLike, TiaCoverageMap } from './types.js'
 
 interface CoverageSnapshot {
   b: Record<string, number[]>
@@ -17,8 +13,8 @@ function cloneCounters(file: CoverageFile): CoverageSnapshot {
     b: Object.fromEntries(
       Object.entries(file.b ?? {}).map(([key, values]) => [key, [...values]]),
     ),
-    f: { ...(file.f ?? {}) },
-    s: { ...(file.s ?? {}) },
+    f: { ...file.f },
+    s: { ...file.s },
   }
 }
 
@@ -125,9 +121,7 @@ function hasHits(file: {
   return (
     Object.values(file.s).some((count) => count > 0) ||
     Object.values(file.f).some((count) => count > 0) ||
-    Object.values(file.b).some((counts) =>
-      counts.some((count) => count > 0),
-    )
+    Object.values(file.b).some((counts) => counts.some((count) => count > 0))
   )
 }
 
@@ -192,9 +186,7 @@ function mergeBranchCounters(
   return merged
 }
 
-export function mergeCoverageMaps(
-  ...maps: TiaCoverageMap[]
-): TiaCoverageMap {
+export function mergeCoverageMaps(...maps: TiaCoverageMap[]): TiaCoverageMap {
   const merged: TiaCoverageMap = {}
 
   for (const map of maps) {

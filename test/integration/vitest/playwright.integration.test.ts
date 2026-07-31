@@ -22,12 +22,7 @@ describe('Playwright adapter', () => {
   test('records browser source maps and reruns only the affected file', () => {
     const root = createFixtureProject('playwright-runtime')
 
-    const record = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-      30_000,
-    )
+    const record = runCommand(root, process.execPath, ['run-tia.mjs'], 30_000)
     expect(record.status, record.output).toBe(0)
     expect(record.output).toContain('TIA record:')
     expect(
@@ -43,9 +38,7 @@ describe('Playwright adapter', () => {
     const graph = readGraph(join(root, '.tia/playwright'))
     if (graph === null) throw new Error('expected Playwright graph')
     const edges = Object.values(graph.testEdges)
-    const lazyEdge = edges.find((edge) =>
-      edge.file.endsWith('lazy.spec.ts'),
-    )
+    const lazyEdge = edges.find((edge) => edge.file.endsWith('lazy.spec.ts'))
     const sharedEdge = edges.find((edge) =>
       edge.file.endsWith('shared.spec.ts'),
     )
@@ -55,28 +48,22 @@ describe('Playwright adapter', () => {
     expect(sharedEdge?.files).not.toContain('backend/lazy-route.ts')
 
     writeFileSync(join(root, 'executions.log'), '')
-    const replay = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-      30_000,
-    )
+    const replay = runCommand(root, process.execPath, ['run-tia.mjs'], 30_000)
     expect(replay.status, replay.output).toBe(0)
-    expect(replay.output).toContain('TIA replay: 0 affected files, 2 cached tests.')
+    expect(replay.output).toContain(
+      'TIA replay: 0 affected files, 2 cached tests.',
+    )
     expect(readFileSync(join(root, 'executions.log'), 'utf8')).toBe('')
 
     appendFileSync(
       join(root, 'src/lazy.js'),
       '\ndocument.body.dataset.lazyRevision = "two"\n',
     )
-    const affected = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-      30_000,
-    )
+    const affected = runCommand(root, process.execPath, ['run-tia.mjs'], 30_000)
     expect(affected.status, affected.output).toBe(0)
-    expect(affected.output).toContain('TIA replay: 1 affected file, 1 cached test.')
+    expect(affected.output).toContain(
+      'TIA replay: 1 affected file, 1 cached test.',
+    )
     expect(
       readFileSync(join(root, 'executions.log'), 'utf8'),
       affected.output,
@@ -105,33 +92,20 @@ describe('Playwright adapter', () => {
 
   test('records a failed affected spec and forces it to rerun', () => {
     const root = createFixtureProject('playwright-runtime')
-    const baseline = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-      30_000,
-    )
+    const baseline = runCommand(root, process.execPath, ['run-tia.mjs'], 30_000)
     expect(baseline.status, baseline.output).toBe(0)
     writeFileSync(join(root, 'executions.log'), '')
     appendFileSync(join(root, 'src/lazy.js'), '\n// failing revision\n')
 
-    const failed = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-      30_000,
-      { TIACORE_PLAYWRIGHT_FAIL: '1' },
-    )
+    const failed = runCommand(root, process.execPath, ['run-tia.mjs'], 30_000, {
+      TIACORE_PLAYWRIGHT_FAIL: '1',
+    })
     expect(failed.status).toBe(1)
     expect(readFileSync(join(root, 'executions.log'), 'utf8')).toBe('lazy\n')
     expect(
-      Object.values(
-        readGraph(join(root, '.tia/playwright'))?.results ?? {},
-      ),
+      Object.values(readGraph(join(root, '.tia/playwright'))?.results ?? {}),
     ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ state: 'failed' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ state: 'failed' })]),
     )
 
     writeFileSync(join(root, 'executions.log'), '')

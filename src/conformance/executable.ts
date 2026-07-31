@@ -40,7 +40,11 @@ async function execute(
   scenario: TiaExecutableScenario,
 ): Promise<{ durationMs: number; passed: boolean }> {
   const timeoutMs = scenario.timeoutMs ?? 60_000
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_TIMEOUT_MS) {
+  if (
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs < 1 ||
+    timeoutMs > MAX_TIMEOUT_MS
+  ) {
     throw new Error(`invalid timeout for certification scenario ${scenario.id}`)
   }
   const started = performance.now()

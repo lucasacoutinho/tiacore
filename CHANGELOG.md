@@ -15,13 +15,13 @@ follow Semantic Versioning.
 - Added signed, provider-neutral baseline artifacts with Ed25519 producer
   attestations, bounded claims, lineage, expiry, and promotion policy. Shared
   artifacts are rejected by default unless their producer is trusted.
-- Added the stable TypeScript adapter API at
-  `@usescherie/tiacore/adapter`. Third-party runners implement discovery and
-  execution behind the single `tia()` factory while tiacore owns planning,
-  replay, verification, artifacts, and persistence.
-- Added explicit public version constants for the TypeScript adapter,
-  artifact attestation and manifest, verification snapshot and receipt,
-  runner-neutral protocol, and adapter conformance contracts.
+- Added the stable TypeScript adapter API at `@usescherie/tiacore/adapter`.
+  Third-party runners implement discovery and execution behind the single
+  `tia()` factory while tiacore owns planning, replay, verification, artifacts,
+  and persistence.
+- Added explicit public version constants for the TypeScript adapter, artifact
+  attestation and manifest, verification snapshot and receipt, runner-neutral
+  protocol, and adapter conformance contracts.
 
 ### Changed
 
@@ -29,11 +29,13 @@ follow Semantic Versioning.
   and content-addressed record buckets. Small updates reuse unchanged objects;
   invalid or incomplete state fails closed and rebuilds safely.
 - Qualified the supported JavaScript adapters across their failure paths and
-  expanded Linux, Windows, macOS, Bun, native Node, and Chromium Browser Mode
-  CI gates. Native runners retain their own parallelism and resource control.
-- Declared the documented package entry points and versioned wire formats as
-  the stable 1.x compatibility surface. Internal storage layout remains
-  rebuildable implementation detail.
+  expanded Linux, Windows, macOS, Bun, native Node, and Chromium Browser Mode CI
+  gates. Native runners retain their own parallelism and resource control.
+- Added repository-wide Oxfmt and Oxlint checks to the default local and CI
+  quality gate.
+- Declared the documented package entry points and versioned wire formats as the
+  stable 1.x compatibility surface. Internal storage layout remains rebuildable
+  implementation detail.
 
 ### Fixed
 
@@ -68,8 +70,8 @@ follow Semantic Versioning.
   executed and replayed counts, fallbacks, and measured speedup.
 - Added provider-neutral artifact publishing through
   `@usescherie/tiacore/artifacts` and `tiacore artifacts publish|promote`, with
-  custom sinks, filesystem output, SHA-256 integrity, source and parent
-  lineage, explicit trust state, and coverage-aware promotion refusal.
+  custom sinks, filesystem output, SHA-256 integrity, source and parent lineage,
+  explicit trust state, and coverage-aware promotion refusal.
 - Added runtime baseline provenance and per-target selection decisions to run
   plans and replay lifecycle events, with bounded human-readable explanations
   across Vitest, Playwright, Node, and Bun.
@@ -86,8 +88,8 @@ follow Semantic Versioning.
 ### Fixed
 
 - Ignored Bun's transient `.bun-build` files and failed closed instead of
-  throwing when a relevant file becomes unreadable during a concurrent
-  baseline snapshot.
+  throwing when a relevant file becomes unreadable during a concurrent baseline
+  snapshot.
 
 ## 0.4.0 - 2026-07-31
 
@@ -96,8 +98,8 @@ follow Semantic Versioning.
 - Added an explicit `@usescherie/tiacore/vitest` entry point while preserving
   the root Vitest compatibility export.
 - Added `@usescherie/tiacore/workspace` and `tiacore run` for bounded parallel
-  command and adapter lanes with dependencies, fail-fast behavior, and
-  resource locks.
+  command and adapter lanes with dependencies, fail-fast behavior, and resource
+  locks.
 
 ### Changed
 
@@ -140,13 +142,12 @@ follow Semantic Versioning.
   cleaning, failed-test reporting, watermarks, reporter tuples, and thresholds.
 - Compatibility and failure-injection suites for supported runtimes, Vite
   versions, package managers, workers, writers, shards, artifacts, and paths.
-- ESM and CommonJS runtime and declaration exports for every public entry
-  point.
+- ESM and CommonJS runtime and declaration exports for every public entry point.
 - Provider-neutral private npm publication with an explicit public-registry
   refusal, plus generated-output-free VCS installs.
 - Reproducible Bun VCS source builds that temporarily bootstrap the
-  package-locked development toolchain before compiling uncommitted
-  distribution output without shadowing consumer peer dependencies.
+  package-locked development toolchain before compiling uncommitted distribution
+  output without shadowing consumer peer dependencies.
 
 ### Changed
 
@@ -154,18 +155,18 @@ follow Semantic Versioning.
   cross-process environment variables, Playwright attachments, shared symbols,
   fixtures, and test infrastructure. No legacy alias is retained because no
   tagged release or known consumer uses the old identifiers.
-- Made protocol v1 bounded and canonical. Runtime validation now rejects
-  unknown fields, duplicate relations, dependency cycles, unsafe paths, and
-  oversized collections. Shipped schemas, an artifact-envelope validator, and
+- Made protocol v1 bounded and canonical. Runtime validation now rejects unknown
+  fields, duplicate relations, dependency cycles, unsafe paths, and oversized
+  collections. Shipped schemas, an artifact-envelope validator, and
   language-independent golden planning and rejection vectors.
-- Renamed the JavaScript-only cache type to `TiaRuntimeGraph` and documented
-  its boundary from the portable `TiaImpactGraph` protocol.
+- Renamed the JavaScript-only cache type to `TiaRuntimeGraph` and documented its
+  boundary from the portable `TiaImpactGraph` protocol.
 - Added a capability-scoped adapter conformance catalog, strict certification
   receipt, public validation API, schema, and `tiacore certify adapter` CLI.
 - Added executable `tia(options).run()` paths for k6 and Maestro with
   resource-lock scheduling and success-gated graph promotion.
-- Added explicit subprocess ownership mappings and shared those framework
-  edges with the Playwright runner for backend, database, and view sources.
+- Added explicit subprocess ownership mappings and shared those framework edges
+  with the Playwright runner for backend, database, and view sources.
 - Added direct GitLab CI artifact discovery and a bounded, authenticated HTTP
   manifest provider suitable for Buildkite, Jenkins, and signed object-storage
   URLs.

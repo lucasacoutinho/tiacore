@@ -1,12 +1,7 @@
 import { resolve } from 'node:path'
 
-import {
-  DEFAULT_EXCLUDE,
-  DEFAULT_INCLUDE,
-} from '../shared/constants.js'
-import {
-  artifactProviders,
-} from './artifacts/restore.js'
+import { DEFAULT_EXCLUDE, DEFAULT_INCLUDE } from '../shared/constants.js'
+import { artifactProviders } from './artifacts/restore.js'
 import { hashBytes, projectFingerprint } from './baseline/fingerprint.js'
 import {
   beginRuntimeRun,
@@ -15,9 +10,7 @@ import {
   type RuntimeProjectSnapshot,
 } from './lifecycle.js'
 import { updateGraph } from './state/update.js'
-import {
-  commitGraph,
-} from './state/store.js'
+import { commitGraph } from './state/store.js'
 import { projectRelative, resolveCacheDir } from '../shared/paths.js'
 import {
   notifyReplayAdapters,
@@ -40,7 +33,9 @@ export interface TiaCoreOptions {
   files: string[]
   fresh?: boolean
   fingerprint?: string
-  artifacts?: import('./artifacts/types.js').TiaArtifactSource | import('./artifacts/types.js').TiaArtifactSource[]
+  artifacts?:
+    | import('./artifacts/types.js').TiaArtifactSource
+    | import('./artifacts/types.js').TiaArtifactSource[]
   artifactTrust?: import('./artifacts/types.js').TiaArtifactTrustPolicy
   ignoreChanges?: string[]
   include?: string[]
@@ -121,8 +116,7 @@ export class TiaCore {
   }
 
   async prepare(): Promise<RunPlan> {
-    const cachePrefix =
-      projectRelative(this.root, this.options.cacheDir) ?? ''
+    const cachePrefix = projectRelative(this.root, this.options.cacheDir) ?? ''
     const ignoredPrefixes = cachePrefix === '' ? [] : [cachePrefix]
     this.snapshotAtStart = snapshotRuntimeProject({
       fingerprint: this.fingerprint(),
@@ -168,8 +162,7 @@ export class TiaCore {
     wholeTestFiles: string[],
   ): Promise<TiaRuntimeGraph | null> {
     const plan = this.plan
-    const cachePrefix =
-      projectRelative(this.root, this.options.cacheDir) ?? ''
+    const cachePrefix = projectRelative(this.root, this.options.cacheDir) ?? ''
     if (this.snapshotAtStart === null) {
       return null
     }
@@ -198,9 +191,7 @@ export class TiaCore {
       })
       testEdges.set(observation.id, {
         file: observation.file,
-        files: [
-          ...new Set([observation.file, ...observation.files]),
-        ].sort(),
+        files: [...new Set([observation.file, ...observation.files])].sort(),
       })
     }
 
@@ -212,9 +203,7 @@ export class TiaCore {
       executedFiles: touchedFiles,
       fullyExecutedFiles: wholeTestFiles,
       previous:
-        plan.mode === 'record' || plan.graph === null
-          ? null
-          : plan.graph,
+        plan.mode === 'record' || plan.graph === null ? null : plan.graph,
       results,
       root: this.root,
       testEdges,
@@ -272,5 +261,4 @@ export class TiaCore {
       }),
     )
   }
-
 }

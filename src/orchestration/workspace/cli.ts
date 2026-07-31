@@ -11,9 +11,7 @@ export function registerWorkspaceCommand(program: Command): void {
     .action(async (options: { config: string; output?: string }) => {
       await runWorkspaceCommand({
         config: options.config,
-        ...(options.output === undefined
-          ? {}
-          : { output: options.output }),
+        ...(options.output === undefined ? {} : { output: options.output }),
       })
     })
 }

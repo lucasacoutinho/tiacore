@@ -47,19 +47,19 @@ phase. Verification requires:
 - identical test-to-file dependency evidence;
 - identical reconstructed coverage topology when coverage is complete.
 
-Coverage hit counts are reduced to covered or uncovered before comparison.
-Exact counters can vary with retries, polling, and worker scheduling while
-producing the same report and threshold result. Per-test shards may also vary
-without changing their merged report, so the gate compares the complete
-per-file reconstruction used by native coverage output.
+Coverage hit counts are reduced to covered or uncovered before comparison. Exact
+counters can vary with retries, polling, and worker scheduling while producing
+the same report and threshold result. Per-test shards may also vary without
+changing their merged report, so the gate compares the complete per-file
+reconstruction used by native coverage output.
 
-The selection audit is independent of the planner's selected IDs. It derives
-the required tests from the changed files and the dependency evidence in both
-graphs. The selective graph preserves dependencies removed by a change; the
-full graph reveals new and lazy-loaded dependencies. Structural or unexplained
+The selection audit is independent of the planner's selected IDs. It derives the
+required tests from the changed files and the dependency evidence in both
+graphs. The selective graph preserves dependencies removed by a change; the full
+graph reveals new and lazy-loaded dependencies. Structural or unexplained
 changes require the full suite. Deleted test files do not select unrelated
-tests. A strict verification run also treats configured unknown-file ignores
-as unverified unless dependency evidence proves their scope.
+tests. A strict verification run also treats configured unknown-file ignores as
+unverified unless dependency evidence proves their scope.
 
 The receipt distinguishes verification from command health. `verified` means
 both phases agreed; `success` additionally requires both commands to exit with
@@ -79,9 +79,9 @@ reduce precision but do not fail the safety gate.
 
 ## Use it during adapter development
 
-Keep normal local and CI commands selective. Run differential verification for
-a new runner, a new framework edge, or a representative changed-file matrix.
-For a large repository, verify bounded lanes independently before scheduling a
+Keep normal local and CI commands selective. Run differential verification for a
+new runner, a new framework edge, or a representative changed-file matrix. For a
+large repository, verify bounded lanes independently before scheduling a
 periodic workspace-wide gate. The full phase sets `TIA_FRESH=1`; adapters built
 on `TiaCore` inherit that behavior automatically.
 

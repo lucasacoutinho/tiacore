@@ -73,12 +73,15 @@ function array<T>(value: T | T[] | undefined): T[] {
 function descriptor(file: string, source: string): SourceDescriptor {
   const packageName = /^\s*package\s+([A-Za-z_][\w.]*)/mu.exec(source)?.[1]
   const declaredName =
-    /^\s*(?:(?:public|private|protected|internal|abstract|final|open|data|sealed|enum|annotation)\s+)*(?:class|interface|object)\s+([A-Za-z_]\w*)/mu.exec(source)?.[1]
-    ?? basename(file, extname(file))
+    /^\s*(?:(?:public|private|protected|internal|abstract|final|open|data|sealed|enum|annotation)\s+)*(?:class|interface|object)\s+([A-Za-z_]\w*)/mu.exec(
+      source,
+    )?.[1] ?? basename(file, extname(file))
   return {
     className: packageName ? `${packageName}.${declaredName}` : declaredName,
     file,
-    imports: [...source.matchAll(/^\s*import\s+(?:static\s+)?([A-Za-z_][\w.*]*)/gmu)]
+    imports: [
+      ...source.matchAll(/^\s*import\s+(?:static\s+)?([A-Za-z_][\w.*]*)/gmu),
+    ]
       .map((match) => match[1])
       .filter((value): value is string => value !== undefined),
   }
@@ -95,12 +98,14 @@ async function sourceDescriptors(
     onlyFiles: true,
   })
   return Promise.all(
-    files.sort().map(async (absolute) =>
-      descriptor(
-        normalizeProtocolPath(relative(root, absolute)),
-        await readFile(absolute, 'utf8'),
+    files
+      .sort()
+      .map(async (absolute) =>
+        descriptor(
+          normalizeProtocolPath(relative(root, absolute)),
+          await readFile(absolute, 'utf8'),
+        ),
       ),
-    ),
   )
 }
 
@@ -127,7 +132,9 @@ export function gradleCatalogFingerprint(
   suites: readonly GradleSuite[],
 ): string {
   return createHash('sha256')
-    .update(JSON.stringify([...suites].sort((a, b) => a.id.localeCompare(b.id))))
+    .update(
+      JSON.stringify([...suites].sort((a, b) => a.id.localeCompare(b.id))),
+    )
     .digest('hex')
 }
 
@@ -140,7 +147,10 @@ export async function createGradleGraph(
     root,
     options.suites.map((suite) => suite.file),
   )
-  const sources = await sourceDescriptors(root, options.sources ?? DEFAULT_SOURCES)
+  const sources = await sourceDescriptors(
+    root,
+    options.sources ?? DEFAULT_SOURCES,
+  )
   const byClass = new Map(sources.map((source) => [source.className, source]))
   const importedSource = (name: string): SourceDescriptor | undefined => {
     const parts = name.replace(/\.\*$/u, '').split('.')
@@ -182,12 +192,15 @@ export async function createGradleGraph(
   return {
     complete: true,
     environmentFingerprint: options.environmentFingerprint,
-    fingerprint: options.fingerprint ?? gradleCatalogFingerprint(options.suites),
+    fingerprint:
+      options.fingerprint ?? gradleCatalogFingerprint(options.suites),
     invalidators: [...GRADLE_INVALIDATORS, ...(options.invalidators ?? [])],
-    knownSources: [...new Set([
-      ...sources.map((source) => source.file),
-      ...options.suites.map((suite) => suite.file),
-    ])].sort(),
+    knownSources: [
+      ...new Set([
+        ...sources.map((source) => source.file),
+        ...options.suites.map((suite) => suite.file),
+      ]),
+    ].sort(),
     observations,
     protocolVersion: TIA_PROTOCOL_VERSION,
     suites: options.suites.map(({ className: _, ...suite }) => suite),
@@ -238,10 +251,7 @@ interface XmlSuite {
 }
 
 function xmlCases(suite: XmlSuite): XmlCase[] {
-  return [
-    ...array(suite.testcase),
-    ...array(suite.testsuite).flatMap(xmlCases),
-  ]
+  return [...array(suite.testcase), ...array(suite.testsuite).flatMap(xmlCases)]
 }
 
 export function parseJUnitReport(xml: string): JUnitCase[] {
@@ -271,10 +281,18 @@ export async function readJUnitReports(
   patterns: readonly string[] = DEFAULT_REPORTS,
 ): Promise<JUnitCase[]> {
   const root = resolve(rootValue)
-  const paths = await glob(patterns, { absolute: true, cwd: root, onlyFiles: true })
-  return (await Promise.all(paths.sort().map(async (path) =>
-    parseJUnitReport(await readFile(path, 'utf8')),
-  ))).flat()
+  const paths = await glob(patterns, {
+    absolute: true,
+    cwd: root,
+    onlyFiles: true,
+  })
+  return (
+    await Promise.all(
+      paths
+        .sort()
+        .map(async (path) => parseJUnitReport(await readFile(path, 'utf8'))),
+    )
+  ).flat()
 }
 
 export interface TiaGradleOptions extends Omit<PlanGradleOptions, 'graph'> {
@@ -297,7 +315,10 @@ export interface TiaGradleResult {
 
 async function executable(root: string, configured?: string): Promise<string> {
   if (configured) return configured
-  const candidate = resolve(root, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew')
+  const candidate = resolve(
+    root,
+    process.platform === 'win32' ? 'gradlew.bat' : 'gradlew',
+  )
   await access(candidate)
   return candidate
 }
@@ -326,10 +347,14 @@ export class TiaGradleRunner {
 
   async run(): Promise<TiaGradleResult> {
     const root = resolve(this.options.root)
-    const graphPath = resolve(root, this.options.graphPath ?? '.tia/gradle/graph.json')
-    const graph = this.options.graph === undefined
-      ? await readAdapterGraph(graphPath)
-      : this.options.graph
+    const graphPath = resolve(
+      root,
+      this.options.graphPath ?? '.tia/gradle/graph.json',
+    )
+    const graph =
+      this.options.graph === undefined
+        ? await readAdapterGraph(graphPath)
+        : this.options.graph
     const suites = await discoverGradleSuites(this.options)
     const plan = await planGradle({ ...this.options, graph })
     const selected = new Set(plan.selected)
@@ -349,9 +374,10 @@ export class TiaGradleRunner {
       root,
       this.options.environment,
     )
-    const cases = status === 0
-      ? await readJUnitReports(root, this.options.reports ?? DEFAULT_REPORTS)
-      : []
+    const cases =
+      status === 0
+        ? await readJUnitReports(root, this.options.reports ?? DEFAULT_REPORTS)
+        : []
     const observed = new Set(cases.map((testCase) => testCase.className))
     const missingReports =
       (this.options.requireReports ?? true) &&
@@ -360,16 +386,19 @@ export class TiaGradleRunner {
     const finalStatus =
       status === 0 && (missingReports || failedCases) ? 1 : status
     if (finalStatus === 0) {
-      await writeAdapterGraph(graphPath, await createGradleGraph(root, {
-        environmentFingerprint: this.options.currentEnvironmentFingerprint,
-        ...(this.options.currentFingerprint === undefined
-          ? {}
-          : { fingerprint: this.options.currentFingerprint }),
-        ...(this.options.sources === undefined
-          ? {}
-          : { sources: this.options.sources }),
-        suites,
-      }))
+      await writeAdapterGraph(
+        graphPath,
+        await createGradleGraph(root, {
+          environmentFingerprint: this.options.currentEnvironmentFingerprint,
+          ...(this.options.currentFingerprint === undefined
+            ? {}
+            : { fingerprint: this.options.currentFingerprint }),
+          ...(this.options.sources === undefined
+            ? {}
+            : { sources: this.options.sources }),
+          suites,
+        }),
+      )
     }
     return {
       cases,

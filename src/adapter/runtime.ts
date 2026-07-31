@@ -1,6 +1,9 @@
 import { resolve } from 'node:path'
 
-import { normalizeProtocolPath, normalizeProtocolPaths } from '../protocol/paths.js'
+import {
+  normalizeProtocolPath,
+  normalizeProtocolPaths,
+} from '../protocol/paths.js'
 import { TiaCore, type TiaObservation } from '../engine/run.js'
 import type { CachedTestResult, RunPlan } from '../engine/types.js'
 import type {
@@ -114,13 +117,17 @@ function selectedTests<Metadata>(
 
 function normalizeObservation(observation: TiaObservation): TiaObservation {
   if (!['failed', 'passed', 'skipped'].includes(observation.state)) {
-    throw new Error(`TIA adapter observation has an invalid state: ${observation.id}`)
+    throw new Error(
+      `TIA adapter observation has an invalid state: ${observation.id}`,
+    )
   }
   if (
     observation.duration !== undefined &&
     (!Number.isFinite(observation.duration) || observation.duration < 0)
   ) {
-    throw new Error(`TIA adapter observation has an invalid duration: ${observation.id}`)
+    throw new Error(
+      `TIA adapter observation has an invalid duration: ${observation.id}`,
+    )
   }
   return {
     ...(observation.duration === undefined
@@ -170,10 +177,7 @@ function completeSelection(
   const observed = new Set(
     execution.observations.map((observation) => observation.id),
   )
-  return (
-    execution.complete &&
-    selected.every((test) => observed.has(test.id))
-  )
+  return execution.complete && selected.every((test) => observed.has(test.id))
 }
 
 export class TiaAdapter<Metadata = unknown> {
@@ -193,7 +197,10 @@ export class TiaAdapter<Metadata = unknown> {
       throw new Error('TIA adapter name must be a safe lowercase cache key')
     }
     nonEmpty(definition.version, 'TIA adapter version')
-    if (new Set(definition.features ?? []).size !== (definition.features ?? []).length) {
+    if (
+      new Set(definition.features ?? []).size !==
+      (definition.features ?? []).length
+    ) {
       throw new Error('TIA adapter features contain duplicates')
     }
     const unsupportedFeature = (definition.features ?? []).find(
@@ -208,9 +215,7 @@ export class TiaAdapter<Metadata = unknown> {
 
   async run(): Promise<TiaAdapterResult> {
     const root = resolve(this.options.root ?? process.cwd())
-    const catalog = normalizeCatalog(
-      await this.definition.discover({ root }),
-    )
+    const catalog = normalizeCatalog(await this.definition.discover({ root }))
     const testFiles = normalizeProtocolPaths(
       catalog.tests.map((test) => test.file),
     )
@@ -265,14 +270,17 @@ export class TiaAdapter<Metadata = unknown> {
       )
     }
 
-    const execution = selected.length === 0
-      ? { complete: true, observations: [] }
-      : normalizeExecution(await this.definition.execute({
-          plan: structuredClone(plan),
-          root,
-          tests: selected,
-          wholeTestFiles: [...defaultWholeFiles],
-        }))
+    const execution =
+      selected.length === 0
+        ? { complete: true, observations: [] }
+        : normalizeExecution(
+            await this.definition.execute({
+              plan: structuredClone(plan),
+              root,
+              tests: selected,
+              wholeTestFiles: [...defaultWholeFiles],
+            }),
+          )
     const complete = completeSelection(selected, execution)
     const wholeFiles = normalizeProtocolPaths([
       ...defaultWholeFiles,
@@ -281,9 +289,11 @@ export class TiaAdapter<Metadata = unknown> {
     const graph = complete
       ? await core.commit(execution.observations, wholeFiles)
       : null
-    const success = complete && execution.observations.every(
-      (observation) => observation.state !== 'failed',
-    )
+    const success =
+      complete &&
+      execution.observations.every(
+        (observation) => observation.state !== 'failed',
+      )
 
     return {
       complete,

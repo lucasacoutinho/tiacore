@@ -1,9 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -25,9 +20,7 @@ import type {
 
 const temporaryDirectories: string[] = []
 
-function fragment(
-  partition: TiaRuntimeGraphPartition,
-): TiaRuntimeGraph {
+function fragment(partition: TiaRuntimeGraphPartition): TiaRuntimeGraph {
   const id = `case-${partition.index}`
   const file = `test/${partition.index}.test.ts`
   return {
@@ -74,14 +67,9 @@ describe('partition promotion failure injection', () => {
       index: 1,
       total: 2,
     }
-    writeGraph(
-      partitionCacheDir(cacheDir, partition),
-      fragment(partition),
-    )
+    writeGraph(partitionCacheDir(cacheDir, partition), fragment(partition))
     const second = { ...partition, index: 2 }
-    const truncated = statePath(
-      partitionCacheDir(cacheDir, second),
-    )
+    const truncated = statePath(partitionCacheDir(cacheDir, second))
     mkdirSync(dirname(truncated), { recursive: true })
     writeFileSync(truncated, '{"schema":3')
 
@@ -90,14 +78,8 @@ describe('partition promotion failure injection', () => {
     ).resolves.toBeNull()
     expect(readGraph(cacheDir)).toBeNull()
 
-    writeGraph(
-      partitionCacheDir(cacheDir, second),
-      fragment(second),
-    )
-    const promoted = await aggregateLocalPartitions(
-      cacheDir,
-      partition,
-    )
+    writeGraph(partitionCacheDir(cacheDir, second), fragment(second))
+    const promoted = await aggregateLocalPartitions(cacheDir, partition)
 
     expect(promoted).toMatchObject({
       complete: true,

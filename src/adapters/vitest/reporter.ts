@@ -46,20 +46,14 @@ import type {
   TiaTestMeta,
 } from '../../shared/types.js'
 
-function baselineDifferences(
-  before: Baseline,
-  after: Baseline,
-): string[] {
+function baselineDifferences(before: Baseline, after: Baseline): string[] {
   return [
     ...new Set([
       ...Object.keys(before.workingTree),
       ...Object.keys(after.workingTree),
     ]),
   ]
-    .filter(
-      (file) =>
-        before.workingTree[file] !== after.workingTree[file],
-    )
+    .filter((file) => before.workingTree[file] !== after.workingTree[file])
     .sort()
 }
 
@@ -86,10 +80,7 @@ export class TiaReporter implements Reporter {
       return
     }
 
-    if (
-      this.runtime.coverage.enabled &&
-      this.runtime.coverage.clean
-    ) {
+    if (this.runtime.coverage.enabled && this.runtime.coverage.clean) {
       rmSync(this.runtime.coverage.reportsDirectory, {
         force: true,
         recursive: true,
@@ -331,12 +322,16 @@ export class TiaReporter implements Reporter {
     }
 
     if (unhandledErrors.length > 0) {
-      this.warn('TIA graph was not updated because Vitest reported an unhandled error.')
+      this.warn(
+        'TIA graph was not updated because Vitest reported an unhandled error.',
+      )
       return
     }
 
     if (this.incomplete) {
-      this.warn('TIA graph was not updated because dependency metadata was incomplete.')
+      this.warn(
+        'TIA graph was not updated because dependency metadata was incomplete.',
+      )
       return
     }
 
@@ -351,14 +346,18 @@ export class TiaReporter implements Reporter {
     const fingerprint = snapshot.fingerprint
 
     if (fingerprint !== this.runtime.fingerprintAtStart) {
-      this.warn('TIA graph was not updated because project structure changed during the run.')
+      this.warn(
+        'TIA graph was not updated because project structure changed during the run.',
+      )
       return
     }
 
     const baseline = snapshot.baseline
 
     if (baseline === null) {
-      this.warn('TIA graph was not updated because the Git baseline is unavailable.')
+      this.warn(
+        'TIA graph was not updated because the Git baseline is unavailable.',
+      )
       return
     }
 
@@ -369,10 +368,7 @@ export class TiaReporter implements Reporter {
       const changed =
         this.runtime.baselineAtStart === null
           ? []
-          : baselineDifferences(
-              this.runtime.baselineAtStart,
-              baseline,
-            )
+          : baselineDifferences(this.runtime.baselineAtStart, baseline)
       this.warn(
         `TIA graph was not updated because project files changed during the run.${
           changed.length === 0
@@ -388,7 +384,7 @@ export class TiaReporter implements Reporter {
     const recordComplete =
       plan.mode !== 'record' ||
       this.runtime.partition !== null ||
-      await this.recordIncludesEveryConfiguredTestFile(modules)
+      (await this.recordIncludesEveryConfiguredTestFile(modules))
     const graph = updateGraph({
       collectionCoverage: this.collectionCoverage,
       executedFiles: this.executedFiles,
@@ -406,8 +402,7 @@ export class TiaReporter implements Reporter {
       testEdges: this.testEdges,
     })
     graph.baseline = baseline
-    graph.complete =
-      this.runtime.partition === null && recordComplete
+    graph.complete = this.runtime.partition === null && recordComplete
     graph.coverageComplete =
       plan.mode === 'record' ? recordComplete : graph.coverageComplete
     graph.fingerprint = fingerprint
@@ -418,14 +413,11 @@ export class TiaReporter implements Reporter {
     }
     graph.updatedAt = new Date().toISOString()
 
-    const committed = await commitGraph(
-      this.runtime.writeCacheDir,
-      {
-        expected: this.runtime.graphAtStart,
-        expectedDigest: this.runtime.graphDigestAtStart,
-        graph,
-      },
-    )
+    const committed = await commitGraph(this.runtime.writeCacheDir, {
+      expected: this.runtime.graphAtStart,
+      expectedDigest: this.runtime.graphDigestAtStart,
+      graph,
+    })
     if (committed.status === 'conflict' || committed.graph === null) {
       this.warn(
         'TIA graph was not updated because another process committed a conflicting graph.',
@@ -435,10 +427,10 @@ export class TiaReporter implements Reporter {
     let savedGraph = committed.graph
     if (this.runtime.partition !== null) {
       savedGraph =
-        await aggregateLocalPartitions(
+        (await aggregateLocalPartitions(
           this.runtime.options.cacheDir,
           this.runtime.partition,
-        ) ?? savedGraph
+        )) ?? savedGraph
     }
 
     if (!recordComplete) {
@@ -447,8 +439,7 @@ export class TiaReporter implements Reporter {
       )
     }
 
-    const coverageReady =
-      this.runtime.partition === null || savedGraph.complete
+    const coverageReady = this.runtime.partition === null || savedGraph.complete
     const failedRun = modules.some((module) => !module.ok())
     const shouldReportCoverage =
       this.runtime.coverage.enabled &&
@@ -467,17 +458,12 @@ export class TiaReporter implements Reporter {
               thresholds: null,
             },
       )
-      if (
-        this.runtime.coverage.thresholds !== null &&
-        !canCheckThresholds
-      ) {
+      if (this.runtime.coverage.thresholds !== null && !canCheckThresholds) {
         this.warn(
           'TIA coverage thresholds were deferred because this graph is a partial shard.',
         )
       }
-      if (
-        this.runtime.coverage.thresholds?.autoUpdate
-      ) {
+      if (this.runtime.coverage.thresholds?.autoUpdate) {
         this.warn(
           'TIA enforced coverage thresholds but did not rewrite the Vitest config for thresholds.autoUpdate.',
         )
@@ -521,10 +507,8 @@ export class TiaReporter implements Reporter {
       graph: savedGraph,
       plan,
       runner: `vitest:${
-        projectRelative(
-          this.runtime.root,
-          this.runtime.options.cacheDir,
-        ) ?? this.runtime.options.cacheDir
+        projectRelative(this.runtime.root, this.runtime.options.cacheDir) ??
+        this.runtime.options.cacheDir
       }`,
       success: !failedRun,
     })
@@ -534,8 +518,7 @@ export class TiaReporter implements Reporter {
       'onRunComplete',
       {
         ...replayRunEvent(plan),
-        coverageReportDirectory:
-          shouldReportCoverage
+        coverageReportDirectory: shouldReportCoverage
           ? this.runtime.coverage.reportsDirectory
           : null,
         executedTestFiles: [...this.executedFiles].sort(),
@@ -565,13 +548,8 @@ export class TiaReporter implements Reporter {
 
       const observed = new Set(
         modules
-          .map((module) =>
-            projectRelative(this.runtime.root, module.moduleId),
-          )
-          .filter(
-            (file): file is string =>
-              file !== null && file !== '',
-          ),
+          .map((module) => projectRelative(this.runtime.root, module.moduleId))
+          .filter((file): file is string => file !== null && file !== ''),
       )
       return [...expected].every((file) => observed.has(file))
     } catch {
@@ -579,9 +557,7 @@ export class TiaReporter implements Reporter {
     }
   }
 
-  private async notifyReplayReporters(
-    result: CachedTestResult,
-  ): Promise<void> {
+  private async notifyReplayReporters(result: CachedTestResult): Promise<void> {
     if (
       this.vitest === null ||
       this.runtime.options.replayReporters.length === 0
@@ -589,16 +565,9 @@ export class TiaReporter implements Reporter {
       return
     }
 
-    const testCase = cachedTestCase(
-      this.vitest,
-      this.runtime.root,
-      result,
-    )
+    const testCase = cachedTestCase(this.vitest, this.runtime.root, result)
     for (const reporter of this.runtime.options.replayReporters) {
-      for (const method of [
-        'onTestCaseReady',
-        'onTestCaseResult',
-      ] as const) {
+      for (const method of ['onTestCaseReady', 'onTestCaseResult'] as const) {
         const handler = reporter[method] as
           | ((testCase: TestCase) => Promise<void> | void)
           | undefined

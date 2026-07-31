@@ -84,9 +84,7 @@ async function loadHttpManifest(
     return null
   }
   const token =
-    options.tokenEnv === undefined
-      ? undefined
-      : process.env[options.tokenEnv]
+    options.tokenEnv === undefined ? undefined : process.env[options.tokenEnv]
   const headers = authorizationHeaders(
     token,
     options.authorizationScheme ?? 'Bearer',
@@ -111,8 +109,7 @@ async function loadHttpManifest(
       (artifact) =>
         (artifact.fingerprint === undefined ||
           artifact.fingerprint === context.fingerprint) &&
-        (artifact.runner === undefined ||
-          artifact.runner === context.runner) &&
+        (artifact.runner === undefined || artifact.runner === context.runner) &&
         (!options.promotedOnly || artifact.promoted === true),
     )
     .slice(0, Math.max(1, Math.min(100, options.maxArtifacts ?? 20)))
@@ -126,8 +123,7 @@ async function loadHttpManifest(
     }
     if (!['http:', 'https:'].includes(artifactUrl.protocol)) continue
     const download = await request(artifactUrl, {
-      headers:
-        artifactUrl.origin === manifestUrl.origin ? headers : {},
+      headers: artifactUrl.origin === manifestUrl.origin ? headers : {},
       redirect: 'follow',
     })
     if (!download.ok) continue
@@ -137,25 +133,21 @@ async function loadHttpManifest(
     )
     if (archive === null) continue
     if (
-      (artifact.size !== undefined &&
-        archive.byteLength !== artifact.size) ||
+      (artifact.size !== undefined && archive.byteLength !== artifact.size) ||
       (artifact.sha256 !== undefined &&
-        createHash('sha256').update(archive).digest('hex') !==
-          artifact.sha256)
+        createHash('sha256').update(archive).digest('hex') !== artifact.sha256)
     ) {
       continue
     }
-    const value = readArtifactArchive(archive, context.runner)
-    if (value?.graph.fingerprint !== context.fingerprint) continue
+    const archiveValue = readArtifactArchive(archive, context.runner)
+    if (archiveValue?.graph.fingerprint !== context.fingerprint) continue
     candidates.push({
-      ...(value.attestation === undefined
+      ...(archiveValue.attestation === undefined
         ? {}
-        : { attestation: value.attestation }),
-      graph: value.graph,
-      graphSha256: value.graphSha256,
-      ...(artifact.group === undefined
-        ? {}
-        : { group: artifact.group }),
+        : { attestation: archiveValue.attestation }),
+      graph: archiveValue.graph,
+      graphSha256: archiveValue.graphSha256,
+      ...(artifact.group === undefined ? {} : { group: artifact.group }),
       id: artifact.id,
     })
   }

@@ -54,9 +54,5 @@ export function resolveCacheDir(root: string, cacheDir: string): string {
 export function isInside(parent: string, child: string): boolean {
   const api = pathApi(parent, child)
   const rel = api.relative(parent, child)
-  return (
-    rel !== '..' &&
-    !rel.startsWith(`..${api.sep}`) &&
-    !api.isAbsolute(rel)
-  )
+  return rel !== '..' && !rel.startsWith(`..${api.sep}`) && !api.isAbsolute(rel)
 }

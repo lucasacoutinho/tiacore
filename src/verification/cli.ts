@@ -12,35 +12,35 @@ export function registerVerificationCommand(program: Command): void {
     .argument('<command...>', 'test command and its arguments')
     .passThroughOptions()
     .allowUnknownOption(true)
-    .action(async (
-      command: string[],
-      options: {
-        artifacts?: string
-        cwd?: string
-        output?: string
+    .action(
+      async (
+        command: string[],
+        options: {
+          artifacts?: string
+          cwd?: string
+          output?: string
+        },
+      ) => {
+        const [executable, ...arguments_] = command
+        if (executable === undefined) {
+          throw new Error('verify requires a test command')
+        }
+        const receipt = await new TiaVerifier({
+          arguments: arguments_,
+          ...(options.artifacts === undefined
+            ? {}
+            : {
+                artifactsDirectory: options.artifacts,
+                keepArtifacts: true,
+              }),
+          command: executable,
+          ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+          ...(options.output === undefined ? {} : { output: options.output }),
+        }).run()
+        if (options.output === undefined) {
+          process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`)
+        }
+        if (!receipt.success) process.exitCode = 1
       },
-    ) => {
-      const [executable, ...arguments_] = command
-      if (executable === undefined) {
-        throw new Error('verify requires a test command')
-      }
-      const receipt = await new TiaVerifier({
-        arguments: arguments_,
-        ...(options.artifacts === undefined
-          ? {}
-          : {
-              artifactsDirectory: options.artifacts,
-              keepArtifacts: true,
-            }),
-        command: executable,
-        ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
-        ...(options.output === undefined
-          ? {}
-          : { output: options.output }),
-      }).run()
-      if (options.output === undefined) {
-        process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`)
-      }
-      if (!receipt.success) process.exitCode = 1
-    })
+    )
 }

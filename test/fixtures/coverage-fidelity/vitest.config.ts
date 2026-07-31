@@ -12,8 +12,7 @@ export default defineConfig({
       exclude: ['src/excluded.ts'],
       include: ['src/**/*.ts'],
       provider: 'v8',
-      reportOnFailure:
-        process.env.TIA_COVERAGE_REPORT_ON_FAILURE === '1',
+      reportOnFailure: process.env.TIA_COVERAGE_REPORT_ON_FAILURE === '1',
       reporter: [
         ['json', { file: 'coverage-final.json' }],
         ['json-summary', { file: 'coverage-summary.json' }],

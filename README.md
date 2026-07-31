@@ -2,8 +2,8 @@
 
 Run the tests a change can affect. Reuse verified results for the rest.
 
-tiacore records runtime dependencies and test outcomes during a full run. On
-the next run, it compares the current project with that baseline, executes the
+tiacore records runtime dependencies and test outcomes during a full run. On the
+next run, it compares the current project with that baseline, executes the
 affected tests, and reuses unaffected results. Uncertain input causes a safe
 full-suite run.
 
@@ -86,16 +86,16 @@ minor releases, but it is never treated as portable application data.
 
 ## Supported runners
 
-| Runner | Import | Selection |
-| --- | --- | --- |
-| Vitest | `@usescherie/tiacore/vitest` | Exact test cases; conservative whole-file handling for concurrent cases |
-| Playwright | `@usescherie/tiacore/playwright` | Affected spec files from browser and fixture evidence |
-| `node:test` | `@usescherie/tiacore/node` | Test cases, with precise discovery on Node 22.15 and newer |
-| `bun:test` | `@usescherie/tiacore/bun` | Test cases from isolated LCOV observations |
-| Maestro | `@usescherie/tiacore/maestro` | Flows and transitive `runFlow` dependencies |
-| k6 | `@usescherie/tiacore/k6` | Profiles and transitive local imports |
-| Gradle/JUnit | `@usescherie/tiacore/gradle` | Java/Kotlin test classes and local imports; JUnit result validation |
-| pytest | `sdks/python` | Test files and transitive local imports |
+| Runner       | Import                           | Selection                                                               |
+| ------------ | -------------------------------- | ----------------------------------------------------------------------- |
+| Vitest       | `@usescherie/tiacore/vitest`     | Exact test cases; conservative whole-file handling for concurrent cases |
+| Playwright   | `@usescherie/tiacore/playwright` | Affected spec files from browser and fixture evidence                   |
+| `node:test`  | `@usescherie/tiacore/node`       | Test cases, with precise discovery on Node 22.15 and newer              |
+| `bun:test`   | `@usescherie/tiacore/bun`        | Test cases from isolated LCOV observations                              |
+| Maestro      | `@usescherie/tiacore/maestro`    | Flows and transitive `runFlow` dependencies                             |
+| k6           | `@usescherie/tiacore/k6`         | Profiles and transitive local imports                                   |
+| Gradle/JUnit | `@usescherie/tiacore/gradle`     | Java/Kotlin test classes and local imports; JUnit result validation     |
+| pytest       | `sdks/python`                    | Test files and transitive local imports                                 |
 
 Vitest 4.1 and Node.js 20 or newer are required for the main package. The
 standalone Node adapter requires Node.js 22.10 or newer. See the
@@ -104,8 +104,8 @@ claims and certification levels.
 
 ## How it works
 
-1. A full run records tests, runtime dependency edges, outcomes, coverage, and
-   a project baseline.
+1. A full run records tests, runtime dependency edges, outcomes, coverage, and a
+   project baseline.
 2. A later run compares Git state or filesystem content with that baseline.
 3. The adapter selects affected tests and previously failing tests.
 4. A successful run commits the new graph atomically. Incomplete evidence does
@@ -146,6 +146,8 @@ npm run check
 npm run check:package
 npm run check:python
 ```
+
+`npm run check` enforces Oxfmt and Oxlint before type-checking and testing.
 
 Implementation code is grouped by responsibility. `src/index.ts` is the only
 file at the source root; package subpath shims and the CLI launcher live in

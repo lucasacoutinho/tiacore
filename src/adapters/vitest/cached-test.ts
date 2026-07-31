@@ -2,16 +2,12 @@ import { resolve } from 'node:path'
 
 import type { TestCase, TestModule, Vitest } from 'vitest/node'
 
-import {
-  TIA_REPLAY_META_KEY,
-} from '../../shared/constants.js'
+import { TIA_REPLAY_META_KEY } from '../../shared/constants.js'
 import type { CachedTestResult } from '../../engine/types.js'
 
 export const TIA_CACHED_META_KEY = '__tiacore_cached__'
 
-function resultFor(
-  cached: CachedTestResult,
-): ReturnType<TestCase['result']> {
+function resultFor(cached: CachedTestResult): ReturnType<TestCase['result']> {
   if (cached.state === 'skipped') {
     return {
       errors: undefined,
@@ -112,8 +108,7 @@ export function cachedTestCase(
             flaky: false,
             repeatCount: 0,
             retryCount: 0,
-            slow:
-              cached.duration > project.globalConfig.slowTestThreshold,
+            slow: cached.duration > project.globalConfig.slowTestThreshold,
             startTime: Date.now() - cached.duration,
           },
     fullName: cached.fullName,
@@ -121,8 +116,7 @@ export function cachedTestCase(
     location: undefined,
     meta: () => metadata,
     module,
-    name:
-      cached.fullName.split(' > ').at(-1) ?? cached.fullName,
+    name: cached.fullName.split(' > ').at(-1) ?? cached.fullName,
     ok: () => result.state !== 'failed',
     options: {
       concurrent: false,

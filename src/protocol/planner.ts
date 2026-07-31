@@ -11,7 +11,9 @@ import {
 } from './types.js'
 import { parseImpactGraph } from './validate.js'
 
-function suiteMap(catalog: readonly TiaSuiteDescriptor[]): Map<string, TiaSuiteDescriptor> {
+function suiteMap(
+  catalog: readonly TiaSuiteDescriptor[],
+): Map<string, TiaSuiteDescriptor> {
   const suites = new Map<string, TiaSuiteDescriptor>()
   for (const suite of catalog) {
     if (suite.id.trim() === '' || suites.has(suite.id)) {
@@ -23,7 +25,9 @@ function suiteMap(catalog: readonly TiaSuiteDescriptor[]): Map<string, TiaSuiteD
   for (const suite of catalog) {
     for (const dependency of suite.dependsOn ?? []) {
       if (!suites.has(dependency)) {
-        throw new Error(`TIA suite ${suite.id} depends on unknown suite ${dependency}`)
+        throw new Error(
+          `TIA suite ${suite.id} depends on unknown suite ${dependency}`,
+        )
       }
     }
   }
@@ -40,7 +44,9 @@ function addReason(
   reasons.set(suiteId, suiteReasons)
 }
 
-function finalizeReasons(reasons: Map<string, Set<string>>): Record<string, string[]> {
+function finalizeReasons(
+  reasons: Map<string, Set<string>>,
+): Record<string, string[]> {
   return Object.fromEntries(
     [...reasons]
       .sort(([left], [right]) => left.localeCompare(right))
@@ -78,9 +84,7 @@ function planAll(
     mode: 'full',
     protocolVersion: TIA_PROTOCOL_VERSION,
     reason,
-    reasons: Object.fromEntries(
-      selected.map((suiteId) => [suiteId, [reason]]),
-    ),
+    reasons: Object.fromEntries(selected.map((suiteId) => [suiteId, [reason]])),
     resourceLocks: [
       ...new Set(
         selected.flatMap((suiteId) => suites.get(suiteId)?.resourceLocks ?? []),
@@ -99,7 +103,7 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
       throw new Error(`TIA policy allows unknown suite ${suiteId}`)
     }
   }
-  for (const suiteId of [...suites.keys()]) {
+  for (const suiteId of suites.keys()) {
     if (!allowed.has(suiteId)) suites.delete(suiteId)
   }
 
@@ -119,23 +123,23 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
     return planAll(suites, changedFiles, `invalid impact graph: ${message}`)
   }
   if (!graph.complete) {
-    return planAll(suites, changedFiles, 'the previous impact graph is incomplete')
+    return planAll(
+      suites,
+      changedFiles,
+      'the previous impact graph is incomplete',
+    )
   }
   if (
     graph.fingerprint !== input.currentFingerprint ||
-    (
-      policy.expectedFingerprint !== undefined &&
-      graph.fingerprint !== policy.expectedFingerprint
-    )
+    (policy.expectedFingerprint !== undefined &&
+      graph.fingerprint !== policy.expectedFingerprint)
   ) {
     return planAll(suites, changedFiles, 'project structure changed')
   }
   if (
     graph.environmentFingerprint !== input.currentEnvironmentFingerprint ||
-    (
-      policy.expectedEnvironmentFingerprint !== undefined &&
-      graph.environmentFingerprint !== policy.expectedEnvironmentFingerprint
-    )
+    (policy.expectedEnvironmentFingerprint !== undefined &&
+      graph.environmentFingerprint !== policy.expectedEnvironmentFingerprint)
   ) {
     return planAll(suites, changedFiles, 'execution environment changed')
   }
@@ -202,7 +206,9 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
 
   completeDependencies(suites, selected, reasons)
   const selectedSuites = [...selected].sort()
-  const cached = [...suites.keys()].filter((suiteId) => !selected.has(suiteId)).sort()
+  const cached = [...suites.keys()]
+    .filter((suiteId) => !selected.has(suiteId))
+    .sort()
   const resourceLocks = [
     ...new Set(
       selectedSuites.flatMap(
@@ -226,7 +232,9 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
   }
 }
 
-export function mergeImpactGraphs(graphs: readonly TiaImpactGraph[]): TiaImpactGraph {
+export function mergeImpactGraphs(
+  graphs: readonly TiaImpactGraph[],
+): TiaImpactGraph {
   if (graphs.length === 0) {
     throw new Error('at least one TIA impact graph is required')
   }
@@ -251,7 +259,9 @@ export function mergeImpactGraphs(graphs: readonly TiaImpactGraph[]): TiaImpactG
       const serialized = JSON.stringify(suite)
       const previous = suites.get(suite.id)
       if (previous !== undefined && previous !== serialized) {
-        throw new Error(`TIA suite ${suite.id} differs between graph partitions`)
+        throw new Error(
+          `TIA suite ${suite.id} differs between graph partitions`,
+        )
       }
       suites.set(suite.id, serialized)
       suiteValues.set(suite.id, suite)

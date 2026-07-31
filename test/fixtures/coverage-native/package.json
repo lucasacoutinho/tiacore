@@ -6,8 +6,8 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.10",
     "@usescherie/tiacore": "file:../../..",
+    "@vitest/coverage-v8": "^4.1.10",
     "vite": "^7.0.0",
     "vitest": "^4.1.10"
   }

@@ -104,9 +104,9 @@ export interface TiaArtifactSinkResult {
 
 export interface TiaArtifactSink {
   name: string
-  put(input: TiaArtifactSinkInput):
-    | Promise<TiaArtifactSinkResult>
-    | TiaArtifactSinkResult
+  put(
+    input: TiaArtifactSinkInput,
+  ): Promise<TiaArtifactSinkResult> | TiaArtifactSinkResult
 }
 
 export interface TiaFilesystemArtifactSinkOptions {

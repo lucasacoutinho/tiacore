@@ -21,10 +21,7 @@ import {
   PLAYWRIGHT_ROOT_ENV,
   PLAYWRIGHT_SESSION_ENV,
 } from './protocol.js'
-import {
-  coveredSourceMapFiles,
-  sourceMapFiles,
-} from './source-maps.js'
+import { coveredSourceMapFiles, sourceMapFiles } from './source-maps.js'
 
 function tracksSource(responseUrl: string, resourceType: string): boolean {
   return (
@@ -42,10 +39,7 @@ async function recordDependencies(
   testInfo: TestInfo,
 ): Promise<void> {
   const root = process.env[PLAYWRIGHT_ROOT_ENV]
-  if (
-    root === undefined ||
-    process.env[PLAYWRIGHT_SESSION_ENV] === undefined
-  ) {
+  if (root === undefined || process.env[PLAYWRIGHT_SESSION_ENV] === undefined) {
     await use()
     return
   }
@@ -91,9 +85,10 @@ async function recordDependencies(
     if (preciseCoverage) {
       coverageStarts.set(
         page,
-        page.coverage
-          .startJSCoverage({ resetOnNavigation: false })
-          .then(() => true, () => false),
+        page.coverage.startJSCoverage({ resetOnNavigation: false }).then(
+          () => true,
+          () => false,
+        ),
       )
     }
     page.on('response', (response) => {
@@ -135,7 +130,7 @@ async function recordDependencies(
       await context.unroute('**/*', correlatedRoute)
     }
   }
-  await Promise.allSettled([...pending])
+  await Promise.allSettled(pending)
 
   if (evidence !== null && correlationId !== undefined) {
     for (const file of await evidence.collect(correlationId, {
@@ -148,7 +143,7 @@ async function recordDependencies(
   for (const page of pages) {
     const coverageStarted =
       preciseCoverage &&
-      await (coverageStarts.get(page) ?? Promise.resolve(false))
+      (await (coverageStarts.get(page) ?? Promise.resolve(false)))
     if (!coverageStarted) {
       for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
         for (const file of dependencies) {

@@ -34,10 +34,7 @@ function entryModules(
   const byFile = graph.getModulesByFile(resolve(cleanModuleId))
 
   return [
-    ...new Set([
-      ...(direct === undefined ? [] : [direct]),
-      ...(byFile ?? []),
-    ]),
+    ...new Set([...(direct === undefined ? [] : [direct]), ...(byFile ?? [])]),
   ]
 }
 

@@ -2,8 +2,8 @@
 
 tiacore selection and native test parallelism solve different problems. TIA
 reduces the work set; the runner still executes that set with its normal
-workers. The workspace coordinator can run independent quality lanes at the
-same time.
+workers. The workspace coordinator can run independent quality lanes at the same
+time.
 
 ## Fast first runs
 
@@ -49,8 +49,8 @@ tia({
 ```
 
 Candidates are validated for structure, environment, fingerprint, and ancestry
-before reuse. An unavailable or incompatible provider falls through to the
-next one and finally to a full run.
+before reuse. An unavailable or incompatible provider falls through to the next
+one and finally to a full run.
 
 ## Publish without a CI-vendor adapter
 
@@ -67,18 +67,17 @@ npx tiacore artifacts publish \
   --output-dir .tia-artifacts/playwright-feature
 ```
 
-The command reads the Ed25519 private key from
-`TIA_ARTIFACT_PRIVATE_KEY`. Use `--signing-key-env` to select another secret
-variable and `--trust-expires-in` to set a bounded lifetime. Keep the PKCS#8
-private PEM only in the producing system and distribute the SPKI public PEM to
-consumers.
+The command reads the Ed25519 private key from `TIA_ARTIFACT_PRIVATE_KEY`. Use
+`--signing-key-env` to select another secret variable and `--trust-expires-in`
+to set a bounded lifetime. Keep the PKCS#8 private PEM only in the producing
+system and distribute the SPKI public PEM to consumers.
 
 Upload `.tia-artifacts/playwright-feature` with the CI system's normal artifact
 step or sync it to object storage. The manifest carries archive integrity,
 source-baseline lineage, producing run, and optional parent IDs. The archive's
 Ed25519 attestation authenticates the exact graph and those trust properties.
-For a custom destination, pass a sink implementing the public `put()` contract to
-`@usescherie/tiacore/artifacts`.
+For a custom destination, pass a sink implementing the public `put()` contract
+to `@usescherie/tiacore/artifacts`.
 
 Use `artifacts promote` only at a trusted baseline boundary. It refuses partial
 graphs; `--require-coverage` also refuses a graph without complete reconstructed
@@ -125,11 +124,8 @@ steps:
     env:
       GITHUB_TOKEN: ${{ github.token }}
   - run: >-
-      npx tiacore artifacts publish
-      --cache-dir .tia
-      --artifact-id ${{ github.run_id }}
-      --run-id ${{ github.run_id }}
-      --producer github-actions
+      npx tiacore artifacts publish --cache-dir .tia --artifact-id ${{
+      github.run_id }} --run-id ${{ github.run_id }} --producer github-actions
       --signing-key-id release-2026
     env:
       TIA_ARTIFACT_PRIVATE_KEY: ${{ secrets.TIA_ARTIFACT_PRIVATE_KEY }}
@@ -161,17 +157,17 @@ The graph is promoted only after every partition has the same group, baseline,
 fingerprint, and partition count. Missing, mixed, corrupt, or conflicting sets
 are ignored. Coverage thresholds run after the complete set is merged.
 
-For CI matrices, publish each fragment under a unique artifact name. The
-GitHub provider accepts an `artifactName` pattern; other systems can download
-all fragment directories and use the filesystem provider. Custom providers
-must assign the same `group` to candidates from one partition set.
+For CI matrices, publish each fragment under a unique artifact name. The GitHub
+provider accepts an `artifactName` pattern; other systems can download all
+fragment directories and use the filesystem provider. Custom providers must
+assign the same `group` to candidates from one partition set.
 
 ## Runner and lane parallelism
 
 - Vitest retains its native threads or forks.
 - Playwright retains workers, projects, retries, and project dependencies.
-- Node and Bun run separate files concurrently up to their adapter
-  `concurrency` setting.
+- Node and Bun run separate files concurrently up to their adapter `concurrency`
+  setting.
 - Cases within one Node or Bun file stay sequential.
 - The workspace adapter runs independent commands or adapters concurrently and
   serializes matching `resourceLocks`.
@@ -207,9 +203,8 @@ if (correlationId) {
 
 The Playwright fixture adds the correlation header to browser requests and
 merges emitted files into that spec's dependency attachment. Give concurrent
-lanes separate evidence directories. The collector ignores malformed,
-oversized, and symlinked events rather than trusting arbitrary filesystem
-content.
+lanes separate evidence directories. The collector ignores malformed, oversized,
+and symlinked events rather than trusting arbitrary filesystem content.
 
 ## Platform qualification
 
@@ -232,8 +227,7 @@ recorded commit is an ancestor of the target.
 Graph commits use a short cross-process transaction. A writer locks the commit,
 rereads the current generation, merges compatible disjoint changes, writes only
 changed content-addressed buckets, and atomically swaps the bounded state
-manifest. Conflicting updates fail closed without overwriting the winning
-state.
+manifest. Conflicting updates fail closed without overwriting the winning state.
 
 An absolute shared `cacheDir` is safe for identical worktree states. Diverged
 worktrees should keep separate caches because they cannot share one current
@@ -254,6 +248,6 @@ keeps first branch runs fast without allowing an incomplete partial graph to
 become the release baseline.
 
 The vendor-neutral artifact manifest is specified in
-[`spec/artifact-manifest-v1.md`](../../spec/artifact-manifest-v1.md).
-The signed archive claim is specified in
+[`spec/artifact-manifest-v1.md`](../../spec/artifact-manifest-v1.md). The signed
+archive claim is specified in
 [`spec/artifact-attestation-v1.md`](../../spec/artifact-attestation-v1.md).

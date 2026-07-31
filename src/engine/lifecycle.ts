@@ -3,11 +3,7 @@ import type { RestoreArtifactResult } from './artifacts/restore.js'
 import { captureBaseline } from './baseline/capture.js'
 import { projectFingerprint } from './baseline/fingerprint.js'
 import { createRunPlan } from './planning/runtime.js'
-import {
-  graphDigest,
-  purgeState,
-  readGraph,
-} from './state/store.js'
+import { graphDigest, purgeState, readGraph } from './state/store.js'
 import type {
   Baseline,
   EngineOptions,
@@ -68,9 +64,7 @@ function runPlanBaseline(
       ? {}
       : { artifactId: restore.artifactId }),
     origin: restore?.restored === true ? 'artifact' : 'local',
-    ...(restore?.provider === undefined
-      ? {}
-      : { provider: restore.provider }),
+    ...(restore?.provider === undefined ? {} : { provider: restore.provider }),
     reason: restore?.reason ?? 'local graph loaded',
     sha: graph.baseline.sha || null,
     source: graph.baseline.source ?? null,
@@ -104,10 +98,7 @@ export async function beginRuntimeRun(
   if (input.options.fresh) {
     purgeState(writeCacheDir)
     restore = { reason: 'fresh graph requested', restored: false }
-  } else if (
-    !input.partitioned &&
-    input.options.artifactProviders.length > 0
-  ) {
+  } else if (!input.partitioned && input.options.artifactProviders.length > 0) {
     restore = await restoreGraphFromArtifacts({
       cacheDir: input.cacheDir,
       ...(input.coverageRequested === undefined
@@ -138,9 +129,7 @@ export async function beginRuntimeRun(
       ignoredPrefixes: input.ignoredPrefixes,
       options: input.options,
       root: input.root,
-      ...(input.testFiles === undefined
-        ? {}
-        : { testFiles: input.testFiles }),
+      ...(input.testFiles === undefined ? {} : { testFiles: input.testFiles }),
     }),
   }
 }

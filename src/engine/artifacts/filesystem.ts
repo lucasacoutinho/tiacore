@@ -1,14 +1,7 @@
-import {
-  lstatSync,
-  readFileSync,
-  readdirSync,
-} from 'node:fs'
+import { lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import {
-  MAX_ARTIFACT_ARCHIVE_BYTES,
-  readArtifactArchive,
-} from './archive.js'
+import { MAX_ARTIFACT_ARCHIVE_BYTES, readArtifactArchive } from './archive.js'
 import { readGraph } from '../state/store.js'
 
 import type {
@@ -83,17 +76,19 @@ export function createFilesystemArtifactProvider(
             typeof graph.partition?.group === 'string'
               ? graph.partition.group
               : options.group
-          return [{
-            ...(archived?.attestation === undefined
-              ? {}
-              : { attestation: archived.attestation }),
-            graph,
-            ...(archived === null
-              ? {}
-              : { graphSha256: archived.graphSha256 }),
-            ...(group === undefined ? {} : { group }),
-            id: path,
-          }]
+          return [
+            {
+              ...(archived?.attestation === undefined
+                ? {}
+                : { attestation: archived.attestation }),
+              graph,
+              ...(archived === null
+                ? {}
+                : { graphSha256: archived.graphSha256 }),
+              ...(group === undefined ? {} : { group }),
+              id: path,
+            },
+          ]
         } catch {
           return []
         }

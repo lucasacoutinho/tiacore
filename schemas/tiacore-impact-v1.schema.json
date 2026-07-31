@@ -42,10 +42,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "pattern",
-          "reason"
-        ],
+        "required": ["pattern", "reason"],
         "properties": {
           "pattern": {
             "type": "string",
@@ -85,12 +82,7 @@
     "suite": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "adapter",
-        "file",
-        "id",
-        "project"
-      ],
+      "required": ["adapter", "file", "id", "project"],
       "properties": {
         "adapter": {
           "type": "string",
@@ -145,20 +137,10 @@
     "observation": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "confidence",
-        "kind",
-        "source",
-        "suiteId"
-      ],
+      "required": ["confidence", "kind", "source", "suiteId"],
       "properties": {
         "confidence": {
-          "enum": [
-            "conservative",
-            "exact",
-            "inferred",
-            "observed"
-          ]
+          "enum": ["conservative", "exact", "inferred", "observed"]
         },
         "kind": {
           "enum": [

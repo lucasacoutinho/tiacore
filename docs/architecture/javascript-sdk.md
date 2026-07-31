@@ -1,8 +1,8 @@
 # JavaScript SDK boundary
 
 The repository currently ships one npm package, `@usescherie/tiacore`. That
-package is the JavaScript SDK. It owns integrations with Vitest, Vite,
-Istanbul, Playwright, Node, Bun, k6, and Maestro.
+package is the JavaScript SDK. It owns integrations with Vitest, Vite, Istanbul,
+Playwright, Node, Bun, k6, and Maestro.
 
 Its physical boundaries are explicit:
 
@@ -16,19 +16,18 @@ Its physical boundaries are explicit:
   operations. Adapter-specific command declarations remain under `adapters`.
 
 Supported subpath entry points stay as thin files in `src/entries/`; only the
-default compatibility entry remains at `src/index.ts`. Internal modules are
-not package exports.
+default compatibility entry remains at `src/index.ts`. Internal modules are not
+package exports.
 
 The repository name is broader than the package implementation because the
-portable protocol and conformance vectors are intended for other language
-SDKs. Those SDKs do not import JavaScript runner state.
+portable protocol and conformance vectors are intended for other language SDKs.
+Those SDKs do not import JavaScript runner state.
 
 ## Two graph types
 
-`TiaImpactGraph` is the portable protocol graph. It contains suites,
-dependency observations, structural invalidators, environment identity, and
-resource locks. Its version 1 schema and conformance vectors are public
-contracts.
+`TiaImpactGraph` is the portable protocol graph. It contains suites, dependency
+observations, structural invalidators, environment identity, and resource locks.
+Its version 1 schema and conformance vectors are public contracts.
 
 `TiaRuntimeGraph` is the JavaScript SDK cache graph. It stores:
 
@@ -39,10 +38,10 @@ contracts.
 - JavaScript shard metadata.
 
 The runtime graph may rebuild when its internal schema changes. It must not
-cross into a future non-JavaScript SDK as if it were a portable format.
-On disk, the graph is reconstructed from a bounded manifest and
-content-addressed record buckets; `TiaRuntimeGraph` is the in-memory view, not a
-promise of one JSON file.
+cross into a future non-JavaScript SDK as if it were a portable format. On disk,
+the graph is reconstructed from a bounded manifest and content-addressed record
+buckets; `TiaRuntimeGraph` is the in-memory view, not a promise of one JSON
+file.
 
 ## Conversion boundary
 
@@ -70,8 +69,8 @@ reading `TiaRuntimeGraph`.
 External TypeScript adapters use `@usescherie/tiacore/adapter` instead of
 importing `TiaCore` or internal modules. Its versioned `tia()` contract composes
 discovery and native execution with the runtime lifecycle, validates evidence,
-and refuses incomplete commits. `TiaCore` remains the lower-level primitive
-used by built-in adapters with requirements outside contract version 1.
+and refuses incomplete commits. `TiaCore` remains the lower-level primitive used
+by built-in adapters with requirements outside contract version 1.
 
 ## Package layout decision
 

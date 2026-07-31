@@ -108,9 +108,7 @@ describe('differential verification', () => {
 
   test('uses the full graph to detect a newly lazy-loaded dependency', () => {
     const selectiveGraph = graph()
-    selectiveGraph.edges['test/example.test.ts'] = [
-      'test/example.test.ts',
-    ]
+    selectiveGraph.edges['test/example.test.ts'] = ['test/example.test.ts']
     selectiveGraph.testEdges.case = {
       file: 'test/example.test.ts',
       files: ['test/example.test.ts'],
@@ -127,9 +125,7 @@ describe('differential verification', () => {
     )
 
     expect(result.selection?.missedTestIds).toEqual(['case'])
-    expect(result.issues.map((item) => item.code)).toContain(
-      'selection-miss',
-    )
+    expect(result.issues.map((item) => item.code)).toContain('selection-miss')
   })
 
   test('requires the full suite for an unexplained changed file', () => {
@@ -150,10 +146,8 @@ describe('differential verification', () => {
     selective.plan.changedFiles = ['package.json']
 
     expect(
-      compareVerificationSnapshots(
-        selective,
-        snapshot('full', graph()),
-      ).selection?.missedTestIds,
+      compareVerificationSnapshots(selective, snapshot('full', graph()))
+        .selection?.missedTestIds,
     ).toEqual(['case'])
   })
 
@@ -162,10 +156,8 @@ describe('differential verification', () => {
     selective.plan.changedFiles = ['test/deleted.test.ts']
 
     expect(
-      compareVerificationSnapshots(
-        selective,
-        snapshot('full', graph()),
-      ).selection,
+      compareVerificationSnapshots(selective, snapshot('full', graph()))
+        .selection,
     ).toMatchObject({ expectedTestIds: [], missedTestIds: [] })
   })
 

@@ -1,7 +1,4 @@
-import {
-  readFileSync,
-  writeFileSync,
-} from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { run as runNodeTests } from 'node:test'
 
@@ -44,9 +41,7 @@ function testId(
   return `${file}:${line}:${column}:${name}`
 }
 
-async function execute(
-  request: NodeExecutionRequest,
-): Promise<NodeExecution> {
+async function execute(request: NodeExecutionRequest): Promise<NodeExecution> {
   const cases: NodeCase[] = []
   const coverageFiles = new Set<string>()
   const moduleFailures = new Set<string>()
@@ -66,13 +61,8 @@ async function execute(
   for await (const event of stream) {
     if (event.type === 'test:coverage') {
       for (const file of event.data.summary.files) {
-        if (
-          file.coveredLineCount > 0 &&
-          isInside(request.root, file.path)
-        ) {
-          coverageFiles.add(
-            slash(relative(request.root, file.path)),
-          )
+        if (file.coveredLineCount > 0 && isInside(request.root, file.path)) {
+          coverageFiles.add(slash(relative(request.root, file.path)))
         }
       }
       continue
@@ -89,10 +79,7 @@ async function execute(
 
     const data = event.data
     if (
-      (
-        data.details.type !== undefined &&
-        data.details.type !== 'test'
-      ) ||
+      (data.details.type !== undefined && data.details.type !== 'test') ||
       data.file === undefined
     ) {
       continue
@@ -151,10 +138,7 @@ const request = JSON.parse(
 ) as NodeExecutionRequest
 
 try {
-  writeFileSync(
-    outputFile,
-    JSON.stringify(await execute(request)),
-  )
+  writeFileSync(outputFile, JSON.stringify(await execute(request)))
 } catch {
   writeFileSync(
     outputFile,

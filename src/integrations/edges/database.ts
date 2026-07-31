@@ -27,7 +27,7 @@ const META_TABLES = new Set([
 export function tablesFromSql(source: string): string[] {
   const tables = new Set<string>()
   const patterns = [
-    /\b(?:from|into|join|update|table)\s+(?:if\s+(?:not\s+)?exists\s+)?["'`\[]?([a-z_][\w$.-]*)/gi,
+    /\b(?:from|into|join|update|table)\s+(?:if\s+(?:not\s+)?exists\s+)?["'`[]?([a-z_][\w$.-]*)/gi,
     /\b(?:sqliteTable|pgTable|mysqlTable|table)\s*\(\s*["'`]([^"'`]+)["'`]/g,
     /\b(?:from|table)\s*\(\s*["'`]([^"'`]+)["'`]/g,
     /\b(?:prisma|tx)\.([a-z_]\w*)\.(?:find|create|update|upsert|delete|count|aggregate|groupBy)/gi,
@@ -36,11 +36,7 @@ export function tablesFromSql(source: string): string[] {
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
       const raw = match[1]?.toLowerCase()
-      if (
-        raw === undefined ||
-        META_TABLES.has(raw) ||
-        raw.startsWith('pg_')
-      ) {
+      if (raw === undefined || META_TABLES.has(raw) || raw.startsWith('pg_')) {
         continue
       }
       tables.add(raw)
@@ -78,15 +74,16 @@ export function databaseEdges(
       let project = cache.get(context.root)
       if (project === undefined) {
         project = {
-          migrations: matchingFiles(
-            context.root,
-            migrationPatterns,
-          ).map((file) => ({
-            file,
-            tables: new Set(
-              tablesFromSql(readFileSync(resolve(context.root, file), 'utf8')),
-            ),
-          })),
+          migrations: matchingFiles(context.root, migrationPatterns).map(
+            (file) => ({
+              file,
+              tables: new Set(
+                tablesFromSql(
+                  readFileSync(resolve(context.root, file), 'utf8'),
+                ),
+              ),
+            }),
+          ),
           schemas: matchingFiles(context.root, schemaPatterns),
         }
         cache.set(context.root, project)

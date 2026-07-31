@@ -1,9 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
-import type {
-  TiaChangeSet,
-  TiaSuiteDescriptor,
-} from '../protocol/types.js'
+import type { TiaChangeSet, TiaSuiteDescriptor } from '../protocol/types.js'
 
 export async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, 'utf8')) as unknown
@@ -29,10 +26,7 @@ export function parseCatalog(value: unknown): TiaSuiteDescriptor[] {
 }
 
 export function parseChanges(value: unknown): TiaChangeSet {
-  if (
-    Array.isArray(value) &&
-    value.every((file) => typeof file === 'string')
-  ) {
+  if (Array.isArray(value) && value.every((file) => typeof file === 'string')) {
     return { files: value }
   }
   if (

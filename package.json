@@ -1,29 +1,31 @@
 {
   "name": "@usescherie/tiacore",
   "version": "1.0.0",
-  "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
-  "author": "Lucas Coutinho",
   "private": false,
-  "type": "module",
-  "license": "UNLICENSED",
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/usescherie/tiacore.git"
-  },
+  "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
+  "keywords": [
+    "bun",
+    "coverage",
+    "node-test",
+    "playwright",
+    "test-impact-analysis",
+    "testing",
+    "tia",
+    "vitest"
+  ],
   "homepage": "https://github.com/usescherie/tiacore#readme",
   "bugs": {
     "url": "https://github.com/usescherie/tiacore/issues"
   },
-  "keywords": [
-    "vitest",
-    "playwright",
-    "bun",
-    "node-test",
-    "test-impact-analysis",
-    "tia",
-    "testing",
-    "coverage"
-  ],
+  "license": "UNLICENSED",
+  "author": "Lucas Coutinho",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/usescherie/tiacore.git"
+  },
+  "bin": {
+    "tiacore": "dist/entries/cli.js"
+  },
   "files": [
     "capabilities",
     "conformance",
@@ -36,6 +38,13 @@
     "LICENSE",
     "SECURITY.md"
   ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/adapters/vitest/setup.js"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": {
@@ -208,25 +217,17 @@
       }
     }
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": {
-    "tiacore": "dist/entries/cli.js"
-  },
-  "sideEffects": [
-    "./dist/adapters/vitest/setup.js"
-  ],
-  "engines": {
-    "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
-  },
   "scripts": {
     "benchmark:parallel": "npm run build && vitest bench --run --config vitest.benchmark.config.ts",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node config/build-cjs.mjs",
     "build:python": "node -e \"require('node:fs').rmSync('sdks/python/dist',{recursive:true,force:true})\" && uv build --offline --out-dir sdks/python/dist sdks/python",
-    "check": "npm run typecheck && npm run test",
+    "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
     "check:python": "npm run test:python && npm run build:python",
     "check:package": "npm run build && publint && attw --pack . --profile node16",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives",
+    "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
     "prepare": "node config/prepare.mjs",
     "publish:private": "node config/publish-private.mjs",
     "release:check": "npm run check && npm run check:package && npm run check:python && npm audit --omit=dev && npm pack --dry-run",
@@ -251,6 +252,30 @@
     "tinyglobby": "^0.2.17",
     "yaml": "^2.9.0"
   },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@playwright/test": "^1.62.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/istanbul-lib-report": "^3.0.3",
+    "@types/istanbul-reports": "^3.0.4",
+    "@types/node": "^24.0.0",
+    "@types/picomatch": "^4.0.2",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
+    "ejs": "^6.0.1",
+    "esbuild": "^0.28.1",
+    "jsdom": "^30.0.1",
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
+    "playwright": "^1.62.0",
+    "publint": "^0.3.22",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
+  },
   "peerDependencies": {
     "@playwright/test": ">=1.46.0 <2.0.0",
     "vite": ">=6.0.0 <9.0.0",
@@ -267,26 +292,7 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@arethetypeswrong/cli": "^0.18.5",
-    "@playwright/test": "^1.62.0",
-    "@testing-library/react": "^16.3.2",
-    "@types/istanbul-lib-report": "^3.0.3",
-    "@types/istanbul-reports": "^3.0.4",
-    "@types/node": "^24.0.0",
-    "@types/picomatch": "^4.0.2",
-    "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
-    "ejs": "^6.0.1",
-    "esbuild": "^0.28.1",
-    "jsdom": "^30.0.1",
-    "playwright": "^1.62.0",
-    "publint": "^0.3.22",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "typescript": "^5.9.0",
-    "vite": "^7.0.0",
-    "vitest": "^4.1.10"
+  "engines": {
+    "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
   }
 }

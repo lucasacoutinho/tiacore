@@ -10,9 +10,7 @@ import { createGitLabCiArtifactProvider } from './gitlab-ci.js'
 import { createHttpManifestArtifactProvider } from './http-manifest.js'
 import { createFilesystemArtifactProvider } from './filesystem.js'
 import { verifyArtifactAttestation } from './trust.js'
-import type {
-  TiaRuntimeGraph,
-} from '../types.js'
+import type { TiaRuntimeGraph } from '../types.js'
 import type {
   TiaArtifactProvider,
   TiaArtifactSource,
@@ -113,9 +111,7 @@ export async function restoreGraphFromArtifacts(
               ? {}
               : { graphSha256: item.graphSha256 }),
             policy: input.trust ?? { allowUnsigned: true },
-            ...(input.runner === undefined
-              ? {}
-              : { runner: input.runner }),
+            ...(input.runner === undefined ? {} : { runner: input.runner }),
           })
           if (!trust.trusted) {
             rejectedForTrust = true
@@ -143,24 +139,16 @@ export async function restoreGraphFromArtifacts(
             id: number | string
             trust: ReturnType<typeof verifyArtifactAttestation>
           } =>
-            item.graph !== null &&
-            item.graph.fingerprint === input.fingerprint,
+            item.graph !== null && item.graph.fingerprint === input.fingerprint,
         )
       const complete = parsed.find((item) =>
-        usableGraph(
-          item.graph,
-          input.fingerprint,
-          coverageRequested,
-        ),
+        usableGraph(item.graph, input.fingerprint, coverageRequested),
       )
       let graph = complete?.graph ?? null
       let artifactTrust = complete?.trust
       let partitionIds: Array<number | string> = []
       if (graph === null) {
-        const groups = new Map<
-          number | string | undefined,
-          typeof parsed
-        >()
+        const groups = new Map<number | string | undefined, typeof parsed>()
         for (const item of parsed) {
           if (item.graph.partition === undefined) {
             continue
@@ -170,9 +158,7 @@ export async function restoreGraphFromArtifacts(
           groups.set(item.group, group)
         }
         for (const group of groups.values()) {
-          graph = mergePartitionedGraphs(
-            group.map((item) => item.graph),
-          )
+          graph = mergePartitionedGraphs(group.map((item) => item.graph))
           if (graph !== null) {
             partitionIds = group.map((item) => item.id)
             artifactTrust = group[0]?.trust
@@ -180,19 +166,10 @@ export async function restoreGraphFromArtifacts(
           }
         }
       }
-      if (
-        !usableGraph(
-          graph,
-          input.fingerprint,
-          coverageRequested,
-        )
-      ) {
+      if (!usableGraph(graph, input.fingerprint, coverageRequested)) {
         continue
       }
-      const ids =
-        complete === undefined
-          ? partitionIds
-          : complete.id
+      const ids = complete === undefined ? partitionIds : complete.id
 
       const committed = await commitGraph(input.cacheDir, {
         expected: local,
@@ -201,14 +178,13 @@ export async function restoreGraphFromArtifacts(
       })
       if (committed.status === 'conflict') {
         return {
-          reason:
-            usableGraph(
-              committed.graph,
-              input.fingerprint,
-              coverageRequested,
-            )
-              ? 'compatible local graph won artifact restore race'
-              : 'concurrent graph update prevented artifact restore',
+          reason: usableGraph(
+            committed.graph,
+            input.fingerprint,
+            coverageRequested,
+          )
+            ? 'compatible local graph won artifact restore race'
+            : 'concurrent graph update prevented artifact restore',
           restored: false,
         }
       }

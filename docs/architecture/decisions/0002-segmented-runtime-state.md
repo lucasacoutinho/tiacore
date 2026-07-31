@@ -4,8 +4,8 @@ Status: accepted
 
 ## Context
 
-The original JavaScript runtime cache stored every result, dependency edge,
-and coverage shard in one `graph.json`. Any small update parsed and rewrote the
+The original JavaScript runtime cache stored every result, dependency edge, and
+coverage shard in one `graph.json`. Any small update parsed and rewrote the
 entire graph. File size, write amplification, corruption scope, and transaction
 cost therefore grew with the full test fleet.
 
@@ -26,19 +26,19 @@ digest. The manifest stores graph metadata and the ordered bucket references,
 including digest, byte size, and entry count. Its generation is the digest of
 the metadata and reference set.
 
-Writers serialize and validate the complete proposed state before writing.
-They create missing immutable objects, then atomically rename the new manifest
-while holding the existing cross-process transaction lock. Unchanged buckets
-reuse the same objects. Readers verify the manifest generation and every
-referenced object's size, digest, domain, bucket, and entry count before
-reconstructing a graph. Any missing, corrupt, oversized, or inconsistent part
-returns no graph and causes a full run.
+Writers serialize and validate the complete proposed state before writing. They
+create missing immutable objects, then atomically rename the new manifest while
+holding the existing cross-process transaction lock. Unchanged buckets reuse the
+same objects. Readers verify the manifest generation and every referenced
+object's size, digest, domain, bucket, and entry count before reconstructing a
+graph. Any missing, corrupt, oversized, or inconsistent part returns no graph
+and causes a full run.
 
 Unreferenced objects are retained for at least 24 hours so a reader that opened
 the previous manifest cannot lose an object during a concurrent commit.
 Best-effort collection removes older unreferenced objects. A fresh run removes
-only the active manifest; old immutable objects may be reused by the next
-commit or collected later.
+only the active manifest; old immutable objects may be reused by the next commit
+or collected later.
 
 ## Consequences
 

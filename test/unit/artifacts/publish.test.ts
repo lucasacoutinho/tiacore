@@ -1,12 +1,5 @@
-import {
-  generateKeyPairSync,
-} from 'node:crypto'
-import {
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-} from 'node:fs'
+import { generateKeyPairSync } from 'node:crypto'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,9 +9,7 @@ import {
   archiveGraph,
   readArtifactArchive,
 } from '../../../src/engine/artifacts/archive.js'
-import {
-  tia,
-} from '../../../src/engine/artifacts/publish.js'
+import { tia } from '../../../src/engine/artifacts/publish.js'
 import { emptyGraph } from '../../../src/engine/state/update.js'
 import { writeGraph } from '../../../src/engine/state/store.js'
 import type { TiaArtifactManifestV1 } from '../../../src/engine/artifacts/types.js'
@@ -26,10 +17,12 @@ import type { TiaArtifactManifestV1 } from '../../../src/engine/artifacts/types.
 const signingKeys = generateKeyPairSync('ed25519')
 const signing = {
   keyId: 'fixture-key',
-  privateKey: signingKeys.privateKey.export({
-    format: 'pem',
-    type: 'pkcs8',
-  }).toString(),
+  privateKey: signingKeys.privateKey
+    .export({
+      format: 'pem',
+      type: 'pkcs8',
+    })
+    .toString(),
 }
 
 const temporaryDirectories: string[] = []
@@ -88,12 +81,10 @@ describe('provider-neutral artifact publishing', () => {
     const archiveName = readdirSync(output).find((file) =>
       file.endsWith('.zip'),
     )!
-    const archive = new Uint8Array(
-      readFileSync(join(output, archiveName)),
-    )
-    expect(
-      archiveGraph(archive, 'node'),
-    ).toMatchObject({ fingerprint: 'node-22-linux' })
+    const archive = new Uint8Array(readFileSync(join(output, archiveName)))
+    expect(archiveGraph(archive, 'node')).toMatchObject({
+      fingerprint: 'node-22-linux',
+    })
     expect(readArtifactArchive(archive, 'node')?.attestation).toMatchObject({
       algorithm: 'Ed25519',
       claim: {

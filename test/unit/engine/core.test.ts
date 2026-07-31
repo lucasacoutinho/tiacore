@@ -1,10 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,16 +14,15 @@ const race = vi.hoisted(() => ({
 }))
 
 vi.mock('../../../src/engine/planning/runtime.js', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../src/engine/planning/runtime.js')
-  >()
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/engine/planning/runtime.js')
+    >()
   const { writeFileSync: writeDuringPlan } = await import('node:fs')
 
   return {
     ...actual,
-    createRunPlan(
-      input: Parameters<typeof actual.createRunPlan>[0],
-    ) {
+    createRunPlan(input: Parameters<typeof actual.createRunPlan>[0]) {
       const plan = actual.createRunPlan(input)
       if (race.file !== '') {
         writeDuringPlan(race.file, race.contents)
@@ -113,13 +107,15 @@ describe('runner-neutral TIA core', () => {
     })
     await initial.prepare()
     await initial.commit(
-      [{
-        file: 'test/a.test.ts',
-        files: ['src/a.ts', 'test/a.test.ts'],
-        fullName: 'a',
-        id: 'custom:a',
-        state: 'passed',
-      }],
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
       ['test/a.test.ts'],
     )
 
@@ -149,13 +145,15 @@ describe('runner-neutral TIA core', () => {
     const initial = new TiaCore(options)
     await initial.prepare()
     await initial.commit(
-      [{
-        file: 'test/a.test.ts',
-        files: ['src/a.ts', 'test/a.test.ts'],
-        fullName: 'a',
-        id: 'custom:a',
-        state: 'passed',
-      }],
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
       ['test/a.test.ts'],
     )
 
@@ -183,13 +181,15 @@ describe('runner-neutral TIA core', () => {
     const initial = new TiaCore(options)
     await initial.prepare()
     await initial.commit(
-      [{
-        file: 'test/a.test.ts',
-        files: ['src/a.ts', 'test/a.test.ts'],
-        fullName: 'a',
-        id: 'custom:a',
-        state: 'passed',
-      }],
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
       ['test/a.test.ts'],
     )
     const graph = readGraph(join(root, '.tia/custom'))

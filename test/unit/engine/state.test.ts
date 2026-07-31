@@ -28,10 +28,7 @@ function cacheWith(value: unknown): string {
   const cacheDir = join(root, '.tia')
   temporaryDirectories.push(root)
   mkdirSync(cacheDir)
-  writeFileSync(
-    statePath(cacheDir),
-    `${JSON.stringify(value)}\n`,
-  )
+  writeFileSync(statePath(cacheDir), `${JSON.stringify(value)}\n`)
   return cacheDir
 }
 

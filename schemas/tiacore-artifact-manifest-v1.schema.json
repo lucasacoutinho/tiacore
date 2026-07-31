@@ -29,7 +29,11 @@
               { "type": "string", "minLength": 1, "maxLength": 8192 }
             ]
           },
-          "fingerprint": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
           "runner": { "type": "string", "minLength": 1, "maxLength": 8192 },
           "promoted": { "type": "boolean" },
           "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
@@ -44,7 +48,11 @@
                 "additionalProperties": false,
                 "required": ["sha"],
                 "properties": {
-                  "sha": { "type": "string", "minLength": 1, "maxLength": 8192 },
+                  "sha": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192
+                  },
                   "source": { "enum": ["filesystem", "git"] }
                 }
               },
@@ -60,7 +68,11 @@
                 }
               },
               "producedAt": { "type": "string", "format": "date-time" },
-              "producer": { "type": "string", "minLength": 1, "maxLength": 8192 },
+              "producer": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8192
+              },
               "runId": { "type": "string", "minLength": 1, "maxLength": 8192 }
             }
           }

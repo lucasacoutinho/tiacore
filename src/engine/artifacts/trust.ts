@@ -1,9 +1,4 @@
-import {
-  createPrivateKey,
-  createPublicKey,
-  sign,
-  verify,
-} from 'node:crypto'
+import { createPrivateKey, createPublicKey, sign, verify } from 'node:crypto'
 
 import type { TiaRuntimeGraph } from '../types.js'
 import {
@@ -19,14 +14,14 @@ function canonical(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) =>
-        left < right ? -1 : left > right ? 1 : 0,
-      )
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
       .map(([key, item]) => [key, canonical(item)]),
   )
 }
 
-function payload(attestation: Omit<TiaArtifactAttestationV1, 'signature'>): Buffer {
+function payload(
+  attestation: Omit<TiaArtifactAttestationV1, 'signature'>,
+): Buffer {
   return Buffer.from(JSON.stringify(canonical(attestation)))
 }
 
@@ -152,12 +147,7 @@ export function verifyArtifactAttestation(input: {
   const { signature, ...unsigned } = attestation
   if (
     key.asymmetricKeyType !== 'ed25519' ||
-    !verify(
-      null,
-      payload(unsigned),
-      key,
-      Buffer.from(signature, 'base64url'),
-    )
+    !verify(null, payload(unsigned), key, Buffer.from(signature, 'base64url'))
   ) {
     return {
       keyId: attestation.keyId,
@@ -233,10 +223,7 @@ export function verifyArtifactAttestation(input: {
       trusted: false,
     }
   }
-  if (
-    input.runner !== undefined &&
-    claim.runner !== input.runner
-  ) {
+  if (input.runner !== undefined && claim.runner !== input.runner) {
     return {
       keyId: attestation.keyId,
       reason: 'artifact runner does not match its attestation',
@@ -252,10 +239,8 @@ export function verifyArtifactAttestation(input: {
   }
   if (
     policy.allowedProducers !== undefined &&
-    (
-      claim.lineage.producer === undefined ||
-      !policy.allowedProducers.includes(claim.lineage.producer)
-    )
+    (claim.lineage.producer === undefined ||
+      !policy.allowedProducers.includes(claim.lineage.producer))
   ) {
     return {
       keyId: attestation.keyId,
@@ -265,12 +250,8 @@ export function verifyArtifactAttestation(input: {
   }
   if (
     policy.allowedBaselineSources !== undefined &&
-    (
-      claim.lineage.baseline.source === undefined ||
-      !policy.allowedBaselineSources.includes(
-        claim.lineage.baseline.source,
-      )
-    )
+    (claim.lineage.baseline.source === undefined ||
+      !policy.allowedBaselineSources.includes(claim.lineage.baseline.source))
   ) {
     return {
       keyId: attestation.keyId,

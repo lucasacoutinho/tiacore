@@ -11,10 +11,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
-import {
-  readGraph,
-  writeGraph,
-} from '../../../src/engine/state/store.js'
+import { readGraph, writeGraph } from '../../../src/engine/state/store.js'
 import {
   stateObjectsPath,
   statePath,
@@ -74,9 +71,7 @@ describe('segmented runtime state', () => {
 
     writeGraph(cacheDir, graph)
 
-    const manifest = JSON.parse(
-      readFileSync(statePath(cacheDir), 'utf8'),
-    ) as {
+    const manifest = JSON.parse(readFileSync(statePath(cacheDir), 'utf8')) as {
       format: string
       generation: string
       segments: Record<string, unknown[]>
@@ -114,9 +109,7 @@ describe('segmented runtime state', () => {
   test('fails closed when a referenced object is corrupted', () => {
     const cacheDir = directory()
     writeGraph(cacheDir, largeGraph(10))
-    const manifest = JSON.parse(
-      readFileSync(statePath(cacheDir), 'utf8'),
-    ) as {
+    const manifest = JSON.parse(readFileSync(statePath(cacheDir), 'utf8')) as {
       segments: Record<string, Array<{ sha256: string }>>
     }
     const reference = Object.values(manifest.segments).flat()[0]

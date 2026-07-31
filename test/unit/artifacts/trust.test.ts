@@ -18,18 +18,24 @@ import type {
 
 const keys = generateKeyPairSync('ed25519')
 const secondKeys = generateKeyPairSync('ed25519')
-const privateKey = keys.privateKey.export({
-  format: 'pem',
-  type: 'pkcs8',
-}).toString()
-const publicKey = keys.publicKey.export({
-  format: 'pem',
-  type: 'spki',
-}).toString()
-const secondPublicKey = secondKeys.publicKey.export({
-  format: 'pem',
-  type: 'spki',
-}).toString()
+const privateKey = keys.privateKey
+  .export({
+    format: 'pem',
+    type: 'pkcs8',
+  })
+  .toString()
+const publicKey = keys.publicKey
+  .export({
+    format: 'pem',
+    type: 'spki',
+  })
+  .toString()
+const secondPublicKey = secondKeys.publicKey
+  .export({
+    format: 'pem',
+    type: 'spki',
+  })
+  .toString()
 const temporaryDirectories: string[] = []
 
 function graph(): TiaRuntimeGraph {
@@ -88,9 +94,7 @@ function claim(
   }
 }
 
-function trust(
-  overrides: TiaArtifactTrustPolicy = {},
-): TiaArtifactTrustPolicy {
+function trust(overrides: TiaArtifactTrustPolicy = {}): TiaArtifactTrustPolicy {
   return {
     allowedBaselineSources: ['git'],
     allowedProducers: ['trusted-ci'],
@@ -120,15 +124,17 @@ describe('artifact authenticity and trust policy', () => {
       cacheDir,
       fingerprint: value.fingerprint,
       log: false,
-      providers: [{
-        load: () => ({
-          attestation,
-          graph: value,
-          graphSha256: graphDigest(value),
-          id: 'signed-artifact',
-        }),
-        name: 'portable store',
-      }],
+      providers: [
+        {
+          load: () => ({
+            attestation,
+            graph: value,
+            graphSha256: graphDigest(value),
+            id: 'signed-artifact',
+          }),
+          name: 'portable store',
+        },
+      ],
       runner: 'node',
       trust: trust(),
     })
@@ -152,26 +158,30 @@ describe('artifact authenticity and trust policy', () => {
     const tampered = structuredClone(value)
     tampered.results.a!.state = 'failed'
 
-    expect(verifyArtifactAttestation({
-      attestation,
-      graph: tampered,
-      graphSha256: graphDigest(tampered),
-      now: new Date('2026-07-31T12:00:00.000Z'),
-      policy: trust(),
-      runner: 'node',
-    })).toMatchObject({
+    expect(
+      verifyArtifactAttestation({
+        attestation,
+        graph: tampered,
+        graphSha256: graphDigest(tampered),
+        now: new Date('2026-07-31T12:00:00.000Z'),
+        policy: trust(),
+        runner: 'node',
+      }),
+    ).toMatchObject({
       reason: 'artifact graph digest does not match its attestation',
       trusted: false,
     })
 
-    expect(verifyArtifactAttestation({
-      attestation,
-      graph: value,
-      graphSha256: graphDigest(value),
-      now: new Date('2026-07-31T12:00:00.000Z'),
-      policy: trust({ publicKeys: { 'release-2026': secondPublicKey } }),
-      runner: 'node',
-    })).toMatchObject({
+    expect(
+      verifyArtifactAttestation({
+        attestation,
+        graph: value,
+        graphSha256: graphDigest(value),
+        now: new Date('2026-07-31T12:00:00.000Z'),
+        policy: trust({ publicKeys: { 'release-2026': secondPublicKey } }),
+        runner: 'node',
+      }),
+    ).toMatchObject({
       reason: 'artifact signature is invalid',
       trusted: false,
     })
@@ -182,39 +192,42 @@ describe('artifact authenticity and trust policy', () => {
     const verifyClaim = (
       candidate: TiaArtifactClaimV1,
       policy: TiaArtifactTrustPolicy,
-    ) => verifyArtifactAttestation({
-      attestation: createArtifactAttestation(candidate, {
-        keyId: 'release-2026',
-        privateKey,
-      }),
-      graph: value,
-      graphSha256: graphDigest(value),
-      now: new Date('2026-07-31T12:00:00.000Z'),
-      policy,
-      runner: 'node',
-    })
+    ) =>
+      verifyArtifactAttestation({
+        attestation: createArtifactAttestation(candidate, {
+          keyId: 'release-2026',
+          privateKey,
+        }),
+        graph: value,
+        graphSha256: graphDigest(value),
+        now: new Date('2026-07-31T12:00:00.000Z'),
+        policy,
+        runner: 'node',
+      })
 
-    expect(verifyClaim(
-      claim(value, { expiresAt: '2026-07-31T11:00:00.000Z' }),
-      trust(),
-    ).reason).toBe('artifact attestation has expired')
-    expect(verifyClaim(
-      claim(value),
-      trust({ maxAgeSeconds: 60 }),
-    ).reason).toBe('artifact attestation exceeds the allowed age')
-    expect(verifyClaim(
-      claim(value, { promoted: false }),
-      trust(),
-    ).reason).toBe('artifact is not a promoted baseline')
-    expect(verifyClaim(
-      claim(value, {
-        lineage: {
-          ...claim(value).lineage,
-          producer: 'untrusted-ci',
-        },
-      }),
-      trust(),
-    ).reason).toBe('artifact producer is not trusted')
+    expect(
+      verifyClaim(
+        claim(value, { expiresAt: '2026-07-31T11:00:00.000Z' }),
+        trust(),
+      ).reason,
+    ).toBe('artifact attestation has expired')
+    expect(verifyClaim(claim(value), trust({ maxAgeSeconds: 60 })).reason).toBe(
+      'artifact attestation exceeds the allowed age',
+    )
+    expect(verifyClaim(claim(value, { promoted: false }), trust()).reason).toBe(
+      'artifact is not a promoted baseline',
+    )
+    expect(
+      verifyClaim(
+        claim(value, {
+          lineage: {
+            ...claim(value).lineage,
+            producer: 'untrusted-ci',
+          },
+        }),
+        trust(),
+      ).reason,
+    ).toBe('artifact producer is not trusted')
   })
 
   test('rejects unsigned artifacts by default', async () => {
@@ -222,16 +235,20 @@ describe('artifact authenticity and trust policy', () => {
     const cacheDir = mkdtempSync(join(tmpdir(), 'tiacore-trust-'))
     temporaryDirectories.push(cacheDir)
 
-    await expect(restoreGraphFromArtifacts({
-      cacheDir,
-      fingerprint: value.fingerprint,
-      log: false,
-      providers: [{
-        load: () => ({ graph: value, id: 'unsigned' }),
-        name: 'portable store',
-      }],
-      trust: {},
-    })).resolves.toEqual({
+    await expect(
+      restoreGraphFromArtifacts({
+        cacheDir,
+        fingerprint: value.fingerprint,
+        log: false,
+        providers: [
+          {
+            load: () => ({ graph: value, id: 'unsigned' }),
+            name: 'portable store',
+          },
+        ],
+        trust: {},
+      }),
+    ).resolves.toEqual({
       reason: 'no provider returned a trusted compatible artifact',
       restored: false,
     })

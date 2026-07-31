@@ -55,10 +55,7 @@ function archive(fingerprint: string): Uint8Array {
 }
 
 async function localServer(
-  handle: (
-    request: IncomingMessage,
-    response: ServerResponse,
-  ) => void,
+  handle: (request: IncomingMessage, response: ServerResponse) => void,
 ): Promise<string> {
   const server = createServer(handle)
   servers.push(server)
@@ -82,10 +79,12 @@ function cacheDirectory(): string {
 afterEach(async () => {
   vi.unstubAllEnvs()
   await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve) => server.close(() => resolve())),
-    ),
+    servers
+      .splice(0)
+      .map(
+        (server) =>
+          new Promise<void>((resolve) => server.close(() => resolve())),
+      ),
   )
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true })

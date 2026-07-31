@@ -1,9 +1,4 @@
-import {
-  cpSync,
-  existsSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
@@ -43,10 +38,7 @@ describe('Git worktrees', () => {
     resetExecutions(root)
     resetExecutions(worktree)
     writeFileSync(join(root, 'src/a.ts'), "export const a = () => 'a'\n\n")
-    writeFileSync(
-      join(worktree, 'src/b.ts'),
-      "export const b = () => 'b'\n\n",
-    )
+    writeFileSync(join(worktree, 'src/b.ts'), "export const b = () => 'b'\n\n")
     const affected = await Promise.all([
       runVitestAsync(root),
       runVitestAsync(worktree),
@@ -114,10 +106,7 @@ describe('Git worktrees', () => {
     resetExecutions(root)
     resetExecutions(worktree)
     writeFileSync(join(root, 'src/a.ts'), "export const a = () => 'a'\n\n")
-    writeFileSync(
-      join(worktree, 'src/b.ts'),
-      "export const b = () => 'b'\n\n",
-    )
+    writeFileSync(join(worktree, 'src/b.ts'), "export const b = () => 'b'\n\n")
     const diverged = await Promise.all([
       runVitestAsync(root, ['run'], 20_000, environment),
       runVitestAsync(worktree, ['run'], 20_000, environment),

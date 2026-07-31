@@ -58,8 +58,9 @@ describe('native Node adapter on the host platform', () => {
     const moduleUrl = pathToFileURL(
       join(process.cwd(), 'dist/entries/node.js'),
     ).href
-    const nodeApi = await import(moduleUrl) as
-      typeof import('../../../src/entries/node.js')
+    const nodeApi = (await import(
+      moduleUrl
+    )) as typeof import('../../../src/entries/node.js')
     const root = project()
     const options = {
       files: ['test/**/*.test.mjs'],
@@ -93,9 +94,7 @@ describe('native Node adapter on the host platform', () => {
     expect(changed.plan.affectedTestIds).toHaveLength(1)
     expect(changed.executedTests).toHaveLength(1)
     expect(
-      readFileSync(join(root, 'executions.log'), 'utf8')
-        .trim()
-        .split(/\r?\n/u),
+      readFileSync(join(root, 'executions.log'), 'utf8').trim().split(/\r?\n/u),
     ).toEqual(['value', 'value'])
   }, 30_000)
 })

@@ -45,14 +45,11 @@ export async function runCli(arguments_: readonly string[]): Promise<void> {
   try {
     await program.parseAsync(['node', 'tiacore', ...arguments_])
   } catch (error) {
-    if (
-      error instanceof CommanderError &&
-      error.exitCode === 0
-    ) {
+    if (error instanceof CommanderError && error.exitCode === 0) {
       return
     }
     if (error instanceof CommanderError) {
-      throw new Error(errorOutput.trim() || error.message)
+      throw new Error(errorOutput.trim() || error.message, { cause: error })
     }
     throw error
   }

@@ -30,36 +30,38 @@ export function registerCoreCommands(program: Command): void {
     .option('--policy <path>', 'execution policy JSON')
     .option('--force-full', 'force a full plan')
     .option('--output <path>', 'write JSON to a file or -')
-    .action(async (options: {
-      catalog: string
-      changes: string
-      environmentFingerprint: string
-      fingerprint: string
-      forceFull?: boolean
-      graph?: string
-      output?: string
-      policy?: string
-    }) => {
-      const policy =
-        options.policy === undefined
-          ? {}
-          : (await readJson(options.policy)) as TiaExecutionPolicy
-      if (options.forceFull === true) policy.forceFull = true
-      await emit(
-        createImpactPlan({
-          catalog: parseCatalog(await readJson(options.catalog)),
-          changes: parseChanges(await readJson(options.changes)),
-          currentEnvironmentFingerprint: options.environmentFingerprint,
-          currentFingerprint: options.fingerprint,
-          graph:
-            options.graph === undefined
-              ? null
-              : parseImpactGraph(await readJson(options.graph)),
-          policy,
-        }),
-        options.output,
-      )
-    })
+    .action(
+      async (options: {
+        catalog: string
+        changes: string
+        environmentFingerprint: string
+        fingerprint: string
+        forceFull?: boolean
+        graph?: string
+        output?: string
+        policy?: string
+      }) => {
+        const policy =
+          options.policy === undefined
+            ? {}
+            : ((await readJson(options.policy)) as TiaExecutionPolicy)
+        if (options.forceFull === true) policy.forceFull = true
+        await emit(
+          createImpactPlan({
+            catalog: parseCatalog(await readJson(options.catalog)),
+            changes: parseChanges(await readJson(options.changes)),
+            currentEnvironmentFingerprint: options.environmentFingerprint,
+            currentFingerprint: options.fingerprint,
+            graph:
+              options.graph === undefined
+                ? null
+                : parseImpactGraph(await readJson(options.graph)),
+            policy,
+          }),
+          options.output,
+        )
+      },
+    )
 
   program
     .command('merge')
@@ -89,9 +91,9 @@ export function registerCoreCommands(program: Command): void {
       const graph = parseImpactGraph(await readJson(options.graph))
       await emit(
         {
-          adapters: [...new Set(
-            graph.suites.map((suite) => suite.adapter),
-          )].sort(),
+          adapters: [
+            ...new Set(graph.suites.map((suite) => suite.adapter)),
+          ].sort(),
           complete: graph.complete,
           environmentFingerprint: graph.environmentFingerprint,
           fingerprint: graph.fingerprint,

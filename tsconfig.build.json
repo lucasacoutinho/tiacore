@@ -9,11 +9,6 @@
     "sourceMap": true,
     "noEmit": false
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.cts"
-  ],
-  "exclude": [
-    "test"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.cts"],
+  "exclude": ["test"]
 }

@@ -1,10 +1,5 @@
 import { spawn } from 'node:child_process'
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -118,12 +113,11 @@ describe('multi-process graph transactions', () => {
     const saved = readGraph(cacheDir)
     expect(saved).not.toBeNull()
     expect(
-      Array.from({ length: 8 }, (_, index) =>
-        saved?.results[`case-${index}`]?.fullName,
+      Array.from(
+        { length: 8 },
+        (_, index) => saved?.results[`case-${index}`]?.fullName,
       ),
-    ).toEqual(
-      Array.from({ length: 8 }, (_, index) => `updated-${index}`),
-    )
+    ).toEqual(Array.from({ length: 8 }, (_, index) => `updated-${index}`))
     expect(() => JSON.stringify(saved)).not.toThrow()
   })
 })

@@ -21,16 +21,17 @@ interface ArtifactOptions {
   trustExpiresIn?: string
 }
 
-function artifactCommand(
-  command: Command,
-  promoted: boolean,
-): void {
+function artifactCommand(command: Command, promoted: boolean): void {
   command
     .requiredOption('--artifact-id <id>', 'artifact identifier')
     .requiredOption('--run-id <id>', 'producing run identifier')
     .requiredOption('--signing-key-id <id>', 'trusted signing key identifier')
     .option('--cache-dir <directory>', 'graph cache directory', '.tia')
-    .option('--output-dir <directory>', 'artifact output directory', '.tia-artifacts')
+    .option(
+      '--output-dir <directory>',
+      'artifact output directory',
+      '.tia-artifacts',
+    )
     .option('--base-url <url>', 'public base URL for output files')
     .option('--group <id>', 'partition group identifier')
     .option(
@@ -78,9 +79,7 @@ function artifactCommand(
         requireCoverage: options.requireCoverage === true,
         ...(options.root === undefined ? {} : { root: options.root }),
         runId: options.runId,
-        ...(options.runner === undefined
-          ? {}
-          : { runner: options.runner }),
+        ...(options.runner === undefined ? {} : { runner: options.runner }),
         signing: {
           expiresInSeconds: Number(options.trustExpiresIn),
           keyId: options.signingKeyId,
@@ -88,9 +87,7 @@ function artifactCommand(
         },
       })
       await emit(
-        promoted
-          ? await publisher.promote()
-          : await publisher.publish(),
+        promoted ? await publisher.promote() : await publisher.publish(),
         options.receipt,
       )
     })

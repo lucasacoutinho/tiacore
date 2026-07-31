@@ -28,9 +28,6 @@ describe('external TypeScript adapter package contract', () => {
     const changed = runCommand(root, process.execPath, ['run.mjs'])
     expect(changed.status, changed.output).toBe(0)
     expect(changed.output).toContain('"selectedTests":1')
-    expect(executions(root)).toEqual([
-      'external:value:1',
-      'external:value:2',
-    ])
+    expect(executions(root)).toEqual(['external:value:1', 'external:value:2'])
   })
 })

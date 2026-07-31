@@ -46,10 +46,7 @@ function validCorrelationId(value: string): boolean {
 }
 
 function correlationDirectory(directory: string, id: string): string {
-  return resolve(
-    directory,
-    createHash('sha256').update(id).digest('hex'),
-  )
+  return resolve(directory, createHash('sha256').update(id).digest('hex'))
 }
 
 function headerValue(
@@ -60,7 +57,7 @@ function headerValue(
   const target = name.toLowerCase()
   for (const [key, value] of Object.entries(headers)) {
     if (key.toLowerCase() !== target) continue
-    return Array.isArray(value) ? value[0] ?? null : value ?? null
+    return Array.isArray(value) ? (value[0] ?? null) : (value ?? null)
   }
   return null
 }
@@ -126,10 +123,7 @@ export class TiaEvidence {
     return { [this.header]: this.correlationId(correlationId) }
   }
 
-  run<Result>(
-    correlationId: string,
-    callback: () => Result,
-  ): Result {
+  run<Result>(correlationId: string, callback: () => Result): Result {
     return correlation.run(this.correlationId(correlationId), callback)
   }
 
@@ -139,12 +133,14 @@ export class TiaEvidence {
   ): Promise<void> {
     if (correlationId === null) return
     const id = this.correlationId(correlationId)
-    const normalized = [...new Set(
-      [...files].flatMap((file) => {
-        const relative = projectRelative(this.root, resolve(this.root, file))
-        return relative === null || relative === '' ? [] : [relative]
-      }),
-    )].sort()
+    const normalized = [
+      ...new Set(
+        [...files].flatMap((file) => {
+          const relative = projectRelative(this.root, resolve(this.root, file))
+          return relative === null || relative === '' ? [] : [relative]
+        }),
+      ),
+    ].sort()
     if (normalized.length === 0) return
     if (normalized.length > MAX_FILES_PER_EVENT) {
       throw new Error('TIA evidence event contains too many files')

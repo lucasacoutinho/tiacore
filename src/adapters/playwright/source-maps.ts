@@ -2,10 +2,7 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
-import {
-  AnyMap,
-  eachMapping,
-} from '@jridgewell/trace-mapping'
+import { AnyMap, eachMapping } from '@jridgewell/trace-mapping'
 
 import { projectRelative } from '../../shared/paths.js'
 
@@ -50,9 +47,8 @@ function mappedSources(map: SourceMapLike): string[] {
 }
 
 function decodedDataUrl(value: string): string | null {
-  const match = /^data:application\/json(?:;charset=[^;,]+)?(;base64)?,(.*)$/is.exec(
-    value,
-  )
+  const match =
+    /^data:application\/json(?:;charset=[^;,]+)?(;base64)?,(.*)$/is.exec(value)
   if (match === null) {
     return null
   }
@@ -104,9 +100,7 @@ function sourceMapUrl(scriptUrl: string, script: string): string | null {
     )
   const value = directive?.[1] ?? directive?.[2]?.trim()
   if (value !== undefined) {
-    return value.startsWith('data:')
-      ? value
-      : new URL(value, scriptUrl).href
+    return value.startsWith('data:') ? value : new URL(value, scriptUrl).href
   }
 
   const url = new URL(scriptUrl)
@@ -162,11 +156,7 @@ function sourcePath(
       ]
   for (const absolute of paths) {
     const relative = projectRelative(root, absolute)
-    if (
-      relative !== null &&
-      relative !== '' &&
-      existsSync(absolute)
-    ) {
+    if (relative !== null && relative !== '' && existsSync(absolute)) {
       return relative
     }
   }
@@ -190,9 +180,7 @@ async function uncachedSourceMapFiles(
     return direct === null ? [] : [direct]
   }
 
-  const source =
-    decodedDataUrl(mapUrl) ??
-    await boundedText(mapUrl)
+  const source = decodedDataUrl(mapUrl) ?? (await boundedText(mapUrl))
   if (source === null) {
     return direct === null ? [] : [direct]
   }
@@ -229,9 +217,7 @@ function coverageRanges(
   return functions
     .flatMap((item) => item.ranges)
     .filter(
-      (range) =>
-        range.startOffset >= 0 &&
-        range.endOffset > range.startOffset,
+      (range) => range.startOffset >= 0 && range.endOffset > range.startOffset,
     )
     .map((range) => ({
       count: range.count,
@@ -291,8 +277,7 @@ function executedMappedSources(
         if (
           selected === null ||
           range.length < selected.length ||
-          (range.length === selected.length &&
-            range.count < selected.count)
+          (range.length === selected.length && range.count < selected.count)
         ) {
           selected = range
         }
@@ -312,7 +297,7 @@ export async function coveredSourceMapFiles(
   functions: PlaywrightCoverageFunction[],
   root: string,
 ): Promise<string[]> {
-  const script = suppliedScript ?? await boundedText(scriptUrl)
+  const script = suppliedScript ?? (await boundedText(scriptUrl))
   if (script === null) {
     return []
   }
@@ -324,9 +309,7 @@ export async function coveredSourceMapFiles(
   if (mapUrl === null) {
     return direct !== null && hasExecutedRange ? [direct] : []
   }
-  const source =
-    decodedDataUrl(mapUrl) ??
-    await boundedText(mapUrl)
+  const source = decodedDataUrl(mapUrl) ?? (await boundedText(mapUrl))
   if (source === null) {
     return direct !== null && hasExecutedRange ? [direct] : []
   }

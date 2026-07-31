@@ -1,7 +1,4 @@
-export {
-  tia,
-  TiaAdapter,
-} from '../adapter/runtime.js'
+export { tia, TiaAdapter } from '../adapter/runtime.js'
 export {
   TIA_TYPESCRIPT_ADAPTER_VERSION,
   type TiaAdapterCatalog,

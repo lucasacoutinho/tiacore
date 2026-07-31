@@ -14,12 +14,18 @@ import {
   tia,
 } from '../../../src/adapters/gradle/index.js'
 
-const root = fileURLToPath(new URL('../../fixtures/gradle-project', import.meta.url))
+const root = fileURLToPath(
+  new URL('../../fixtures/gradle-project', import.meta.url),
+)
 const fakeGradle = join(root, 'fake-gradle.mjs')
 const temporary: string[] = []
 
 afterEach(async () => {
-  await Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true })))
+  await Promise.all(
+    temporary
+      .splice(0)
+      .map((path) => rm(path, { recursive: true, force: true })),
+  )
   await rm(join(root, 'build'), { recursive: true, force: true })
 })
 
@@ -59,9 +65,11 @@ describe('Gradle/JUnit adapter', () => {
   })
 
   test('parses nested JUnit reports without a bespoke XML parser', () => {
-    expect(parseJUnitReport(
-      '<testsuites><testsuite><testcase classname="a.A" name="ok" time="0.2"/><testcase classname="b.B" name="no"><failure/></testcase></testsuite></testsuites>',
-    )).toEqual([
+    expect(
+      parseJUnitReport(
+        '<testsuites><testsuite><testcase classname="a.A" name="ok" time="0.2"/><testcase classname="b.B" name="no"><failure/></testcase></testsuite></testsuites>',
+      ),
+    ).toEqual([
       { className: 'a.A', durationSeconds: 0.2, name: 'ok', status: 'passed' },
       { className: 'b.B', name: 'no', status: 'failed' },
     ])

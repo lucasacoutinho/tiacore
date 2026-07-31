@@ -14,7 +14,9 @@ import {
   tia,
 } from '../../../src/adapters/maestro/index.js'
 
-const root = fileURLToPath(new URL('../../fixtures/maestro-project', import.meta.url))
+const root = fileURLToPath(
+  new URL('../../fixtures/maestro-project', import.meta.url),
+)
 const fakeRunner = fileURLToPath(
   new URL('../../fixtures/fake-adapter-runner.mjs', import.meta.url),
 )
@@ -22,9 +24,9 @@ const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { force: true, recursive: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { force: true, recursive: true })),
   )
 })
 

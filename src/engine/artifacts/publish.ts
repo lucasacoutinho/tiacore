@@ -38,10 +38,7 @@ function artifactKey(sha256: string): string {
   return `tiacore-${sha256.slice(0, 24)}.zip`
 }
 
-function urlFor(
-  key: string,
-  baseUrl: string | undefined,
-): string {
+function urlFor(key: string, baseUrl: string | undefined): string {
   if (baseUrl === undefined) return `./${key}`
   const normalized = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   return new URL(key, normalized).toString()
@@ -82,7 +79,8 @@ export class TiaArtifactPublisher {
     if (options.runner !== undefined && !safeRunner(options.runner)) {
       throw new Error('TIA artifact runner must be a safe relative path')
     }
-    const expiresInSeconds = options.signing.expiresInSeconds ?? 7 * 24 * 60 * 60
+    const expiresInSeconds =
+      options.signing.expiresInSeconds ?? 7 * 24 * 60 * 60
     if (
       !Number.isSafeInteger(expiresInSeconds) ||
       expiresInSeconds <= 0 ||
@@ -103,9 +101,7 @@ export class TiaArtifactPublisher {
     return this.write(true)
   }
 
-  private async write(
-    promoted: boolean,
-  ): Promise<TiaArtifactPublishReceipt> {
+  private async write(promoted: boolean): Promise<TiaArtifactPublishReceipt> {
     const root = resolve(this.options.root ?? process.cwd())
     const cacheDir = resolve(root, this.options.cacheDir ?? '.tia')
     const graph = readGraph(cacheDir)
@@ -113,12 +109,11 @@ export class TiaArtifactPublisher {
       throw new Error(`no valid TIA graph exists in ${cacheDir}`)
     }
     if (!graph.complete && graph.partition === undefined) {
-      throw new Error('TIA refuses to publish an incomplete non-partition graph')
+      throw new Error(
+        'TIA refuses to publish an incomplete non-partition graph',
+      )
     }
-    if (
-      promoted &&
-      (!graph.complete || graph.partition !== undefined)
-    ) {
+    if (promoted && (!graph.complete || graph.partition !== undefined)) {
       throw new Error('TIA refuses to promote a partial graph')
     }
     if (
@@ -126,7 +121,9 @@ export class TiaArtifactPublisher {
       this.options.requireCoverage === true &&
       !graph.coverageComplete
     ) {
-      throw new Error('TIA refuses to promote a graph without complete coverage')
+      throw new Error(
+        'TIA refuses to promote a graph without complete coverage',
+      )
     }
     if (graph.baseline.sha === '') {
       throw new Error('TIA refuses to publish a graph without baseline lineage')
@@ -167,10 +164,7 @@ export class TiaArtifactPublisher {
         ? {}
         : { runner: this.options.runner }),
     }
-    const attestation = createArtifactAttestation(
-      claim,
-      this.options.signing,
-    )
+    const attestation = createArtifactAttestation(claim, this.options.signing)
     const attestationBytes = strToU8(`${JSON.stringify(attestation)}\n`)
     const entries: Record<string, Uint8Array> = {
       'attestation.json': attestationBytes,
@@ -186,10 +180,9 @@ export class TiaArtifactPublisher {
     }
 
     const sha256 = digest(archive)
-    const sink = this.options.sink ?? createFilesystemArtifactSink(
-      this.options.filesystem,
-      root,
-    )
+    const sink =
+      this.options.sink ??
+      createFilesystemArtifactSink(this.options.filesystem, root)
     const artifact = await sink.put({
       body: archive,
       contentType: 'application/zip',
@@ -198,27 +191,27 @@ export class TiaArtifactPublisher {
     })
     const artifactId = artifact.id ?? this.options.artifactId
     const manifest: TiaArtifactManifestV1 = {
-      artifacts: [{
-        fingerprint: graph.fingerprint,
-        ...(this.options.group === undefined
-          ? {}
-          : { group: this.options.group }),
-        id: artifactId,
-        lineage,
-        promoted,
-        ...(this.options.runner === undefined
-          ? {}
-          : { runner: this.options.runner }),
-        sha256,
-        size: archive.byteLength,
-        url: artifact.url,
-      }],
+      artifacts: [
+        {
+          fingerprint: graph.fingerprint,
+          ...(this.options.group === undefined
+            ? {}
+            : { group: this.options.group }),
+          id: artifactId,
+          lineage,
+          promoted,
+          ...(this.options.runner === undefined
+            ? {}
+            : { runner: this.options.runner }),
+          sha256,
+          size: archive.byteLength,
+          url: artifact.url,
+        },
+      ],
       generatedAt: producedAt,
       version: TIA_ARTIFACT_MANIFEST_VERSION,
     }
-    const manifestBytes = strToU8(
-      `${JSON.stringify(manifest, null, 2)}\n`,
-    )
+    const manifestBytes = strToU8(`${JSON.stringify(manifest, null, 2)}\n`)
     const manifestResult = await sink.put({
       body: manifestBytes,
       contentType: 'application/json',

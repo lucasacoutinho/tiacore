@@ -6,12 +6,7 @@ import {
   planK6,
   type K6GraphOptions,
 } from './index.js'
-import {
-  collect,
-  emit,
-  parseChanges,
-  readJson,
-} from '../../cli/shared.js'
+import { collect, emit, parseChanges, readJson } from '../../cli/shared.js'
 import { parseImpactGraph } from '../../protocol/validate.js'
 
 interface K6RootOptions {
@@ -36,12 +31,10 @@ function base(command: Command): Command {
 }
 
 export function registerK6Commands(program: Command): void {
-  const k6 = program
-    .command('k6')
-    .description('k6 adapter commands')
+  const k6 = program.command('k6').description('k6 adapter commands')
 
-  base(k6.command('discover').description('Discover k6 profiles'))
-    .action(async (options: K6RootOptions & { output?: string }) => {
+  base(k6.command('discover').description('Discover k6 profiles')).action(
+    async (options: K6RootOptions & { output?: string }) => {
       await emit(
         await discoverK6Suites({
           ...rootOptions(options),
@@ -49,7 +42,8 @@ export function registerK6Commands(program: Command): void {
         }),
         options.output,
       )
-    })
+    },
+  )
 
   base(k6.command('record').description('Record a k6 impact graph'))
     .requiredOption(
@@ -58,34 +52,40 @@ export function registerK6Commands(program: Command): void {
     )
     .option('--fingerprint <value>', 'project fingerprint')
     .option('--graph-options <path>', 'graph options JSON')
-    .action(async (options: K6RootOptions & {
-      environmentFingerprint: string
-      fingerprint?: string
-      graphOptions?: string
-      output?: string
-    }) => {
-      const suites = await discoverK6Suites({
-        ...rootOptions(options),
-        profiles: options.profiles,
-      })
-      const graphOptions =
-        options.graphOptions === undefined
-          ? {}
-          : await readJson(options.graphOptions) as Partial<K6GraphOptions>
-      await emit(
-        await createK6Graph(options.root, {
-          environmentFingerprint: options.environmentFingerprint,
-          ...(options.fingerprint === undefined
+    .action(
+      async (
+        options: K6RootOptions & {
+          environmentFingerprint: string
+          fingerprint?: string
+          graphOptions?: string
+          output?: string
+        },
+      ) => {
+        const suites = await discoverK6Suites({
+          ...rootOptions(options),
+          profiles: options.profiles,
+        })
+        const graphOptions =
+          options.graphOptions === undefined
             ? {}
-            : { fingerprint: options.fingerprint }),
-          invalidators: graphOptions.invalidators ?? [],
-          knownSources: graphOptions.knownSources ?? [],
-          observations: graphOptions.observations ?? [],
-          suites,
-        }),
-        options.output,
-      )
-    })
+            : ((await readJson(
+                options.graphOptions,
+              )) as Partial<K6GraphOptions>)
+        await emit(
+          await createK6Graph(options.root, {
+            environmentFingerprint: options.environmentFingerprint,
+            ...(options.fingerprint === undefined
+              ? {}
+              : { fingerprint: options.fingerprint }),
+            invalidators: graphOptions.invalidators ?? [],
+            knownSources: graphOptions.knownSources ?? [],
+            observations: graphOptions.observations ?? [],
+            suites,
+          }),
+          options.output,
+        )
+      },
+    )
 
   base(k6.command('plan').description('Plan affected k6 profiles'))
     .requiredOption('--changes <path>', 'changed paths JSON')
@@ -109,41 +109,42 @@ export function registerK6Commands(program: Command): void {
       collect,
       [],
     )
-    .action(async (options: K6RootOptions & {
-      allowedProfile: string[]
-      changes: string
-      environmentFingerprint: string
-      fingerprint?: string
-      forceFull?: boolean
-      graph?: string
-      ignoreChange: string[]
-      ignoreUnknown?: boolean
-      output?: string
-    }) => {
-      await emit(
-        await planK6({
-          ...rootOptions(options),
-          ...(options.allowedProfile.length === 0
-            ? {}
-            : { allowedProfiles: options.allowedProfile }),
-          changes: parseChanges(
-            await readJson(options.changes),
-          ).files,
-          currentEnvironmentFingerprint: options.environmentFingerprint,
-          ...(options.fingerprint === undefined
-            ? {}
-            : { currentFingerprint: options.fingerprint }),
-          forceFull: options.forceFull === true,
-          graph:
-            options.graph === undefined
-              ? null
-              : parseImpactGraph(await readJson(options.graph)),
-          ignoreChanges: options.ignoreChange,
-          onUnknownChange:
-            options.ignoreUnknown === true ? 'ignore' : 'full',
-          profiles: options.profiles,
-        }),
-        options.output,
-      )
-    })
+    .action(
+      async (
+        options: K6RootOptions & {
+          allowedProfile: string[]
+          changes: string
+          environmentFingerprint: string
+          fingerprint?: string
+          forceFull?: boolean
+          graph?: string
+          ignoreChange: string[]
+          ignoreUnknown?: boolean
+          output?: string
+        },
+      ) => {
+        await emit(
+          await planK6({
+            ...rootOptions(options),
+            ...(options.allowedProfile.length === 0
+              ? {}
+              : { allowedProfiles: options.allowedProfile }),
+            changes: parseChanges(await readJson(options.changes)).files,
+            currentEnvironmentFingerprint: options.environmentFingerprint,
+            ...(options.fingerprint === undefined
+              ? {}
+              : { currentFingerprint: options.fingerprint }),
+            forceFull: options.forceFull === true,
+            graph:
+              options.graph === undefined
+                ? null
+                : parseImpactGraph(await readJson(options.graph)),
+            ignoreChanges: options.ignoreChange,
+            onUnknownChange: options.ignoreUnknown === true ? 'ignore' : 'full',
+            profiles: options.profiles,
+          }),
+          options.output,
+        )
+      },
+    )
 }

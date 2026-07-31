@@ -7,9 +7,9 @@ credentials do not belong in the portable graph.
 ## Paths
 
 Every stored path is relative to the project root and uses `/` separators.
-Readers normalize repeated separators and leading `./` segments. Readers
-reject empty paths, parent escapes, absolute Unix paths, Windows drive paths,
-URIs, null bytes, and paths longer than 4,096 code units.
+Readers normalize repeated separators and leading `./` segments. Readers reject
+empty paths, parent escapes, absolute Unix paths, Windows drive paths, URIs,
+null bytes, and paths longer than 4,096 code units.
 
 Path matching is case-sensitive in the protocol. An SDK may account for a
 case-insensitive filesystem while collecting changes, but it must emit the
@@ -27,13 +27,13 @@ skip. A planner must select every suite allowed by policy.
 
 ## Suites and observations
 
-Suite IDs are unique. Dependencies name other suites in the same graph and
-form an acyclic graph. Selecting a suite also selects all of its dependencies.
+Suite IDs are unique. Dependencies name other suites in the same graph and form
+an acyclic graph. Selecting a suite also selects all of its dependencies.
 
 An observation links one project path to one suite. Confidence and edge kind
-describe why the relation exists; they do not weaken the safe fallback.
-Unknown executable changes select the full authorized catalog unless policy
-explicitly chooses the unsafe `ignore` behavior.
+describe why the relation exists; they do not weaken the safe fallback. Unknown
+executable changes select the full authorized catalog unless policy explicitly
+chooses the unsafe `ignore` behavior.
 
 `knownSources` contains paths whose changes are known to be unrelated to every
 suite. It does not create a cached native result.
@@ -74,9 +74,9 @@ results.
 ## Artifact envelopes
 
 An artifact envelope identifies its adapter, artifact, run, graph, and optional
-partition. Partition indexes are one-based and cannot exceed `total`.
-Transport implementations must apply their own byte and candidate-count
-limits before decoding JSON.
+partition. Partition indexes are one-based and cannot exceed `total`. Transport
+implementations must apply their own byte and candidate-count limits before
+decoding JSON.
 
 The schemas under `schemas/` and vectors under `conformance/protocol/v1/` are
 normative. A future implementation passes protocol conformance only when it
@@ -86,12 +86,12 @@ produces the exact expected plans and rejects every invalid vector.
 
 Version 1 readers enforce these maximums:
 
-| Item | Maximum |
-| --- | ---: |
-| Suites | 100,000 |
-| Observations | 1,000,000 |
-| Known sources | 1,000,000 |
-| Invalidators | 10,000 |
-| Relations on one suite | 100,000 |
-| Path length | 4,096 |
-| Other string length | 8,192 |
+| Item                   |   Maximum |
+| ---------------------- | --------: |
+| Suites                 |   100,000 |
+| Observations           | 1,000,000 |
+| Known sources          | 1,000,000 |
+| Invalidators           |    10,000 |
+| Relations on one suite |   100,000 |
+| Path length            |     4,096 |
+| Other string length    |     8,192 |

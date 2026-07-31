@@ -1,7 +1,4 @@
-import type {
-  PlaywrightTestArgs,
-  TestType,
-} from '@playwright/test'
+import type { PlaywrightTestArgs, TestType } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
 import { withTiaFixture } from '../adapters/playwright/fixture.js'
@@ -43,7 +40,4 @@ export function tia<
   return new TiaPlaywrightRunner(value)
 }
 
-export type {
-  TiaPlaywrightOptions,
-  TiaPlaywrightResult,
-}
+export type { TiaPlaywrightOptions, TiaPlaywrightResult }

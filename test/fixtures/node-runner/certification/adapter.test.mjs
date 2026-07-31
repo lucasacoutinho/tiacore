@@ -1,8 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import {
-  readFileSync,
-  rmSync,
-} from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -52,8 +49,7 @@ test('the installed Node adapter records once and replays from cache', () => {
   assert.ok(resultA)
   const files = graph.testEdges[resultA.id].files
   const [major, minor] = process.versions.node.split('.').map(Number)
-  const preciseDiscovery =
-    major > 22 || (major === 22 && minor >= 15)
+  const preciseDiscovery = major > 22 || (major === 22 && minor >= 15)
 
   if (preciseDiscovery) {
     assert.ok(files.includes('src/a.mjs'))

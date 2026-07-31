@@ -32,12 +32,9 @@ afterEach(() => {
 describe('runnable fixture projects', () => {
   test('matches native include, exclude, and zero-hit coverage semantics', () => {
     const nativeRoot = createFixtureProject('coverage-fidelity')
-    const native = runVitest(
-      nativeRoot,
-      ['run'],
-      20_000,
-      { TIA_COVERAGE_MODE: 'native' },
-    )
+    const native = runVitest(nativeRoot, ['run'], 20_000, {
+      TIA_COVERAGE_MODE: 'native',
+    })
     expect(native.status, native.output).toBe(0)
 
     const tiaRoot = createFixtureProject('coverage-fidelity')
@@ -46,10 +43,7 @@ describe('runnable fixture projects', () => {
 
     const summaries = [nativeRoot, tiaRoot].map((root) => {
       const value = JSON.parse(
-        readFileSync(
-          join(root, 'coverage/coverage-summary.json'),
-          'utf8',
-        ),
+        readFileSync(join(root, 'coverage/coverage-summary.json'), 'utf8'),
       ) as Record<
         string,
         Record<
@@ -85,11 +79,8 @@ describe('runnable fixture projects', () => {
       statements: 0,
     })
     expect(
-      readFileSync(
-        join(tiaRoot, 'coverage/html/index.html'),
-        'utf8',
-      ),
-    ).toContain("status-line medium")
+      readFileSync(join(tiaRoot, 'coverage/html/index.html'), 'utf8'),
+    ).toContain('status-line medium')
   })
 
   test('honors coverage cleaning and failed-test reporting lifecycle', () => {
@@ -102,41 +93,30 @@ describe('runnable fixture projects', () => {
     expect(existsSync(join(root, 'coverage/stale.txt'))).toBe(false)
 
     writeFileSync(join(root, 'coverage/keep.txt'), 'keep')
-    const preserve = runVitest(
-      root,
-      ['run'],
-      20_000,
-      { TIA_COVERAGE_CLEAN: '0' },
-    )
+    const preserve = runVitest(root, ['run'], 20_000, {
+      TIA_COVERAGE_CLEAN: '0',
+    })
     expect(preserve.status, preserve.output).toBe(0)
     expect(existsSync(join(root, 'coverage/keep.txt'))).toBe(true)
 
     const skippedRoot = createFixtureProject('coverage-fidelity')
-    const skipped = runVitest(
-      skippedRoot,
-      ['run'],
-      20_000,
-      { TIA_FIXTURE_FAIL: '1' },
-    )
+    const skipped = runVitest(skippedRoot, ['run'], 20_000, {
+      TIA_FIXTURE_FAIL: '1',
+    })
     expect(skipped.status, skipped.output).toBe(1)
-    expect(
-      existsSync(join(skippedRoot, 'coverage/coverage-final.json')),
-    ).toBe(false)
+    expect(existsSync(join(skippedRoot, 'coverage/coverage-final.json'))).toBe(
+      false,
+    )
 
     const reportedRoot = createFixtureProject('coverage-fidelity')
-    const reported = runVitest(
-      reportedRoot,
-      ['run'],
-      20_000,
-      {
-        TIA_COVERAGE_REPORT_ON_FAILURE: '1',
-        TIA_FIXTURE_FAIL: '1',
-      },
-    )
+    const reported = runVitest(reportedRoot, ['run'], 20_000, {
+      TIA_COVERAGE_REPORT_ON_FAILURE: '1',
+      TIA_FIXTURE_FAIL: '1',
+    })
     expect(reported.status, reported.output).toBe(1)
-    expect(
-      existsSync(join(reportedRoot, 'coverage/coverage-final.json')),
-    ).toBe(true)
+    expect(existsSync(join(reportedRoot, 'coverage/coverage-final.json'))).toBe(
+      true,
+    )
   })
 
   test('fails safely for subprocess-only dependencies and reports them as zero-hit', () => {
@@ -155,10 +135,7 @@ describe('runnable fixture projects', () => {
     )
 
     const report = JSON.parse(
-      readFileSync(
-        join(root, 'coverage/coverage-final.json'),
-        'utf8',
-      ),
+      readFileSync(join(root, 'coverage/coverage-final.json'), 'utf8'),
     ) as Record<string, { s: Record<string, number> }>
     const childCoverage = Object.entries(report).find(([file]) =>
       file.endsWith('/src/child.mjs'),
@@ -212,17 +189,12 @@ describe('runnable fixture projects', () => {
       existsSync(join(root, 'coverage/tuple-summary.json')),
       initial.output,
     ).toBe(true)
-    expect(
-      existsSync(join(root, 'coverage/coverage-summary.json')),
-    ).toBe(false)
+    expect(existsSync(join(root, 'coverage/coverage-summary.json'))).toBe(false)
 
     resetExecutions(root)
-    const strict = runVitest(
-      root,
-      ['run'],
-      20_000,
-      { TIA_STRICT_COVERAGE: '1' },
-    )
+    const strict = runVitest(root, ['run'], 20_000, {
+      TIA_STRICT_COVERAGE: '1',
+    })
     expect(strict.status, strict.output).toBe(1)
     expect(executions(root)).toEqual([])
     expect(strict.output).toContain('no affected test files')
@@ -247,10 +219,9 @@ describe('runnable fixture projects', () => {
     expect(replay.status, replay.output).toBe(0)
     expect(executions(root)).toEqual(['a'])
 
-    const events = readFileSync(
-      join(root, 'reporter-events.log'),
-      'utf8',
-    ).trim().split('\n')
+    const events = readFileSync(join(root, 'reporter-events.log'), 'utf8')
+      .trim()
+      .split('\n')
     expect(events).toEqual(
       expect.arrayContaining([
         'ready:cached:reporter case b:passed',
@@ -279,21 +250,21 @@ describe('runnable fixture projects', () => {
       Object.values(graph.results).find((result) =>
         result.fullName.includes(name),
       )!
-    expect(
-      graph.testEdges[byName('users table').id]?.files,
-    ).toContain('migrations/001_users.sql')
-    expect(
-      graph.testEdges[byName('users table').id]?.files,
-    ).not.toContain('migrations/002_orders.sql')
-    expect(
-      graph.testEdges[byName('orders table').id]?.files,
-    ).toContain('migrations/002_orders.sql')
-    expect(
-      graph.testEdges[byName('user EJS').id]?.files,
-    ).toContain('views/user.ejs')
-    expect(
-      graph.testEdges[byName('admin EJS').id]?.files,
-    ).toContain('views/admin.ejs')
+    expect(graph.testEdges[byName('users table').id]?.files).toContain(
+      'migrations/001_users.sql',
+    )
+    expect(graph.testEdges[byName('users table').id]?.files).not.toContain(
+      'migrations/002_orders.sql',
+    )
+    expect(graph.testEdges[byName('orders table').id]?.files).toContain(
+      'migrations/002_orders.sql',
+    )
+    expect(graph.testEdges[byName('user EJS').id]?.files).toContain(
+      'views/user.ejs',
+    )
+    expect(graph.testEdges[byName('admin EJS').id]?.files).toContain(
+      'views/admin.ejs',
+    )
 
     resetExecutions(root)
     writeFileSync(
@@ -317,18 +288,14 @@ describe('runnable fixture projects', () => {
   test('merges simultaneous local Vitest shards and reconstructs full coverage', async () => {
     const root = createFixtureProject('sharded-vitest')
     const [first, second] = await Promise.all([
-      runVitestAsync(
-        root,
-        ['run', '--shard=1/2'],
-        20_000,
-        { TIA_FRESH: '1', TIA_SHARD_GROUP: 'local-suite' },
-      ),
-      runVitestAsync(
-        root,
-        ['run', '--shard=2/2'],
-        20_000,
-        { TIA_FRESH: '1', TIA_SHARD_GROUP: 'local-suite' },
-      ),
+      runVitestAsync(root, ['run', '--shard=1/2'], 20_000, {
+        TIA_FRESH: '1',
+        TIA_SHARD_GROUP: 'local-suite',
+      }),
+      runVitestAsync(root, ['run', '--shard=2/2'], 20_000, {
+        TIA_FRESH: '1',
+        TIA_SHARD_GROUP: 'local-suite',
+      }),
     ])
     expect(first.status, first.output).toBe(0)
     expect(second.status, second.output).toBe(0)
@@ -352,11 +319,7 @@ describe('runnable fixture projects', () => {
 
     resetExecutions(root)
     writeFileSync(join(root, 'src/a.ts'), "export const a = () => 'a'\n\n")
-    const replay = runVitest(
-      root,
-      ['run', '--coverage'],
-      20_000,
-    )
+    const replay = runVitest(root, ['run', '--coverage'], 20_000)
     expect(replay.status, replay.output).toBe(0)
     expect(executions(root)).toEqual(['a'])
     const report = JSON.parse(
@@ -372,21 +335,17 @@ describe('runnable fixture projects', () => {
 
   test('does not combine missing or differently grouped local shards', async () => {
     const root = createFixtureProject('sharded-vitest')
-    const first = await runVitestAsync(
-      root,
-      ['run', '--shard=1/2'],
-      20_000,
-      { TIA_FRESH: '1', TIA_SHARD_GROUP: 'first-run' },
-    )
+    const first = await runVitestAsync(root, ['run', '--shard=1/2'], 20_000, {
+      TIA_FRESH: '1',
+      TIA_SHARD_GROUP: 'first-run',
+    })
     expect(first.status, first.output).toBe(0)
     expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
 
-    const mixed = await runVitestAsync(
-      root,
-      ['run', '--shard=2/2'],
-      20_000,
-      { TIA_FRESH: '1', TIA_SHARD_GROUP: 'second-run' },
-    )
+    const mixed = await runVitestAsync(root, ['run', '--shard=2/2'], 20_000, {
+      TIA_FRESH: '1',
+      TIA_SHARD_GROUP: 'second-run',
+    })
     expect(mixed.status, mixed.output).toBe(0)
     expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
@@ -394,51 +353,34 @@ describe('runnable fixture projects', () => {
   test('restores CI-downloaded shard directories without a platform API', async () => {
     const root = createFixtureProject('sharded-vitest')
     const results = await Promise.all([
-      runVitestAsync(
-        root,
-        ['run', '--shard=1/2'],
-        20_000,
-        { TIA_FRESH: '1', TIA_SHARD_GROUP: 'portable-ci-run' },
-      ),
-      runVitestAsync(
-        root,
-        ['run', '--shard=2/2'],
-        20_000,
-        { TIA_FRESH: '1', TIA_SHARD_GROUP: 'portable-ci-run' },
-      ),
+      runVitestAsync(root, ['run', '--shard=1/2'], 20_000, {
+        TIA_FRESH: '1',
+        TIA_SHARD_GROUP: 'portable-ci-run',
+      }),
+      runVitestAsync(root, ['run', '--shard=2/2'], 20_000, {
+        TIA_FRESH: '1',
+        TIA_SHARD_GROUP: 'portable-ci-run',
+      }),
     ])
     expect(results.every((result) => result.status === 0)).toBe(true)
 
     const group = readdirSync(join(root, '.tia/fragments'))[0]!
     for (const partition of ['1-of-2', '2-of-2']) {
-      const destination = join(
-        root,
-        '.tia-artifacts',
-        partition,
-      )
+      const destination = join(root, '.tia-artifacts', partition)
       mkdirSync(destination, { recursive: true })
-      cpSync(
-        join(root, '.tia/fragments', group, partition),
-        destination,
-        { recursive: true },
-      )
+      cpSync(join(root, '.tia/fragments', group, partition), destination, {
+        recursive: true,
+      })
     }
     rmSync(join(root, '.tia'), { force: true, recursive: true })
     resetExecutions(root)
 
-    const restored = runVitest(
-      root,
-      ['run'],
-      20_000,
-      { TIA_FILESYSTEM_ARTIFACTS: '1' },
-    )
+    const restored = runVitest(root, ['run'], 20_000, {
+      TIA_FILESYSTEM_ARTIFACTS: '1',
+    })
     expect(restored.status, restored.output).toBe(0)
-    expect(restored.output).toContain(
-      'TIA restored artifact',
-    )
-    expect(restored.output).toContain(
-      'from filesystem artifacts',
-    )
+    expect(restored.output).toContain('TIA restored artifact')
+    expect(restored.output).toContain('from filesystem artifacts')
     expect(executions(root)).toEqual([])
     expect(readGraph(root).complete).toBe(true)
   })
@@ -504,15 +446,14 @@ describe('runnable fixture projects', () => {
       (result) => result.fullName === 'node skipped case',
     )
     expect(initialGraph.testEdges[aResult!.id]?.files).toContain('src/a.mjs')
-    expect(initialGraph.testEdges[aResult!.id]?.files).not.toContain('src/b.mjs')
+    expect(initialGraph.testEdges[aResult!.id]?.files).not.toContain(
+      'src/b.mjs',
+    )
     expect(initialGraph.testEdges[bResult!.id]?.files).toContain('src/b.mjs')
     expect(skippedResult?.state).toBe('skipped')
 
     resetExecutions(root)
-    writeFileSync(
-      join(root, 'src/a.mjs'),
-      "export const a = () => 'broken'\n",
-    )
+    writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'broken'\n")
     const failed = runCommand(root, process.execPath, ['run-tia.mjs'])
     expect(failed.status, failed.output).toBe(1)
     expect(executions(root)).toEqual(['node-a'])
@@ -534,9 +475,7 @@ describe('runnable fixture projects', () => {
     const root = createFixtureProject('node-module-failure')
     const failed = runCommand(root, process.execPath, ['run-tia.mjs'])
     expect(failed.status, failed.output).toBe(1)
-    expect(
-      Object.values(readGraph(root, 'node').results),
-    ).toEqual([
+    expect(Object.values(readGraph(root, 'node').results)).toEqual([
       expect.objectContaining({
         fullName: 'test/broken.test.mjs (module failure)',
         state: 'failed',
@@ -554,13 +493,9 @@ describe('runnable fixture projects', () => {
 
   test('uses one aggregate Node coverage pass when hooks are unavailable', async () => {
     const root = createFixtureProject('node-runner')
-    const result = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-      20_000,
-      { TIACORE_NODE_DISCOVERY_HOOKS: '0' },
-    )
+    const result = runCommand(root, process.execPath, ['run-tia.mjs'], 20_000, {
+      TIACORE_NODE_DISCOVERY_HOOKS: '0',
+    })
     expect(result.status, result.output).toBe(0)
     expect(executions(root).sort()).toEqual(['node-a', 'node-b'])
 
@@ -576,27 +511,18 @@ describe('runnable fixture projects', () => {
   test('discovers and replays a nested node:test name without running it twice', async () => {
     const root = createFixtureProject('node-nested')
     const initial = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(executions(root).sort()).toEqual([
-      'node-commonjs',
-      'node-nested',
-    ])
+    expect(executions(root).sort()).toEqual(['node-commonjs', 'node-nested'])
     expect(initial.status, initial.output).toBe(0)
     expect(
       Object.values(readGraph(root, 'node').results).map(
         (result) => result.fullName,
       ),
     ).toEqual(
-      expect.arrayContaining([
-        'CommonJS case',
-        'account suite nested case',
-      ]),
+      expect.arrayContaining(['CommonJS case', 'account suite nested case']),
     )
 
     resetExecutions(root)
-    writeFileSync(
-      join(root, 'src/a.mjs'),
-      "export const a = () => 'a'\n\n",
-    )
+    writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'a'\n\n")
     const replay = runCommand(root, process.execPath, ['run-tia.mjs'])
     expect(replay.status, replay.output).toBe(0)
     expect(executions(root)).toEqual(['node-nested'])
@@ -607,11 +533,7 @@ describe('runnable fixture projects', () => {
 
     const initial = runVitest(root)
     expect(initial.status, initial.output).toBe(0)
-    expect(executions(root).sort()).toEqual([
-      'badge',
-      'button',
-      'lazy-panel',
-    ])
+    expect(executions(root).sort()).toEqual(['badge', 'button', 'lazy-panel'])
     expect(readGraph(root).edges['test/Button.test.tsx']).toEqual(
       expect.arrayContaining([
         'src/Button.module.css',
@@ -671,11 +593,7 @@ describe('runnable fixture projects', () => {
     appendFileSync(join(root, 'src/NeverRendered.tsx'), '\n')
     const unknownLazyChunk = runVitest(root)
     expect(unknownLazyChunk.status, unknownLazyChunk.output).toBe(0)
-    expect(executions(root).sort()).toEqual([
-      'badge',
-      'button',
-      'lazy-panel',
-    ])
+    expect(executions(root).sort()).toEqual(['badge', 'button', 'lazy-panel'])
     expect(unknownLazyChunk.output).toContain(
       'changed file is unknown to the graph: src/NeverRendered.tsx',
     )
@@ -714,12 +632,12 @@ describe('runnable fixture projects', () => {
       const report = JSON.parse(
         readFileSync(join(root, 'coverage/coverage-final.json'), 'utf8'),
       ) as Record<string, unknown>
-      expect(Object.keys(report).some((file) => file.endsWith('/src/a.ts'))).toBe(
-        true,
-      )
-      expect(Object.keys(report).some((file) => file.endsWith('/src/b.ts'))).toBe(
-        true,
-      )
+      expect(
+        Object.keys(report).some((file) => file.endsWith('/src/a.ts')),
+      ).toBe(true)
+      expect(
+        Object.keys(report).some((file) => file.endsWith('/src/b.ts')),
+      ).toBe(true)
     },
   )
 })

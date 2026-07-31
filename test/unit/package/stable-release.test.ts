@@ -119,9 +119,7 @@ describe('stable release contract', () => {
     const manifest = json<JsonSchema>(
       'schemas/tiacore-artifact-manifest-v1.schema.json',
     )
-    const protocol = json<JsonSchema>(
-      'schemas/tiacore-impact-v1.schema.json',
-    )
+    const protocol = json<JsonSchema>('schemas/tiacore-impact-v1.schema.json')
     expect(attestation.properties.version?.const).toBe(
       TIA_ARTIFACT_ATTESTATION_VERSION,
     )

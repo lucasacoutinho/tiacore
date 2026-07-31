@@ -57,9 +57,7 @@ function deleteFileRecords(graph: TiaRuntimeGraph, file: string): void {
 
 export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
   const graph =
-    input.previous === null
-      ? emptyGraph()
-      : structuredClone(input.previous)
+    input.previous === null ? emptyGraph() : structuredClone(input.previous)
   const executedFiles = new Set(input.executedFiles)
 
   for (const file of input.fullyExecutedFiles) {
@@ -89,9 +87,7 @@ export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
     graph.edges[file] =
       dependencies.length === 0
         ? structuredClone(
-            input.fallbackEdges?.get(file) ??
-              graph.edges[file] ??
-              [file],
+            input.fallbackEdges?.get(file) ?? graph.edges[file] ?? [file],
           )
         : [...new Set([file, ...dependencies])].sort()
   }

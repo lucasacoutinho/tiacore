@@ -2,11 +2,7 @@ import { join } from 'node:path'
 
 import { hashBytes } from '../baseline/fingerprint.js'
 import { mergePartitionedGraphs } from './merge.js'
-import {
-  commitGraph,
-  graphDigest,
-  readGraph,
-} from './store.js'
+import { commitGraph, graphDigest, readGraph } from './store.js'
 import type {
   Baseline,
   TiaRuntimeGraph,

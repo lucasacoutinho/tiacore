@@ -1,9 +1,8 @@
 # tiacore for pytest
 
-This SDK implements tiacore protocol v1 for pytest at static-impact,
-test-file granularity. It discovers real pytest files and local Python imports,
-executes selected files through pytest, and only promotes a graph after pytest
-succeeds.
+This SDK implements tiacore protocol v1 for pytest at static-impact, test-file
+granularity. It discovers real pytest files and local Python imports, executes
+selected files through pytest, and only promotes a graph after pytest succeeds.
 
 ```python
 from tiacore import TiaPytestOptions, tia

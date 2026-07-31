@@ -120,9 +120,7 @@ describe('failure injection', () => {
       { TIACORE_INJECT_WORKER_CRASH: '1' },
     )
     expect(crashed.status, crashed.output).toBe(1)
-    expect(
-      Object.values(readGraph(root, 'node').results),
-    ).toEqual([
+    expect(Object.values(readGraph(root, 'node').results)).toEqual([
       expect.objectContaining({
         fullName: 'test/crash.test.mjs (module failure)',
         state: 'failed',
@@ -130,16 +128,10 @@ describe('failure injection', () => {
     ])
 
     resetExecutions(root)
-    const recovered = runCommand(
-      root,
-      process.execPath,
-      ['run-tia.mjs'],
-    )
+    const recovered = runCommand(root, process.execPath, ['run-tia.mjs'])
     expect(recovered.status, recovered.output).toBe(0)
     expect(executions(root)).toEqual(['worker'])
-    expect(
-      Object.values(readGraph(root, 'node').results),
-    ).toEqual([
+    expect(Object.values(readGraph(root, 'node').results)).toEqual([
       expect.objectContaining({
         fullName: 'worker crash case',
         state: 'passed',
@@ -158,9 +150,7 @@ describe('failure injection', () => {
 
     expect(failed.status, failed.output).toBe(1)
     expect(executions(root)).toEqual(['bun-b'])
-    expect(
-      Object.values(readGraph(root, 'bun').results),
-    ).toEqual(
+    expect(Object.values(readGraph(root, 'bun').results)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           fullName: 'test/a.test.ts (module failure)',
@@ -176,9 +166,7 @@ describe('failure injection', () => {
 
   test('fails closed when a Bun case crashes after discovery', () => {
     const root = createFixtureProject('bun-parallel')
-    const markerDirectory = mkdtempSync(
-      join(tmpdir(), 'tiacore-bun-marker-'),
-    )
+    const markerDirectory = mkdtempSync(join(tmpdir(), 'tiacore-bun-marker-'))
     temporaryDirectories.push(markerDirectory)
     const marker = join(markerDirectory, 'discovered')
     writeFileSync(
@@ -202,19 +190,13 @@ test('parallel bun a', () => {
 `,
     )
 
-    const failed = runCommand(
-      root,
-      'bun',
-      ['run-tia.ts'],
-      20_000,
-      { TIACORE_INJECT_BUN_MARKER: marker },
-    )
+    const failed = runCommand(root, 'bun', ['run-tia.ts'], 20_000, {
+      TIACORE_INJECT_BUN_MARKER: marker,
+    })
 
     expect(failed.status, failed.output).toBe(1)
     expect(executions(root)).toEqual(['bun-b'])
-    expect(
-      Object.values(readGraph(root, 'bun').results),
-    ).toEqual(
+    expect(Object.values(readGraph(root, 'bun').results)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           fullName: 'test/a.test.ts (module failure)',
@@ -249,12 +231,9 @@ test('worker exit case', () => {
       join(root, 'src/a.ts'),
       "export const a = () => 'a'\n// changed\n",
     )
-    const crashed = runVitest(
-      root,
-      ['run', '--pool=forks'],
-      20_000,
-      { TIACORE_INJECT_VITEST_EXIT: '1' },
-    )
+    const crashed = runVitest(root, ['run', '--pool=forks'], 20_000, {
+      TIACORE_INJECT_VITEST_EXIT: '1',
+    })
     expect(crashed.status).not.toBe(0)
     expect(readFileSync(stateFile, 'utf8')).toBe(before)
 

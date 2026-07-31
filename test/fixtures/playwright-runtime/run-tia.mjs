@@ -24,7 +24,10 @@ const server = createServer(async (request, response) => {
       evidence.record(['backend/lazy-route.ts']),
     )
   }
-  const file = resolve(root, pathname === '/' ? 'src/index.html' : `.${pathname}`)
+  const file = resolve(
+    root,
+    pathname === '/' ? 'src/index.html' : `.${pathname}`,
+  )
   try {
     const body = await readFile(file)
     response.writeHead(200, {
@@ -45,11 +48,13 @@ if (address === null || typeof address === 'string') {
 process.env.BASE_URL = `http://127.0.0.1:${address.port}`
 
 try {
-  const result = await playwrightApi.tia({
-    config: 'playwright.config.ts',
-    evidenceDirectory: process.env.TIA_EVIDENCE_DIRECTORY,
-    root,
-  }).run()
+  const result = await playwrightApi
+    .tia({
+      config: 'playwright.config.ts',
+      evidenceDirectory: process.env.TIA_EVIDENCE_DIRECTORY,
+      root,
+    })
+    .run()
   process.exitCode = result.success ? 0 : 1
 } finally {
   await new Promise((closed) => server.close(closed))

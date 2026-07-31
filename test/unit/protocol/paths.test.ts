@@ -11,10 +11,7 @@ import {
 describe('portable path handling', () => {
   test('normalizes drive-letter and mixed-separator paths', () => {
     expect(
-      projectRelative(
-        'C:\\work\\tiacore',
-        'c:/work/tiacore/src\\feature.ts',
-      ),
+      projectRelative('C:\\work\\tiacore', 'c:/work/tiacore/src\\feature.ts'),
     ).toBe('src/feature.ts')
     expect(
       projectRelative('C:\\work\\tiacore', 'D:\\work\\tiacore\\src\\a.ts'),
@@ -36,21 +33,17 @@ describe('portable path handling', () => {
         '\\\\server\\other\\repo\\src\\a.ts',
       ),
     ).toBeNull()
-    expect(
-      isInside('C:\\work\\repo', 'C:\\work\\repository\\a.ts'),
-    ).toBe(false)
-    expect(
-      isInside('C:\\work\\repo', 'c:/work/repo/src/a.ts'),
-    ).toBe(true)
+    expect(isInside('C:\\work\\repo', 'C:\\work\\repository\\a.ts')).toBe(false)
+    expect(isInside('C:\\work\\repo', 'c:/work/repo/src/a.ts')).toBe(true)
   })
 
   test('resolves Windows cache directories without host-OS leakage', () => {
     expect(resolveCacheDir('C:\\work\\repo', '.tia')).toBe(
       'C:\\work\\repo\\.tia',
     )
-    expect(
-      resolveCacheDir('C:\\work\\repo', 'D:/cache/tiacore'),
-    ).toBe('D:\\cache\\tiacore')
+    expect(resolveCacheDir('C:\\work\\repo', 'D:/cache/tiacore')).toBe(
+      'D:\\cache\\tiacore',
+    )
     expect(resolveCacheDir('/work/repo', '.tia')).toBe('/work/repo/.tia')
   })
 

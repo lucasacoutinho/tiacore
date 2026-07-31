@@ -67,10 +67,9 @@ function graph(): TiaImpactGraph {
 describe('runner-neutral TIA protocol', () => {
   test('normalizes portable paths and rejects escapes', () => {
     expect(normalizeProtocolPath('.\\src\\feature.ts')).toBe('src/feature.ts')
-    expect(normalizeProtocolPaths(['src/b.ts', 'src\\a.ts', './src/a.ts'])).toEqual([
-      'src/a.ts',
-      'src/b.ts',
-    ])
+    expect(
+      normalizeProtocolPaths(['src/b.ts', 'src\\a.ts', './src/a.ts']),
+    ).toEqual(['src/a.ts', 'src/b.ts'])
     expect(() => normalizeProtocolPath('../outside.ts')).toThrow(
       /project-relative/,
     )
@@ -80,9 +79,9 @@ describe('runner-neutral TIA protocol', () => {
   })
 
   test('rejects unsupported versions and dangling suite references', () => {
-    expect(() =>
-      parseImpactGraph({ ...graph(), protocolVersion: 2 }),
-    ).toThrow(/unsupported TIA protocol version/)
+    expect(() => parseImpactGraph({ ...graph(), protocolVersion: 2 })).toThrow(
+      /unsupported TIA protocol version/,
+    )
     expect(() =>
       parseImpactGraph({
         ...graph(),

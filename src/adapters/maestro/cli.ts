@@ -6,12 +6,7 @@ import {
   planMaestro,
   type MaestroGraphOptions,
 } from './index.js'
-import {
-  collect,
-  emit,
-  parseChanges,
-  readJson,
-} from '../../cli/shared.js'
+import { collect, emit, parseChanges, readJson } from '../../cli/shared.js'
 import { parseImpactGraph } from '../../protocol/validate.js'
 
 interface MaestroRootOptions {
@@ -64,13 +59,14 @@ export function registerMaestroCommands(program: Command): void {
     .command('maestro')
     .description('Maestro adapter commands')
 
-  base(maestro.command('discover').description('Discover Maestro flows'))
-    .action(async (options: MaestroRootOptions) => {
-      await emit(
-        await discoverMaestroSuites(discoveryOptions(options)),
-        options.output,
-      )
-    })
+  base(
+    maestro.command('discover').description('Discover Maestro flows'),
+  ).action(async (options: MaestroRootOptions) => {
+    await emit(
+      await discoverMaestroSuites(discoveryOptions(options)),
+      options.output,
+    )
+  })
 
   base(maestro.command('record').description('Record a Maestro impact graph'))
     .requiredOption(
@@ -79,32 +75,36 @@ export function registerMaestroCommands(program: Command): void {
     )
     .option('--fingerprint <value>', 'project fingerprint')
     .option('--graph-options <path>', 'graph options JSON')
-    .action(async (options: MaestroRootOptions & {
-      environmentFingerprint: string
-      fingerprint?: string
-      graphOptions?: string
-    }) => {
-      const suites = await discoverMaestroSuites(
-        discoveryOptions(options),
-      )
-      const graphOptions =
-        options.graphOptions === undefined
-          ? {}
-          : await readJson(options.graphOptions) as Partial<MaestroGraphOptions>
-      await emit(
-        createMaestroGraph({
-          environmentFingerprint: options.environmentFingerprint,
-          ...(options.fingerprint === undefined
+    .action(
+      async (
+        options: MaestroRootOptions & {
+          environmentFingerprint: string
+          fingerprint?: string
+          graphOptions?: string
+        },
+      ) => {
+        const suites = await discoverMaestroSuites(discoveryOptions(options))
+        const graphOptions =
+          options.graphOptions === undefined
             ? {}
-            : { fingerprint: options.fingerprint }),
-          invalidators: graphOptions.invalidators ?? [],
-          knownSources: graphOptions.knownSources ?? [],
-          observations: graphOptions.observations ?? [],
-          suites,
-        }),
-        options.output,
-      )
-    })
+            : ((await readJson(
+                options.graphOptions,
+              )) as Partial<MaestroGraphOptions>)
+        await emit(
+          createMaestroGraph({
+            environmentFingerprint: options.environmentFingerprint,
+            ...(options.fingerprint === undefined
+              ? {}
+              : { fingerprint: options.fingerprint }),
+            invalidators: graphOptions.invalidators ?? [],
+            knownSources: graphOptions.knownSources ?? [],
+            observations: graphOptions.observations ?? [],
+            suites,
+          }),
+          options.output,
+        )
+      },
+    )
 
   base(maestro.command('plan').description('Plan affected Maestro flows'))
     .requiredOption('--changes <path>', 'changed paths JSON')
@@ -122,35 +122,36 @@ export function registerMaestroCommands(program: Command): void {
       collect,
       [],
     )
-    .action(async (options: MaestroRootOptions & {
-      changes: string
-      environmentFingerprint: string
-      fingerprint?: string
-      forceFull?: boolean
-      graph?: string
-      ignoreChange: string[]
-      ignoreUnknown?: boolean
-    }) => {
-      await emit(
-        await planMaestro({
-          ...discoveryOptions(options),
-          changes: parseChanges(
-            await readJson(options.changes),
-          ).files,
-          currentEnvironmentFingerprint: options.environmentFingerprint,
-          ...(options.fingerprint === undefined
-            ? {}
-            : { currentFingerprint: options.fingerprint }),
-          forceFull: options.forceFull === true,
-          graph:
-            options.graph === undefined
-              ? null
-              : parseImpactGraph(await readJson(options.graph)),
-          ignoreChanges: options.ignoreChange,
-          onUnknownChange:
-            options.ignoreUnknown === true ? 'ignore' : 'full',
-        }),
-        options.output,
-      )
-    })
+    .action(
+      async (
+        options: MaestroRootOptions & {
+          changes: string
+          environmentFingerprint: string
+          fingerprint?: string
+          forceFull?: boolean
+          graph?: string
+          ignoreChange: string[]
+          ignoreUnknown?: boolean
+        },
+      ) => {
+        await emit(
+          await planMaestro({
+            ...discoveryOptions(options),
+            changes: parseChanges(await readJson(options.changes)).files,
+            currentEnvironmentFingerprint: options.environmentFingerprint,
+            ...(options.fingerprint === undefined
+              ? {}
+              : { currentFingerprint: options.fingerprint }),
+            forceFull: options.forceFull === true,
+            graph:
+              options.graph === undefined
+                ? null
+                : parseImpactGraph(await readJson(options.graph)),
+            ignoreChanges: options.ignoreChange,
+            onUnknownChange: options.ignoreUnknown === true ? 'ignore' : 'full',
+          }),
+          options.output,
+        )
+      },
+    )
 }

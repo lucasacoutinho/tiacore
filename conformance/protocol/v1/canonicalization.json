@@ -7,8 +7,8 @@
     "environmentFingerprint": "node-24",
     "knownSources": ["docs\\README.md", "docs/CHANGELOG.md"],
     "invalidators": [
-      {"pattern": "z/**", "reason": "z changed"},
-      {"pattern": "a/**", "reason": "a changed"}
+      { "pattern": "z/**", "reason": "z changed" },
+      { "pattern": "a/**", "reason": "a changed" }
     ],
     "suites": [
       {
@@ -49,8 +49,8 @@
     "environmentFingerprint": "node-24",
     "knownSources": ["docs/CHANGELOG.md", "docs/README.md"],
     "invalidators": [
-      {"pattern": "a/**", "reason": "a changed"},
-      {"pattern": "z/**", "reason": "z changed"}
+      { "pattern": "a/**", "reason": "a changed" },
+      { "pattern": "z/**", "reason": "z changed" }
     ],
     "suites": [
       {

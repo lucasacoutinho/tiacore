@@ -20,7 +20,10 @@ export function resolveFrameworkEdges(
   for (const adapter of adapters) {
     try {
       for (const file of adapter.resolve(context)) {
-        const relative = projectRelative(context.root, resolve(context.root, file))
+        const relative = projectRelative(
+          context.root,
+          resolve(context.root, file),
+        )
         if (relative !== null && relative !== '') {
           files.add(relative)
         }

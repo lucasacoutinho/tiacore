@@ -29,10 +29,8 @@ function receipt(): TiaAdapterCertificationReceipt {
     scenarios: TIA_ADAPTER_CONFORMANCE_SCENARIOS.filter(
       (scenario) =>
         scenario.feature === undefined &&
-        (
-          scenario.capabilityLevels === undefined ||
-          scenario.capabilityLevels.includes('runtime-tia')
-        ),
+        (scenario.capabilityLevels === undefined ||
+          scenario.capabilityLevels.includes('runtime-tia')),
     ).map(({ id }) => ({
       evidence: {
         assertions: 1,

@@ -8,8 +8,11 @@ import {
 } from './executable.js'
 
 export function registerConformanceCommands(program: Command): void {
-  const certify = program.command('certify').description('Certification commands')
-  certify.command('adapter')
+  const certify = program
+    .command('certify')
+    .description('Certification commands')
+  certify
+    .command('adapter')
     .description('Validate an adapter certification receipt')
     .requiredOption('--receipt <path>', 'adapter receipt JSON')
     .option('--output <path>', 'write JSON to a file or -')
@@ -19,13 +22,14 @@ export function registerConformanceCommands(program: Command): void {
         options.output,
       )
     })
-  certify.command('execute')
+  certify
+    .command('execute')
     .description('Execute an adapter certification specification')
     .requiredOption('--spec <path>', 'executable certification specification')
     .option('--output <path>', 'write the receipt to a file or -')
     .action(async (options: { output?: string; spec: string }) => {
       const receipt = await executeAdapterCertification(
-        await readJson(options.spec) as TiaExecutableCertificationOptions,
+        (await readJson(options.spec)) as TiaExecutableCertificationOptions,
       )
       await emit(receipt, options.output)
       try {

@@ -2,10 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, extname, relative, resolve } from 'node:path'
 
 import { slash } from '../../shared/paths.js'
-import type {
-  TiaFrameworkEdgeAdapter,
-  TiaViewEdgeOptions,
-} from './types.js'
+import type { TiaFrameworkEdgeAdapter, TiaViewEdgeOptions } from './types.js'
 
 const DEFAULT_EXTENSIONS = [
   '.ejs',
@@ -71,7 +68,9 @@ export function viewEdges(
           const candidates = new Set<string>()
           const suffixes = extname(name) === '' ? extensions : ['']
           for (const suffix of suffixes) {
-            candidates.add(resolve(context.root, dirname(dependency), `${name}${suffix}`))
+            candidates.add(
+              resolve(context.root, dirname(dependency), `${name}${suffix}`),
+            )
             for (const root of roots) {
               candidates.add(resolve(context.root, root, `${name}${suffix}`))
             }

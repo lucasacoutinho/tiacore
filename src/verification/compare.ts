@@ -62,37 +62,29 @@ function coverageEvidence(
   graph: TiaRuntimeGraph,
 ): TiaRuntimeGraph['collectionCoverage'] {
   return Object.fromEntries(
-    Object.entries(graph.collectionCoverage).map(
-      ([testFile, coverage]) => [
-        testFile,
-        Object.fromEntries(
-          Object.entries(coverage).map(([file, value]) => [
-            file,
-            {
-              ...value,
-              b: Object.fromEntries(
-                Object.entries(value.b).map(([id, counts]) => [
-                  id,
-                  counts.map(hit),
-                ]),
-              ),
-              f: Object.fromEntries(
-                Object.entries(value.f).map(([id, count]) => [
-                  id,
-                  hit(count),
-                ]),
-              ),
-              s: Object.fromEntries(
-                Object.entries(value.s).map(([id, count]) => [
-                  id,
-                  hit(count),
-                ]),
-              ),
-            },
-          ]),
-        ),
-      ],
-    ),
+    Object.entries(graph.collectionCoverage).map(([testFile, coverage]) => [
+      testFile,
+      Object.fromEntries(
+        Object.entries(coverage).map(([file, value]) => [
+          file,
+          {
+            ...value,
+            b: Object.fromEntries(
+              Object.entries(value.b).map(([id, counts]) => [
+                id,
+                counts.map(hit),
+              ]),
+            ),
+            f: Object.fromEntries(
+              Object.entries(value.f).map(([id, count]) => [id, hit(count)]),
+            ),
+            s: Object.fromEntries(
+              Object.entries(value.s).map(([id, count]) => [id, hit(count)]),
+            ),
+          },
+        ]),
+      ),
+    ]),
   )
 }
 
@@ -169,10 +161,7 @@ export function compareVerificationSnapshots(
     )
   }
 
-  if (
-    selective.graph.coverageComplete ||
-    full.graph.coverageComplete
-  ) {
+  if (selective.graph.coverageComplete || full.graph.coverageComplete) {
     const selectiveCoverage = {
       collectionCoverage: coverageEvidence(selective.graph),
       complete: selective.graph.coverageComplete,

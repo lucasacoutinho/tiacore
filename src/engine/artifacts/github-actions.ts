@@ -46,14 +46,9 @@ function normalizedOptions(
     apiUrl: options.apiUrl ?? 'https://api.github.com',
     artifactName: options.artifactName ?? 'tiacore',
     branch: options.branch ?? null,
-    maxArtifacts: Math.max(
-      1,
-      Math.min(100, options.maxArtifacts ?? 20),
-    ),
-    repository:
-      options.repository ?? process.env.GITHUB_REPOSITORY ?? null,
-    runId:
-      options.runId === undefined ? null : String(options.runId),
+    maxArtifacts: Math.max(1, Math.min(100, options.maxArtifacts ?? 20)),
+    repository: options.repository ?? process.env.GITHUB_REPOSITORY ?? null,
+    runId: options.runId === undefined ? null : String(options.runId),
     tokenEnv: options.tokenEnv ?? 'GITHUB_TOKEN',
   }
 }
@@ -141,9 +136,7 @@ async function loadGitHubActionsArtifact(
         (currentRun === undefined ||
           String(artifact.workflow_run?.id ?? '') !== currentRun),
     )
-    .sort((left, right) =>
-      right.created_at.localeCompare(left.created_at),
-    )
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
     .slice(0, options.maxArtifacts)
 
   const candidates: TiaArtifactCandidate[] = []
@@ -164,14 +157,8 @@ async function loadGitHubActionsArtifact(
       continue
     }
 
-    const value = readArtifactArchive(
-      archive,
-      context.runner,
-    )
-    if (
-      value === null ||
-      value.graph.fingerprint !== context.fingerprint
-    ) {
+    const value = readArtifactArchive(archive, context.runner)
+    if (value === null || value.graph.fingerprint !== context.fingerprint) {
       continue
     }
 
@@ -200,7 +187,6 @@ export function createGitHubActionsArtifactProvider(
   const options = normalizedOptions(source)
   return {
     name: 'GitHub Actions',
-    load: (context) =>
-      loadGitHubActionsArtifact(context, options, request),
+    load: (context) => loadGitHubActionsArtifact(context, options, request),
   }
 }

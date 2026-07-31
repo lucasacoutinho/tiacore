@@ -23,10 +23,7 @@ describe('verification CLI', () => {
     const baseline = runCommand(root, process.execPath, ['run-tia.mjs'])
     expect(baseline.status, baseline.output).toBe(0)
     resetExecutions(root)
-    writeFileSync(
-      join(root, 'src/a.mjs'),
-      "export const a = () => 'a'\n\n",
-    )
+    writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'a'\n\n")
 
     const result = runCommand(
       root,
@@ -44,11 +41,7 @@ describe('verification CLI', () => {
     )
 
     expect(result.status, result.output).toBe(0)
-    expect(executions(root).sort()).toEqual([
-      'node-a',
-      'node-a',
-      'node-b',
-    ])
+    expect(executions(root).sort()).toEqual(['node-a', 'node-a', 'node-b'])
     const receipt = JSON.parse(
       readFileSync(join(root, 'verification.json'), 'utf8'),
     ) as TiaVerificationReceipt

@@ -31,8 +31,8 @@ provider that transported it.
 
 The signature input is the UTF-8 JSON encoding of the attestation without
 `signature`. Object keys at every depth are sorted by Unicode code-point order;
-array order is preserved. The signature uses Ed25519 with no pre-hash. The
-graph digest covers the exact bytes of the selected `graph.json` archive entry.
+array order is preserved. The signature uses Ed25519 with no pre-hash. The graph
+digest covers the exact bytes of the selected `graph.json` archive entry.
 
 A consumer verifies the signature before interpreting the graph as a baseline.
 It then checks the graph digest, fingerprint, baseline SHA and source, runner,

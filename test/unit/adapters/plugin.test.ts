@@ -133,11 +133,9 @@ describe('plugin composition and bypasses', () => {
         config: {
           ...('filters' in mode ? { filters: mode.filters } : {}),
           reporters,
-          ...(
-            'testNamePattern' in mode
-              ? { testNamePattern: mode.testNamePattern }
-              : {}
-          ),
+          ...('testNamePattern' in mode
+            ? { testNamePattern: mode.testNamePattern }
+            : {}),
           watch: mode.watch,
         },
         projects: [project],

@@ -1,7 +1,4 @@
-import {
-  mkdtempSync,
-  rmSync,
-} from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,11 +10,9 @@ import {
   createGitHubActionsArtifactProvider,
   readBoundedResponse,
 } from '../../../src/engine/artifacts/github-actions.js'
+import type { TiaArtifactProvider } from '../../../src/engine/artifacts/types.js'
 import { restoreGraphFromArtifacts } from '../../../src/engine/artifacts/restore.js'
-import {
-  readGraph,
-  writeGraph,
-} from '../../../src/engine/state/store.js'
+import { readGraph, writeGraph } from '../../../src/engine/state/store.js'
 import type { TiaRuntimeGraph } from '../../../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
@@ -96,9 +91,7 @@ describe('GitHub Actions artifact discovery', () => {
       },
     })
 
-    await expect(
-      readBoundedResponse(new Response(body), 4),
-    ).resolves.toBeNull()
+    await expect(readBoundedResponse(new Response(body), 4)).resolves.toBeNull()
     expect(cancelled).toBe(true)
   })
 
@@ -114,8 +107,7 @@ describe('GitHub Actions artifact discovery', () => {
           (value, offset) => archive[index + offset] === value,
         )
       ) {
-        const nameLength =
-          archive[index + 28]! | (archive[index + 29]! << 8)
+        const nameLength = archive[index + 28]! | (archive[index + 29]! << 8)
         const name = strFromBytes(
           archive.slice(index + 46, index + 46 + nameLength),
         )
@@ -139,9 +131,7 @@ describe('GitHub Actions artifact discovery', () => {
       'lane/tiacore-0123456789abcdef01234567.zip': inner,
     })
 
-    expect(archiveGraph(outer, undefined)?.fingerprint).toBe(
-      'nested-current',
-    )
+    expect(archiveGraph(outer, undefined)?.fingerprint).toBe('nested-current')
   })
 
   test('restores the newest compatible graph without extracting other files', async () => {
@@ -153,7 +143,8 @@ describe('GitHub Actions artifact discovery', () => {
       '../outside.txt': strToU8('must never be written'),
       'graph.json': strToU8(JSON.stringify(graph('current'))),
     })
-    const request = vi.fn<typeof fetch>()
+    const request = vi
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(
         response({
           artifacts: [
@@ -219,7 +210,8 @@ describe('GitHub Actions artifact discovery', () => {
     const archive = zipSync({
       'node/graph.json': strToU8(JSON.stringify(graph('node-current'))),
     })
-    const request = vi.fn<typeof fetch>()
+    const request = vi
+      .fn<typeof fetch>()
       .mockResolvedValueOnce(
         response({
           artifacts: [
@@ -241,10 +233,7 @@ describe('GitHub Actions artifact discovery', () => {
       fingerprint: 'node-current',
       log: false,
       providers: [
-        createGitHubActionsArtifactProvider(
-          options({ runId: '99' }),
-          request,
-        ),
+        createGitHubActionsArtifactProvider(options({ runId: '99' }), request),
       ],
       runner: 'node',
     })
@@ -270,16 +259,14 @@ describe('GitHub Actions artifact discovery', () => {
     })
     expect(noRepository.restored).toBe(false)
 
-    const request = vi.fn<typeof fetch>().mockResolvedValue(
-      response({ message: 'rate limited' }, { status: 403 }),
-    )
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(response({ message: 'rate limited' }, { status: 403 }))
     const unavailable = await restoreGraphFromArtifacts({
       cacheDir: target,
       fingerprint: 'current',
       log: false,
-      providers: [
-        createGitHubActionsArtifactProvider(options(), request),
-      ],
+      providers: [createGitHubActionsArtifactProvider(options(), request)],
     })
     expect(unavailable).toEqual({
       reason: 'no provider returned a compatible artifact',
@@ -318,10 +305,7 @@ describe('GitHub Actions artifact discovery', () => {
   test('preserves a graph committed while an artifact provider is loading', async () => {
     const target = cacheDir()
     let release:
-      | ((value: {
-          graph: TiaRuntimeGraph
-          id: string
-        }) => void)
+      | ((value: { graph: TiaRuntimeGraph; id: string }) => void)
       | undefined
     const loading = new Promise<{
       graph: TiaRuntimeGraph
@@ -333,10 +317,12 @@ describe('GitHub Actions artifact discovery', () => {
       cacheDir: target,
       fingerprint: 'artifact',
       log: false,
-      providers: [{
-        name: 'delayed storage',
-        load: () => loading,
-      }],
+      providers: [
+        {
+          name: 'delayed storage',
+          load: () => loading,
+        },
+      ],
     })
 
     writeGraph(target, graph('local-writer'))
@@ -390,7 +376,7 @@ describe('GitHub Actions artifact discovery', () => {
     const incomplete = graph('current')
     incomplete.complete = false
     writeGraph(target, incomplete)
-    const load = vi.fn(async () => ({
+    const load = vi.fn<TiaArtifactProvider['load']>(async () => ({
       graph: graph('current'),
       id: 'complete-artifact',
     }))
@@ -412,7 +398,7 @@ describe('GitHub Actions artifact discovery', () => {
     const incomplete = graph('current')
     incomplete.coverageComplete = false
     writeGraph(target, incomplete)
-    const load = vi.fn(async () => ({
+    const load = vi.fn<TiaArtifactProvider['load']>(async () => ({
       graph: graph('current'),
       id: 'coverage-artifact',
     }))

@@ -3,9 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": [
-      "ES2023"
-    ],
+    "lib": ["ES2023"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -17,10 +15,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": [
-      "node",
-      "vitest/globals"
-    ]
+    "types": ["node", "vitest/globals"]
   },
   "include": [
     "benchmark/**/*.ts",
@@ -30,7 +25,5 @@
     "vitest.config.ts",
     "vitest.benchmark.config.ts"
   ],
-  "exclude": [
-    "test/fixtures"
-  ]
+  "exclude": ["test/fixtures"]
 }

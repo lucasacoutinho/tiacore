@@ -15,9 +15,7 @@ import {
   TEST_FILE_PATTERN,
   TIA_SELECTION_KEY,
 } from '../../shared/constants.js'
-import {
-  artifactProviders,
-} from '../../engine/artifacts/restore.js'
+import { artifactProviders } from '../../engine/artifacts/restore.js'
 import {
   beginRuntimeRun,
   snapshotRuntimeProject,
@@ -58,29 +56,29 @@ interface SharedPluginState {
 }
 
 const sharedStateKey = Symbol.for(`tiacore@${PLUGIN_VERSION}/shared-state`)
-const sharedStates = (
+const sharedStates = ((
   globalThis as typeof globalThis & {
     [sharedStateKey]?: WeakMap<object, SharedPluginState>
   }
-)[sharedStateKey] ??= new WeakMap<object, SharedPluginState>()
+)[sharedStateKey] ??= new WeakMap<object, SharedPluginState>())
 
 const runtimeStateKey = Symbol.for(
   `tiacore@${PLUGIN_VERSION}/browser-runtime-state`,
 )
-const runtimeStates = (
+const runtimeStates = ((
   globalThis as typeof globalThis & {
     [runtimeStateKey]?: Map<string, TiaRuntime>
   }
-)[runtimeStateKey] ??= new Map<string, TiaRuntime>()
+)[runtimeStateKey] ??= new Map<string, TiaRuntime>())
 
 const reporterStateKey = Symbol.for(
   `tiacore@${PLUGIN_VERSION}/reporter-runtime-state`,
 )
-const reporterRuntimes = (
+const reporterRuntimes = ((
   globalThis as typeof globalThis & {
     [reporterStateKey]?: WeakSet<TiaRuntime>
   }
-)[reporterStateKey] ??= new WeakSet<TiaRuntime>()
+)[reporterStateKey] ??= new WeakSet<TiaRuntime>())
 
 function envFlag(name: string): boolean {
   return /^(?:1|true|yes|on)$/i.test(process.env[name] ?? '')
@@ -99,12 +97,7 @@ function defaultEnabled(): boolean {
 }
 
 function hasCliFileFilter(root: string): boolean {
-  const optionValues = new Set([
-    '--config',
-    '-c',
-    '--dir',
-    '--root',
-  ])
+  const optionValues = new Set(['--config', '-c', '--dir', '--root'])
   const arguments_ = process.argv.slice(2)
 
   return arguments_.some((argument, index) => {
@@ -119,25 +112,26 @@ function hasCliFileFilter(root: string): boolean {
     const clean = slash(argument.replace(/:\d+$/, ''))
     return (
       TEST_FILE_PATTERN.test(clean) ||
-      (
-        clean !== 'run' &&
+      (clean !== 'run' &&
         clean !== 'watch' &&
         existsSync(resolve(root, clean)) &&
-        !clean.includes('.config.')
-      )
+        !clean.includes('.config.'))
     )
   })
 }
 
-function hasNativeSelection(root: string, config: {
-  changed?: boolean | string
-  cliExclude?: string[]
-  filters?: string[]
-  project?: string[]
-  related?: string[]
-  tagsFilter?: string[]
-  testNamePattern?: RegExp
-}): boolean {
+function hasNativeSelection(
+  root: string,
+  config: {
+    changed?: boolean | string
+    cliExclude?: string[]
+    filters?: string[]
+    project?: string[]
+    related?: string[]
+    tagsFilter?: string[]
+    testNamePattern?: RegExp
+  },
+): boolean {
   return (
     Boolean(config.changed) ||
     (config.cliExclude?.length ?? 0) > 0 ||
@@ -156,11 +150,9 @@ function normalizeOptions(options: TiaOptions): NormalizedOptions {
   const adapters = frameworkAdapters(options.frameworks)
   const shardGroup =
     options.shardGroup ??
-    (
-      process.env.TIA_SHARD_GROUP?.trim() === ''
-        ? undefined
-        : process.env.TIA_SHARD_GROUP
-    )
+    (process.env.TIA_SHARD_GROUP?.trim() === ''
+      ? undefined
+      : process.env.TIA_SHARD_GROUP)
 
   return {
     artifactProviders: artifactProviders(options.artifacts),
@@ -174,24 +166,16 @@ function normalizeOptions(options: TiaOptions): NormalizedOptions {
             cleanOnRerun: requestedCoverage.cleanOnRerun ?? true,
             exclude: requestedCoverage.exclude ?? [],
             include: requestedCoverage.include ?? null,
-            reportOnFailure:
-              requestedCoverage.reportOnFailure ?? false,
-            reporters: requestedCoverage.reporters ?? [
-              'text',
-              'html',
-              'json',
-            ],
-            reportsDirectory:
-              requestedCoverage.reportsDirectory ?? 'coverage',
+            reportOnFailure: requestedCoverage.reportOnFailure ?? false,
+            reporters: requestedCoverage.reporters ?? ['text', 'html', 'json'],
+            reportsDirectory: requestedCoverage.reportsDirectory ?? 'coverage',
             skipFull: requestedCoverage.skipFull ?? false,
             thresholds: requestedCoverage.thresholds ?? null,
             watermarks: {
               branches: requestedCoverage.watermarks?.branches ?? [50, 80],
-              functions:
-                requestedCoverage.watermarks?.functions ?? [50, 80],
+              functions: requestedCoverage.watermarks?.functions ?? [50, 80],
               lines: requestedCoverage.watermarks?.lines ?? [50, 80],
-              statements:
-                requestedCoverage.watermarks?.statements ?? [50, 80],
+              statements: requestedCoverage.watermarks?.statements ?? [50, 80],
             },
           },
     enabled: options.enabled ?? defaultEnabled(),
@@ -229,9 +213,7 @@ const DEFAULT_COVERAGE_REPORTERS: TiaCoverageReporterConfig[] = [
   'json',
 ]
 
-function coverageReporters(
-  value: unknown,
-): TiaCoverageReporterRuntime[] {
+function coverageReporters(value: unknown): TiaCoverageReporterRuntime[] {
   const configured =
     typeof value === 'string'
       ? [value]
@@ -246,22 +228,18 @@ function coverageReporters(
       continue
     }
 
-    if (
-      !Array.isArray(item) ||
-      typeof item[0] !== 'string' ||
-      item[0] === ''
-    ) {
+    if (!Array.isArray(item) || typeof item[0] !== 'string' || item[0] === '') {
       continue
     }
 
-    const value = item[1]
+    const reporterOptions = item[1]
     reporters.push({
       name: item[0],
       options:
-        value !== null &&
-        typeof value === 'object' &&
-        !Array.isArray(value)
-          ? { ...value as Record<string, unknown> }
+        reporterOptions !== null &&
+        typeof reporterOptions === 'object' &&
+        !Array.isArray(reporterOptions)
+          ? { ...(reporterOptions as Record<string, unknown>) }
           : {},
     })
   }
@@ -314,26 +292,19 @@ function coverageRuntime(
   }
 
   const runtime: TiaCoverageRuntime = {
-    clean:
-      configured === false
-        ? native?.clean ?? true
-        : configured.clean,
+    clean: configured === false ? (native?.clean ?? true) : configured.clean,
     cleanOnRerun:
       configured === false
-        ? native?.cleanOnRerun ?? true
+        ? (native?.cleanOnRerun ?? true)
         : configured.cleanOnRerun,
     enabled: true,
     exclude:
-      configured === false
-        ? native?.exclude ?? []
-        : configured.exclude,
+      configured === false ? (native?.exclude ?? []) : configured.exclude,
     include:
-      configured === false
-        ? native?.include ?? null
-        : configured.include,
+      configured === false ? (native?.include ?? null) : configured.include,
     reportOnFailure:
       configured === false
-        ? native?.reportOnFailure ?? false
+        ? (native?.reportOnFailure ?? false)
         : configured.reportOnFailure,
     reporters:
       configured === false
@@ -342,27 +313,20 @@ function coverageRuntime(
     reportsDirectory: resolve(
       root,
       configured === false
-        ? native?.reportsDirectory ?? 'coverage'
+        ? (native?.reportsDirectory ?? 'coverage')
         : configured.reportsDirectory,
     ),
     skipFull:
-      configured === false
-        ? native?.skipFull ?? false
-        : configured.skipFull,
+      configured === false ? (native?.skipFull ?? false) : configured.skipFull,
     thresholds:
       configured === false
-        ? (
-            native?.thresholds !== null &&
-            typeof native?.thresholds === 'object'
-              ? native.thresholds as TiaCoverageThresholds
-              : null
-          )
-        : configured.thresholds ?? (
-            native?.thresholds !== null &&
-            typeof native?.thresholds === 'object'
-              ? native.thresholds as TiaCoverageThresholds
-              : null
-          ),
+        ? native?.thresholds !== null && typeof native?.thresholds === 'object'
+          ? (native.thresholds as TiaCoverageThresholds)
+          : null
+        : (configured.thresholds ??
+          (native?.thresholds !== null && typeof native?.thresholds === 'object'
+            ? (native.thresholds as TiaCoverageThresholds)
+            : null)),
     watermarks:
       configured === false
         ? {
@@ -399,7 +363,9 @@ function normalizeSetupFiles(value: unknown): string[] {
 }
 
 function impossibleTestPattern(cacheDir: string): string {
-  return slash(resolve(cacheDir, '__no_affected_tests__', '**', '*.{test,spec}.ts'))
+  return slash(
+    resolve(cacheDir, '__no_affected_tests__', '**', '*.{test,spec}.ts'),
+  )
 }
 
 function setupProxyPath(root: string, cacheDir: string): string {
@@ -412,9 +378,7 @@ function setupProxyPath(root: string, cacheDir: string): string {
 }
 
 function pluginSetupPath(): string {
-  const localCompiled = fileURLToPath(
-    new URL('./setup.js', import.meta.url),
-  )
+  const localCompiled = fileURLToPath(new URL('./setup.js', import.meta.url))
   const compiled = [
     localCompiled,
     fileURLToPath(new URL('../adapters/vitest/setup.js', import.meta.url)),
@@ -438,10 +402,7 @@ function ensureSetupProxy(
   const proxyPath = setupProxyPath(root, cacheDir)
   const contents = `import ${JSON.stringify(pathToFileURL(setupPath).href)}\n`
 
-  if (
-    !existsSync(proxyPath) ||
-    readFileSync(proxyPath, 'utf8') !== contents
-  ) {
+  if (!existsSync(proxyPath) || readFileSync(proxyPath, 'utf8') !== contents) {
     mkdirSync(dirname(proxyPath), { recursive: true })
     writeFileSync(proxyPath, contents)
   }
@@ -546,11 +507,7 @@ export function tia(options: TiaOptions = {}): Plugin {
       } else {
         runtime = existingRuntime
       }
-      const setupProxy = ensureSetupProxy(
-        root,
-        normalized.cacheDir,
-        setupPath,
-      )
+      const setupProxy = ensureSetupProxy(root, normalized.cacheDir, setupPath)
       config.test ??= {}
       const setupFiles = normalizeSetupFiles(config.test.setupFiles)
       if (!setupFiles.includes(setupProxy)) {
@@ -628,10 +585,7 @@ export function tia(options: TiaOptions = {}): Plugin {
           projectRelative(runtime.root, runtime.options.cacheDir) ?? ''
         runtime.ignoredPrefixes = [
           cachePrefix,
-          projectRelative(
-            runtime.root,
-            runtime.coverage.reportsDirectory,
-          ),
+          projectRelative(runtime.root, runtime.coverage.reportsDirectory),
           ...candidates
             .map((candidate) =>
               projectRelative(
@@ -643,9 +597,7 @@ export function tia(options: TiaOptions = {}): Plugin {
               ),
             )
             .filter((file): file is string => file !== null),
-        ].filter(
-          (file): file is string => file !== null && file !== '',
-        )
+        ].filter((file): file is string => file !== null && file !== '')
         runtime.structuralFiles = [
           ...new Set(
             [...vitest.projects, project]
@@ -679,10 +631,7 @@ export function tia(options: TiaOptions = {}): Plugin {
         runtime.writeCacheDir =
           runtime.partition === null
             ? runtime.options.cacheDir
-            : partitionCacheDir(
-                runtime.options.cacheDir,
-                runtime.partition,
-              )
+            : partitionCacheDir(runtime.options.cacheDir, runtime.partition)
 
         const begun = await beginRuntimeRun({
           cacheDir: runtime.options.cacheDir,

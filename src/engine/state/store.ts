@@ -7,9 +7,7 @@ import {
 } from 'node:fs'
 import { createHash, randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
-import {
-  join,
-} from 'node:path'
+import { join } from 'node:path'
 
 import { GRAPH_SCHEMA_VERSION } from '../../shared/constants.js'
 import type { TiaRuntimeGraph } from '../types.js'
@@ -27,9 +25,7 @@ function canonical(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) =>
-        left < right ? -1 : left > right ? 1 : 0,
-      )
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
       .map(([key, item]) => [key, canonical(item)]),
   )
 }
@@ -49,9 +45,7 @@ export function readGraph(cacheDir: string): TiaRuntimeGraph | null {
 export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
   try {
     const value =
-      typeof source === 'string'
-        ? (JSON.parse(source) as unknown)
-        : source
+      typeof source === 'string' ? (JSON.parse(source) as unknown) : source
 
     if (!isGraph(value)) {
       return null
@@ -99,13 +93,11 @@ function lockOwner(path: string): GraphLockOwner | null {
     const value = JSON.parse(
       readFileSync(join(path, 'owner.json'), 'utf8'),
     ) as Partial<GraphLockOwner>
-    return (
-      typeof value.createdAt === 'number' &&
+    return typeof value.createdAt === 'number' &&
       typeof value.hostname === 'string' &&
       typeof value.pid === 'number' &&
       typeof value.token === 'string'
-    )
-      ? value as GraphLockOwner
+      ? (value as GraphLockOwner)
       : null
   } catch {
     return null
@@ -129,9 +121,7 @@ function processAlive(pid: number): boolean {
 function staleLock(path: string, staleAfter: number): boolean {
   try {
     const owner = lockOwner(path)
-    const age =
-      Date.now() -
-      (owner?.createdAt ?? statSync(path).mtimeMs)
+    const age = Date.now() - (owner?.createdAt ?? statSync(path).mtimeMs)
     if (owner?.hostname === hostname() && !processAlive(owner.pid)) {
       return true
     }
@@ -245,7 +235,10 @@ function mergeChangedRecord(
   return true
 }
 
-function compatibleCommit(left: TiaRuntimeGraph, right: TiaRuntimeGraph): boolean {
+function compatibleCommit(
+  left: TiaRuntimeGraph,
+  right: TiaRuntimeGraph,
+): boolean {
   return (
     left.schema === right.schema &&
     left.fingerprint === right.fingerprint &&
@@ -390,8 +383,7 @@ function isGraph(value: unknown): value is Record<string, unknown> {
     Object.values(workingTree).every((hash) => typeof hash === 'string') &&
     Object.values(edges).every(
       (files) =>
-        Array.isArray(files) &&
-        files.every((file) => typeof file === 'string'),
+        Array.isArray(files) && files.every((file) => typeof file === 'string'),
     ) &&
     Object.values(results).every(
       (result) =>

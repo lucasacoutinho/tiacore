@@ -1,7 +1,4 @@
-import {
-  readFileSync,
-  rmSync,
-} from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { expect, test } from 'bun:test'
@@ -27,8 +24,7 @@ test('the installed Bun adapter records once and replays from cache', () => {
   ).toBe(0)
 
   const replay = run(root)
-  const replayOutput =
-    `${replay.stdout.toString()}${replay.stderr.toString()}`
+  const replayOutput = `${replay.stdout.toString()}${replay.stderr.toString()}`
   expect(replay.exitCode, replayOutput).toBe(0)
   expect(replayOutput).toContain('no affected test files')
   expect(

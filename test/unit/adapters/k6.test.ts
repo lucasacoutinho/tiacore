@@ -13,7 +13,9 @@ import {
   tia,
 } from '../../../src/adapters/k6/index.js'
 
-const root = fileURLToPath(new URL('../../fixtures/k6-project', import.meta.url))
+const root = fileURLToPath(
+  new URL('../../fixtures/k6-project', import.meta.url),
+)
 const fakeRunner = fileURLToPath(
   new URL('../../fixtures/fake-adapter-runner.mjs', import.meta.url),
 )
@@ -21,9 +23,9 @@ const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { force: true, recursive: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { force: true, recursive: true })),
   )
 })
 
@@ -35,13 +37,12 @@ describe('k6 adapter', () => {
       root,
     })
 
-    expect(suites.map((suite) => suite.profile)).toEqual([
-      'baseline',
-      'smoke',
-    ])
-    expect(suites.every((suite) => suite.resourceLocks?.includes('performance-host'))).toBe(
-      true,
-    )
+    expect(suites.map((suite) => suite.profile)).toEqual(['baseline', 'smoke'])
+    expect(
+      suites.every((suite) =>
+        suite.resourceLocks?.includes('performance-host'),
+      ),
+    ).toBe(true)
   })
 
   test('links shared imports to every profile that uses them', async () => {
@@ -118,9 +119,7 @@ describe('k6 adapter', () => {
     const baseline = await tia(options).run()
     expect(baseline.success).toBe(true)
     expect(baseline.plan.mode).toBe('full')
-    expect(
-      readFileSync(log, 'utf8').trim().split('\n').sort(),
-    ).toEqual([
+    expect(readFileSync(log, 'utf8').trim().split('\n').sort()).toEqual([
       'k6/profiles/baseline.js',
       'k6/profiles/smoke.js',
     ])

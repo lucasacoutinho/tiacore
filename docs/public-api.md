@@ -6,9 +6,8 @@ private and may change without notice.
 
 ## `@usescherie/tiacore`
 
-Remains a compatibility alias for `@usescherie/tiacore/vitest`. It exports
-named and default `tia(options?)`, the Vitest plugin factory. Public
-types cover:
+Remains a compatibility alias for `@usescherie/tiacore/vitest`. It exports named
+and default `tia(options?)`, the Vitest plugin factory. Public types cover:
 
 - plugin, coverage, framework, artifact, and replay options;
 - filesystem, GitHub Actions, GitLab CI, HTTP-manifest, and custom artifact
@@ -17,8 +16,8 @@ types cover:
 - replay lifecycle events, baseline provenance, selection decisions, and
   framework edge contexts.
 
-The factory name is always `tia`; runner- or framework-prefixed variants are
-not part of the API.
+The factory name is always `tia`; runner- or framework-prefixed variants are not
+part of the API.
 
 ## `@usescherie/tiacore/vitest`
 
@@ -38,24 +37,25 @@ enforces its 22.10 runtime minimum when the adapter is executed.
 
 ## `@usescherie/tiacore/evidence`
 
-Exports named `tia(options?)`, returning a `TiaEvidence` correlation client.
-It creates bounded correlation IDs and headers, carries correlation through
+Exports named `tia(options?)`, returning a `TiaEvidence` correlation client. It
+creates bounded correlation IDs and headers, carries correlation through
 asynchronous service code, records project-relative files atomically, and
 collects evidence emitted by other processes. Playwright uses the same API to
 join a browser test with API or worker files reached by that test.
 
 The default request header is `x-tiacore-correlation-id`. Set
 `TIA_EVIDENCE_DIRECTORY` for all participating processes and optionally
-`TIA_EVIDENCE_HEADER` when a deployment requires a different header. Evidence
-is inert unless a directory is configured by the runner or application.
+`TIA_EVIDENCE_HEADER` when a deployment requires a different header. Evidence is
+inert unless a directory is configured by the runner or application.
 
 ## `@usescherie/tiacore/gradle`
 
 Exports named `tia(options)`, returning a `TiaGradleRunner`. The adapter
-discovers Java and Kotlin test classes, follows transitive imports to local production
-sources, selects affected classes, delegates their execution to one native
-Gradle invocation, and validates that selected classes appear in JUnit XML.
-Gradle continues to own task caching, workers, forks, and connected devices.
+discovers Java and Kotlin test classes, follows transitive imports to local
+production sources, selects affected classes, delegates their execution to one
+native Gradle invocation, and validates that selected classes appear in JUnit
+XML. Gradle continues to own task caching, workers, forks, and connected
+devices.
 
 ## `@usescherie/tiacore/playwright`
 
@@ -70,23 +70,22 @@ Exports overloaded named `tia()`:
 Public types include `TiaPlaywrightOptions`, `TiaPlaywrightResult`, and the
 reporter tuple. Selection is conservative and file-level. Normal Playwright
 workers, retries, projects, and dependency projects remain runner-owned. The
-optional `name` assigns an independent graph to a lane when multiple lanes
-share one Playwright config. Chromium uses executed JavaScript ranges for
-source-map attribution; other browser engines use conservative map-level
-attribution.
+optional `name` assigns an independent graph to a lane when multiple lanes share
+one Playwright config. Chromium uses executed JavaScript ranges for source-map
+attribution; other browser engines use conservative map-level attribution.
 `frameworks` accepts the same database, view, subprocess, and custom edge
 adapters as Vitest so browser specs can own backend or external-service files.
 
-`@usescherie/tiacore/playwright/reporter` is a supported configuration target used by the
-reporter tuple. Applications should obtain it through `tia()` instead of
-constructing the path.
+`@usescherie/tiacore/playwright/reporter` is a supported configuration target
+used by the reporter tuple. Applications should obtain it through `tia()`
+instead of constructing the path.
 
 ## `@usescherie/tiacore/core`
 
 Exports `TiaCore`, `TiaCoreOptions`, and `TiaObservation` for authors building a
-runner adapter. This is an advanced API: callers prepare a run plan, execute
-the selected work, and commit normalized observations. They must preserve
-whole-file fallback and failed-test rerun semantics.
+runner adapter. This is an advanced API: callers prepare a run plan, execute the
+selected work, and commit normalized observations. They must preserve whole-file
+fallback and failed-test rerun semantics.
 
 `RunPlan`, `RunPlanBaseline`, and `RunPlanDecision` describe the runtime
 selection receipt. Baseline data distinguishes a local graph from a restored
@@ -96,10 +95,9 @@ test file and list the reasons that selected it. `formatRunPlanDetails()` turns
 that data into bounded human-readable log lines.
 
 Custom adapters should set `testFiles` to their project-relative suite paths or
-globs. A changed test outside that inventory is not scheduled directly, while
-an observed dependency edge from that file can still invalidate an in-scope
-test. This keeps multiple runners and acceptance lanes isolated in one
-repository.
+globs. A changed test outside that inventory is not scheduled directly, while an
+observed dependency edge from that file can still invalidate an in-scope test.
+This keeps multiple runners and acceptance lanes isolated in one repository.
 
 `TiaRuntimeGraph` and `TiaRuntimeGraphPartition` describe the JavaScript SDK's
 persisted runner cache. They are public so adapter authors can inspect a
@@ -120,11 +118,11 @@ This is the stable extension boundary for a TypeScript runner that provides
 runtime test-case evidence and cached outcomes.
 
 Discovery returns stable test IDs and project-relative files without executing
-test bodies. Execution receives the selected cases and returns complete
-per-test dependency observations. Missing selected results, incomplete runs,
-duplicate IDs, or invalid paths prevent graph commit. The adapter keeps native
-control of workers and retries while the shared runtime owns baseline capture,
-planning, artifacts, replay, verification, and transactional persistence.
+test bodies. Execution receives the selected cases and returns complete per-test
+dependency observations. Missing selected results, incomplete runs, duplicate
+IDs, or invalid paths prevent graph commit. The adapter keeps native control of
+workers and retries while the shared runtime owns baseline capture, planning,
+artifacts, replay, verification, and transactional persistence.
 
 See the [adapter guide](guides/custom-adapters.md) for the complete contract and
 reference implementation.
@@ -164,8 +162,8 @@ plan, and artifact-envelope types. It also exports portable path normalization,
 strict graph and artifact validation, and the version 1 resource limits. Paths
 stored in the protocol are project-relative with forward slashes.
 
-The protocol graph is `TiaImpactGraph`. It never contains JavaScript coverage
-or cached native test results.
+The protocol graph is `TiaImpactGraph`. It never contains JavaScript coverage or
+cached native test results.
 
 ## `@usescherie/tiacore/conformance`
 
@@ -190,17 +188,17 @@ the command succeeds. Every selected suite declares a device resource lock.
 ## `@usescherie/tiacore/k6`
 
 Discovers real k6 profile entrypoints and follows their transitive local ESM
-imports. It exports catalog fingerprinting, graph recording, lane-bounded
-impact planning, and `tia(options)`. The returned runner executes selected
-profiles and promotes its graph only after the command succeeds. Every selected
-suite declares a performance-host resource lock.
+imports. It exports catalog fingerprinting, graph recording, lane-bounded impact
+planning, and `tia(options)`. The returned runner executes selected profiles and
+promotes its graph only after the command succeeds. Every selected suite
+declares a performance-host resource lock.
 
 ## `@usescherie/tiacore/workspace`
 
 Exports named `tia(options)`, `TiaWorkspaceRunner`, and workspace lane and
 result types. A lane defines exactly one command or runner, optional
-dependencies, and optional resource locks. Independent lanes run concurrently
-up to the configured bound. Matching locks serialize lanes, failed dependencies
+dependencies, and optional resource locks. Independent lanes run concurrently up
+to the configured bound. Matching locks serialize lanes, failed dependencies
 block downstream lanes, and `failFast` blocks pending work after the first
 failure.
 
@@ -229,8 +227,8 @@ tiacore verify --output .tia/verification.json -- npm test
 ```
 
 Every TIA runner reached by the command writes an isolated phase snapshot. A
-missing or duplicate runner snapshot fails verification, so a command may
-safely cover multiple Vitest configurations or heterogeneous workspace lanes.
+missing or duplicate runner snapshot fails verification, so a command may safely
+cover multiple Vitest configurations or heterogeneous workspace lanes.
 
 ## Compatibility policy
 

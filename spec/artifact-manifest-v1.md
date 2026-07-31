@@ -30,10 +30,9 @@ provider publishes one JSON document:
 ```
 
 Entries are ordered from most to least preferred. `url` may be absolute or
-relative to the manifest. The archive contains `graph.json`,
-`.tia/graph.json`, or the equivalent runner-namespaced path. `group` identifies
-partial graphs produced by one pipeline so fragments from different runs are
-never merged.
+relative to the manifest. The archive contains `graph.json`, `.tia/graph.json`,
+or the equivalent runner-namespaced path. `group` identifies partial graphs
+produced by one pipeline so fragments from different runs are never merged.
 
 Publisher archives also contain a provider-neutral Ed25519 attestation. The
 attestation authenticates the exact graph bytes and their lineage even when an
@@ -49,8 +48,8 @@ artifact identifiers.
 The consumer reads at most 1 MiB of manifest data, inspects at most 100 entries,
 reads at most 25 MiB per archive, extracts only the expected graph entry in
 memory, and validates the graph and structural fingerprint before reuse.
-Authorization is forwarded to same-origin archive URLs only. Cross-origin
-signed URLs receive no manifest authorization header.
+Authorization is forwarded to same-origin archive URLs only. Cross-origin signed
+URLs receive no manifest authorization header.
 
 The normative JSON shape is
 [`tiacore-artifact-manifest-v1.schema.json`](../schemas/tiacore-artifact-manifest-v1.schema.json).

@@ -17,7 +17,9 @@ function privateRegistry(value) {
     throw new Error('TIA_REGISTRY_URL must use HTTP or HTTPS')
   }
   if (PUBLIC_REGISTRY_HOSTS.has(registry.hostname.toLowerCase())) {
-    throw new Error('refusing to publish proprietary tiacore to the public npm registry')
+    throw new Error(
+      'refusing to publish proprietary tiacore to the public npm registry',
+    )
   }
   if (!registry.pathname.endsWith('/')) registry.pathname += '/'
   return registry
@@ -69,6 +71,8 @@ function publish() {
 try {
   publish()
 } catch (error) {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+  process.stderr.write(
+    `${error instanceof Error ? error.message : String(error)}\n`,
+  )
   process.exitCode = 1
 }
