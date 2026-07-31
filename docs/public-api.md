@@ -112,13 +112,16 @@ It also exports the runner-neutral `createImpactPlan()` and
 ## `@usescherie/tiacore/artifacts`
 
 Exports named `tia(options)`, `TiaArtifactPublisher`, the filesystem sink
-factory, and provider-neutral publisher, sink, manifest, lineage, and receipt
-types. `publish()` accepts a complete graph or a valid partition; `promote()`
-accepts only a complete non-partition graph and can require complete coverage.
+factory, artifact attestation helpers, and provider-neutral publisher, sink,
+manifest, lineage, trust-policy, and receipt types. `publish()` accepts a
+complete graph or a valid partition; `promote()` accepts only a complete
+non-partition graph and can require complete coverage.
 
-The publisher creates a bounded ZIP, records its byte size and SHA-256 digest,
-and emits an HTTP-manifest-v1 document with source baseline, parent artifacts,
-producer, and run ID. The built-in filesystem sink produces files for any CI
+The publisher creates a bounded ZIP with an Ed25519 attestation, records its
+byte size and SHA-256 digest, and emits an HTTP-manifest-v1 document with source
+baseline, parent artifacts, producer, and run ID. Consumers reject unsigned
+artifacts by default and can restrict key IDs, producers, age, baseline source,
+and promotion state. The built-in filesystem sink produces files for any CI
 upload mechanism. A custom sink only implements `put()` and can target object
 storage or a CI-native artifact API.
 
@@ -126,10 +129,12 @@ The CLI exposes both states:
 
 ```sh
 tiacore artifacts publish --cache-dir .tia/node \
-  --artifact-id build-42 --run-id pipeline-42
+  --artifact-id build-42 --run-id pipeline-42 \
+  --signing-key-id release-2026
 
 tiacore artifacts promote --cache-dir .tia/node \
-  --artifact-id release-42 --run-id pipeline-42 --require-coverage
+  --artifact-id release-42 --run-id pipeline-42 --require-coverage \
+  --signing-key-id release-2026
 ```
 
 ## `@usescherie/tiacore/protocol`

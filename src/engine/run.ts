@@ -41,6 +41,7 @@ export interface TiaCoreOptions {
   fresh?: boolean
   fingerprint?: string
   artifacts?: import('./artifacts/types.js').TiaArtifactSource | import('./artifacts/types.js').TiaArtifactSource[]
+  artifactTrust?: import('./artifacts/types.js').TiaArtifactTrustPolicy
   ignoreChanges?: string[]
   include?: string[]
   log?: boolean
@@ -66,6 +67,7 @@ function normalizedOptions(
 ): EngineOptions {
   return {
     artifactProviders: artifactProviders(options.artifacts),
+    artifactTrust: options.artifactTrust ?? {},
     cacheDir: resolveCacheDir(root, options.cacheDir ?? '.tia'),
     exclude: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
     fresh: options.fresh ?? process.env.TIA_FRESH === '1',

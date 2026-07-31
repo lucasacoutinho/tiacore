@@ -118,6 +118,7 @@ export async function beginRuntimeRun(
       providers: input.options.artifactProviders,
       root: input.root,
       ...(input.runner === undefined ? {} : { runner: input.runner }),
+      trust: input.options.artifactTrust,
     })
   }
 

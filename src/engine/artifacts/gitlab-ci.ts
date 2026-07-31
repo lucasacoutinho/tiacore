@@ -1,8 +1,8 @@
 import picomatch from 'picomatch'
 
 import {
-  archiveGraph,
   MAX_ARTIFACT_ARCHIVE_BYTES,
+  readArtifactArchive,
   readBoundedResponse,
 } from './archive.js'
 import type {
@@ -154,10 +154,14 @@ async function loadGitLabArtifacts(
         MAX_ARTIFACT_ARCHIVE_BYTES,
       )
       if (archive === null) continue
-      const graph = archiveGraph(archive, context.runner)
-      if (graph?.fingerprint !== context.fingerprint) continue
+      const value = readArtifactArchive(archive, context.runner)
+      if (value?.graph.fingerprint !== context.fingerprint) continue
       candidates.push({
-        graph,
+        ...(value.attestation === undefined
+          ? {}
+          : { attestation: value.attestation }),
+        graph: value.graph,
+        graphSha256: value.graphSha256,
         group: pipeline.id,
         id: job.id,
       })

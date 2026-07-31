@@ -38,6 +38,13 @@ tia({
       tokenEnv: 'TIA_ARTIFACT_TOKEN',
     },
   ],
+  artifactTrust: {
+    publicKeys: {
+      'release-2026': process.env.TIA_ARTIFACT_PUBLIC_KEY!,
+    },
+    allowedProducers: ['release-ci'],
+    maxAgeSeconds: 604800,
+  },
 })
 ```
 
@@ -54,20 +61,30 @@ npx tiacore artifacts publish \
   --cache-dir .tia/playwright-feature \
   --artifact-id "$CI_JOB_ID" \
   --run-id "$CI_PIPELINE_ID" \
+  --producer release-ci \
+  --signing-key-id release-2026 \
   --runner playwright-feature \
   --output-dir .tia-artifacts/playwright-feature
 ```
 
+The command reads the Ed25519 private key from
+`TIA_ARTIFACT_PRIVATE_KEY`. Use `--signing-key-env` to select another secret
+variable and `--trust-expires-in` to set a bounded lifetime. Keep the PKCS#8
+private PEM only in the producing system and distribute the SPKI public PEM to
+consumers.
+
 Upload `.tia-artifacts/playwright-feature` with the CI system's normal artifact
 step or sync it to object storage. The manifest carries archive integrity,
-source-baseline lineage, producing run, and optional parent IDs. For a custom
-destination, pass a sink implementing the public `put()` contract to
+source-baseline lineage, producing run, and optional parent IDs. The archive's
+Ed25519 attestation authenticates the exact graph and those trust properties.
+For a custom destination, pass a sink implementing the public `put()` contract to
 `@usescherie/tiacore/artifacts`.
 
 Use `artifacts promote` only at a trusted baseline boundary. It refuses partial
 graphs; `--require-coverage` also refuses a graph without complete reconstructed
 coverage. HTTP consumers can set `promotedOnly: true` when bootstrapping a
-release lane. Publishing and promotion describe trust state; neither is tied to
+release lane. Promotion is an authenticated claim, not a trusted boolean read
+from an unverified manifest. Publishing and promotion remain independent from
 GitHub, GitLab, or any branch name.
 
 ## GitHub Actions example
@@ -216,3 +233,5 @@ become the release baseline.
 
 The vendor-neutral artifact manifest is specified in
 [`spec/artifact-manifest-v1.md`](../../spec/artifact-manifest-v1.md).
+The signed archive claim is specified in
+[`spec/artifact-attestation-v1.md`](../../spec/artifact-attestation-v1.md).

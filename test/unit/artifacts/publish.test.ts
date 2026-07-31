@@ -1,4 +1,7 @@
 import {
+  generateKeyPairSync,
+} from 'node:crypto'
+import {
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -9,13 +12,25 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
-import { archiveGraph } from '../../../src/engine/artifacts/archive.js'
+import {
+  archiveGraph,
+  readArtifactArchive,
+} from '../../../src/engine/artifacts/archive.js'
 import {
   tia,
 } from '../../../src/engine/artifacts/publish.js'
 import { emptyGraph } from '../../../src/engine/state/update.js'
 import { writeGraph } from '../../../src/engine/state/store.js'
 import type { TiaArtifactManifestV1 } from '../../../src/engine/artifacts/types.js'
+
+const signingKeys = generateKeyPairSync('ed25519')
+const signing = {
+  keyId: 'fixture-key',
+  privateKey: signingKeys.privateKey.export({
+    format: 'pem',
+    type: 'pkcs8',
+  }).toString(),
+}
 
 const temporaryDirectories: string[] = []
 
@@ -56,11 +71,13 @@ describe('provider-neutral artifact publishing', () => {
       root,
       runId: 'pipeline-42',
       runner: 'node',
+      signing,
     }).promote()
 
     expect(receipt).toMatchObject({
       artifactId: 'build-42',
       baselineSha: 'baseline-abc',
+      keyId: 'fixture-key',
       promoted: true,
       sink: 'filesystem artifact sink',
     })
@@ -71,12 +88,22 @@ describe('provider-neutral artifact publishing', () => {
     const archiveName = readdirSync(output).find((file) =>
       file.endsWith('.zip'),
     )!
+    const archive = new Uint8Array(
+      readFileSync(join(output, archiveName)),
+    )
     expect(
-      archiveGraph(
-        new Uint8Array(readFileSync(join(output, archiveName))),
-        'node',
-      ),
+      archiveGraph(archive, 'node'),
     ).toMatchObject({ fingerprint: 'node-22-linux' })
+    expect(readArtifactArchive(archive, 'node')?.attestation).toMatchObject({
+      algorithm: 'Ed25519',
+      claim: {
+        fingerprint: 'node-22-linux',
+        promoted: true,
+        runner: 'node',
+      },
+      keyId: 'fixture-key',
+      version: 1,
+    })
 
     const manifest = JSON.parse(
       readFileSync(join(output, 'manifest.json'), 'utf8'),
@@ -113,6 +140,7 @@ describe('provider-neutral artifact publishing', () => {
         cacheDir: '.tia/node',
         root,
         runId: 'run',
+        signing,
       }).publish(),
     ).resolves.toMatchObject({ promoted: false })
 
@@ -122,6 +150,7 @@ describe('provider-neutral artifact publishing', () => {
         cacheDir: '.tia/node',
         root,
         runId: 'run',
+        signing,
       }).promote(),
     ).rejects.toThrow('refuses to promote a partial graph')
 
@@ -135,6 +164,7 @@ describe('provider-neutral artifact publishing', () => {
         requireCoverage: true,
         root,
         runId: 'run',
+        signing,
       }).promote(),
     ).rejects.toThrow('without complete coverage')
   })
@@ -155,6 +185,7 @@ describe('provider-neutral artifact publishing', () => {
       root,
       runId: 'run',
       sink,
+      signing,
     }).publish()
 
     expect(keys).toEqual([

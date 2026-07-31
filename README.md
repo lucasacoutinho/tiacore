@@ -110,7 +110,8 @@ claims and certification levels.
 The default cache is `.tia/`. Every Git worktree gets its own cache unless an
 explicit shared path is configured. CI can restore an ancestral graph through
 filesystem downloads, GitHub Actions, GitLab CI, an HTTP manifest, or a custom
-artifact provider.
+artifact provider. Shared artifacts require a trusted Ed25519 producer
+attestation by default.
 
 ## Documentation
 
@@ -123,6 +124,7 @@ artifact provider.
 - [Target architecture](docs/architecture/target.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)
 - [Protocol version 1](spec/protocol-v1.md)
+- [Artifact attestation version 1](spec/artifact-attestation-v1.md)
 - [Adapter capability contract](docs/architecture/capability-contract.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)

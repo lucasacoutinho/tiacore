@@ -10,6 +10,7 @@ import {
   MAX_ARTIFACT_GRAPH_BYTES,
 } from './archive.js'
 import type {
+  TiaArtifactClaimV1,
   TiaArtifactManifestV1,
   TiaArtifactPublishReceipt,
   TiaArtifactPublisherOptions,
@@ -17,6 +18,7 @@ import type {
   TiaArtifactSinkInput,
   TiaFilesystemArtifactSinkOptions,
 } from './types.js'
+import { createArtifactAttestation } from './trust.js'
 
 function digest(value: Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')
@@ -79,6 +81,16 @@ export class TiaArtifactPublisher {
     if (options.runner !== undefined && !safeRunner(options.runner)) {
       throw new Error('TIA artifact runner must be a safe relative path')
     }
+    const expiresInSeconds = options.signing.expiresInSeconds ?? 7 * 24 * 60 * 60
+    if (
+      !Number.isSafeInteger(expiresInSeconds) ||
+      expiresInSeconds <= 0 ||
+      expiresInSeconds > 365 * 24 * 60 * 60
+    ) {
+      throw new Error(
+        'TIA artifact signing expiry must be between 1 second and 1 year',
+      )
+    }
     this.options = options
   }
 
@@ -124,10 +136,47 @@ export class TiaArtifactPublisher {
     if (graphBytes.byteLength > MAX_ARTIFACT_GRAPH_BYTES) {
       throw new Error('TIA graph exceeds the artifact graph limit')
     }
+    const producedAt = new Date().toISOString()
+    const expiresInSeconds =
+      this.options.signing.expiresInSeconds ?? 7 * 24 * 60 * 60
+    const lineage = {
+      baseline: {
+        sha: graph.baseline.sha,
+        ...(graph.baseline.source === undefined
+          ? {}
+          : { source: graph.baseline.source }),
+      },
+      parents: [...new Set(this.options.parents ?? [])],
+      producedAt,
+      ...(this.options.producer === undefined
+        ? {}
+        : { producer: this.options.producer }),
+      runId: this.options.runId,
+    }
+    const claim: TiaArtifactClaimV1 = {
+      expiresAt: new Date(
+        Date.parse(producedAt) + expiresInSeconds * 1_000,
+      ).toISOString(),
+      fingerprint: graph.fingerprint,
+      graphSha256: digest(graphBytes),
+      issuedAt: producedAt,
+      lineage,
+      promoted,
+      ...(this.options.runner === undefined
+        ? {}
+        : { runner: this.options.runner }),
+    }
+    const attestation = createArtifactAttestation(
+      claim,
+      this.options.signing,
+    )
+    const attestationBytes = strToU8(`${JSON.stringify(attestation)}\n`)
     const entries: Record<string, Uint8Array> = {
+      'attestation.json': attestationBytes,
       'graph.json': graphBytes,
     }
     if (this.options.runner !== undefined) {
+      entries[`${this.options.runner}/attestation.json`] = attestationBytes
       entries[`${this.options.runner}/graph.json`] = graphBytes
     }
     const archive = zipSync(entries, { level: 9 })
@@ -146,7 +195,6 @@ export class TiaArtifactPublisher {
       key: artifactKey(sha256),
       sha256,
     })
-    const producedAt = new Date().toISOString()
     const artifactId = artifact.id ?? this.options.artifactId
     const manifest: TiaArtifactManifestV1 = {
       artifacts: [{
@@ -155,20 +203,7 @@ export class TiaArtifactPublisher {
           ? {}
           : { group: this.options.group }),
         id: artifactId,
-        lineage: {
-          baseline: {
-            sha: graph.baseline.sha,
-            ...(graph.baseline.source === undefined
-              ? {}
-              : { source: graph.baseline.source }),
-          },
-          parents: [...new Set(this.options.parents ?? [])],
-          producedAt,
-          ...(this.options.producer === undefined
-            ? {}
-            : { producer: this.options.producer }),
-          runId: this.options.runId,
-        },
+        lineage,
         promoted,
         ...(this.options.runner === undefined
           ? {}
@@ -196,10 +231,12 @@ export class TiaArtifactPublisher {
       baselineSha: graph.baseline.sha,
       bytes: archive.byteLength,
       fingerprint: graph.fingerprint,
+      keyId: this.options.signing.keyId,
       manifestUrl: manifestResult.url,
       promoted,
       sha256,
       sink: sink.name,
+      trustExpiresAt: claim.expiresAt,
     }
   }
 }

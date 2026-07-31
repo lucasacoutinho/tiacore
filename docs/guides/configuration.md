@@ -20,6 +20,15 @@ tia({
     provider: 'filesystem',
     paths: ['.tia-artifacts'],
   },
+  artifactTrust: {
+    publicKeys: {
+      'release-2026': process.env.TIA_ARTIFACT_PUBLIC_KEY!,
+    },
+    allowedProducers: ['release-ci'],
+    allowedBaselineSources: ['git'],
+    requirePromoted: true,
+    maxAgeSeconds: 7 * 24 * 60 * 60,
+  },
   frameworks: {
     database: true,
     views: true,
@@ -38,6 +47,7 @@ tia({
 | `onUnknownChange` | Defaults to `full`. The `ignore` value is a global unsafe opt-out. |
 | `shardGroup` | Identifies fragments belonging to one complete sharded run. |
 | `artifacts` | Restores baseline candidates from one or more providers. |
+| `artifactTrust` | Authenticates candidates and restricts keys, producers, age, promotion, and baseline sources. |
 | `frameworks` | Adds explicit view, database, subprocess, or custom edges. |
 | `replayAdapters` | Receives cached lifecycle events without mutating Vitest state. |
 | `replayReporters` | Sends detached cached-test events to named reporter instances. |
@@ -46,6 +56,11 @@ tia({
 Node and Bun share `cacheDir`, `concurrency`, `files`, `fresh`,
 `ignoreChanges`, `log`, `onUnknownChange`, `replayAdapters`, and `root`. Their
 cache paths are namespaced by runner.
+
+Artifact candidates are signed by default. If no trusted public key verifies a
+candidate, TIA ignores it and records a full baseline. `allowUnsigned: true` is
+an explicit migration escape hatch for a controlled local source; do not use it
+for downloaded CI artifacts.
 
 ## Coverage
 

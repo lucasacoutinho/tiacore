@@ -1,4 +1,7 @@
-import type { TiaArtifactSource } from '../engine/artifacts/types.js'
+import type {
+  TiaArtifactSource,
+  TiaArtifactTrustPolicy,
+} from '../engine/artifacts/types.js'
 import type {
   TiaReplayAdapter,
   TiaReplayReporter,
@@ -18,6 +21,7 @@ export interface TiaOptions {
   log?: boolean
   coverage?: boolean | TiaCoverageOptions
   artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  artifactTrust?: TiaArtifactTrustPolicy
   frameworks?: TiaFrameworkOptions
   replayAdapters?: TiaReplayAdapter | TiaReplayAdapter[]
   replayReporters?: TiaReplayReporter | TiaReplayReporter[]

@@ -26,6 +26,7 @@ import {
 } from '../../integrations/evidence/index.js'
 import type {
   TiaArtifactSource,
+  TiaArtifactTrustPolicy,
   TiaFrameworkOptions,
   RunPlan,
 } from '../../shared/types.js'
@@ -42,6 +43,7 @@ import {
 
 export interface TiaPlaywrightOptions {
   artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  artifactTrust?: TiaArtifactTrustPolicy
   cacheDir?: string
   config?: string
   cwd?: string
@@ -209,6 +211,9 @@ export class TiaPlaywrightRunner {
       ...(this.options.artifacts === undefined
         ? {}
         : { artifacts: this.options.artifacts }),
+      ...(this.options.artifactTrust === undefined
+        ? {}
+        : { artifactTrust: this.options.artifactTrust }),
       cacheDir,
       files: [slash(relative(root, config)), ...arguments_],
       fingerprint: runnerFingerprint,

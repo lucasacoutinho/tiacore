@@ -35,6 +35,40 @@ export interface TiaArtifactLineage {
   runId: string
 }
 
+export interface TiaArtifactClaimV1 {
+  expiresAt: string
+  fingerprint: string
+  graphSha256: string
+  issuedAt: string
+  lineage: TiaArtifactLineage
+  promoted: boolean
+  runner?: string
+}
+
+export interface TiaArtifactAttestationV1 {
+  algorithm: 'Ed25519'
+  claim: TiaArtifactClaimV1
+  keyId: string
+  signature: string
+  version: 1
+}
+
+export interface TiaArtifactSigningOptions {
+  expiresInSeconds?: number
+  keyId: string
+  privateKey: string
+}
+
+export interface TiaArtifactTrustPolicy {
+  allowUnsigned?: boolean
+  allowedBaselineSources?: Array<'filesystem' | 'git'>
+  allowedProducers?: string[]
+  maxAgeSeconds?: number
+  notBefore?: string
+  publicKeys?: Record<string, string>
+  requirePromoted?: boolean
+}
+
 export interface TiaArtifactManifestEntry {
   fingerprint: string
   group?: TiaArtifactId
@@ -89,6 +123,7 @@ export interface TiaArtifactPublisherOptions {
   runId: string
   runner?: string
   sink?: TiaArtifactSink
+  signing: TiaArtifactSigningOptions
 }
 
 export interface TiaArtifactPublishReceipt {
@@ -97,10 +132,12 @@ export interface TiaArtifactPublishReceipt {
   baselineSha: string
   bytes: number
   fingerprint: string
+  keyId: string
   manifestUrl: string
   promoted: boolean
   sha256: string
   sink: string
+  trustExpiresAt: string
 }
 
 export interface TiaGitLabCiOptions {
@@ -121,7 +158,9 @@ export interface TiaArtifactProviderContext {
 }
 
 export interface TiaArtifactCandidate {
+  attestation?: TiaArtifactAttestationV1
   graph: string | unknown
+  graphSha256?: string
   group?: number | string
   id: TiaArtifactId
 }

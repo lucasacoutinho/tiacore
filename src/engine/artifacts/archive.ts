@@ -1,20 +1,30 @@
+import { createHash } from 'node:crypto'
+
 import { strFromU8, unzipSync } from 'fflate'
 
 import { parseGraph } from '../state/store.js'
 import type { TiaRuntimeGraph } from '../types.js'
+import { parseArtifactAttestation } from './trust.js'
+import type { TiaArtifactAttestationV1 } from './types.js'
 
 export const MAX_ARTIFACT_ARCHIVE_BYTES = 25 * 1024 * 1024
 export const MAX_ARTIFACT_GRAPH_BYTES = 20 * 1024 * 1024
 
-export function archiveGraph(
+export interface TiaArtifactArchive {
+  attestation?: TiaArtifactAttestationV1
+  graph: TiaRuntimeGraph
+  graphSha256: string
+}
+
+export function readArtifactArchive(
   archive: Uint8Array,
   runner: string | undefined,
-): TiaRuntimeGraph | null {
+): TiaArtifactArchive | null {
   if (archive.byteLength > MAX_ARTIFACT_ARCHIVE_BYTES) {
     return null
   }
 
-  const paths = [
+  const graphPaths = [
     ...(runner === undefined
       ? ['graph.json', '.tia/graph.json']
       : [
@@ -22,7 +32,16 @@ export function archiveGraph(
           `.tia/${runner}/graph.json`,
         ]),
   ]
-  const allowedPaths = new Set(paths)
+  const attestationPaths = [
+    ...(runner === undefined
+      ? ['attestation.json', '.tia/attestation.json']
+      : [
+          `${runner}/attestation.json`,
+          `.tia/${runner}/attestation.json`,
+          'attestation.json',
+        ]),
+  ]
+  const allowedPaths = new Set([...graphPaths, ...attestationPaths])
   let entries: Record<string, Uint8Array>
   try {
     entries = unzipSync(archive, {
@@ -34,7 +53,7 @@ export function archiveGraph(
     return null
   }
 
-  for (const path of paths) {
+  for (const path of graphPaths) {
     const bytes = entries[path]
     if (
       bytes === undefined ||
@@ -45,11 +64,38 @@ export function archiveGraph(
 
     const graph = parseGraph(strFromU8(bytes))
     if (graph !== null) {
-      return graph
+      let attestation: TiaArtifactAttestationV1 | undefined
+      for (const attestationPath of attestationPaths) {
+        const value = entries[attestationPath]
+        if (value === undefined) continue
+        try {
+          const parsed = parseArtifactAttestation(
+            JSON.parse(strFromU8(value)) as unknown,
+          )
+          if (parsed !== null) {
+            attestation = parsed
+            break
+          }
+        } catch {
+          // A malformed attestation is handled by the trust policy.
+        }
+      }
+      return {
+        ...(attestation === undefined ? {} : { attestation }),
+        graph,
+        graphSha256: createHash('sha256').update(bytes).digest('hex'),
+      }
     }
   }
 
   return null
+}
+
+export function archiveGraph(
+  archive: Uint8Array,
+  runner: string | undefined,
+): TiaRuntimeGraph | null {
+  return readArtifactArchive(archive, runner)?.graph ?? null
 }
 
 export async function readBoundedResponse(

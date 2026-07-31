@@ -187,6 +187,9 @@ describe('GitHub Actions artifact discovery', () => {
       provider: 'GitHub Actions',
       reason: 'compatible artifact restored',
       restored: true,
+      trust: {
+        reason: 'unsigned artifacts explicitly allowed',
+      },
     })
     expect(JSON.parse(readFileSync(graphPath(target), 'utf8'))).toMatchObject({
       fingerprint: 'current',

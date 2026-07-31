@@ -35,6 +35,11 @@ relative to the manifest. The archive contains `graph.json`,
 partial graphs produced by one pipeline so fragments from different runs are
 never merged.
 
+Publisher archives also contain a provider-neutral Ed25519 attestation. The
+attestation authenticates the exact graph bytes and their lineage even when an
+untrusted manifest or CI API supplies the download URL. See
+[`artifact-attestation-v1.md`](artifact-attestation-v1.md).
+
 Publishers set `promoted` only for a complete, non-partition graph. Consumers
 may require promoted entries at release or branch-bootstrap boundaries. The
 SHA-256 digest and byte size cover the archive exactly. `lineage` binds the

@@ -46,6 +46,7 @@ function fixture(): string {
 
 const options: NormalizedOptions = {
   cacheDir: '.tia',
+  artifactTrust: {},
   coverage: false,
   enabled: true,
   exclude: [],

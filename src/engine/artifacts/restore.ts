@@ -9,12 +9,14 @@ import { createGitHubActionsArtifactProvider } from './github-actions.js'
 import { createGitLabCiArtifactProvider } from './gitlab-ci.js'
 import { createHttpManifestArtifactProvider } from './http-manifest.js'
 import { createFilesystemArtifactProvider } from './filesystem.js'
+import { verifyArtifactAttestation } from './trust.js'
 import type {
   TiaRuntimeGraph,
 } from '../types.js'
 import type {
   TiaArtifactProvider,
   TiaArtifactSource,
+  TiaArtifactTrustPolicy,
 } from './types.js'
 
 export interface RestoreArtifactsInput {
@@ -25,6 +27,7 @@ export interface RestoreArtifactsInput {
   providers: TiaArtifactProvider[]
   root?: string
   runner?: string
+  trust?: TiaArtifactTrustPolicy
 }
 
 export interface RestoreArtifactResult {
@@ -32,6 +35,10 @@ export interface RestoreArtifactResult {
   provider?: string
   reason: string
   restored: boolean
+  trust?: {
+    keyId?: string
+    reason: string
+  }
 }
 
 function isProvider(source: TiaArtifactSource): source is TiaArtifactProvider {
@@ -82,6 +89,7 @@ export async function restoreGraphFromArtifacts(
     return { reason: 'compatible local graph exists', restored: false }
   }
 
+  let rejectedForTrust = false
   for (const provider of input.providers) {
     try {
       const candidate = await provider.load({
@@ -95,11 +103,37 @@ export async function restoreGraphFromArtifacts(
 
       const candidates = Array.isArray(candidate) ? candidate : [candidate]
       const parsed = candidates
-        .map((item) => ({
-          graph: parseGraph(item.graph),
-          group: item.group,
-          id: item.id,
-        }))
+        .map((item) => {
+          const graph = parseGraph(item.graph)
+          if (graph === null) return null
+          const trust = verifyArtifactAttestation({
+            attestation: item.attestation,
+            graph,
+            ...(item.graphSha256 === undefined
+              ? {}
+              : { graphSha256: item.graphSha256 }),
+            policy: input.trust ?? { allowUnsigned: true },
+            ...(input.runner === undefined
+              ? {}
+              : { runner: input.runner }),
+          })
+          if (!trust.trusted) {
+            rejectedForTrust = true
+            if (input.log) {
+              console.warn(
+                `TIA rejected artifact ${String(item.id)} from ${provider.name}: ${trust.reason}.`,
+              )
+            }
+            return null
+          }
+          return {
+            graph,
+            group: item.group,
+            id: item.id,
+            trust,
+          }
+        })
+        .filter((item) => item !== null)
         .filter(
           (
             item,
@@ -107,6 +141,7 @@ export async function restoreGraphFromArtifacts(
             graph: NonNullable<ReturnType<typeof parseGraph>>
             group: number | string | undefined
             id: number | string
+            trust: ReturnType<typeof verifyArtifactAttestation>
           } =>
             item.graph !== null &&
             item.graph.fingerprint === input.fingerprint,
@@ -119,6 +154,7 @@ export async function restoreGraphFromArtifacts(
         ),
       )
       let graph = complete?.graph ?? null
+      let artifactTrust = complete?.trust
       let partitionIds: Array<number | string> = []
       if (graph === null) {
         const groups = new Map<
@@ -139,6 +175,7 @@ export async function restoreGraphFromArtifacts(
           )
           if (graph !== null) {
             partitionIds = group.map((item) => item.id)
+            artifactTrust = group[0]?.trust
             break
           }
         }
@@ -187,6 +224,16 @@ export async function restoreGraphFromArtifacts(
         provider: provider.name,
         reason: 'compatible artifact restored',
         restored: true,
+        ...(artifactTrust === undefined
+          ? {}
+          : {
+              trust: {
+                ...(artifactTrust.keyId === undefined
+                  ? {}
+                  : { keyId: artifactTrust.keyId }),
+                reason: artifactTrust.reason,
+              },
+            }),
       }
     } catch {
       // Artifact restoration is an optimization. The planner below will use a
@@ -195,7 +242,9 @@ export async function restoreGraphFromArtifacts(
   }
 
   return {
-    reason: 'no provider returned a compatible artifact',
+    reason: rejectedForTrust
+      ? 'no provider returned a trusted compatible artifact'
+      : 'no provider returned a compatible artifact',
     restored: false,
   }
 }

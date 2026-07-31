@@ -164,6 +164,7 @@ function normalizeOptions(options: TiaOptions): NormalizedOptions {
 
   return {
     artifactProviders: artifactProviders(options.artifacts),
+    artifactTrust: options.artifactTrust ?? {},
     cacheDir: options.cacheDir ?? '.tia',
     coverage:
       requestedCoverage === null

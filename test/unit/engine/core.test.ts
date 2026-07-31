@@ -194,6 +194,7 @@ describe('runner-neutral TIA core', () => {
 
     const replay = new TiaCore({
       ...options,
+      artifactTrust: { allowUnsigned: true },
       artifacts: {
         load: () => ({ graph, id: 'artifact-42' }),
         name: 'fixture registry',

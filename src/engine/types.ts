@@ -1,4 +1,7 @@
-import type { TiaArtifactProvider } from './artifacts/types.js'
+import type {
+  TiaArtifactProvider,
+  TiaArtifactTrustPolicy,
+} from './artifacts/types.js'
 import type { TiaReplayAdapter } from './replay/types.js'
 import type { TiaCoverageMap } from '../integrations/coverage/types.js'
 
@@ -105,6 +108,7 @@ export interface FingerprintOptions extends RuntimePlanOptions {
 
 export interface EngineOptions extends FingerprintOptions {
   artifactProviders: TiaArtifactProvider[]
+  artifactTrust: TiaArtifactTrustPolicy
   cacheDir: string
   log: boolean
   replayAdapters: TiaReplayAdapter[]

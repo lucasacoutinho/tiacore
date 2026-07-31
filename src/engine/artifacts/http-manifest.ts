@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto'
+
 import {
-  archiveGraph,
   MAX_ARTIFACT_ARCHIVE_BYTES,
+  readArtifactArchive,
   readBoundedResponse,
 } from './archive.js'
 import type {
@@ -141,10 +143,14 @@ async function loadHttpManifest(
     ) {
       continue
     }
-    const graph = archiveGraph(archive, context.runner)
-    if (graph?.fingerprint !== context.fingerprint) continue
+    const value = readArtifactArchive(archive, context.runner)
+    if (value?.graph.fingerprint !== context.fingerprint) continue
     candidates.push({
-      graph,
+      ...(value.attestation === undefined
+        ? {}
+        : { attestation: value.attestation }),
+      graph: value.graph,
+      graphSha256: value.graphSha256,
       ...(artifact.group === undefined
         ? {}
         : { group: artifact.group }),
@@ -163,4 +169,3 @@ export function createHttpManifestArtifactProvider(
     load: (context) => loadHttpManifest(context, options, request),
   }
 }
-import { createHash } from 'node:crypto'
