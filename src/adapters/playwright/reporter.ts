@@ -1,9 +1,4 @@
-import {
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 import type {
@@ -25,8 +20,7 @@ import {
 
 function attachmentDependencies(result: TestResult): string[] | null {
   const attachment = result.attachments.find(
-    (candidate) =>
-      candidate.name === PLAYWRIGHT_DEPENDENCIES_ATTACHMENT,
+    (candidate) => candidate.name === PLAYWRIGHT_DEPENDENCIES_ATTACHMENT,
   )
   if (attachment === undefined) {
     return null
@@ -66,7 +60,10 @@ export default class TiaPlaywrightReporter implements Reporter {
   private readonly observations = new Map<string, PlaywrightObservation>()
 
   onBegin(_config: unknown, suite: Suite): void {
-    this.configuredTestIds = suite.allTests().map((test) => test.id).sort()
+    this.configuredTestIds = suite
+      .allTests()
+      .map((test) => test.id)
+      .sort()
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {

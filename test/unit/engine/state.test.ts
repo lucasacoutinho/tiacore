@@ -18,6 +18,7 @@ import {
   readGraph,
   writeGraph,
 } from '../../../src/engine/state/store.js'
+import { statePath } from '../../../src/engine/state/segmented.js'
 import type { TiaRuntimeGraph } from '../../../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
@@ -27,30 +28,8 @@ function cacheWith(value: unknown): string {
   const cacheDir = join(root, '.tia')
   temporaryDirectories.push(root)
   mkdirSync(cacheDir)
-  writeFileSync(
-    join(cacheDir, 'graph.json'),
-    `${JSON.stringify(value)}\n`,
-  )
+  writeFileSync(statePath(cacheDir), `${JSON.stringify(value)}\n`)
   return cacheDir
-}
-
-function legacyGraph(): Record<string, unknown> {
-  return {
-    baseline: { sha: 'abc', workingTree: {} },
-    complete: true,
-    edges: { 'test/a.test.ts': ['src/a.ts', 'test/a.test.ts'] },
-    fingerprint: 'fingerprint',
-    results: {
-      a: {
-        file: 'test/a.test.ts',
-        fullName: 'a',
-        id: 'a',
-        state: 'passed',
-      },
-    },
-    schema: 1,
-    updatedAt: new Date(0).toISOString(),
-  }
 }
 
 function currentGraph(): TiaRuntimeGraph {
@@ -101,39 +80,9 @@ afterEach(() => {
 })
 
 describe('graph state', () => {
-  test('migrates schema-one file edges without discarding the graph', () => {
-    const graph = readGraph(cacheWith(legacyGraph()))
-
-    expect(graph?.schema).toBe(3)
-    expect(graph?.edges['test/a.test.ts']).toContain('src/a.ts')
-    expect(graph?.testEdges).toEqual({})
-    expect(graph?.coverageComplete).toBe(false)
-    expect(graph?.collectionCoverage).toEqual({})
-    expect(graph?.testCoverage).toEqual({})
-  })
-
-  test('rejects schema-two graphs without per-test edge storage', () => {
-    const value = { ...legacyGraph(), schema: 2 }
-
-    expect(readGraph(cacheWith(value))).toBeNull()
-  })
-
-  test('migrates schema-two test edges with incomplete cached coverage', () => {
-    const value = {
-      ...legacyGraph(),
-      schema: 2,
-      testEdges: {
-        a: {
-          file: 'test/a.test.ts',
-          files: ['src/a.ts', 'test/a.test.ts'],
-        },
-      },
-    }
-
-    const graph = readGraph(cacheWith(value))
-    expect(graph?.schema).toBe(3)
-    expect(graph?.testEdges).toEqual(value.testEdges)
-    expect(graph?.coverageComplete).toBe(false)
+  test('rejects unsupported schemas and rebuilds safely', () => {
+    expect(readGraph(cacheWith({ ...currentGraph(), schema: 99 }))).toBeNull()
+    expect(readGraph(cacheWith({ ...currentGraph(), schema: '3' }))).toBeNull()
   })
 
   test('merges disjoint updates from processes that planned the same graph', async () => {
@@ -211,9 +160,9 @@ describe('graph state', () => {
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()
     writeGraph(cacheDir, expected)
-    mkdirSync(join(cacheDir, 'graph.lock'))
+    mkdirSync(join(cacheDir, 'state.lock'))
     writeFileSync(
-      join(cacheDir, 'graph.lock/owner.json'),
+      join(cacheDir, 'state.lock/owner.json'),
       `${JSON.stringify({
         createdAt: Date.now(),
         hostname: hostname(),
@@ -255,7 +204,7 @@ describe('graph state', () => {
     ).rejects.toThrow(/BigInt/)
 
     expect(readGraph(cacheDir)).toEqual(expected)
-    expect(existsSync(join(cacheDir, 'graph.lock'))).toBe(false)
+    expect(existsSync(join(cacheDir, 'state.lock'))).toBe(false)
     expect(
       readdirSync(cacheDir).filter((file) => file.endsWith('.tmp')),
     ).toEqual([])

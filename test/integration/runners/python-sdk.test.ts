@@ -1,13 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import {
-  readFileSync,
-  readdirSync,
-} from 'node:fs'
-import {
-  join,
-  relative,
-} from 'node:path'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
 import { describe, expect, test } from 'vitest'
 
@@ -57,10 +51,7 @@ describe('Python pytest SDK', () => {
 
   test('has a capability-complete receipt tied to its source digest', () => {
     const receipt = JSON.parse(
-      readFileSync(
-        join(sdkRoot, 'certification/adapter.json'),
-        'utf8',
-      ),
+      readFileSync(join(sdkRoot, 'certification/adapter.json'), 'utf8'),
     ) as unknown
     expect(certifyAdapterReceipt(receipt)).toMatchObject({
       adapter: 'pytest',

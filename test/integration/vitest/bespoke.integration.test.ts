@@ -10,6 +10,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import { writeGraph as writeStateGraph } from '../../../src/engine/state/store.js'
+
 import {
   cleanupProjects,
   cloneProjectWithGraph,
@@ -31,7 +33,7 @@ describe('bespoke integration paths', () => {
     const initial = runVitest(root)
     expect(initial.status, initial.output).toBe(0)
 
-    writeFileSync(join(root, '.tia/graph.json'), '{"schema":1}\n')
+    writeFileSync(join(root, '.tia/state.json'), '{"schema":1}\n')
     resetExecutions(root)
 
     const corrupt = runVitest(root)
@@ -41,10 +43,7 @@ describe('bespoke integration paths', () => {
 
     const graph = readGraph(root)
     graph.baseline.sha = '0000000000000000000000000000000000000000'
-    writeFileSync(
-      join(root, '.tia/graph.json'),
-      `${JSON.stringify(graph)}\n`,
-    )
+    writeStateGraph(join(root, '.tia'), graph)
     resetExecutions(root)
 
     const unreachable = runVitest(root)
@@ -57,10 +56,7 @@ describe('bespoke integration paths', () => {
     const root = createProject()
     expect(runVitest(root).status).toBe(0)
     resetExecutions(root)
-    renameSync(
-      join(root, 'test/a.test.ts'),
-      join(root, 'test/renamed.test.ts'),
-    )
+    renameSync(join(root, 'test/a.test.ts'), join(root, 'test/renamed.test.ts'))
 
     const renamed = runVitest(root)
     expect(renamed.status, renamed.output).toBe(0)
@@ -136,7 +132,7 @@ test('mutates a tracked source', () => {
     const result = runVitest(root)
     expect(result.status, result.output).toBe(0)
     expect(result.output).toContain('project files changed during the run')
-    expect(existsSync(join(root, '.tia/graph.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 
   test('composes with an existing setup file and custom reporter', () => {
@@ -161,9 +157,7 @@ appendFileSync(new URL('../setup.log', import.meta.url), 'setup\\n')
     const result = runVitest(root)
     expect(result.status, result.output).toBe(0)
     expect(
-      readFileSync(join(root, 'setup.log'), 'utf8')
-        .trim()
-        .split('\n'),
+      readFileSync(join(root, 'setup.log'), 'utf8').trim().split('\n'),
     ).toHaveLength(2)
     expect(readFileSync(join(root, 'custom-reporter.log'), 'utf8')).toBe(
       'done\n',
@@ -281,19 +275,11 @@ test.concurrent('concurrent b', async () => {
     }
 
     expect(edgeFor('sequential a')?.files).toEqual(
-      expect.arrayContaining([
-        'src/a.ts',
-        'src/shared.ts',
-        'test/a.test.ts',
-      ]),
+      expect.arrayContaining(['src/a.ts', 'src/shared.ts', 'test/a.test.ts']),
     )
     expect(edgeFor('sequential a')?.files).not.toContain('src/b.ts')
     expect(edgeFor('sequential b')?.files).toEqual(
-      expect.arrayContaining([
-        'src/b.ts',
-        'src/shared.ts',
-        'test/a.test.ts',
-      ]),
+      expect.arrayContaining(['src/b.ts', 'src/shared.ts', 'test/a.test.ts']),
     )
     expect(edgeFor('sequential b')?.files).not.toContain('src/a.ts')
     expect(edgeFor('concurrent a')).toBeUndefined()
@@ -358,12 +344,9 @@ test('shared consumer', async () => {
       join(root, 'src/shared.ts'),
       "export const shared = 'changed'\n",
     )
-    const replay = runVitest(
-      root,
-      ['run'],
-      20_000,
-      { TIACORE_FAIL_TEARDOWN: '1' },
-    )
+    const replay = runVitest(root, ['run'], 20_000, {
+      TIACORE_FAIL_TEARDOWN: '1',
+    })
 
     expect(replay.status, replay.output).toBe(1)
     expect(executions(root).sort()).toEqual(['a', 'a-teardown', 'b'])
@@ -394,10 +377,7 @@ test.concurrent('failing peer', async () => {
 
     const retry = runVitest(root)
     expect(retry.status, retry.output).toBe(1)
-    expect(executions(root).sort()).toEqual([
-      'failing-peer',
-      'passing-peer',
-    ])
+    expect(executions(root).sort()).toEqual(['failing-peer', 'passing-peer'])
     expect(retry.output).toContain('1 whole-file fallback')
   })
 
@@ -636,7 +616,9 @@ test('persistently failing case', () => {
     expect(coverage.status, coverage.output).toBe(0)
     expect(executions(root)).toEqual(['a'])
     expect(coverage.output).toContain('TIA replay:')
-    expect(coverage.output).toContain('TIA coverage reconstructed: 2 source files')
+    expect(coverage.output).toContain(
+      'TIA coverage reconstructed: 2 source files',
+    )
 
     const reportPath = join(root, 'coverage/coverage-final.json')
     expect(existsSync(reportPath)).toBe(true)
@@ -681,10 +663,12 @@ test('persistently failing case', () => {
 
     const result = runVitest(root)
     expect(result.status, result.output).toBe(0)
-    expect(result.output).toContain('TIA coverage reconstructed: 2 source files')
-    expect(
-      existsSync(join(root, 'tia-coverage/coverage-summary.json')),
-    ).toBe(true)
+    expect(result.output).toContain(
+      'TIA coverage reconstructed: 2 source files',
+    )
+    expect(existsSync(join(root, 'tia-coverage/coverage-summary.json'))).toBe(
+      true,
+    )
 
     resetExecutions(root)
     const replay = runVitest(root)
@@ -723,7 +707,7 @@ test('persistently failing case', () => {
     })
     const initial = runVitest(root)
     expect(initial.status, initial.output).toBe(0)
-    expect(existsSync(join(root, 'tia-cache/graph.json'))).toBe(true)
+    expect(existsSync(join(root, 'tia-cache/state.json'))).toBe(true)
     resetExecutions(root)
 
     const replay = runVitest(root)
@@ -738,6 +722,6 @@ test('persistently failing case', () => {
 
     expect(executions(root).sort()).toEqual(['a', 'b'])
     expect(watch.output).not.toContain('TIA recording')
-    expect(existsSync(join(root, '.tia/graph.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 })

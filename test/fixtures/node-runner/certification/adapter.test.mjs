@@ -1,11 +1,15 @@
 import { spawnSync } from 'node:child_process'
-import {
-  readFileSync,
-  rmSync,
-} from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+
+const { readGraph } = await import(
+  new URL(
+    '../node_modules/@usescherie/tiacore/dist/engine/state/store.js',
+    import.meta.url,
+  )
+)
 
 function run() {
   const environment = { ...process.env }
@@ -37,17 +41,15 @@ test('the installed Node adapter records once and replays from cache', () => {
     ['node-a', 'node-b'],
   )
 
-  const graph = JSON.parse(
-    readFileSync(resolve(root, '.tia/node/graph.json'), 'utf8'),
-  )
+  const graph = readGraph(resolve(root, '.tia/node'))
+  assert.ok(graph)
   const resultA = Object.values(graph.results).find(
     (result) => result.fullName === 'node case a',
   )
   assert.ok(resultA)
   const files = graph.testEdges[resultA.id].files
   const [major, minor] = process.versions.node.split('.').map(Number)
-  const preciseDiscovery =
-    major > 22 || (major === 22 && minor >= 15)
+  const preciseDiscovery = major > 22 || (major === 22 && minor >= 15)
 
   if (preciseDiscovery) {
     assert.ok(files.includes('src/a.mjs'))

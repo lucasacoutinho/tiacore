@@ -1,8 +1,8 @@
 import picomatch from 'picomatch'
 
 import {
-  archiveGraph,
   MAX_ARTIFACT_ARCHIVE_BYTES,
+  readArtifactArchive,
   readBoundedResponse,
 } from './archive.js'
 import type {
@@ -77,8 +77,7 @@ async function loadGitLabArtifacts(
   options: TiaGitLabCiOptions,
   request: typeof globalThis.fetch,
 ): Promise<TiaArtifactCandidate[] | null> {
-  const projectId =
-    options.projectId ?? process.env.CI_PROJECT_ID
+  const projectId = options.projectId ?? process.env.CI_PROJECT_ID
   if (projectId === undefined || String(projectId).trim() === '') {
     return null
   }
@@ -90,21 +89,16 @@ async function loadGitLabArtifacts(
   const projectUrl = `${apiUrl}/projects/${encodeURIComponent(String(projectId))}`
   const requestHeaders = headers(options)
   const pipelineId =
-    options.pipelineId === undefined
-      ? null
-      : String(options.pipelineId)
+    options.pipelineId === undefined ? null : String(options.pipelineId)
   let candidatePipelines: GitLabPipeline[]
   if (pipelineId === null) {
     const query = new URLSearchParams({
       order_by: 'updated_at',
-      per_page: String(
-        Math.max(1, Math.min(100, options.maxPipelines ?? 20)),
-      ),
+      per_page: String(Math.max(1, Math.min(100, options.maxPipelines ?? 20))),
       sort: 'desc',
       status: 'success',
     })
-    const branch =
-      options.branch ?? process.env.CI_COMMIT_REF_NAME
+    const branch = options.branch ?? process.env.CI_COMMIT_REF_NAME
     if (branch !== undefined && branch !== '') query.set('ref', branch)
     candidatePipelines = pipelines(
       await json(
@@ -144,20 +138,24 @@ async function loadGitLabArtifacts(
         (job.artifacts_file.size ?? 0) <= MAX_ARTIFACT_ARCHIVE_BYTES,
     )
     for (const job of pipelineJobs) {
-      const response = await request(
-        `${projectUrl}/jobs/${job.id}/artifacts`,
-        { headers: requestHeaders, redirect: 'follow' },
-      )
+      const response = await request(`${projectUrl}/jobs/${job.id}/artifacts`, {
+        headers: requestHeaders,
+        redirect: 'follow',
+      })
       if (!response.ok) continue
       const archive = await readBoundedResponse(
         response,
         MAX_ARTIFACT_ARCHIVE_BYTES,
       )
       if (archive === null) continue
-      const graph = archiveGraph(archive, context.runner)
-      if (graph?.fingerprint !== context.fingerprint) continue
+      const value = readArtifactArchive(archive, context.runner)
+      if (value?.graph.fingerprint !== context.fingerprint) continue
       candidates.push({
-        graph,
+        ...(value.attestation === undefined
+          ? {}
+          : { attestation: value.attestation }),
+        graph: value.graph,
+        graphSha256: value.graphSha256,
         group: pipeline.id,
         id: job.id,
       })
@@ -172,7 +170,6 @@ export function createGitLabCiArtifactProvider(
 ): TiaArtifactProvider {
   return {
     name: 'GitLab CI',
-    load: (context) =>
-      loadGitLabArtifacts(context, options, request),
+    load: (context) => loadGitLabArtifacts(context, options, request),
   }
 }

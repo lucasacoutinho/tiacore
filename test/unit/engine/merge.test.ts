@@ -42,10 +42,7 @@ describe('partial graph merging', () => {
       updatedAt: '2026-07-22T00:00:00.000Z',
     })
     expect(merged?.partition).toBeUndefined()
-    expect(Object.keys(merged?.results ?? {})).toEqual([
-      'case-1',
-      'case-2',
-    ])
+    expect(Object.keys(merged?.results ?? {})).toEqual(['case-1', 'case-2'])
     expect(Object.keys(merged?.testCoverage ?? {})).toEqual([
       'case-1',
       'case-2',

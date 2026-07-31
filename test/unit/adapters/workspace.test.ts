@@ -12,9 +12,9 @@ const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((path) =>
-      rm(path, { force: true, recursive: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((path) => rm(path, { force: true, recursive: true })),
   )
 })
 
@@ -79,11 +79,13 @@ describe('workspace coordinator', () => {
 
   test('runs command lanes and records their exit status', async () => {
     const result = await tia({
-      lanes: [{
-        arguments: ['-e', 'process.exit(0)'],
-        command: process.execPath,
-        id: 'command',
-      }],
+      lanes: [
+        {
+          arguments: ['-e', 'process.exit(0)'],
+          command: process.execPath,
+          id: 'command',
+        },
+      ],
     }).run()
 
     expect(result.success).toBe(true)

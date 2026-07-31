@@ -66,42 +66,42 @@ export interface TiaAdapterScenarioDefinition {
 
 export const TIA_ADAPTER_CONFORMANCE_SCENARIOS: readonly TiaAdapterScenarioDefinition[] =
   Object.freeze([
-  { id: 'baseline-full' },
-  { id: 'no-change-skip' },
-  { id: 'affected-selective' },
-  { id: 'unknown-change-full' },
-  { id: 'structural-change-full' },
-  { id: 'corrupt-graph-full' },
-  { id: 'environment-change-full' },
-  { id: 'cross-platform-paths' },
-  { id: 'resource-locks' },
-  {
-    capabilityLevels: ['observed-file-tia', 'runtime-tia'],
-    id: 'incomplete-observation-full',
-  },
-  {
-    capabilityLevels: ['observed-file-tia', 'runtime-tia'],
-    id: 'worker-crash-full',
-  },
-  {
-    capabilityLevels: ['runtime-tia'],
-    id: 'previous-failure-rerun',
-  },
-  { feature: 'cached-outcomes', id: 'cached-outcomes-replayed' },
-  {
-    feature: 'coverage-reconstruction',
-    id: 'coverage-reconstructed',
-  },
-  { feature: 'parallelism', id: 'parallel-plan-deterministic' },
-  {
-    feature: 'partitions',
-    id: 'partitions-complete-before-promotion',
-  },
-  {
-    feature: 'subprocess-observation',
-    id: 'subprocess-boundary-safe',
-  },
-  { feature: 'worktrees', id: 'worktree-ancestry-safe' },
+    { id: 'baseline-full' },
+    { id: 'no-change-skip' },
+    { id: 'affected-selective' },
+    { id: 'unknown-change-full' },
+    { id: 'structural-change-full' },
+    { id: 'corrupt-graph-full' },
+    { id: 'environment-change-full' },
+    { id: 'cross-platform-paths' },
+    { id: 'resource-locks' },
+    {
+      capabilityLevels: ['observed-file-tia', 'runtime-tia'],
+      id: 'incomplete-observation-full',
+    },
+    {
+      capabilityLevels: ['observed-file-tia', 'runtime-tia'],
+      id: 'worker-crash-full',
+    },
+    {
+      capabilityLevels: ['runtime-tia'],
+      id: 'previous-failure-rerun',
+    },
+    { feature: 'cached-outcomes', id: 'cached-outcomes-replayed' },
+    {
+      feature: 'coverage-reconstruction',
+      id: 'coverage-reconstructed',
+    },
+    { feature: 'parallelism', id: 'parallel-plan-deterministic' },
+    {
+      feature: 'partitions',
+      id: 'partitions-complete-before-promotion',
+    },
+    {
+      feature: 'subprocess-observation',
+      id: 'subprocess-boundary-safe',
+    },
+    { feature: 'worktrees', id: 'worktree-ancestry-safe' },
   ] satisfies TiaAdapterScenarioDefinition[])
 
 const CAPABILITY_LEVELS = new Set<TiaAdapterCapabilityLevel>([
@@ -117,12 +117,7 @@ const FEATURES = new Set<TiaAdapterFeature>([
   'subprocess-observation',
   'worktrees',
 ])
-const GRANULARITIES = new Set([
-  'flow',
-  'profile',
-  'test-case',
-  'test-file',
-])
+const GRANULARITIES = new Set(['flow', 'profile', 'test-case', 'test-file'])
 const RECEIPT_KEYS = new Set([
   'adapter',
   'capabilityLevel',
@@ -175,11 +170,7 @@ function text(value: unknown, label: string): string {
 }
 
 function nonNegativeNumber(value: unknown, label: string): number {
-  if (
-    typeof value !== 'number' ||
-    !Number.isFinite(value) ||
-    value < 0
-  ) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be a non-negative number`)
   }
   return value
@@ -192,10 +183,8 @@ function requiredScenarioIds(
   const enabled = new Set(features)
   return TIA_ADAPTER_CONFORMANCE_SCENARIOS.filter(
     (scenario) =>
-      (
-        scenario.capabilityLevels === undefined ||
-        scenario.capabilityLevels.includes(capabilityLevel)
-      ) &&
+      (scenario.capabilityLevels === undefined ||
+        scenario.capabilityLevels.includes(capabilityLevel)) &&
       (scenario.feature === undefined || enabled.has(scenario.feature)),
   )
     .map(({ id }) => id)
@@ -213,7 +202,9 @@ export function parseAdapterCertificationReceipt(
     'TIA adapter capability level',
   ) as TiaAdapterCapabilityLevel
   if (!CAPABILITY_LEVELS.has(capabilityLevel)) {
-    throw new Error(`unsupported TIA adapter capability level: ${capabilityLevel}`)
+    throw new Error(
+      `unsupported TIA adapter capability level: ${capabilityLevel}`,
+    )
   }
   if (parsed.contractVersion !== TIA_ADAPTER_CONFORMANCE_VERSION) {
     throw new Error(
@@ -278,7 +269,12 @@ export function parseAdapterCertificationReceipt(
         ),
         ...(evidence.command === undefined
           ? {}
-          : { command: text(evidence.command, `TIA adapter scenario ${id} command`) }),
+          : {
+              command: text(
+                evidence.command,
+                `TIA adapter scenario ${id} command`,
+              ),
+            }),
         ...(evidence.durationMs === undefined
           ? {}
           : {
@@ -354,9 +350,7 @@ export function parseAdapterCertificationReceipt(
   }
 }
 
-export function certifyAdapterReceipt(
-  value: unknown,
-): TiaAdapterCertification {
+export function certifyAdapterReceipt(value: unknown): TiaAdapterCertification {
   const receipt = parseAdapterCertificationReceipt(value)
   const required = requiredScenarioIds(
     receipt.capabilityLevel,

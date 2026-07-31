@@ -1,17 +1,8 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import {
-  basename,
-  relative,
-  resolve,
-} from 'node:path'
+import { basename, relative, resolve } from 'node:path'
 
 import { TiaCore } from '../../engine/run.js'
 import { formatRunPlanDetails } from '../../engine/explain.js'
@@ -20,16 +11,18 @@ import {
   frameworkFingerprint,
 } from '../../integrations/edges/index.js'
 import { resolveFrameworkEdges } from '../../integrations/edges/resolve.js'
+import {
+  TIA_EVIDENCE_DIRECTORY_ENV,
+  TIA_EVIDENCE_HEADER_ENV,
+} from '../../integrations/evidence/index.js'
 import type {
   TiaArtifactSource,
+  TiaArtifactTrustPolicy,
   TiaFrameworkOptions,
   RunPlan,
 } from '../../shared/types.js'
 import { slash } from '../../shared/paths.js'
-import {
-  importedFilesFingerprint,
-  importedProjectFiles,
-} from './imports.js'
+import { importedFilesFingerprint, importedProjectFiles } from './imports.js'
 import {
   PLAYWRIGHT_ROOT_ENV,
   PLAYWRIGHT_SESSION_ENV,
@@ -38,9 +31,12 @@ import {
 
 export interface TiaPlaywrightOptions {
   artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  artifactTrust?: TiaArtifactTrustPolicy
   cacheDir?: string
   config?: string
   cwd?: string
+  evidenceDirectory?: string
+  evidenceHeader?: string
   fresh?: boolean
   frameworks?: TiaFrameworkOptions
   ignoreChanges?: string[]
@@ -183,26 +179,36 @@ export class TiaPlaywrightRunner {
     const cacheDir = resolve(root, this.options.cacheDir ?? '.tia')
     const configFingerprint = importedFilesFingerprint(config, root)
     const adapters = frameworkAdapters(this.options.frameworks)
+    const evidenceDirectory =
+      this.options.evidenceDirectory ?? process.env[TIA_EVIDENCE_DIRECTORY_ENV]
+    const evidenceHeader =
+      this.options.evidenceHeader ?? process.env[TIA_EVIDENCE_HEADER_ENV]
     const runnerFingerprint = createHash('sha256')
       .update(configFingerprint)
       .update(frameworkFingerprint(adapters))
+      .update(
+        JSON.stringify({
+          correlatedEvidence: evidenceDirectory === undefined ? 0 : 1,
+          evidenceHeader: evidenceHeader ?? '',
+          version: 1,
+        }),
+      )
       .digest('hex')
     const core = new TiaCore({
       ...(this.options.artifacts === undefined
         ? {}
         : { artifacts: this.options.artifacts }),
+      ...(this.options.artifactTrust === undefined
+        ? {}
+        : { artifactTrust: this.options.artifactTrust }),
       cacheDir,
       files: [slash(relative(root, config)), ...arguments_],
       fingerprint: runnerFingerprint,
-      fresh:
-        this.options.fresh ??
-        process.env.TIA_FRESH === '1',
+      fresh: this.options.fresh ?? process.env.TIA_FRESH === '1',
       ...(this.options.ignoreChanges === undefined
         ? {}
         : { ignoreChanges: this.options.ignoreChanges }),
-      ...(this.options.log === undefined
-        ? {}
-        : { log: this.options.log }),
+      ...(this.options.log === undefined ? {} : { log: this.options.log }),
       ...(this.options.onUnknownChange === undefined
         ? {}
         : { onUnknownChange: this.options.onUnknownChange }),
@@ -228,11 +234,8 @@ export class TiaPlaywrightRunner {
     const affected =
       plan.mode === 'record'
         ? []
-        : plan.affectedTests.map((file) =>
-            pathFilter(resolve(root, file)),
-          )
-    const filters =
-      affected.join('').length > 24_000 ? [] : affected
+        : plan.affectedTests.map((file) => pathFilter(resolve(root, file)))
+    const filters = affected.join('').length > 24_000 ? [] : affected
 
     try {
       const cliArguments = [
@@ -243,16 +246,21 @@ export class TiaPlaywrightRunner {
         ...arguments_,
         ...filters,
       ]
-      const status = await childStatus(
-        nodeExecutable(),
-        cliArguments,
-        cwd,
-        {
-          ...process.env,
-          [PLAYWRIGHT_ROOT_ENV]: root,
-          [PLAYWRIGHT_SESSION_ENV]: session,
-        },
-      )
+      const status = await childStatus(nodeExecutable(), cliArguments, cwd, {
+        ...process.env,
+        ...(evidenceDirectory === undefined
+          ? {}
+          : {
+              [TIA_EVIDENCE_DIRECTORY_ENV]: resolve(root, evidenceDirectory),
+            }),
+        ...(evidenceHeader === undefined
+          ? {}
+          : {
+              [TIA_EVIDENCE_HEADER_ENV]: evidenceHeader,
+            }),
+        [PLAYWRIGHT_ROOT_ENV]: root,
+        [PLAYWRIGHT_SESSION_ENV]: session,
+      })
       const report = readReport(session)
       if (report === null || !completeReport(report)) {
         if (this.options.log ?? true) {
@@ -268,10 +276,7 @@ export class TiaPlaywrightRunner {
         const runtimeFiles = [
           ...new Set([
             ...observation.files,
-            ...importedProjectFiles(
-              resolve(root, observation.file),
-              root,
-            ),
+            ...importedProjectFiles(resolve(root, observation.file), root),
           ]),
         ].sort()
         const framework = resolveFrameworkEdges(adapters, {
@@ -295,10 +300,9 @@ export class TiaPlaywrightRunner {
         }
         return { plan, status, success: status === 0 }
       }
-      await core.commit(
-        observations,
-        [...new Set(observations.map((observation) => observation.file))],
-      )
+      await core.commit(observations, [
+        ...new Set(observations.map((observation) => observation.file)),
+      ])
       return { plan, status, success: status === 0 }
     } finally {
       if (existsSync(session)) {

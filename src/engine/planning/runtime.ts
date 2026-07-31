@@ -170,11 +170,7 @@ export function createRunPlan(input: PlanInput): RunPlan {
   }
 
   if (coverageRequested && !graph.coverageComplete) {
-    return fullRun(
-      'the cached coverage graph is incomplete',
-      graph,
-      baseline,
-    )
+    return fullRun('the cached coverage graph is incomplete', graph, baseline)
   }
 
   if (graph.fingerprint !== fingerprint) {

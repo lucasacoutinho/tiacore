@@ -14,6 +14,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import type { TiaRuntimeGraph } from '../../src/shared/types.js'
+import { readGraph as readStateGraph } from '../../src/engine/state/store.js'
 
 export const packageRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -70,12 +71,11 @@ export function write(path: string, value: string): void {
 export function createProject(options: ProjectOptions = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'tiacore-integration-'))
   temporaryDirectories.push(root)
-  const pluginSpecifier =
-    options.packageImport
+  const pluginSpecifier = options.packageImport
     ? `${packageName}/vitest`
     : options.copyPackage || options.linkPackage
-    ? packageName
-    : pathToFileURL(join(packageRoot, 'dist/index.js')).href
+      ? packageName
+      : pathToFileURL(join(packageRoot, 'dist/index.js')).href
 
   write(
     join(root, '.gitignore'),
@@ -241,10 +241,7 @@ export function createFixtureProject(name: string): string {
   return root
 }
 
-export function createLinkedWorktree(
-  root: string,
-  name: string,
-): string {
+export function createLinkedWorktree(root: string, name: string): string {
   const parent = mkdtempSync(join(tmpdir(), 'tiacore-worktree-'))
   temporaryDirectories.push(parent)
   const target = join(parent, 'checkout')
@@ -364,13 +361,15 @@ export function resetExecutions(root: string): void {
   writeFileSync(join(root, 'executions.log'), '')
 }
 
-export function readGraph(root: string, runner?: 'bun' | 'node'): TiaRuntimeGraph {
-  return JSON.parse(
-    readFileSync(
-      join(root, '.tia', ...(runner === undefined ? [] : [runner]), 'graph.json'),
-      'utf8',
-    ),
-  ) as TiaRuntimeGraph
+export function readGraph(
+  root: string,
+  runner?: 'bun' | 'node',
+): TiaRuntimeGraph {
+  const graph = readStateGraph(
+    join(root, '.tia', ...(runner === undefined ? [] : [runner])),
+  )
+  if (graph === null) throw new Error('expected a valid TIA runtime state')
+  return graph
 }
 
 export function cleanupProjects(): void {

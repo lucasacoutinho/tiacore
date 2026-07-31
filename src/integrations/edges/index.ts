@@ -1,10 +1,7 @@
 import { databaseEdges } from './database.js'
 import { subprocessEdges } from './subprocess.js'
 import { viewEdges } from './views.js'
-import type {
-  TiaFrameworkEdgeAdapter,
-  TiaFrameworkOptions,
-} from './types.js'
+import type { TiaFrameworkEdgeAdapter, TiaFrameworkOptions } from './types.js'
 
 export function frameworkAdapters(
   options: TiaFrameworkOptions | undefined,

@@ -58,7 +58,7 @@ export function mergePartitionedGraphs(
 
   if (
     partitions.size !== total ||
-    [...Array.from({ length: total }, (_, index) => index + 1)].some(
+    Array.from({ length: total }, (_, index) => index + 1).some(
       (index) => !partitions.has(index),
     )
   ) {
@@ -86,10 +86,7 @@ export function mergePartitionedGraphs(
       !mergeRecord(merged.edges, fragment.edges) ||
       !mergeRecord(merged.results, fragment.results) ||
       !mergeRecord(merged.testEdges, fragment.testEdges) ||
-      !mergeRecord(
-        merged.collectionCoverage,
-        fragment.collectionCoverage,
-      ) ||
+      !mergeRecord(merged.collectionCoverage, fragment.collectionCoverage) ||
       !mergeRecord(merged.testCoverage, fragment.testCoverage)
     ) {
       return null

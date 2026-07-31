@@ -17,12 +17,16 @@ function run(command, arguments_) {
   const result = spawnSync(command, arguments_, { stdio: 'inherit' })
   if (result.error) throw result.error
   if (result.status !== 0) {
-    throw new Error(`${command} ${arguments_.join(' ')} exited with ${result.status ?? 'no status'}`)
+    throw new Error(
+      `${command} ${arguments_.join(' ')} exited with ${result.status ?? 'no status'}`,
+    )
   }
 }
 
 function hasLocalBuildToolchain() {
-  return requiredBuildFiles.every((path) => existsSync(join(process.cwd(), path)))
+  return requiredBuildFiles.every((path) =>
+    existsSync(join(process.cwd(), path)),
+  )
 }
 
 function bootstrapGitDependencyBuild() {
@@ -40,7 +44,9 @@ function bootstrapGitDependencyBuild() {
   )
   run('npm', ['ci', '--include=dev', '--ignore-scripts'])
   if (!hasLocalBuildToolchain()) {
-    throw new Error('tiacore prepare could not provision its local build toolchain')
+    throw new Error(
+      'tiacore prepare could not provision its local build toolchain',
+    )
   }
   return true
 }
@@ -51,7 +57,11 @@ try {
     '-e',
     "require('node:fs').rmSync('dist',{recursive:true,force:true})",
   ])
-  run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.build.json'])
+  run(process.execPath, [
+    'node_modules/typescript/bin/tsc',
+    '-p',
+    'tsconfig.build.json',
+  ])
   run(process.execPath, ['config/build-cjs.mjs'])
 } finally {
   if (bootstrapped) {

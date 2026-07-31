@@ -1,25 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-} from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 
 import picomatch from 'picomatch'
 
 import { slash } from '../../shared/paths.js'
 import type { Baseline } from '../types.js'
-import {
-  hashFile,
-  UNAVAILABLE_HASH,
-} from './fingerprint.js'
+import { hashFile, UNAVAILABLE_HASH } from './fingerprint.js'
 
-const ALWAYS_IGNORED_DIRECTORIES = new Set([
-  '.git',
-  '.tia',
-  'node_modules',
-])
+const ALWAYS_IGNORED_DIRECTORIES = new Set(['.git', '.tia', 'node_modules'])
 
 const ROOT_OUTPUT_DIRECTORIES = new Set([
   '.cache',
@@ -31,8 +20,7 @@ const ROOT_OUTPUT_DIRECTORIES = new Set([
 
 const VITE_TEMPORARY_CONFIG =
   /\.config\.[cm]?[jt]s\.timestamp-\d+-[a-z\d]+\.mjs$/i
-const BUN_TEMPORARY_BUILD =
-  /(?:^|\/)\.[a-z\d]+-\d+\.bun-build$/i
+const BUN_TEMPORARY_BUILD = /(?:^|\/)\.[a-z\d]+-\d+\.bun-build$/i
 
 interface IgnoreRule {
   ignored: boolean
@@ -63,11 +51,7 @@ function gitPaths(root: string, args: string[]): string[] | null {
     return null
   }
 
-  return value
-    .toString('utf8')
-    .split('\0')
-    .filter(Boolean)
-    .map(slash)
+  return value.toString('utf8').split('\0').filter(Boolean).map(slash)
 }
 
 function repositoryPaths(root: string, args: string[]): string[] | null {
@@ -77,9 +61,11 @@ function repositoryPaths(root: string, args: string[]): string[] | null {
   }
 
   const paths = gitPaths(repositoryRoot, args)
-  return paths?.map((file) =>
-    slash(relative(root, resolve(repositoryRoot, file))),
-  ) ?? null
+  return (
+    paths?.map((file) =>
+      slash(relative(root, resolve(repositoryRoot, file))),
+    ) ?? null
+  )
 }
 
 export function currentSha(root: string): string | null {
@@ -91,7 +77,9 @@ export function isAncestor(
   ancestor: string,
   descendant: string,
 ): boolean {
-  return runGit(root, ['merge-base', '--is-ancestor', ancestor, descendant]) !== null
+  return (
+    runGit(root, ['merge-base', '--is-ancestor', ancestor, descendant]) !== null
+  )
 }
 
 function untrackedFiles(root: string): string[] | null {
@@ -120,17 +108,13 @@ function unique(paths: string[]): string[] {
 }
 
 function isTemporaryToolFile(file: string): boolean {
-  return (
-    VITE_TEMPORARY_CONFIG.test(file) ||
-    BUN_TEMPORARY_BUILD.test(file)
-  )
+  return VITE_TEMPORARY_CONFIG.test(file) || BUN_TEMPORARY_BUILD.test(file)
 }
 
 function isIgnored(file: string, prefixes: string | string[]): boolean {
   return (Array.isArray(prefixes) ? prefixes : [prefixes]).some(
     (prefix) =>
-      prefix !== '' &&
-      (file === prefix || file.startsWith(`${prefix}/`)),
+      prefix !== '' && (file === prefix || file.startsWith(`${prefix}/`)),
   )
 }
 
@@ -148,9 +132,7 @@ function ignoreRules(root: string): IgnoreRule[] {
         const original = ignored ? trimmed : trimmed.slice(1)
         const anchored = original.startsWith('/')
         const directory = original.endsWith('/')
-        const pattern = original
-          .replace(/^\/+/, '')
-          .replace(/\/+$/, '')
+        const pattern = original.replace(/^\/+/, '').replace(/\/+$/, '')
         if (pattern === '') {
           return []
         }
@@ -162,26 +144,23 @@ function ignoreRules(root: string): IgnoreRule[] {
         if (directory) {
           variants.push(
             `${pattern}/**`,
-            ...(anchored || pattern.includes('/')
-              ? []
-              : [`**/${pattern}/**`]),
+            ...(anchored || pattern.includes('/') ? [] : [`**/${pattern}/**`]),
           )
         }
 
-        return [{
-          ignored,
-          matcher: picomatch(variants, { dot: true }),
-        }]
+        return [
+          {
+            ignored,
+            matcher: picomatch(variants, { dot: true }),
+          },
+        ]
       })
   } catch {
     return []
   }
 }
 
-function ignoredByRules(
-  file: string,
-  rules: IgnoreRule[],
-): boolean {
+function ignoredByRules(file: string, rules: IgnoreRule[]): boolean {
   let ignored = false
   for (const rule of rules) {
     if (rule.matcher(file)) {
@@ -241,13 +220,12 @@ function projectFiles(
   ])
 
   return listed === null
-    ? walkProjectFiles(root, ignoredPrefixes)?.filter(
+    ? (walkProjectFiles(root, ignoredPrefixes)?.filter(
         (file) => !isTemporaryToolFile(file),
-      ) ?? null
+      ) ?? null)
     : unique(listed).filter(
         (file) =>
-          !isIgnored(file, ignoredPrefixes) &&
-          !isTemporaryToolFile(file),
+          !isIgnored(file, ignoredPrefixes) && !isTemporaryToolFile(file),
       )
 }
 
@@ -261,17 +239,12 @@ function filesystemChanges(
     return null
   }
 
-  const candidates = unique([
-    ...Object.keys(baseline.workingTree),
-    ...current,
-  ])
+  const candidates = unique([...Object.keys(baseline.workingTree), ...current])
   const currentFiles = new Set(current)
 
   const changes: string[] = []
   for (const file of candidates) {
-    const hash = currentFiles.has(file)
-      ? hashFile(resolve(root, file))
-      : null
+    const hash = currentFiles.has(file) ? hashFile(resolve(root, file)) : null
     if (hash === UNAVAILABLE_HASH) {
       return null
     }

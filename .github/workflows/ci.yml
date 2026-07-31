@@ -53,7 +53,7 @@ jobs:
       - name: Run shard
         run: npx vitest run --root test/fixtures/sharded-vitest --shard=${{ matrix.shard }}/2
         env:
-          TIA_FRESH: "1"
+          TIA_FRESH: '1'
           TIA_SHARD_GROUP: ${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v4
         with:
@@ -84,4 +84,4 @@ jobs:
       - name: Restore the provider-neutral graph and replay
         run: npx vitest run --root test/fixtures/sharded-vitest
         env:
-          TIA_FILESYSTEM_ARTIFACTS: "1"
+          TIA_FILESYSTEM_ARTIFACTS: '1'

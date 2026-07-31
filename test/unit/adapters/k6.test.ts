@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,7 +13,9 @@ import {
   tia,
 } from '../../../src/adapters/k6/index.js'
 
-const root = fileURLToPath(new URL('../../fixtures/k6-project', import.meta.url))
+const root = fileURLToPath(
+  new URL('../../fixtures/k6-project', import.meta.url),
+)
 const fakeRunner = fileURLToPath(
   new URL('../../fixtures/fake-adapter-runner.mjs', import.meta.url),
 )
@@ -21,9 +23,9 @@ const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { force: true, recursive: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { force: true, recursive: true })),
   )
 })
 
@@ -35,13 +37,12 @@ describe('k6 adapter', () => {
       root,
     })
 
-    expect(suites.map((suite) => suite.profile)).toEqual([
-      'baseline',
-      'smoke',
-    ])
-    expect(suites.every((suite) => suite.resourceLocks?.includes('performance-host'))).toBe(
-      true,
-    )
+    expect(suites.map((suite) => suite.profile)).toEqual(['baseline', 'smoke'])
+    expect(
+      suites.every((suite) =>
+        suite.resourceLocks?.includes('performance-host'),
+      ),
+    ).toBe(true)
   })
 
   test('links shared imports to every profile that uses them', async () => {
@@ -118,9 +119,7 @@ describe('k6 adapter', () => {
     const baseline = await tia(options).run()
     expect(baseline.success).toBe(true)
     expect(baseline.plan.mode).toBe('full')
-    expect(
-      readFileSync(log, 'utf8').trim().split('\n').sort(),
-    ).toEqual([
+    expect(readFileSync(log, 'utf8').trim().split('\n').sort()).toEqual([
       'k6/profiles/baseline.js',
       'k6/profiles/smoke.js',
     ])
@@ -132,5 +131,28 @@ describe('k6 adapter', () => {
     const skipped = await tia(options).run()
     expect(skipped.plan.mode).toBe('skip')
     expect(skipped.executions).toEqual([])
+  })
+
+  test('does not promote a graph when a selected profile fails', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'tiacore-k6-failure-'))
+    temporaryDirectories.push(directory)
+    const graphPath = join(directory, 'graph.json')
+    const result = await tia({
+      changes: [],
+      command: process.execPath,
+      commandArguments: [fakeRunner],
+      currentEnvironmentFingerprint: 'k6-container',
+      environment: {
+        TIACORE_FAKE_RUNNER_FAIL: 'smoke.js',
+        TIACORE_FAKE_RUNNER_LOG: join(directory, 'executions.log'),
+      },
+      graphPath,
+      profiles: 'k6/profiles',
+      project: 'fixture',
+      root,
+    }).run()
+
+    expect(result).toMatchObject({ status: 7, success: false })
+    expect(existsSync(graphPath)).toBe(false)
   })
 })

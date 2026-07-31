@@ -7,10 +7,7 @@ import picomatch from 'picomatch'
 import { globSync } from 'tinyglobby'
 
 import { slash } from '../../shared/paths.js'
-import type {
-  TiaCoverageMap,
-  TiaCoverageRuntime,
-} from './types.js'
+import type { TiaCoverageMap, TiaCoverageRuntime } from './types.js'
 
 interface SelectedCoverage {
   coverage: ReturnType<typeof coverageLibrary.createCoverageMap>

@@ -62,10 +62,7 @@ async function existingImportPath(
   return null
 }
 
-async function localImports(
-  root: string,
-  entry: string,
-): Promise<string[]> {
+async function localImports(root: string, entry: string): Promise<string[]> {
   await init
   const visited = new Set<string>()
   const pending = [entry]
@@ -117,19 +114,17 @@ export async function discoverK6Suites(
     cwd: profileRoot,
     onlyFiles: true,
   })
-  return paths
-    .sort()
-    .map((path) => {
-      const file = normalizeProtocolPath(relative(root, path))
-      return {
-        adapter: 'k6',
-        file,
-        id: suiteId(options.project, file),
-        profile: file.replace(/^.*\//u, '').replace(/\.[^.]+$/u, ''),
-        project: options.project,
-        resourceLocks: ['performance-host'],
-      }
-    })
+  return paths.sort().map((path) => {
+    const file = normalizeProtocolPath(relative(root, path))
+    return {
+      adapter: 'k6',
+      file,
+      id: suiteId(options.project, file),
+      profile: file.replace(/^.*\//u, '').replace(/\.[^.]+$/u, ''),
+      project: options.project,
+      resourceLocks: ['performance-host'],
+    }
+  })
 }
 
 export async function k6CatalogFingerprint(
@@ -184,9 +179,7 @@ export interface PlanK6Options extends DiscoverK6Options {
   onUnknownChange?: 'full' | 'ignore'
 }
 
-export async function planK6(
-  options: PlanK6Options,
-): Promise<TiaImpactPlan> {
+export async function planK6(options: PlanK6Options): Promise<TiaImpactPlan> {
   const suites = await discoverK6Suites(options)
   const allowed =
     options.allowedProfiles === undefined

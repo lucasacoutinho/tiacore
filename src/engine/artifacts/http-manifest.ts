@@ -1,13 +1,16 @@
+import { createHash } from 'node:crypto'
+
 import {
-  archiveGraph,
   MAX_ARTIFACT_ARCHIVE_BYTES,
+  readArtifactArchive,
   readBoundedResponse,
 } from './archive.js'
-import type {
-  TiaArtifactCandidate,
-  TiaArtifactProvider,
-  TiaArtifactProviderContext,
-  TiaHttpManifestOptions,
+import {
+  TIA_ARTIFACT_MANIFEST_VERSION,
+  type TiaArtifactCandidate,
+  type TiaArtifactProvider,
+  type TiaArtifactProviderContext,
+  type TiaHttpManifestOptions,
 } from './types.js'
 
 const MAX_MANIFEST_BYTES = 1024 * 1024
@@ -16,7 +19,10 @@ interface ManifestArtifact {
   fingerprint?: string
   group?: number | string
   id: number | string
+  promoted?: boolean
   runner?: string
+  sha256?: string
+  size?: number
   url: string
 }
 
@@ -24,7 +30,8 @@ function manifestArtifacts(value: unknown): ManifestArtifact[] {
   if (
     value === null ||
     typeof value !== 'object' ||
-    (value as { version?: unknown }).version !== 1 ||
+    (value as { version?: unknown }).version !==
+      TIA_ARTIFACT_MANIFEST_VERSION ||
     !Array.isArray((value as { artifacts?: unknown }).artifacts)
   ) {
     return []
@@ -45,7 +52,14 @@ function manifestArtifacts(value: unknown): ManifestArtifact[] {
         (candidate.fingerprint === undefined ||
           typeof candidate.fingerprint === 'string') &&
         (candidate.runner === undefined ||
-          typeof candidate.runner === 'string')
+          typeof candidate.runner === 'string') &&
+        (candidate.promoted === undefined ||
+          typeof candidate.promoted === 'boolean') &&
+        (candidate.sha256 === undefined ||
+          (typeof candidate.sha256 === 'string' &&
+            /^[a-f0-9]{64}$/.test(candidate.sha256))) &&
+        (candidate.size === undefined ||
+          (Number.isSafeInteger(candidate.size) && candidate.size >= 0))
       )
     },
   )
@@ -70,9 +84,7 @@ async function loadHttpManifest(
     return null
   }
   const token =
-    options.tokenEnv === undefined
-      ? undefined
-      : process.env[options.tokenEnv]
+    options.tokenEnv === undefined ? undefined : process.env[options.tokenEnv]
   const headers = authorizationHeaders(
     token,
     options.authorizationScheme ?? 'Bearer',
@@ -97,8 +109,8 @@ async function loadHttpManifest(
       (artifact) =>
         (artifact.fingerprint === undefined ||
           artifact.fingerprint === context.fingerprint) &&
-        (artifact.runner === undefined ||
-          artifact.runner === context.runner),
+        (artifact.runner === undefined || artifact.runner === context.runner) &&
+        (!options.promotedOnly || artifact.promoted === true),
     )
     .slice(0, Math.max(1, Math.min(100, options.maxArtifacts ?? 20)))
   const candidates: TiaArtifactCandidate[] = []
@@ -111,8 +123,7 @@ async function loadHttpManifest(
     }
     if (!['http:', 'https:'].includes(artifactUrl.protocol)) continue
     const download = await request(artifactUrl, {
-      headers:
-        artifactUrl.origin === manifestUrl.origin ? headers : {},
+      headers: artifactUrl.origin === manifestUrl.origin ? headers : {},
       redirect: 'follow',
     })
     if (!download.ok) continue
@@ -121,13 +132,22 @@ async function loadHttpManifest(
       MAX_ARTIFACT_ARCHIVE_BYTES,
     )
     if (archive === null) continue
-    const graph = archiveGraph(archive, context.runner)
-    if (graph?.fingerprint !== context.fingerprint) continue
+    if (
+      (artifact.size !== undefined && archive.byteLength !== artifact.size) ||
+      (artifact.sha256 !== undefined &&
+        createHash('sha256').update(archive).digest('hex') !== artifact.sha256)
+    ) {
+      continue
+    }
+    const archiveValue = readArtifactArchive(archive, context.runner)
+    if (archiveValue?.graph.fingerprint !== context.fingerprint) continue
     candidates.push({
-      graph,
-      ...(artifact.group === undefined
+      ...(archiveValue.attestation === undefined
         ? {}
-        : { group: artifact.group }),
+        : { attestation: archiveValue.attestation }),
+      graph: archiveValue.graph,
+      graphSha256: archiveValue.graphSha256,
+      ...(artifact.group === undefined ? {} : { group: artifact.group }),
       id: artifact.id,
     })
   }

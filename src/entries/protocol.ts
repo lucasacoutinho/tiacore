@@ -1,4 +1,7 @@
-export { normalizeProtocolPath, normalizeProtocolPaths } from '../protocol/paths.js'
+export {
+  normalizeProtocolPath,
+  normalizeProtocolPaths,
+} from '../protocol/paths.js'
 export {
   TIA_PROTOCOL_LIMITS,
   parseArtifactEnvelope,

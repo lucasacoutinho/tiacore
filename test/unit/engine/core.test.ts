@@ -1,17 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { TiaCore } from '../../../src/entries/core.js'
+import { readGraph } from '../../../src/engine/state/store.js'
 
 const race = vi.hoisted(() => ({
   contents: '',
@@ -19,16 +14,15 @@ const race = vi.hoisted(() => ({
 }))
 
 vi.mock('../../../src/engine/planning/runtime.js', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../../src/engine/planning/runtime.js')
-  >()
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/engine/planning/runtime.js')
+    >()
   const { writeFileSync: writeDuringPlan } = await import('node:fs')
 
   return {
     ...actual,
-    createRunPlan(
-      input: Parameters<typeof actual.createRunPlan>[0],
-    ) {
+    createRunPlan(input: Parameters<typeof actual.createRunPlan>[0]) {
       const plan = actual.createRunPlan(input)
       if (race.file !== '') {
         writeDuringPlan(race.file, race.contents)
@@ -71,6 +65,7 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const initial = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -91,6 +86,7 @@ describe('runner-neutral TIA core', () => {
     writeFileSync(join(root, 'src/a.ts'), 'export const a = 2\n')
     const replay = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -105,18 +101,21 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const initial = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
     await initial.prepare()
     await initial.commit(
-      [{
-        file: 'test/a.test.ts',
-        files: ['src/a.ts', 'test/a.test.ts'],
-        fullName: 'a',
-        id: 'custom:a',
-        state: 'passed',
-      }],
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
       ['test/a.test.ts'],
     )
 
@@ -124,6 +123,7 @@ describe('runner-neutral TIA core', () => {
     race.contents = 'export const a = 2\n'
     const replay = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -137,6 +137,7 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const options = {
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
       testFiles: ['test/**/*.test.ts'],
@@ -144,13 +145,15 @@ describe('runner-neutral TIA core', () => {
     const initial = new TiaCore(options)
     await initial.prepare()
     await initial.commit(
-      [{
-        file: 'test/a.test.ts',
-        files: ['src/a.ts', 'test/a.test.ts'],
-        fullName: 'a',
-        id: 'custom:a',
-        state: 'passed',
-      }],
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
       ['test/a.test.ts'],
     )
 
@@ -171,29 +174,31 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const options = {
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     }
     const initial = new TiaCore(options)
     await initial.prepare()
     await initial.commit(
-      [{
-        file: 'test/a.test.ts',
-        files: ['src/a.ts', 'test/a.test.ts'],
-        fullName: 'a',
-        id: 'custom:a',
-        state: 'passed',
-      }],
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
       ['test/a.test.ts'],
     )
-    const graph = readFileSync(
-      join(root, '.tia/custom/graph.json'),
-      'utf8',
-    )
+    const graph = readGraph(join(root, '.tia/custom'))
+    if (graph === null) throw new Error('expected custom graph')
     rmSync(join(root, '.tia'), { force: true, recursive: true })
 
     const replay = new TiaCore({
       ...options,
+      artifactTrust: { allowUnsigned: true },
       artifacts: {
         load: () => ({ graph, id: 'artifact-42' }),
         name: 'fixture registry',

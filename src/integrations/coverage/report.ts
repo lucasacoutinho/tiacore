@@ -6,10 +6,7 @@ import reportLibrary from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
 
 import { projectRelative } from '../../shared/paths.js'
-import type {
-  TiaCoverageMap,
-  TiaCoverageRuntime,
-} from './types.js'
+import type { TiaCoverageMap, TiaCoverageRuntime } from './types.js'
 import type { TiaRuntimeGraph } from '../../engine/types.js'
 import {
   coverageThresholdFailures,
@@ -97,11 +94,16 @@ export function writeCoverageReports(
   })
 
   for (const reporter of options.reporters) {
-    reports.create(reporter.name as never, {
-      projectRoot: root,
-      skipFull: options.skipFull,
-      ...reporter.options,
-    } as never).execute(context)
+    reports
+      .create(
+        reporter.name as never,
+        {
+          projectRoot: root,
+          skipFull: options.skipFull,
+          ...reporter.options,
+        } as never,
+      )
+      .execute(context)
   }
 
   return {

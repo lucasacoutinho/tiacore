@@ -57,9 +57,7 @@ function escapeRegExp(value: string): string {
 }
 
 function nodeVersionSupported(): boolean {
-  const [major = 0, minor = 0] = process.versions.node
-    .split('.')
-    .map(Number)
+  const [major = 0, minor = 0] = process.versions.node.split('.').map(Number)
   return major > 22 || (major === 22 && minor >= 10)
 }
 
@@ -69,9 +67,7 @@ class NodeTiaRunner implements TiaRunner {
   private readonly files: string[]
   private readonly log: boolean
   private readonly root: string
-  private readonly discoveryRegister = runnerAsset(
-    'discovery-register.js',
-  )
+  private readonly discoveryRegister = runnerAsset('discovery-register.js')
   private readonly executionChild = runnerAsset('execution-child.js')
 
   constructor(options: TiaRunnerOptions) {
@@ -84,9 +80,7 @@ class NodeTiaRunner implements TiaRunner {
       files: options.files ?? DEFAULT_NODE_TESTS,
       root: this.root,
       runner: 'node',
-      testFiles: this.files.map((file) =>
-        slash(relative(this.root, file)),
-      ),
+      testFiles: this.files.map((file) => slash(relative(this.root, file))),
     })
   }
 
@@ -160,17 +154,11 @@ class NodeTiaRunner implements TiaRunner {
 
     if (discovery.aggregate) {
       return discovery.cases.map((testCase) =>
-        this.observation(testCase, [
-          testCase.file,
-          ...discovery.coverageFiles,
-        ]),
+        this.observation(testCase, [testCase.file, ...discovery.coverageFiles]),
       )
     }
 
-    const groups = groupBy(
-      discovery.cases,
-      (candidate) => candidate.file,
-    )
+    const groups = groupBy(discovery.cases, (candidate) => candidate.file)
     observations.push(
       ...(
         await parallelMap(
@@ -267,10 +255,7 @@ class NodeTiaRunner implements TiaRunner {
     )
     if (moduleFailure && execution.cases.length > 0) {
       return execution.cases.map((testCase) =>
-        this.observation(testCase, [
-          cached.file,
-          ...execution.coverageFiles,
-        ]),
+        this.observation(testCase, [cached.file, ...execution.coverageFiles]),
       )
     }
     const executed = execution.cases.find(
@@ -289,10 +274,7 @@ class NodeTiaRunner implements TiaRunner {
           }
     if (result !== undefined) {
       return [
-        this.observation(result, [
-          cached.file,
-          ...execution.coverageFiles,
-        ]),
+        this.observation(result, [cached.file, ...execution.coverageFiles]),
       ]
     }
 
@@ -303,10 +285,7 @@ class NodeTiaRunner implements TiaRunner {
     return []
   }
 
-  private observation(
-    testCase: NodeCase,
-    files: string[],
-  ): TiaObservation {
+  private observation(testCase: NodeCase, files: string[]): TiaObservation {
     return {
       ...(testCase.duration === undefined
         ? {}
@@ -334,8 +313,7 @@ class NodeTiaRunner implements TiaRunner {
         await parallelMap(
           files,
           this.concurrency,
-          async (file) =>
-            await this.discoverFile(file, output),
+          async (file) => await this.discoverFile(file, output),
         )
       ).filter((file): file is string => file !== null)
       const cases = parseNodeDiscoveryRecords(
@@ -386,9 +364,7 @@ class NodeTiaRunner implements TiaRunner {
       child.on('close', resolveStatus)
     })
 
-    return status === 0
-      ? null
-      : slash(relative(this.root, file))
+    return status === 0 ? null : slash(relative(this.root, file))
   }
 
   private async execute(
@@ -441,9 +417,7 @@ class NodeTiaRunner implements TiaRunner {
       return {
         cases: [],
         coverageFiles: [],
-        moduleFailures: files.map((file) =>
-          slash(relative(this.root, file)),
-        ),
+        moduleFailures: files.map((file) => slash(relative(this.root, file))),
         success: false,
       }
     } finally {

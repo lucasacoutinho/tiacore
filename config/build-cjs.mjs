@@ -3,9 +3,13 @@ import { chmod, writeFile } from 'node:fs/promises'
 import { build } from 'esbuild'
 
 const subpathEntryNames = [
+  'adapter',
+  'artifacts',
   'core',
+  'evidence',
   'protocol',
   'conformance',
+  'gradle',
   'maestro',
   'k6',
   'bun',
@@ -13,6 +17,7 @@ const subpathEntryNames = [
   'playwright',
   'vitest',
   'workspace',
+  'verification',
 ]
 const packageEntries = [
   { output: 'index', source: 'src/index.ts' },

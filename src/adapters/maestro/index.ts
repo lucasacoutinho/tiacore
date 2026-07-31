@@ -129,11 +129,7 @@ export async function discoverMaestroSuites(
     const metadata = (documents[0]?.toJS() ?? {}) as MaestroMetadata
     const tags = stringArray(metadata.tags).sort()
     if (
-      !includesTags(
-        tags,
-        options.includeTags ?? [],
-        options.excludeTags ?? [],
-      )
+      !includesTags(tags, options.includeTags ?? [], options.excludeTags ?? [])
     ) {
       continue
     }
@@ -147,9 +143,7 @@ export async function discoverMaestroSuites(
     )
     discovered.set(projectFile, {
       adapter: 'maestro',
-      ...(typeof metadata.appId === 'string'
-        ? { appId: metadata.appId }
-        : {}),
+      ...(typeof metadata.appId === 'string' ? { appId: metadata.appId } : {}),
       file: projectFile,
       id: suiteId(options.project, projectFile),
       name:
@@ -256,8 +250,7 @@ export async function planMaestro(
   })
 }
 
-export interface TiaMaestroOptions
-  extends Omit<PlanMaestroOptions, 'graph'> {
+export interface TiaMaestroOptions extends Omit<PlanMaestroOptions, 'graph'> {
   command?: string
   commandArguments?: string[]
   environment?: NodeJS.ProcessEnv

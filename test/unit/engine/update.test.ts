@@ -1,9 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -79,24 +74,28 @@ describe('shared graph updates', () => {
       executedFiles: ['test/a.test.ts'],
       fullyExecutedFiles: ['test/a.test.ts'],
       previous: graph(),
-      results: new Map([[
-        'new',
-        {
-          file: 'test/a.test.ts',
-          fullName: 'new case',
-          id: 'new',
-          state: 'passed',
-        },
-      ]]),
+      results: new Map([
+        [
+          'new',
+          {
+            file: 'test/a.test.ts',
+            fullName: 'new case',
+            id: 'new',
+            state: 'passed',
+          },
+        ],
+      ]),
       root,
       testCoverage: new Map([['new', {}]]),
-      testEdges: new Map([[
-        'new',
-        {
-          file: 'test/a.test.ts',
-          files: ['src/new.ts', 'test/a.test.ts'],
-        },
-      ]]),
+      testEdges: new Map([
+        [
+          'new',
+          {
+            file: 'test/a.test.ts',
+            files: ['src/new.ts', 'test/a.test.ts'],
+          },
+        ],
+      ]),
     })
 
     expect(updated.results).toEqual({

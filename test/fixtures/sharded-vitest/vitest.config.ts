@@ -10,6 +10,7 @@ export default defineConfig({
               provider: 'filesystem',
               paths: ['.tia-artifacts'],
             } as const,
+            artifactTrust: { allowUnsigned: true },
           }
         : {}),
       cacheDir: process.env.TIA_CACHE_DIR ?? '.tia',

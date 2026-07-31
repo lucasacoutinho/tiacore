@@ -2,16 +2,32 @@ import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, resolve } from 'node:path'
 
-import { tia } from '@usescherie/tiacore/playwright'
+import * as evidenceApi from '@usescherie/tiacore/evidence'
+import * as playwrightApi from '@usescherie/tiacore/playwright'
 
 const root = process.cwd()
+process.env.TIA_EVIDENCE_DIRECTORY = '.tia/evidence/playwright'
+const evidence = evidenceApi.tia({
+  directory: process.env.TIA_EVIDENCE_DIRECTORY,
+  producer: 'fixture-http-service',
+  root,
+})
 const contentTypes = {
   '.html': 'text/html',
   '.js': 'application/javascript',
 }
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://fixture.test').pathname
-  const file = resolve(root, pathname === '/' ? 'src/index.html' : `.${pathname}`)
+  const correlationId = evidence.fromHeaders(request.headers)
+  if (pathname.endsWith('/lazy.js') && correlationId !== null) {
+    await evidence.run(correlationId, () =>
+      evidence.record(['backend/lazy-route.ts']),
+    )
+  }
+  const file = resolve(
+    root,
+    pathname === '/' ? 'src/index.html' : `.${pathname}`,
+  )
   try {
     const body = await readFile(file)
     response.writeHead(200, {
@@ -32,20 +48,13 @@ if (address === null || typeof address === 'string') {
 process.env.BASE_URL = `http://127.0.0.1:${address.port}`
 
 try {
-  const result = await tia({
-    config: 'playwright.config.ts',
-    frameworks: {
-      subprocess: {
-        mappings: [
-          {
-            files: ['backend/lazy-route.ts'],
-            tests: ['test/lazy.spec.ts'],
-          },
-        ],
-      },
-    },
-    root,
-  }).run()
+  const result = await playwrightApi
+    .tia({
+      config: 'playwright.config.ts',
+      evidenceDirectory: process.env.TIA_EVIDENCE_DIRECTORY,
+      root,
+    })
+    .run()
   process.exitCode = result.success ? 0 : 1
 } finally {
   await new Promise((closed) => server.close(closed))

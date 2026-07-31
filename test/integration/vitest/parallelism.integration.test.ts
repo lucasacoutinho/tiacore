@@ -43,16 +43,16 @@ function spans(root: string): Span[] {
   }
   return readdirSync(directory)
     .sort()
-    .map((file) =>
-      JSON.parse(readFileSync(join(directory, file), 'utf8')) as Span,
+    .map(
+      (file) => JSON.parse(readFileSync(join(directory, file), 'utf8')) as Span,
     )
 }
 
 function hasOverlap(values: Span[]): boolean {
   return values.some((left, index) =>
-    values.slice(index + 1).some(
-      (right) => left.start < right.end && right.start < left.end,
-    ),
+    values
+      .slice(index + 1)
+      .some((right) => left.start < right.end && right.start < left.end),
   )
 }
 

@@ -7,4 +7,5 @@ test('loads a dynamic browser module', async ({ page }) => {
   await page.goto('/')
   await page.locator('#load').click()
   await expect(page.locator('#lazy')).toHaveText('lazy ready')
+  expect(process.env.TIACORE_PLAYWRIGHT_FAIL).not.toBe('1')
 })

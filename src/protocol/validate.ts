@@ -55,12 +55,7 @@ const SUITE_KEYS = new Set([
   'resourceLocks',
   'tags',
 ])
-const OBSERVATION_KEYS = new Set([
-  'confidence',
-  'kind',
-  'source',
-  'suiteId',
-])
+const OBSERVATION_KEYS = new Set(['confidence', 'kind', 'source', 'suiteId'])
 const INVALIDATOR_KEYS = new Set(['pattern', 'reason'])
 const ENVELOPE_KEYS = new Set([
   'adapter',
@@ -75,10 +70,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function record(
-  value: unknown,
-  label: string,
-): Record<string, unknown> {
+function record(value: unknown, label: string): Record<string, unknown> {
   if (!isRecord(value)) {
     throw new Error(`${label} must be an object`)
   }
@@ -96,11 +88,7 @@ function knownKeys(
   }
 }
 
-function boundedArray(
-  value: unknown,
-  limit: number,
-  label: string,
-): unknown[] {
+function boundedArray(value: unknown, limit: number, label: string): unknown[] {
   if (!Array.isArray(value)) {
     throw new Error(`${label} must be an array`)
   }
@@ -186,10 +174,7 @@ function suite(value: unknown, index: number): TiaSuiteDescriptor {
   return result
 }
 
-function observation(
-  value: unknown,
-  index: number,
-): TiaDependencyObservation {
+function observation(value: unknown, index: number): TiaDependencyObservation {
   const parsed = record(value, `TIA observation ${index}`)
   knownKeys(parsed, OBSERVATION_KEYS, `TIA observation ${index}`)
   const kind = text(parsed.kind, `TIA observation ${index} kind`)
@@ -275,7 +260,9 @@ export function parseImpactGraph(value: unknown): TiaImpactGraph {
   const suiteMap = new Map<string, TiaSuiteDescriptor>()
   for (const candidate of suites) {
     if (suiteMap.has(candidate.id)) {
-      throw new Error(`TIA impact graph has a duplicate suite id: ${candidate.id}`)
+      throw new Error(
+        `TIA impact graph has a duplicate suite id: ${candidate.id}`,
+      )
     }
     suiteMap.set(candidate.id, candidate)
   }
@@ -356,10 +343,7 @@ export function parseImpactGraph(value: unknown): TiaImpactGraph {
       'TIA impact graph environmentFingerprint',
       { allowEmpty: true },
     ),
-    fingerprint: text(
-      parsed.fingerprint,
-      'TIA impact graph fingerprint',
-    ),
+    fingerprint: text(parsed.fingerprint, 'TIA impact graph fingerprint'),
     ...(invalidators === undefined ? {} : { invalidators }),
     ...(knownSources === undefined ? {} : { knownSources }),
     observations,

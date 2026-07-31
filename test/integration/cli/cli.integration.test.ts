@@ -1,10 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import {
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -71,9 +66,18 @@ describe('tiacore CLI', () => {
     const binary = join(root, 'tiacore')
     symlinkSync(join(process.cwd(), 'dist/entries/cli.js'), binary)
 
-    expect(execFileSync(binary, ['--help'], { encoding: 'utf8' })).toContain(
-      'tiacore plan',
-    )
+    const help = execFileSync(binary, ['--help'], { encoding: 'utf8' })
+    expect(help).toContain('plan [options]')
+    expect(help).toContain('k6')
+    expect(help).toContain('gradle')
+    expect(help).not.toContain('k6:')
+
+    const adapterHelp = execFileSync(binary, ['k6', '--help'], {
+      encoding: 'utf8',
+    })
+    expect(adapterHelp).toContain('discover')
+    expect(adapterHelp).toContain('record')
+    expect(adapterHelp).toContain('plan')
   })
 
   test('plans from portable JSON files', () => {
@@ -137,10 +141,8 @@ describe('tiacore CLI', () => {
       scenarios: TIA_ADAPTER_CONFORMANCE_SCENARIOS.filter(
         (scenario) =>
           scenario.feature === undefined &&
-          (
-            scenario.capabilityLevels === undefined ||
-            scenario.capabilityLevels.includes('static-impact')
-          ),
+          (scenario.capabilityLevels === undefined ||
+            scenario.capabilityLevels.includes('static-impact')),
       ).map(({ id }) => ({
         evidence: { assertions: 1, fixture: `fixtures/${id}` },
         id,

@@ -61,15 +61,17 @@ export function parseNodeDiscoveryRecords(
         const absoluteFile = resolve(record.file)
         if (!isInside(root, absoluteFile)) return []
         const file = slash(relative(root, absoluteFile))
-        return [{
-          column: record.column,
-          file,
-          fullName: record.fullName,
-          id: testId(file, record.line, record.column, record.fullName),
-          line: record.line,
-          state: record.skipped ? 'skipped' : 'passed',
-          name: record.name,
-        }]
+        return [
+          {
+            column: record.column,
+            file,
+            fullName: record.fullName,
+            id: testId(file, record.line, record.column, record.fullName),
+            line: record.line,
+            state: record.skipped ? 'skipped' : 'passed',
+            name: record.name,
+          },
+        ]
       } catch {
         return []
       }

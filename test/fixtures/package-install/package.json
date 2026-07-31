@@ -6,6 +6,7 @@
     "test": "tsc --noEmit && vitest run && vitest run && node --test verify.test.mjs"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "@usescherie/tiacore": "file:./tiacore.tgz",
     "typescript": "^5.9.0",
     "vite": "^7.0.0",

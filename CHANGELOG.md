@@ -1,12 +1,77 @@
 # Changelog
 
-All notable changes to tiacore will be documented here. The project follows
-Semantic Versioning once a version is published.
+All notable changes to tiacore will be documented here. Published releases
+follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.0.0 - 2026-07-31
+
 ### Added
 
+- Added independent shadow verification of selective runs. Verification now
+  derives required tests from the before/after dependency-graph union and
+  reports selection misses, false-negative rate, and precision.
+- Added signed, provider-neutral baseline artifacts with Ed25519 producer
+  attestations, bounded claims, lineage, expiry, and promotion policy. Shared
+  artifacts are rejected by default unless their producer is trusted.
+- Added the stable TypeScript adapter API at `@usescherie/tiacore/adapter`.
+  Third-party runners implement discovery and execution behind the single
+  `tia()` factory while tiacore owns planning, replay, verification, artifacts,
+  and persistence.
+- Added explicit public version constants for the TypeScript adapter, artifact
+  attestation and manifest, verification snapshot and receipt, runner-neutral
+  protocol, and adapter conformance contracts.
+
+### Changed
+
+- Replaced the monolithic local runtime graph with an atomic bounded manifest
+  and content-addressed record buckets. Small updates reuse unchanged objects;
+  invalid or incomplete state fails closed and rebuilds safely.
+- Qualified the supported JavaScript adapters across their failure paths and
+  expanded Linux, Windows, macOS, Bun, native Node, and Chromium Browser Mode CI
+  gates. Native runners retain their own parallelism and resource control.
+- Added repository-wide Oxfmt and Oxlint checks to the default local and CI
+  quality gate.
+- Declared the documented package entry points and versioned wire formats as the
+  stable 1.x compatibility surface. Internal storage layout remains rebuildable
+  implementation detail.
+
+### Fixed
+
+- Prevented k6, Maestro, and Gradle failures from promoting partial state.
+- Prevented failed Playwright specs from being replayed as passing cached work.
+- Treated failed or missing Gradle JUnit results as incomplete execution even
+  when the Gradle process exits successfully.
+- Made the documented fresh release gate independent from record/replay tests
+  that intentionally override inherited `TIA_FRESH` behavior.
+- Shipped the Istanbul declaration packages required by strict TypeScript
+  consumers and qualified the generated npm tarball in a clean project.
+
+## 0.5.0 - 2026-07-31
+
+- Replaced the hand-written executable argument parser with Commander 14 and
+  moved k6 and Maestro command declarations into their adapter modules.
+- Added the `@usescherie/tiacore/evidence` correlation SDK and Playwright
+  request propagation so browser tests can own files executed by API and worker
+  processes.
+- Added an adapter-owned Gradle/JUnit entry point and CLI namespace for Java and
+  Kotlin test-class selection, native Gradle execution, and JUnit completion
+  validation.
+- Added bounded executable certification and Scherie-scale protocol regression
+  coverage using the existing Vitest Bench harness.
+
+### Added
+
+- Added differential verification through `tiacore verify` and
+  `@usescherie/tiacore/verification`. It compares a normal selective run with a
+  fresh full run across every participating runner and emits a machine-readable
+  receipt for outcomes, dependency evidence, complete coverage evidence,
+  executed and replayed counts, fallbacks, and measured speedup.
+- Added provider-neutral artifact publishing through
+  `@usescherie/tiacore/artifacts` and `tiacore artifacts publish|promote`, with
+  custom sinks, filesystem output, SHA-256 integrity, source and parent lineage,
+  explicit trust state, and coverage-aware promotion refusal.
 - Added runtime baseline provenance and per-target selection decisions to run
   plans and replay lifecycle events, with bounded human-readable explanations
   across Vitest, Playwright, Node, and Bun.
@@ -23,8 +88,8 @@ Semantic Versioning once a version is published.
 ### Fixed
 
 - Ignored Bun's transient `.bun-build` files and failed closed instead of
-  throwing when a relevant file becomes unreadable during a concurrent
-  baseline snapshot.
+  throwing when a relevant file becomes unreadable during a concurrent baseline
+  snapshot.
 
 ## 0.4.0 - 2026-07-31
 
@@ -33,8 +98,8 @@ Semantic Versioning once a version is published.
 - Added an explicit `@usescherie/tiacore/vitest` entry point while preserving
   the root Vitest compatibility export.
 - Added `@usescherie/tiacore/workspace` and `tiacore run` for bounded parallel
-  command and adapter lanes with dependencies, fail-fast behavior, and
-  resource locks.
+  command and adapter lanes with dependencies, fail-fast behavior, and resource
+  locks.
 
 ### Changed
 
@@ -77,13 +142,12 @@ Semantic Versioning once a version is published.
   cleaning, failed-test reporting, watermarks, reporter tuples, and thresholds.
 - Compatibility and failure-injection suites for supported runtimes, Vite
   versions, package managers, workers, writers, shards, artifacts, and paths.
-- ESM and CommonJS runtime and declaration exports for every public entry
-  point.
+- ESM and CommonJS runtime and declaration exports for every public entry point.
 - Provider-neutral private npm publication with an explicit public-registry
   refusal, plus generated-output-free VCS installs.
 - Reproducible Bun VCS source builds that temporarily bootstrap the
-  package-locked development toolchain before compiling uncommitted
-  distribution output without shadowing consumer peer dependencies.
+  package-locked development toolchain before compiling uncommitted distribution
+  output without shadowing consumer peer dependencies.
 
 ### Changed
 
@@ -91,18 +155,18 @@ Semantic Versioning once a version is published.
   cross-process environment variables, Playwright attachments, shared symbols,
   fixtures, and test infrastructure. No legacy alias is retained because no
   tagged release or known consumer uses the old identifiers.
-- Made protocol v1 bounded and canonical. Runtime validation now rejects
-  unknown fields, duplicate relations, dependency cycles, unsafe paths, and
-  oversized collections. Shipped schemas, an artifact-envelope validator, and
+- Made protocol v1 bounded and canonical. Runtime validation now rejects unknown
+  fields, duplicate relations, dependency cycles, unsafe paths, and oversized
+  collections. Shipped schemas, an artifact-envelope validator, and
   language-independent golden planning and rejection vectors.
-- Renamed the JavaScript-only cache type to `TiaRuntimeGraph` and documented
-  its boundary from the portable `TiaImpactGraph` protocol.
+- Renamed the JavaScript-only cache type to `TiaRuntimeGraph` and documented its
+  boundary from the portable `TiaImpactGraph` protocol.
 - Added a capability-scoped adapter conformance catalog, strict certification
   receipt, public validation API, schema, and `tiacore certify adapter` CLI.
 - Added executable `tia(options).run()` paths for k6 and Maestro with
   resource-lock scheduling and success-gated graph promotion.
-- Added explicit subprocess ownership mappings and shared those framework
-  edges with the Playwright runner for backend, database, and view sources.
+- Added explicit subprocess ownership mappings and shared those framework edges
+  with the Playwright runner for backend, database, and view sources.
 - Added direct GitLab CI artifact discovery and a bounded, authenticated HTTP
   manifest provider suitable for Buildkite, Jenkins, and signed object-storage
   URLs.

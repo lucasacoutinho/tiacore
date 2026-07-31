@@ -18,18 +18,18 @@
     "sourceRevision"
   ],
   "properties": {
-    "adapter": {"$ref": "#/$defs/text"},
+    "adapter": { "$ref": "#/$defs/text" },
     "capabilityLevel": {
       "enum": ["runtime-tia", "observed-file-tia", "static-impact"]
     },
-    "contractVersion": {"const": 1},
+    "contractVersion": { "const": 1 },
     "environment": {
       "type": "object",
       "additionalProperties": false,
       "required": ["architecture", "operatingSystem"],
       "properties": {
-        "architecture": {"$ref": "#/$defs/text"},
-        "operatingSystem": {"$ref": "#/$defs/text"}
+        "architecture": { "$ref": "#/$defs/text" },
+        "operatingSystem": { "$ref": "#/$defs/text" }
       }
     },
     "features": {
@@ -46,26 +46,26 @@
         ]
       }
     },
-    "generatedAt": {"$ref": "#/$defs/text"},
-    "protocolVersion": {"const": 1},
+    "generatedAt": { "$ref": "#/$defs/text" },
+    "protocolVersion": { "const": 1 },
     "runner": {
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "version"],
       "properties": {
-        "name": {"$ref": "#/$defs/text"},
-        "version": {"$ref": "#/$defs/text"}
+        "name": { "$ref": "#/$defs/text" },
+        "version": { "$ref": "#/$defs/text" }
       }
     },
     "scenarios": {
       "type": "array",
       "maxItems": 18,
-      "items": {"$ref": "#/$defs/scenario"}
+      "items": { "$ref": "#/$defs/scenario" }
     },
     "selectionGranularity": {
       "enum": ["test-case", "test-file", "profile", "flow"]
     },
-    "sourceRevision": {"$ref": "#/$defs/text"}
+    "sourceRevision": { "$ref": "#/$defs/text" }
   },
   "$defs": {
     "text": {
@@ -83,14 +83,14 @@
           "additionalProperties": false,
           "required": ["assertions", "fixture"],
           "properties": {
-            "assertions": {"type": "number", "minimum": 0},
-            "command": {"$ref": "#/$defs/text"},
-            "durationMs": {"type": "number", "minimum": 0},
-            "fixture": {"$ref": "#/$defs/text"}
+            "assertions": { "type": "number", "minimum": 0 },
+            "command": { "$ref": "#/$defs/text" },
+            "durationMs": { "type": "number", "minimum": 0 },
+            "fixture": { "$ref": "#/$defs/text" }
           }
         },
-        "id": {"$ref": "#/$defs/text"},
-        "passed": {"type": "boolean"}
+        "id": { "$ref": "#/$defs/text" },
+        "passed": { "type": "boolean" }
       }
     }
   }

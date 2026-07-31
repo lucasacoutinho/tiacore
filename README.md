@@ -2,20 +2,20 @@
 
 Run the tests a change can affect. Reuse verified results for the rest.
 
-tiacore records runtime dependencies and test outcomes during a full run. On
-the next run, it compares the current project with that baseline, executes the
+tiacore records runtime dependencies and test outcomes during a full run. On the
+next run, it compares the current project with that baseline, executes the
 affected tests, and reuses unaffected results. Uncertain input causes a safe
 full-suite run.
 
-It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6, and
-pytest. Git improves baseline comparison, but it is optional.
+It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6,
+Gradle/JUnit, and pytest. Git improves baseline comparison, but it is optional.
 
-> tiacore is pre-release, proprietary software. Install an exact reviewed VCS
-> revision until private packages are available.
+> tiacore 1.x is stable, proprietary software. Install it from an
+> access-controlled registry or an exact reviewed VCS revision.
 
 ## Quick start
 
-Install tiacore from an exact commit:
+Install tiacore from an exact commit when a private registry is not configured:
 
 ```sh
 npm install --save-dev \
@@ -56,6 +56,17 @@ per-test shards. No separate `:tia` script is required.
 [Read the setup guide](docs/guides/getting-started.md) for Playwright,
 `node:test`, Bun, Maestro, k6, pytest, and workspace orchestration.
 
+Before trusting a new adapter or framework edge, compare its selective result
+with a fresh full run of the same command:
+
+```sh
+npx tiacore verify --output .tia/verification.json -- npm test
+```
+
+The command fails when selection misses a required test or when outcomes,
+dependency evidence, or complete coverage evidence diverge. It can verify a
+workspace command that invokes several TIA runners in one pass.
+
 ## Why tiacore
 
 - Runtime evidence catches lazy imports, rendered React components, browser
@@ -69,17 +80,22 @@ per-test shards. No separate `:tia` script is required.
 - A versioned protocol and conformance suite support adapters outside
   JavaScript.
 
+The documented package entry points and versioned contracts follow Semantic
+Versioning throughout 1.x. Internal cache storage may rebuild safely between
+minor releases, but it is never treated as portable application data.
+
 ## Supported runners
 
-| Runner | Import | Selection |
-| --- | --- | --- |
-| Vitest | `@usescherie/tiacore/vitest` | Exact test cases; conservative whole-file handling for concurrent cases |
-| Playwright | `@usescherie/tiacore/playwright` | Affected spec files from browser and fixture evidence |
-| `node:test` | `@usescherie/tiacore/node` | Test cases, with precise discovery on Node 22.15 and newer |
-| `bun:test` | `@usescherie/tiacore/bun` | Test cases from isolated LCOV observations |
-| Maestro | `@usescherie/tiacore/maestro` | Flows and transitive `runFlow` dependencies |
-| k6 | `@usescherie/tiacore/k6` | Profiles and transitive local imports |
-| pytest | `sdks/python` | Test files and transitive local imports |
+| Runner       | Import                           | Selection                                                               |
+| ------------ | -------------------------------- | ----------------------------------------------------------------------- |
+| Vitest       | `@usescherie/tiacore/vitest`     | Exact test cases; conservative whole-file handling for concurrent cases |
+| Playwright   | `@usescherie/tiacore/playwright` | Affected spec files from browser and fixture evidence                   |
+| `node:test`  | `@usescherie/tiacore/node`       | Test cases, with precise discovery on Node 22.15 and newer              |
+| `bun:test`   | `@usescherie/tiacore/bun`        | Test cases from isolated LCOV observations                              |
+| Maestro      | `@usescherie/tiacore/maestro`    | Flows and transitive `runFlow` dependencies                             |
+| k6           | `@usescherie/tiacore/k6`         | Profiles and transitive local imports                                   |
+| Gradle/JUnit | `@usescherie/tiacore/gradle`     | Java/Kotlin test classes and local imports; JUnit result validation     |
+| pytest       | `sdks/python`                    | Test files and transitive local imports                                 |
 
 Vitest 4.1 and Node.js 20 or newer are required for the main package. The
 standalone Node adapter requires Node.js 22.10 or newer. See the
@@ -88,27 +104,35 @@ claims and certification levels.
 
 ## How it works
 
-1. A full run records tests, runtime dependency edges, outcomes, coverage, and
-   a project baseline.
+1. A full run records tests, runtime dependency edges, outcomes, coverage, and a
+   project baseline.
 2. A later run compares Git state or filesystem content with that baseline.
 3. The adapter selects affected tests and previously failing tests.
 4. A successful run commits the new graph atomically. Incomplete evidence does
    not replace the last valid graph.
 
+The local cache uses a bounded atomic manifest and content-addressed record
+buckets, so a small update does not rewrite one growing graph file.
+
 The default cache is `.tia/`. Every Git worktree gets its own cache unless an
 explicit shared path is configured. CI can restore an ancestral graph through
 filesystem downloads, GitHub Actions, GitLab CI, an HTTP manifest, or a custom
-artifact provider.
+artifact provider. Shared artifacts require a trusted Ed25519 producer
+attestation by default.
 
 ## Documentation
 
 - [Getting started and runner setup](docs/guides/getting-started.md)
 - [Configuration and safety behavior](docs/guides/configuration.md)
 - [CI, parallelism, shards, and worktrees](docs/guides/ci-and-parallelism.md)
+- [Differential verification](docs/guides/verification.md)
+- [TypeScript adapter contract](docs/guides/custom-adapters.md)
+- [Scherie benchmark baseline](docs/benchmarks/scherie.md)
 - [Public API](docs/public-api.md)
 - [Target architecture](docs/architecture/target.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)
 - [Protocol version 1](spec/protocol-v1.md)
+- [Artifact attestation version 1](spec/artifact-attestation-v1.md)
 - [Adapter capability contract](docs/architecture/capability-contract.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
@@ -122,6 +146,8 @@ npm run check
 npm run check:package
 npm run check:python
 ```
+
+`npm run check` enforces Oxfmt and Oxlint before type-checking and testing.
 
 Implementation code is grouped by responsibility. `src/index.ts` is the only
 file at the source root; package subpath shims and the CLI launcher live in

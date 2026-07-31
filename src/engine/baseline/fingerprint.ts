@@ -23,12 +23,10 @@ export function hashFile(path: string): string {
   try {
     return hashBytes(readFileSync(path))
   } catch (error) {
-    return (
-      error !== null &&
+    return error !== null &&
       typeof error === 'object' &&
       'code' in error &&
       error.code === 'ENOENT'
-    )
       ? DELETED_HASH
       : UNAVAILABLE_HASH
   }
@@ -41,7 +39,9 @@ export function projectFingerprint(
 ): string {
   const names = new Set(
     readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && STRUCTURAL_FILE_PATTERN.test(entry.name))
+      .filter(
+        (entry) => entry.isFile() && STRUCTURAL_FILE_PATTERN.test(entry.name),
+      )
       .map((entry) => entry.name),
   )
 

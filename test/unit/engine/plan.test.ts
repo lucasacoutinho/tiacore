@@ -46,19 +46,20 @@ function fixture(): string {
 
 const options: NormalizedOptions = {
   cacheDir: '.tia',
+  artifactTrust: {},
   coverage: false,
   enabled: true,
   exclude: [],
-      fresh: false,
-      artifactProviders: [],
-      frameworkAdapters: [],
-      frameworkFingerprint: '',
+  fresh: false,
+  artifactProviders: [],
+  frameworkAdapters: [],
+  frameworkFingerprint: '',
   ignoreChanges: [],
   include: ['**/*.ts'],
   log: false,
   onUnknownChange: 'full',
-      replayAdapters: [],
-      replayReporters: [],
+  replayAdapters: [],
+  replayReporters: [],
 }
 
 function graph(root: string): TiaRuntimeGraph {
@@ -129,7 +130,7 @@ describe('run planning', () => {
     expect(baseline?.workingTree).not.toHaveProperty('coverage/generated.json')
   })
 
-  test('records a full suite when complete coverage is requested from a legacy graph', () => {
+  test('records a full suite when complete coverage evidence is unavailable', () => {
     const root = fixture()
     const cached = graph(root)
     cached.coverageComplete = false
@@ -161,10 +162,7 @@ describe('run planning', () => {
     })
 
     expect(plan.mode).toBe('replay')
-    expect(plan.affectedTests).toEqual([
-      'test/a.test.ts',
-      'test/b.test.ts',
-    ])
+    expect(plan.affectedTests).toEqual(['test/a.test.ts', 'test/b.test.ts'])
     expect(plan.changedFiles).toEqual(['src/a.ts'])
     expect(plan.affectedTestIds).toEqual(['a', 'b'])
     expect(plan.baseline).toMatchObject({
@@ -258,10 +256,7 @@ describe('run planning', () => {
     const cached = graph(root)
     cached.results.b!.state = 'passed'
     writeFileSync(
-      join(
-        root,
-        'vitest.config.ts.timestamp-1785371646448-fd4ecc6d85bf58.mjs',
-      ),
+      join(root, 'vitest.config.ts.timestamp-1785371646448-fd4ecc6d85bf58.mjs'),
       'export default {}\n',
     )
 
@@ -376,7 +371,10 @@ describe('run planning', () => {
   test('never ignores changed structural files', () => {
     const root = fixture()
     const cached = graph(root)
-    writeFileSync(join(root, 'package.json'), '{"type":"module","private":true}\n')
+    writeFileSync(
+      join(root, 'package.json'),
+      '{"type":"module","private":true}\n',
+    )
 
     const plan = createRunPlan({
       cachePrefix: '.tia',
@@ -430,7 +428,7 @@ describe('run planning', () => {
     expect(plan.affectedTestIds).toEqual(['a'])
   })
 
-  test('falls back to the whole linked file for a legacy graph', () => {
+  test('falls back to the whole linked file when per-case edges are incomplete', () => {
     const root = fixture()
     const cached = graph(root)
     cached.results.b!.state = 'passed'
@@ -485,10 +483,7 @@ describe('run planning', () => {
     const root = fixture()
     const cached = graph(root)
     cached.results.b!.state = 'passed'
-    writeFileSync(
-      join(root, 'test/a.test.ts'),
-      'test("a changed", () => {})\n',
-    )
+    writeFileSync(join(root, 'test/a.test.ts'), 'test("a changed", () => {})\n')
 
     const plan = createRunPlan({
       cachePrefix: '.tia',

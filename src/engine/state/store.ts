@@ -1,60 +1,54 @@
 import {
   mkdirSync,
   readFileSync,
-  readdirSync,
-  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
 import { createHash, randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
-import {
-  dirname,
-  join,
-} from 'node:path'
+import { join } from 'node:path'
 
 import { GRAPH_SCHEMA_VERSION } from '../../shared/constants.js'
 import type { TiaRuntimeGraph } from '../types.js'
+import {
+  cleanSegmentedWrites,
+  purgeSegmentedState,
+  readSegmentedState,
+  writeSegmentedState,
+} from './segmented.js'
 
-export function graphPath(cacheDir: string): string {
-  return join(cacheDir, 'graph.json')
+export { statePath } from './segmented.js'
+
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, item]) => [key, canonical(item)]),
+  )
 }
 
 export function graphDigest(graph: TiaRuntimeGraph | null): string | null {
   return graph === null
     ? null
-    : createHash('sha256').update(JSON.stringify(graph)).digest('hex')
+    : createHash('sha256')
+        .update(JSON.stringify(canonical(graph)))
+        .digest('hex')
 }
 
 export function readGraph(cacheDir: string): TiaRuntimeGraph | null {
-  try {
-    return parseGraph(readFileSync(graphPath(cacheDir), 'utf8'))
-  } catch {
-    return null
-  }
+  return parseGraph(readSegmentedState(cacheDir))
 }
 
 export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
   try {
     const value =
-      typeof source === 'string'
-        ? (JSON.parse(source) as unknown)
-        : source
+      typeof source === 'string' ? (JSON.parse(source) as unknown) : source
 
     if (!isGraph(value)) {
       return null
-    }
-
-    if (value.schema === 1 || value.schema === 2) {
-      return {
-        ...value,
-        collectionCoverage: {},
-        coverageComplete: false,
-        schema: GRAPH_SCHEMA_VERSION,
-        testCoverage: {},
-        testEdges: value.schema === 1 ? {} : value.testEdges,
-      } as TiaRuntimeGraph
     }
 
     return value as unknown as TiaRuntimeGraph
@@ -64,20 +58,7 @@ export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
 }
 
 export function writeGraph(cacheDir: string, graph: TiaRuntimeGraph): void {
-  const target = graphPath(cacheDir)
-  const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`
-
-  mkdirSync(dirname(target), { recursive: true })
-  try {
-    writeFileSync(
-      temporary,
-      `${JSON.stringify(graph, null, 2)}\n`,
-      'utf8',
-    )
-    renameSync(temporary, target)
-  } finally {
-    rmSync(temporary, { force: true })
-  }
+  writeSegmentedState(cacheDir, graph)
 }
 
 interface GraphLockOwner {
@@ -104,7 +85,7 @@ const wait = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 function lockPath(cacheDir: string): string {
-  return join(cacheDir, 'graph.lock')
+  return join(cacheDir, 'state.lock')
 }
 
 function lockOwner(path: string): GraphLockOwner | null {
@@ -112,13 +93,11 @@ function lockOwner(path: string): GraphLockOwner | null {
     const value = JSON.parse(
       readFileSync(join(path, 'owner.json'), 'utf8'),
     ) as Partial<GraphLockOwner>
-    return (
-      typeof value.createdAt === 'number' &&
+    return typeof value.createdAt === 'number' &&
       typeof value.hostname === 'string' &&
       typeof value.pid === 'number' &&
       typeof value.token === 'string'
-    )
-      ? value as GraphLockOwner
+      ? (value as GraphLockOwner)
       : null
   } catch {
     return null
@@ -142,9 +121,7 @@ function processAlive(pid: number): boolean {
 function staleLock(path: string, staleAfter: number): boolean {
   try {
     const owner = lockOwner(path)
-    const age =
-      Date.now() -
-      (owner?.createdAt ?? statSync(path).mtimeMs)
+    const age = Date.now() - (owner?.createdAt ?? statSync(path).mtimeMs)
     if (owner?.hostname === hostname() && !processAlive(owner.pid)) {
       return true
     }
@@ -208,17 +185,7 @@ function releaseLock(cacheDir: string, owner: GraphLockOwner): void {
 }
 
 function cleanAbandonedWrites(cacheDir: string): void {
-  try {
-    for (const entry of readdirSync(cacheDir)) {
-      if (
-        /^graph\.json\.\d+\.[\da-f-]{36}\.tmp$/i.test(entry)
-      ) {
-        rmSync(join(cacheDir, entry), { force: true })
-      }
-    }
-  } catch {
-    // A missing cache directory or a concurrently removed orphan is benign.
-  }
+  cleanSegmentedWrites(cacheDir)
 }
 
 function same(left: unknown, right: unknown): boolean {
@@ -268,7 +235,10 @@ function mergeChangedRecord(
   return true
 }
 
-function compatibleCommit(left: TiaRuntimeGraph, right: TiaRuntimeGraph): boolean {
+function compatibleCommit(
+  left: TiaRuntimeGraph,
+  right: TiaRuntimeGraph,
+): boolean {
   return (
     left.schema === right.schema &&
     left.fingerprint === right.fingerprint &&
@@ -371,8 +341,8 @@ export async function commitGraph(
   }
 }
 
-export function purgeGraph(cacheDir: string): void {
-  rmSync(graphPath(cacheDir), { force: true })
+export function purgeState(cacheDir: string): void {
+  purgeSegmentedState(cacheDir)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -385,9 +355,7 @@ function isGraph(value: unknown): value is Record<string, unknown> {
   }
 
   if (
-    (value.schema !== 1 &&
-      value.schema !== 2 &&
-      value.schema !== GRAPH_SCHEMA_VERSION) ||
+    value.schema !== GRAPH_SCHEMA_VERSION ||
     typeof value.complete !== 'boolean' ||
     typeof value.fingerprint !== 'string' ||
     !isRecord(value.baseline) ||
@@ -415,8 +383,7 @@ function isGraph(value: unknown): value is Record<string, unknown> {
     Object.values(workingTree).every((hash) => typeof hash === 'string') &&
     Object.values(edges).every(
       (files) =>
-        Array.isArray(files) &&
-        files.every((file) => typeof file === 'string'),
+        Array.isArray(files) && files.every((file) => typeof file === 'string'),
     ) &&
     Object.values(results).every(
       (result) =>
@@ -429,21 +396,19 @@ function isGraph(value: unknown): value is Record<string, unknown> {
           result.state === 'skipped') &&
         (result.duration === undefined || typeof result.duration === 'number'),
     ) &&
-    (value.schema === 1 ||
-      (isRecord(testEdges) &&
-        Object.values(testEdges).every(
-          (edge) =>
-            isRecord(edge) &&
-            typeof edge.file === 'string' &&
-            Array.isArray(edge.files) &&
-            edge.files.every((file) => typeof file === 'string'),
-        ))) &&
-    (value.schema !== GRAPH_SCHEMA_VERSION ||
-      (typeof value.coverageComplete === 'boolean' &&
-        isRecord(collectionCoverage) &&
-        Object.values(collectionCoverage).every(isRecord) &&
-        isRecord(testCoverage) &&
-        Object.values(testCoverage).every(isRecord))) &&
+    isRecord(testEdges) &&
+    Object.values(testEdges).every(
+      (edge) =>
+        isRecord(edge) &&
+        typeof edge.file === 'string' &&
+        Array.isArray(edge.files) &&
+        edge.files.every((file) => typeof file === 'string'),
+    ) &&
+    typeof value.coverageComplete === 'boolean' &&
+    isRecord(collectionCoverage) &&
+    Object.values(collectionCoverage).every(isRecord) &&
+    isRecord(testCoverage) &&
+    Object.values(testCoverage).every(isRecord) &&
     (partition === undefined ||
       (isRecord(partition) &&
         (partition.group === undefined ||

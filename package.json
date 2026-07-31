@@ -1,39 +1,50 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "0.4.1",
-  "description": "Runner-neutral test impact analysis with JavaScript, Maestro, and k6 adapters",
-  "author": "Lucas Coutinho",
+  "version": "1.0.0",
   "private": false,
-  "type": "module",
-  "license": "UNLICENSED",
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/usescherie/tiacore.git"
-  },
+  "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
+  "keywords": [
+    "bun",
+    "coverage",
+    "node-test",
+    "playwright",
+    "test-impact-analysis",
+    "testing",
+    "tia",
+    "vitest"
+  ],
   "homepage": "https://github.com/usescherie/tiacore#readme",
   "bugs": {
     "url": "https://github.com/usescherie/tiacore/issues"
   },
-  "keywords": [
-    "vitest",
-    "playwright",
-    "bun",
-    "node-test",
-    "test-impact-analysis",
-    "tia",
-    "testing",
-    "coverage"
-  ],
+  "license": "UNLICENSED",
+  "author": "Lucas Coutinho",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/usescherie/tiacore.git"
+  },
+  "bin": {
+    "tiacore": "dist/entries/cli.js"
+  },
   "files": [
     "capabilities",
     "conformance",
     "dist",
+    "docs",
     "schemas",
     "spec",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "SECURITY.md"
   ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/adapters/vitest/setup.js"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": {
@@ -55,6 +66,26 @@
         "default": "./dist/entries/vitest.cjs"
       }
     },
+    "./adapter": {
+      "import": {
+        "types": "./dist/entries/adapter.d.ts",
+        "default": "./dist/entries/adapter.js"
+      },
+      "require": {
+        "types": "./dist/entries/adapter.d.cts",
+        "default": "./dist/entries/adapter.cjs"
+      }
+    },
+    "./artifacts": {
+      "import": {
+        "types": "./dist/entries/artifacts.d.ts",
+        "default": "./dist/entries/artifacts.js"
+      },
+      "require": {
+        "types": "./dist/entries/artifacts.d.cts",
+        "default": "./dist/entries/artifacts.cjs"
+      }
+    },
     "./core": {
       "import": {
         "types": "./dist/entries/core.d.ts",
@@ -63,6 +94,16 @@
       "require": {
         "types": "./dist/entries/core.d.cts",
         "default": "./dist/entries/core.cjs"
+      }
+    },
+    "./evidence": {
+      "import": {
+        "types": "./dist/entries/evidence.d.ts",
+        "default": "./dist/entries/evidence.js"
+      },
+      "require": {
+        "types": "./dist/entries/evidence.d.cts",
+        "default": "./dist/entries/evidence.cjs"
       }
     },
     "./protocol": {
@@ -83,6 +124,16 @@
       "require": {
         "types": "./dist/entries/conformance.d.cts",
         "default": "./dist/entries/conformance.cjs"
+      }
+    },
+    "./gradle": {
+      "import": {
+        "types": "./dist/entries/gradle.d.ts",
+        "default": "./dist/entries/gradle.js"
+      },
+      "require": {
+        "types": "./dist/entries/gradle.d.cts",
+        "default": "./dist/entries/gradle.cjs"
       }
     },
     "./maestro": {
@@ -154,38 +205,44 @@
         "types": "./dist/entries/workspace.d.cts",
         "default": "./dist/entries/workspace.cjs"
       }
+    },
+    "./verification": {
+      "import": {
+        "types": "./dist/entries/verification.d.ts",
+        "default": "./dist/entries/verification.js"
+      },
+      "require": {
+        "types": "./dist/entries/verification.d.cts",
+        "default": "./dist/entries/verification.cjs"
+      }
     }
-  },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": {
-    "tiacore": "dist/entries/cli.js"
-  },
-  "sideEffects": [
-    "./dist/adapters/vitest/setup.js"
-  ],
-  "engines": {
-    "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
   },
   "scripts": {
     "benchmark:parallel": "npm run build && vitest bench --run --config vitest.benchmark.config.ts",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node config/build-cjs.mjs",
     "build:python": "node -e \"require('node:fs').rmSync('sdks/python/dist',{recursive:true,force:true})\" && uv build --offline --out-dir sdks/python/dist sdks/python",
-    "check": "npm run typecheck && npm run test",
+    "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
     "check:python": "npm run test:python && npm run build:python",
     "check:package": "npm run build && publint && attw --pack . --profile node16",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives",
+    "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
     "prepare": "node config/prepare.mjs",
     "publish:private": "node config/publish-private.mjs",
     "release:check": "npm run check && npm run check:package && npm run check:python && npm audit --omit=dev && npm pack --dry-run",
     "test": "npm run build && vitest run",
     "test:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
-    "test:cross-platform": "npm run build && vitest run test/unit/protocol/paths.test.ts test/unit/engine/state.test.ts test/unit/engine/coverage.test.ts test/unit/engine/merge.test.ts",
+    "test:cross-platform": "npm run build && vitest run test/unit/protocol/paths.test.ts test/unit/engine/state.test.ts test/unit/engine/segmented-state.test.ts test/unit/engine/coverage.test.ts test/unit/engine/merge.test.ts test/unit/adapters/playwright-source-maps.test.ts test/unit/adapters/k6.test.ts test/unit/adapters/maestro.test.ts test/unit/adapters/gradle.test.ts test/integration/platform/node-runtime.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
+    "@types/istanbul-lib-coverage": "^2.0.6",
+    "@types/istanbul-lib-instrument": "^1.7.8",
+    "commander": "^14.0.3",
     "es-module-lexer": "^2.3.1",
+    "fast-xml-parser": "^5.10.1",
     "fflate": "^0.8.3",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-instrument": "^6.0.3",
@@ -194,6 +251,30 @@
     "picomatch": "^4.0.3",
     "tinyglobby": "^0.2.17",
     "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@playwright/test": "^1.62.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/istanbul-lib-report": "^3.0.3",
+    "@types/istanbul-reports": "^3.0.4",
+    "@types/node": "^24.0.0",
+    "@types/picomatch": "^4.0.2",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
+    "ejs": "^6.0.1",
+    "esbuild": "^0.28.1",
+    "jsdom": "^30.0.1",
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
+    "playwright": "^1.62.0",
+    "publint": "^0.3.22",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.46.0 <2.0.0",
@@ -211,27 +292,7 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@arethetypeswrong/cli": "^0.18.5",
-    "@playwright/test": "^1.62.0",
-    "@testing-library/react": "^16.3.2",
-    "@types/istanbul-lib-instrument": "^1.7.8",
-    "@types/istanbul-lib-report": "^3.0.3",
-    "@types/istanbul-reports": "^3.0.4",
-    "@types/node": "^24.0.0",
-    "@types/picomatch": "^4.0.2",
-    "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
-    "ejs": "^6.0.1",
-    "esbuild": "^0.28.1",
-    "jsdom": "^30.0.1",
-    "playwright": "^1.62.0",
-    "publint": "^0.3.22",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "typescript": "^5.9.0",
-    "vite": "^7.0.0",
-    "vitest": "^4.1.10"
+  "engines": {
+    "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
   }
 }

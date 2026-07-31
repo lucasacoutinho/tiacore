@@ -24,10 +24,7 @@ interface CapabilityContract {
 
 const root = process.cwd()
 const contract = JSON.parse(
-  readFileSync(
-    join(root, 'capabilities/adapter-capabilities-v1.json'),
-    'utf8',
-  ),
+  readFileSync(join(root, 'capabilities/adapter-capabilities-v1.json'), 'utf8'),
 ) as CapabilityContract
 const packageJson = JSON.parse(
   readFileSync(join(root, 'package.json'), 'utf8'),
@@ -38,6 +35,7 @@ describe('adapter capability contract', () => {
     expect(contract.contractVersion).toBe(1)
     expect(contract.adapters.map(({ id }) => id).sort()).toEqual([
       'bun-test',
+      'gradle-junit',
       'k6',
       'maestro',
       'node-test',
@@ -50,14 +48,12 @@ describe('adapter capability contract', () => {
     )
     expect(packageJson.files).toContain('capabilities')
     expect(packageJson.exports).toHaveProperty('./vitest')
+    expect(packageJson.exports).toHaveProperty('./adapter')
     expect(packageJson.exports).toHaveProperty('./workspace')
 
     for (const adapter of contract.adapters) {
       if (adapter.entryPoint.startsWith('@usescherie/tiacore')) {
-        const exportKey = adapter.entryPoint.replace(
-          '@usescherie/tiacore',
-          '.',
-        )
+        const exportKey = adapter.entryPoint.replace('@usescherie/tiacore', '.')
         expect(packageJson.exports).toHaveProperty(
           exportKey === '.' ? '.' : exportKey,
         )
@@ -83,12 +79,18 @@ describe('adapter capability contract', () => {
         expect(adapter.dependencyEvidence).toBe('static')
         expect(adapter.cachedOutcomes).toBe(false)
         expect(adapter.coverageReconstruction).toBe(false)
-        expect(adapter.nativeParallelism).toBe(false)
       }
     }
   })
 
   test('does not overstate Playwright or coverage fidelity', () => {
+    expect(
+      contract.adapters.find(({ id }) => id === 'gradle-junit'),
+    ).toMatchObject({
+      capabilityLevel: 'static-impact',
+      nativeParallelism: true,
+      selectionGranularity: 'test-file',
+    })
     expect(
       contract.adapters.find(({ id }) => id === 'playwright'),
     ).toMatchObject({

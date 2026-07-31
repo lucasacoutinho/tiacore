@@ -1,13 +1,9 @@
-import {
-  cpSync,
-  existsSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
+
+import { readGraph as readStateGraph } from '../../../src/engine/state/store.js'
 
 import {
   cleanupProjects,
@@ -42,10 +38,7 @@ describe('Git worktrees', () => {
     resetExecutions(root)
     resetExecutions(worktree)
     writeFileSync(join(root, 'src/a.ts'), "export const a = () => 'a'\n\n")
-    writeFileSync(
-      join(worktree, 'src/b.ts'),
-      "export const b = () => 'b'\n\n",
-    )
+    writeFileSync(join(worktree, 'src/b.ts'), "export const b = () => 'b'\n\n")
     const affected = await Promise.all([
       runVitestAsync(root),
       runVitestAsync(worktree),
@@ -107,20 +100,13 @@ describe('Git worktrees', () => {
       initial.map((result) => result.status),
       initial.map((result) => result.output).join('\n'),
     ).toEqual([0, 0])
-    expect(
-      JSON.parse(
-        readFileSync(join(shared, 'graph.json'), 'utf8'),
-      ),
-    ).toMatchObject({ complete: true })
-    expect(existsSync(join(shared, 'graph.lock'))).toBe(false)
+    expect(readStateGraph(shared)).toMatchObject({ complete: true })
+    expect(existsSync(join(shared, 'state.lock'))).toBe(false)
 
     resetExecutions(root)
     resetExecutions(worktree)
     writeFileSync(join(root, 'src/a.ts'), "export const a = () => 'a'\n\n")
-    writeFileSync(
-      join(worktree, 'src/b.ts'),
-      "export const b = () => 'b'\n\n",
-    )
+    writeFileSync(join(worktree, 'src/b.ts'), "export const b = () => 'b'\n\n")
     const diverged = await Promise.all([
       runVitestAsync(root, ['run'], 20_000, environment),
       runVitestAsync(worktree, ['run'], 20_000, environment),
@@ -132,11 +118,7 @@ describe('Git worktrees', () => {
         result.output.includes('another process committed a conflicting graph'),
       ),
     ).toHaveLength(1)
-    expect(
-      JSON.parse(
-        readFileSync(join(shared, 'graph.json'), 'utf8'),
-      ),
-    ).toMatchObject({ complete: true })
-    expect(existsSync(join(shared, 'graph.lock'))).toBe(false)
+    expect(readStateGraph(shared)).toMatchObject({ complete: true })
+    expect(existsSync(join(shared, 'state.lock'))).toBe(false)
   })
 })

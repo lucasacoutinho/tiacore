@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,7 +14,9 @@ import {
   tia,
 } from '../../../src/adapters/maestro/index.js'
 
-const root = fileURLToPath(new URL('../../fixtures/maestro-project', import.meta.url))
+const root = fileURLToPath(
+  new URL('../../fixtures/maestro-project', import.meta.url),
+)
 const fakeRunner = fileURLToPath(
   new URL('../../fixtures/fake-adapter-runner.mjs', import.meta.url),
 )
@@ -22,9 +24,9 @@ const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { force: true, recursive: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { force: true, recursive: true })),
   )
 })
 
@@ -119,5 +121,36 @@ describe('Maestro adapter', () => {
       'e2e/login.yaml',
       'e2e/settings.yaml',
     ])
+  })
+
+  test('does not promote a graph when an affected flow fails', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'tiacore-maestro-failure-'))
+    temporaryDirectories.push(directory)
+    const graphPath = join(directory, 'graph.json')
+    const result = await tia({
+      changes: ['e2e/login.yaml'],
+      command: process.execPath,
+      commandArguments: [fakeRunner],
+      currentEnvironmentFingerprint: 'android-35',
+      environment: {
+        TIACORE_FAKE_RUNNER_FAIL: 'login.yaml',
+        TIACORE_FAKE_RUNNER_LOG: join(directory, 'executions.log'),
+      },
+      flows: 'e2e',
+      graph: createMaestroGraph({
+        environmentFingerprint: 'android-35',
+        suites: await discoverMaestroSuites({
+          flows: 'e2e',
+          project: 'fixture',
+          root,
+        }),
+      }),
+      graphPath,
+      project: 'fixture',
+      root,
+    }).run()
+
+    expect(result).toMatchObject({ status: 7, success: false })
+    expect(existsSync(graphPath)).toBe(false)
   })
 })

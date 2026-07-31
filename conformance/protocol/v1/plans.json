@@ -75,9 +75,7 @@
         "reason": "2 affected suites",
         "reasons": {
           "suite:login": ["dependency of suite:settings"],
-          "suite:settings": [
-            "observed dependency changed: src/settings.ts"
-          ]
+          "suite:settings": ["observed dependency changed: src/settings.ts"]
         },
         "resourceLocks": ["browser", "database"],
         "selected": ["suite:login", "suite:settings"]
@@ -153,12 +151,8 @@
         "protocolVersion": 1,
         "reason": "configuration changed: config/runner.json",
         "reasons": {
-          "suite:login": [
-            "configuration changed: config/runner.json"
-          ],
-          "suite:settings": [
-            "configuration changed: config/runner.json"
-          ]
+          "suite:login": ["configuration changed: config/runner.json"],
+          "suite:settings": ["configuration changed: config/runner.json"]
         },
         "resourceLocks": ["browser", "database"],
         "selected": ["suite:login", "suite:settings"]

@@ -8,8 +8,8 @@ command again to verify replay before adding CI restoration.
 
 - The npm package requires Node.js 20 or newer.
 - Vitest requires version 4.1 or newer.
-- The standalone `node:test` adapter requires Node.js 22.10 or newer. Node
-  22.15 and newer provides precise non-executing discovery.
+- The standalone `node:test` adapter requires Node.js 22.10 or newer. Node 22.15
+  and newer provides precise non-executing discovery.
 - Playwright requires version 1.46 or newer.
 - The Bun adapter is certified on Bun 1.3.
 
@@ -55,8 +55,8 @@ npx vitest run
 
 The root `@usescherie/tiacore` export remains a compatibility alias, but new
 configs should use `/vitest`. Watch mode and explicit Vitest file, project,
-name, related-file, changed-file, tag, or exclusion filters remain native
-Vitest operations and do not replace the reusable full-suite graph.
+name, related-file, changed-file, tag, or exclusion filters remain native Vitest
+operations and do not replace the reusable full-suite graph.
 
 ## Playwright
 
@@ -120,10 +120,9 @@ const result = await tia({
 process.exitCode = result.success ? 0 : 1
 ```
 
-Use `node run-tia.mjs`. For Bun, change the import to
-`@usescherie/tiacore/bun`, use Bun test globs, and run `bun run-tia.ts`.
-Files execute concurrently up to the configured bound; cases within one file
-stay sequential.
+Use `node run-tia.mjs`. For Bun, change the import to `@usescherie/tiacore/bun`,
+use Bun test globs, and run `bun run-tia.ts`. Files execute concurrently up to
+the configured bound; cases within one file stay sequential.
 
 ## Maestro and k6
 
@@ -152,8 +151,8 @@ and does not claim runtime coverage or cached pytest outcomes.
 
 ## Workspace orchestration
 
-Use the workspace adapter to run independent lanes concurrently while
-preserving dependencies and exclusive resources:
+Use the workspace adapter to run independent lanes concurrently while preserving
+dependencies and exclusive resources:
 
 ```js
 // tiacore.config.mjs

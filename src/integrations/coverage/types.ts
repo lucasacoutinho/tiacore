@@ -91,8 +91,9 @@ export interface TiaCoverageReporterRuntime {
 
 export type TiaCoverageMap = Record<string, FileCoverageData>
 
-export interface CoverageFile
-  extends Partial<Omit<FileCoverageData, 'b' | 'f' | 'path' | 's'>> {
+export interface CoverageFile extends Partial<
+  Omit<FileCoverageData, 'b' | 'f' | 'path' | 's'>
+> {
   b?: Record<string, number[]>
   f?: Record<string, number>
   path?: string

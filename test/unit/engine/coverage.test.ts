@@ -11,15 +11,14 @@ import {
 import { coverageThresholdFailures } from '../../../src/integrations/coverage/thresholds.js'
 import type { CoverageMapLike } from '../../../src/shared/types.js'
 
-function fileCoverage(
-  path: string,
-  hits: [number, number],
-): FileCoverageData {
-  const location = (line: number) => ({
+function location(line: number) {
+  return {
     end: { column: 10, line },
     start: { column: 0, line },
-  })
+  }
+}
 
+function fileCoverage(path: string, hits: [number, number]): FileCoverageData {
   return {
     b: { 0: hits },
     branchMap: {
@@ -115,10 +114,9 @@ describe('coverage snapshots', () => {
     const second = fileCoverage('/project/src/a.ts', [2, 3])
 
     expect(
-      mergeCoverageMaps(
-        { [first.path]: first },
-        { [second.path]: second },
-      )[first.path],
+      mergeCoverageMaps({ [first.path]: first }, { [second.path]: second })[
+        first.path
+      ],
     ).toMatchObject({
       b: { 0: [3, 3] },
       f: { 0: 3 },
@@ -130,10 +128,7 @@ describe('coverage snapshots', () => {
 describe('coverage thresholds', () => {
   test('uses percentages for positive values and uncovered counts for negative values', () => {
     const coverage = coverageLibrary.createCoverageMap({
-      '/project/src/a.ts': fileCoverage(
-        '/project/src/a.ts',
-        [1, 0],
-      ),
+      '/project/src/a.ts': fileCoverage('/project/src/a.ts', [1, 0]),
     })
 
     expect(
@@ -151,14 +146,8 @@ describe('coverage thresholds', () => {
 
   test('supports per-file checks, glob sets, and the 100 shortcut', () => {
     const coverage = coverageLibrary.createCoverageMap({
-      '/project/src/a.ts': fileCoverage(
-        '/project/src/a.ts',
-        [1, 0],
-      ),
-      '/project/src/b.ts': fileCoverage(
-        '/project/src/b.ts',
-        [1, 1],
-      ),
+      '/project/src/a.ts': fileCoverage('/project/src/a.ts', [1, 0]),
+      '/project/src/b.ts': fileCoverage('/project/src/b.ts', [1, 1]),
     })
 
     const perFile = coverageThresholdFailures(coverage, '/project', {

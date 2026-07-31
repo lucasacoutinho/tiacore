@@ -1,9 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -34,8 +29,7 @@ test('maps only executed generated ranges to their original files', async () => 
       version: 3,
     }),
   ).toString('base64')
-  const script =
-    `a();\nb();\n//# sourceMappingURL=data:application/json;base64,${map}`
+  const script = `a();\nb();\n//# sourceMappingURL=data:application/json;base64,${map}`
 
   await expect(
     coveredSourceMapFiles(

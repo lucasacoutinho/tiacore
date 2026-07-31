@@ -1,7 +1,4 @@
-import type {
-  CachedTestResult,
-  RunPlan,
-} from '../types.js'
+import type { CachedTestResult, RunPlan } from '../types.js'
 import type {
   TiaReplayAdapter,
   TiaReplayCompleteEvent,

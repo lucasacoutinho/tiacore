@@ -41,9 +41,7 @@ function sourceLocation(): {
     try {
       return {
         column: Number(match[3] ?? 1),
-        file: match[1].startsWith('file:')
-          ? fileURLToPath(match[1])
-          : match[1],
+        file: match[1].startsWith('file:') ? fileURLToPath(match[1]) : match[1],
         line: Number(match[2] ?? 1),
       }
     } catch {
@@ -87,10 +85,7 @@ function write(record: DiscoveryRecord): void {
   }
 }
 
-function defineTest(
-  forcedSkipped: boolean,
-  arguments_: unknown[],
-): void {
+function defineTest(forcedSkipped: boolean, arguments_: unknown[]): void {
   const definition = definitionArguments(arguments_)
   const location = sourceLocation()
   if (location === null) {
@@ -99,9 +94,7 @@ function defineTest(
 
   write({
     ...location,
-    fullName: [...suites.map((suite) => suite.name), definition.name].join(
-      ' ',
-    ),
+    fullName: [...suites.map((suite) => suite.name), definition.name].join(' '),
     name: definition.name,
     skipped:
       forcedSkipped ||
@@ -119,10 +112,7 @@ test.skip = (...arguments_: unknown[]) => {
 }
 test.todo = test.skip
 
-function defineSuite(
-  forcedSkipped: boolean,
-  arguments_: unknown[],
-): void {
+function defineSuite(forcedSkipped: boolean, arguments_: unknown[]): void {
   const definition = definitionArguments(arguments_)
   if (definition.callback === null) {
     return

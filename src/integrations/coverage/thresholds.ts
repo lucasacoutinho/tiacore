@@ -1,10 +1,7 @@
 import { relative } from 'node:path'
 
 import coverageLibrary from 'istanbul-lib-coverage'
-import type {
-  CoverageMap,
-  CoverageSummary,
-} from 'istanbul-lib-coverage'
+import type { CoverageMap, CoverageSummary } from 'istanbul-lib-coverage'
 import picomatch from 'picomatch'
 
 import { slash } from '../../shared/paths.js'
@@ -13,20 +10,10 @@ import type {
   TiaCoverageThresholdValues,
 } from './types.js'
 
-const METRICS = [
-  'lines',
-  'functions',
-  'statements',
-  'branches',
-] as const
-const RESERVED_KEYS = new Set([
-  '100',
-  'autoUpdate',
-  'perFile',
-  ...METRICS,
-])
+const METRICS = ['lines', 'functions', 'statements', 'branches'] as const
+const RESERVED_KEYS = new Set(['100', 'autoUpdate', 'perFile', ...METRICS])
 
-type CoverageMetric = typeof METRICS[number]
+type CoverageMetric = (typeof METRICS)[number]
 type ResolvedValues = Partial<Record<CoverageMetric, number>>
 
 interface ThresholdSet {
@@ -141,15 +128,10 @@ export function coverageThresholdFailures(
 
         const total = summary.data[metric]
         const fileSuffix =
-          perFile && file !== null
-            ? ` for ${slash(relative(root, file))}`
-            : ''
+          perFile && file !== null ? ` for ${slash(relative(root, file))}` : ''
 
         if (threshold >= 0) {
-          if (
-            typeof total.pct === 'number' &&
-            total.pct < threshold
-          ) {
+          if (typeof total.pct === 'number' && total.pct < threshold) {
             failures.push({
               message:
                 `ERROR: Coverage for ${metric} (${total.pct}%) does not meet ` +

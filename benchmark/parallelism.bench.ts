@@ -5,26 +5,12 @@ import { fileURLToPath } from 'node:url'
 
 import { afterAll, bench } from 'vitest'
 
-const packageRoot = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-)
-const fixture = join(
-  packageRoot,
-  'test/fixtures/parallel-vitest',
-)
-const vitest = join(
-  packageRoot,
-  'node_modules/vitest/vitest.mjs',
-)
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const fixture = join(packageRoot, 'test/fixtures/parallel-vitest')
+const vitest = join(packageRoot, 'node_modules/vitest/vitest.mjs')
 
 function clean(): void {
-  for (const path of [
-    '.tia',
-    'executions.log',
-    'node_modules',
-    'spans',
-  ]) {
+  for (const path of ['.tia', 'executions.log', 'node_modules', 'spans']) {
     rmSync(join(fixture, path), {
       force: true,
       recursive: true,
@@ -58,9 +44,7 @@ function run(pool: 'forks' | 'threads', workers: number): void {
     },
   )
   if (result.status !== 0) {
-    throw new Error(
-      `${result.stdout ?? ''}${result.stderr ?? ''}`,
-    )
+    throw new Error(`${result.stdout ?? ''}${result.stderr ?? ''}`)
   }
 }
 

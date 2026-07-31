@@ -1,9 +1,5 @@
 import { spawn } from 'node:child_process'
-import {
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 
@@ -21,11 +17,7 @@ import {
   moduleFailureObservation,
 } from '../../engine/observations.js'
 import { slash } from '../../shared/paths.js'
-import {
-  parseBunJunit,
-  parseBunLcov,
-  type BunCase,
-} from './report.js'
+import { parseBunJunit, parseBunLcov, type BunCase } from './report.js'
 import type {
   TiaRunner,
   TiaRunnerOptions,
@@ -69,9 +61,7 @@ class BunTiaRunner implements TiaRunner {
       files: options.files ?? DEFAULT_BUN_TESTS,
       root: this.root,
       runner: 'bun',
-      testFiles: this.files.map((file) =>
-        slash(relative(this.root, file)),
-      ),
+      testFiles: this.files.map((file) => slash(relative(this.root, file))),
     })
   }
 
@@ -159,48 +149,42 @@ class BunTiaRunner implements TiaRunner {
       }
     }
 
-    const groups = groupBy(
-      discoveredCases,
-      (candidate) => candidate.file,
-    )
+    const groups = groupBy(discoveredCases, (candidate) => candidate.file)
     observations.push(
       ...(
         await parallelMap(
-        [...groups.values()],
-        this.concurrency,
-        async (candidates) => {
-          const fileObservations: TiaObservation[] = []
-          for (const candidate of candidates) {
-            const execution = await this.execute(
-              [resolve(this.root, candidate.file)],
-              `^${escapeRegExp(candidate.fullName)}$`,
-              true,
-            )
-            const result =
-              execution.cases.find(
+          [...groups.values()],
+          this.concurrency,
+          async (candidates) => {
+            const fileObservations: TiaObservation[] = []
+            for (const candidate of candidates) {
+              const execution = await this.execute(
+                [resolve(this.root, candidate.file)],
+                `^${escapeRegExp(candidate.fullName)}$`,
+                true,
+              )
+              const result = execution.cases.find(
                 (item) =>
                   item.id === candidate.id ||
                   item.fullName === candidate.fullName,
               )
-            if (
-              !execution.success &&
-              (result === undefined || result.state !== 'failed')
-            ) {
-              fileObservations.push(
-                moduleFailureObservation(candidate.file),
-              )
-            } else {
-              fileObservations.push(
-                this.observation(
-                  result ?? { ...candidate, state: 'failed' },
-                  [candidate.file, ...execution.coverageFiles],
-                ),
-              )
+              if (
+                !execution.success &&
+                (result === undefined || result.state !== 'failed')
+              ) {
+                fileObservations.push(moduleFailureObservation(candidate.file))
+              } else {
+                fileObservations.push(
+                  this.observation(
+                    result ?? { ...candidate, state: 'failed' },
+                    [candidate.file, ...execution.coverageFiles],
+                  ),
+                )
+              }
             }
-          }
-          return fileObservations
-        },
-      )
+            return fileObservations
+          },
+        )
       ).flat(),
     )
 
@@ -235,19 +219,14 @@ class BunTiaRunner implements TiaRunner {
       true,
     )
     const result = execution.cases.find(
-      (item) =>
-        item.id === cached.id ||
-        item.fullName === cached.fullName,
+      (item) => item.id === cached.id || item.fullName === cached.fullName,
     )
     if (
       result !== undefined &&
       (execution.success || result.state === 'failed')
     ) {
       return [
-        this.observation(result, [
-          cached.file,
-          ...execution.coverageFiles,
-        ]),
+        this.observation(result, [cached.file, ...execution.coverageFiles]),
       ]
     }
 

@@ -27,15 +27,11 @@ function executeCommand<Suite extends TiaSuiteDescriptor>(
   suite: Suite,
 ): Promise<AdapterExecution> {
   return new Promise((resolveExecution, reject) => {
-    const child = spawn(
-      options.command,
-      options.argumentsFor(suite),
-      {
-        cwd: options.cwd,
-        env: { ...process.env, ...options.environment },
-        stdio: 'inherit',
-      },
-    )
+    const child = spawn(options.command, options.argumentsFor(suite), {
+      cwd: options.cwd,
+      env: { ...process.env, ...options.environment },
+      stdio: 'inherit',
+    })
     child.once('error', reject)
     child.once('exit', (code, signal) => {
       resolveExecution({
@@ -88,7 +84,10 @@ export async function executeSuites<Suite extends TiaSuiteDescriptor>(
       launch(suite)
       launched = true
     }
-    if (running.size > 0 && (!launched || running.size >= options.maxConcurrency)) {
+    if (
+      running.size > 0 &&
+      (!launched || running.size >= options.maxConcurrency)
+    ) {
       await Promise.race(running)
     }
   }
