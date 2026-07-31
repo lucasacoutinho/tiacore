@@ -230,7 +230,7 @@
     "release:check": "npm run check && npm run check:package && npm run check:python && npm audit --omit=dev && npm pack --dry-run",
     "test": "npm run build && vitest run",
     "test:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
-    "test:cross-platform": "npm run build && vitest run test/unit/protocol/paths.test.ts test/unit/engine/state.test.ts test/unit/engine/coverage.test.ts test/unit/engine/merge.test.ts",
+    "test:cross-platform": "npm run build && vitest run test/unit/protocol/paths.test.ts test/unit/engine/state.test.ts test/unit/engine/segmented-state.test.ts test/unit/engine/coverage.test.ts test/unit/engine/merge.test.ts test/unit/adapters/playwright-source-maps.test.ts test/unit/adapters/k6.test.ts test/unit/adapters/maestro.test.ts test/unit/adapters/gradle.test.ts test/integration/platform/node-runtime.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

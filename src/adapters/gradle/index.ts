@@ -356,7 +356,9 @@ export class TiaGradleRunner {
     const missingReports =
       (this.options.requireReports ?? true) &&
       classes.some((className) => !observed.has(className))
-    const finalStatus = status === 0 && missingReports ? 1 : status
+    const failedCases = cases.some((testCase) => testCase.status === 'failed')
+    const finalStatus =
+      status === 0 && (missingReports || failedCases) ? 1 : status
     if (finalStatus === 0) {
       await writeAdapterGraph(graphPath, await createGradleGraph(root, {
         environmentFingerprint: this.options.currentEnvironmentFingerprint,

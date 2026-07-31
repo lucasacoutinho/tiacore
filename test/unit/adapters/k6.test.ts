@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -132,5 +132,28 @@ describe('k6 adapter', () => {
     const skipped = await tia(options).run()
     expect(skipped.plan.mode).toBe('skip')
     expect(skipped.executions).toEqual([])
+  })
+
+  test('does not promote a graph when a selected profile fails', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'tiacore-k6-failure-'))
+    temporaryDirectories.push(directory)
+    const graphPath = join(directory, 'graph.json')
+    const result = await tia({
+      changes: [],
+      command: process.execPath,
+      commandArguments: [fakeRunner],
+      currentEnvironmentFingerprint: 'k6-container',
+      environment: {
+        TIACORE_FAKE_RUNNER_FAIL: 'smoke.js',
+        TIACORE_FAKE_RUNNER_LOG: join(directory, 'executions.log'),
+      },
+      graphPath,
+      profiles: 'k6/profiles',
+      project: 'fixture',
+      root,
+    }).run()
+
+    expect(result).toMatchObject({ status: 7, success: false })
+    expect(existsSync(graphPath)).toBe(false)
   })
 })

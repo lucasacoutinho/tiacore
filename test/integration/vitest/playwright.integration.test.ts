@@ -102,4 +102,47 @@ describe('Playwright adapter', () => {
       backendAffected.output,
     ).toBe('lazy\n')
   }, 90_000)
+
+  test('records a failed affected spec and forces it to rerun', () => {
+    const root = createFixtureProject('playwright-runtime')
+    const baseline = runCommand(
+      root,
+      process.execPath,
+      ['run-tia.mjs'],
+      30_000,
+    )
+    expect(baseline.status, baseline.output).toBe(0)
+    writeFileSync(join(root, 'executions.log'), '')
+    appendFileSync(join(root, 'src/lazy.js'), '\n// failing revision\n')
+
+    const failed = runCommand(
+      root,
+      process.execPath,
+      ['run-tia.mjs'],
+      30_000,
+      { TIACORE_PLAYWRIGHT_FAIL: '1' },
+    )
+    expect(failed.status).toBe(1)
+    expect(readFileSync(join(root, 'executions.log'), 'utf8')).toBe('lazy\n')
+    expect(
+      Object.values(
+        readGraph(join(root, '.tia/playwright'))?.results ?? {},
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ state: 'failed' }),
+      ]),
+    )
+
+    writeFileSync(join(root, 'executions.log'), '')
+    const recovered = runCommand(
+      root,
+      process.execPath,
+      ['run-tia.mjs'],
+      30_000,
+    )
+    expect(recovered.status, recovered.output).toBe(0)
+    expect(readFileSync(join(root, 'executions.log'), 'utf8')).toBe('lazy\n')
+    expect(recovered.output).toContain('previous test failed')
+  }, 90_000)
 })

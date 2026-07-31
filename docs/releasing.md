@@ -35,7 +35,9 @@ Do not invent repository metadata before those choices exist.
    the pytest SDK sdist and wheel offline under `sdks/python/dist`.
 
 4. Require the full CI, compatibility, cross-platform, shard/aggregate, and
-   non-publishing release-candidate workflows at that exact commit.
+   non-publishing release-candidate workflows at that exact commit. This
+   includes native Node and Bun runs on Linux, Windows, and macOS plus the
+   browser-installed Playwright job.
 5. Inspect `npm pack --dry-run`, install the generated tarball in the real
    package-install fixture, and inspect the Python sdist and wheel.
 6. Review `npm audit --omit=dev`, Publint, and Are The Types Wrong output.

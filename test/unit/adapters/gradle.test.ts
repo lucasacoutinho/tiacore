@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -91,5 +91,31 @@ describe('Gradle/JUnit adapter', () => {
       complete: true,
       protocolVersion: 1,
     })
+  })
+
+  test.each([
+    ['a failed Gradle process', { TIACORE_GRADLE_PROCESS_FAILURE: '1' }, 7],
+    ['missing JUnit reports', { TIACORE_GRADLE_SKIP_REPORTS: '1' }, 1],
+    ['a failed JUnit case', { TIACORE_GRADLE_TEST_FAILURE: '1' }, 1],
+  ])('does not promote after %s', async (_label, injected, status) => {
+    const directory = await mkdtemp(join(tmpdir(), 'tiacore-gradle-failure-'))
+    temporary.push(directory)
+    const graphPath = join(directory, 'graph.json')
+    const result = await tia({
+      changes: [],
+      command: process.execPath,
+      commandArguments: [fakeGradle],
+      currentEnvironmentFingerprint: 'jdk17-gradle9',
+      environment: {
+        TIACORE_GRADLE_LOG: join(directory, 'gradle.log'),
+        ...injected,
+      },
+      graphPath,
+      project: 'app',
+      root,
+    }).run()
+
+    expect(result).toMatchObject({ status, success: false })
+    expect(existsSync(graphPath)).toBe(false)
   })
 })

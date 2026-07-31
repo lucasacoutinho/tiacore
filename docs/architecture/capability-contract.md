@@ -57,3 +57,27 @@ The shipped
 [`adapter-capabilities-v1.json`](../../capabilities/adapter-capabilities-v1.json)
 file is the machine-readable contract. Its schema is
 [`tiacore-adapter-capabilities-v1.schema.json`](../../schemas/tiacore-adapter-capabilities-v1.schema.json).
+
+## Qualification gates
+
+Capability claims are exercised at their native boundary:
+
+- Vitest runs Node, jsdom, React Testing Library, Browser Mode, coverage,
+  reporters, shards, and concurrent-worker fixtures.
+- Playwright installs and runs Chromium against lazy browser modules,
+  cross-process evidence, workers, selective files, failed-case persistence,
+  and recovery.
+- Node runs its real programmatic test and coverage APIs at the minimum,
+  precise-discovery, and current supported releases. The cross-platform gate
+  also executes a full record, replay, and changed-source cycle on Linux,
+  Windows, and macOS.
+- Bun certification runs supported Bun releases on Linux and the current Bun
+  release on Windows and macOS.
+- k6, Maestro, and Gradle tests execute their real command boundaries with
+  fixture processes. Non-zero commands, missing JUnit output, and failed JUnit
+  cases must not promote a graph.
+
+The cross-platform workflow also exercises protocol path normalization,
+source-map resolution, segmented storage, coverage merging, graph merging, and
+the static adapter command boundaries. A platform job is evidence only when it
+passes at the exact candidate revision.

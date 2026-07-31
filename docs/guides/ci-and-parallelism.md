@@ -211,6 +211,18 @@ lanes separate evidence directories. The collector ignores malformed,
 oversized, and symlinked events rather than trusting arbitrary filesystem
 content.
 
+## Platform qualification
+
+The release gate runs the real Node adapter plus storage, path, source-map,
+coverage, k6, Maestro, and Gradle boundary tests on Linux, Windows, and macOS.
+Bun runs on all three systems in the compatibility workflow. Chromium-backed
+Playwright and Vitest Browser Mode have a dedicated job that installs the
+browser explicitly instead of relying on a runner image.
+
+Do not infer platform support from path-string unit tests alone. The native
+record, replay, changed-file, command-failure, and process-spawn paths must pass
+at the exact release candidate.
+
 ## Worktrees and concurrent writers
 
 Each Git worktree uses its own `.tia` directory by default and can run at the
