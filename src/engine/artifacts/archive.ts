@@ -16,9 +16,12 @@ export interface TiaArtifactArchive {
   graphSha256: string
 }
 
-export function readArtifactArchive(
+const NESTED_ARCHIVE_PATTERN = /(?:^|\/)tiacore-[a-f0-9]{24}\.zip$/
+
+function readArchive(
   archive: Uint8Array,
   runner: string | undefined,
+  depth: number,
 ): TiaArtifactArchive | null {
   if (archive.byteLength > MAX_ARTIFACT_ARCHIVE_BYTES) {
     return null
@@ -46,7 +49,10 @@ export function readArtifactArchive(
   try {
     entries = unzipSync(archive, {
       filter: (entry) =>
-        allowedPaths.has(entry.name) &&
+        (
+          allowedPaths.has(entry.name) ||
+          (depth === 0 && NESTED_ARCHIVE_PATTERN.test(entry.name))
+        ) &&
         entry.originalSize <= MAX_ARTIFACT_GRAPH_BYTES,
     })
   } catch {
@@ -88,7 +94,22 @@ export function readArtifactArchive(
     }
   }
 
+  if (depth === 0) {
+    for (const [path, bytes] of Object.entries(entries).sort()) {
+      if (!NESTED_ARCHIVE_PATTERN.test(path)) continue
+      const nested = readArchive(bytes, runner, depth + 1)
+      if (nested !== null) return nested
+    }
+  }
+
   return null
+}
+
+export function readArtifactArchive(
+  archive: Uint8Array,
+  runner: string | undefined,
+): TiaArtifactArchive | null {
+  return readArchive(archive, runner, 0)
 }
 
 export function archiveGraph(

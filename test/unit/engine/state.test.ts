@@ -18,6 +18,7 @@ import {
   readGraph,
   writeGraph,
 } from '../../../src/engine/state/store.js'
+import { statePath } from '../../../src/engine/state/segmented.js'
 import type { TiaRuntimeGraph } from '../../../src/shared/types.js'
 
 const temporaryDirectories: string[] = []
@@ -28,7 +29,7 @@ function cacheWith(value: unknown): string {
   temporaryDirectories.push(root)
   mkdirSync(cacheDir)
   writeFileSync(
-    join(cacheDir, 'graph.json'),
+    statePath(cacheDir),
     `${JSON.stringify(value)}\n`,
   )
   return cacheDir
@@ -162,9 +163,9 @@ describe('graph state', () => {
     const cacheDir = join(root, '.tia')
     const expected = currentGraph()
     writeGraph(cacheDir, expected)
-    mkdirSync(join(cacheDir, 'graph.lock'))
+    mkdirSync(join(cacheDir, 'state.lock'))
     writeFileSync(
-      join(cacheDir, 'graph.lock/owner.json'),
+      join(cacheDir, 'state.lock/owner.json'),
       `${JSON.stringify({
         createdAt: Date.now(),
         hostname: hostname(),
@@ -206,7 +207,7 @@ describe('graph state', () => {
     ).rejects.toThrow(/BigInt/)
 
     expect(readGraph(cacheDir)).toEqual(expected)
-    expect(existsSync(join(cacheDir, 'graph.lock'))).toBe(false)
+    expect(existsSync(join(cacheDir, 'state.lock'))).toBe(false)
     expect(
       readdirSync(cacheDir).filter((file) => file.endsWith('.tmp')),
     ).toEqual([])

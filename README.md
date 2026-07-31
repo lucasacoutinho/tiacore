@@ -107,6 +107,9 @@ claims and certification levels.
 4. A successful run commits the new graph atomically. Incomplete evidence does
    not replace the last valid graph.
 
+The local cache uses a bounded atomic manifest and content-addressed record
+buckets, so a small update does not rewrite one growing graph file.
+
 The default cache is `.tia/`. Every Git worktree gets its own cache unless an
 explicit shared path is configured. CI can restore an ancestral graph through
 filesystem downloads, GitHub Actions, GitLab CI, an HTTP manifest, or a custom

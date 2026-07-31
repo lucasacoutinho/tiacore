@@ -14,7 +14,7 @@ import {
   partitionCacheDir,
 } from '../../../src/engine/state/partitions.js'
 import {
-  graphPath,
+  statePath,
   readGraph,
   writeGraph,
 } from '../../../src/engine/state/store.js'
@@ -79,7 +79,7 @@ describe('partition promotion failure injection', () => {
       fragment(partition),
     )
     const second = { ...partition, index: 2 }
-    const truncated = graphPath(
+    const truncated = statePath(
       partitionCacheDir(cacheDir, second),
     )
     mkdirSync(dirname(truncated), { recursive: true })

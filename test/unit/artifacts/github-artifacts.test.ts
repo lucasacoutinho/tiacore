@@ -1,6 +1,5 @@
 import {
   mkdtempSync,
-  readFileSync,
   rmSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -16,7 +15,6 @@ import {
 } from '../../../src/engine/artifacts/github-actions.js'
 import { restoreGraphFromArtifacts } from '../../../src/engine/artifacts/restore.js'
 import {
-  graphPath,
   readGraph,
   writeGraph,
 } from '../../../src/engine/state/store.js'
@@ -132,6 +130,20 @@ describe('GitHub Actions artifact discovery', () => {
     expect(archiveGraph(archive, undefined)?.fingerprint).toBe('current')
   })
 
+  test('extracts a publisher archive nested by a CI artifact service', () => {
+    const inner = zipSync({
+      'graph.json': strToU8(JSON.stringify(graph('nested-current'))),
+    })
+    const outer = zipSync({
+      'manifest.json': strToU8('{"version":1,"artifacts":[]}'),
+      'lane/tiacore-0123456789abcdef01234567.zip': inner,
+    })
+
+    expect(archiveGraph(outer, undefined)?.fingerprint).toBe(
+      'nested-current',
+    )
+  })
+
   test('restores the newest compatible graph without extracting other files', async () => {
     vi.stubEnv('TIACORE_TEST_TOKEN', 'test-token')
     const incompatible = zipSync({
@@ -191,9 +203,7 @@ describe('GitHub Actions artifact discovery', () => {
         reason: 'unsigned artifacts explicitly allowed',
       },
     })
-    expect(JSON.parse(readFileSync(graphPath(target), 'utf8'))).toMatchObject({
-      fingerprint: 'current',
-    })
+    expect(readGraph(target)).toMatchObject({ fingerprint: 'current' })
     expect(request).toHaveBeenNthCalledWith(
       1,
       'https://api.github.test/repos/owner/repo/actions/artifacts?per_page=100',
@@ -302,9 +312,7 @@ describe('GitHub Actions artifact discovery', () => {
       provider: 'object storage',
       restored: true,
     })
-    expect(JSON.parse(readFileSync(graphPath(target), 'utf8'))).toMatchObject({
-      fingerprint: 'portable',
-    })
+    expect(readGraph(target)).toMatchObject({ fingerprint: 'portable' })
   })
 
   test('preserves a graph committed while an artifact provider is loading', async () => {

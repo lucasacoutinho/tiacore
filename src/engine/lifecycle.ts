@@ -5,7 +5,7 @@ import { projectFingerprint } from './baseline/fingerprint.js'
 import { createRunPlan } from './planning/runtime.js'
 import {
   graphDigest,
-  purgeGraph,
+  purgeState,
   readGraph,
 } from './state/store.js'
 import type {
@@ -102,7 +102,7 @@ export async function beginRuntimeRun(
   const writeCacheDir = input.writeCacheDir ?? input.cacheDir
   let restore: RestoreArtifactResult | null = null
   if (input.options.fresh) {
-    purgeGraph(writeCacheDir)
+    purgeState(writeCacheDir)
     restore = { reason: 'fresh graph requested', restored: false }
   } else if (
     !input.partitioned &&

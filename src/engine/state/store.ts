@@ -1,8 +1,6 @@
 import {
   mkdirSync,
   readFileSync,
-  readdirSync,
-  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -10,29 +8,42 @@ import {
 import { createHash, randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
 import {
-  dirname,
   join,
 } from 'node:path'
 
 import { GRAPH_SCHEMA_VERSION } from '../../shared/constants.js'
 import type { TiaRuntimeGraph } from '../types.js'
+import {
+  cleanSegmentedWrites,
+  purgeSegmentedState,
+  readSegmentedState,
+  writeSegmentedState,
+} from './segmented.js'
 
-export function graphPath(cacheDir: string): string {
-  return join(cacheDir, 'graph.json')
+export { statePath } from './segmented.js'
+
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) =>
+        left < right ? -1 : left > right ? 1 : 0,
+      )
+      .map(([key, item]) => [key, canonical(item)]),
+  )
 }
 
 export function graphDigest(graph: TiaRuntimeGraph | null): string | null {
   return graph === null
     ? null
-    : createHash('sha256').update(JSON.stringify(graph)).digest('hex')
+    : createHash('sha256')
+        .update(JSON.stringify(canonical(graph)))
+        .digest('hex')
 }
 
 export function readGraph(cacheDir: string): TiaRuntimeGraph | null {
-  try {
-    return parseGraph(readFileSync(graphPath(cacheDir), 'utf8'))
-  } catch {
-    return null
-  }
+  return parseGraph(readSegmentedState(cacheDir))
 }
 
 export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
@@ -53,20 +64,7 @@ export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
 }
 
 export function writeGraph(cacheDir: string, graph: TiaRuntimeGraph): void {
-  const target = graphPath(cacheDir)
-  const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`
-
-  mkdirSync(dirname(target), { recursive: true })
-  try {
-    writeFileSync(
-      temporary,
-      `${JSON.stringify(graph, null, 2)}\n`,
-      'utf8',
-    )
-    renameSync(temporary, target)
-  } finally {
-    rmSync(temporary, { force: true })
-  }
+  writeSegmentedState(cacheDir, graph)
 }
 
 interface GraphLockOwner {
@@ -93,7 +91,7 @@ const wait = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 function lockPath(cacheDir: string): string {
-  return join(cacheDir, 'graph.lock')
+  return join(cacheDir, 'state.lock')
 }
 
 function lockOwner(path: string): GraphLockOwner | null {
@@ -197,17 +195,7 @@ function releaseLock(cacheDir: string, owner: GraphLockOwner): void {
 }
 
 function cleanAbandonedWrites(cacheDir: string): void {
-  try {
-    for (const entry of readdirSync(cacheDir)) {
-      if (
-        /^graph\.json\.\d+\.[\da-f-]{36}\.tmp$/i.test(entry)
-      ) {
-        rmSync(join(cacheDir, entry), { force: true })
-      }
-    }
-  } catch {
-    // A missing cache directory or a concurrently removed orphan is benign.
-  }
+  cleanSegmentedWrites(cacheDir)
 }
 
 function same(left: unknown, right: unknown): boolean {
@@ -360,8 +348,8 @@ export async function commitGraph(
   }
 }
 
-export function purgeGraph(cacheDir: string): void {
-  rmSync(graphPath(cacheDir), { force: true })
+export function purgeState(cacheDir: string): void {
+  purgeSegmentedState(cacheDir)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

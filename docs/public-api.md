@@ -106,6 +106,9 @@ persisted runner cache. They are public so adapter authors can inspect a
 successful commit, but their schema is not the portable language contract. A
 schema change may force a safe cache rebuild during `0.x`.
 
+The runtime graph is an in-memory contract. Its on-disk representation is a
+segmented, content-addressed state store and is not a public file-layout API.
+
 It also exports the runner-neutral `createImpactPlan()` and
 `mergeImpactGraphs()` functions plus protocol types.
 

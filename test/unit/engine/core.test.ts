@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process'
 import {
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -12,6 +11,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { TiaCore } from '../../../src/entries/core.js'
+import { readGraph } from '../../../src/engine/state/store.js'
 
 const race = vi.hoisted(() => ({
   contents: '',
@@ -186,10 +186,8 @@ describe('runner-neutral TIA core', () => {
       }],
       ['test/a.test.ts'],
     )
-    const graph = readFileSync(
-      join(root, '.tia/custom/graph.json'),
-      'utf8',
-    )
+    const graph = readGraph(join(root, '.tia/custom'))
+    if (graph === null) throw new Error('expected custom graph')
     rmSync(join(root, '.tia'), { force: true, recursive: true })
 
     const replay = new TiaCore({

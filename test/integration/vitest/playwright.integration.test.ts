@@ -8,6 +8,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import { readGraph } from '../../../src/engine/state/store.js'
+
 import {
   cleanupProjects,
   createFixtureProject,
@@ -29,7 +31,7 @@ describe('Playwright adapter', () => {
     expect(record.status, record.output).toBe(0)
     expect(record.output).toContain('TIA record:')
     expect(
-      existsSync(join(root, '.tia/playwright/graph.json')),
+      existsSync(join(root, '.tia/playwright/state.json')),
       record.output,
     ).toBe(true)
     expect(
@@ -38,11 +40,8 @@ describe('Playwright adapter', () => {
         .split('\n')
         .sort(),
     ).toEqual(['lazy', 'shared'])
-    const graph = JSON.parse(
-      readFileSync(join(root, '.tia/playwright/graph.json'), 'utf8'),
-    ) as {
-      testEdges: Record<string, { file: string; files: string[] }>
-    }
+    const graph = readGraph(join(root, '.tia/playwright'))
+    if (graph === null) throw new Error('expected Playwright graph')
     const edges = Object.values(graph.testEdges)
     const lazyEdge = edges.find((edge) =>
       edge.file.endsWith('lazy.spec.ts'),

@@ -96,7 +96,7 @@ describe('failure injection', () => {
 
     expect(committed.status).toBe('committed')
     expect(readStateGraph(cacheDir)).toEqual(proposed)
-    expect(existsSync(join(cacheDir, 'graph.lock'))).toBe(false)
+    expect(existsSync(join(cacheDir, 'state.lock'))).toBe(false)
     expect(
       readdirSync(cacheDir).filter((file) => file.endsWith('.tmp')),
     ).toEqual([])
@@ -241,8 +241,8 @@ test('worker exit case', () => {
     })
     const initial = runVitest(root, ['run', '--pool=forks'])
     expect(initial.status, initial.output).toBe(0)
-    const graphFile = join(root, '.tia/graph.json')
-    const before = readFileSync(graphFile, 'utf8')
+    const stateFile = join(root, '.tia/state.json')
+    const before = readFileSync(stateFile, 'utf8')
 
     resetExecutions(root)
     writeFileSync(
@@ -256,7 +256,7 @@ test('worker exit case', () => {
       { TIACORE_INJECT_VITEST_EXIT: '1' },
     )
     expect(crashed.status).not.toBe(0)
-    expect(readFileSync(graphFile, 'utf8')).toBe(before)
+    expect(readFileSync(stateFile, 'utf8')).toBe(before)
 
     resetExecutions(root)
     const recovered = runVitest(root, ['run', '--pool=forks'])

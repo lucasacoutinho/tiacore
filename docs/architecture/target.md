@@ -28,6 +28,10 @@ cached outcomes, coverage shards, transactional persistence, partitions,
 artifacts, replay events, and bounded scheduling. Its `TiaRuntimeGraph` is an
 SDK cache, not a cross-language format.
 
+Runtime persistence is segmented: a bounded `state.json` atomically references
+content-addressed record buckets. Small updates reuse unchanged buckets instead
+of rewriting a monolithic graph.
+
 `adapters` own runner APIs and translate discovery, execution, dependencies,
 results, and failures into engine observations or portable protocol graphs.
 Runner-specific policy stays here.

@@ -10,6 +10,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import { writeGraph as writeStateGraph } from '../../../src/engine/state/store.js'
+
 import {
   cleanupProjects,
   cloneProjectWithGraph,
@@ -31,7 +33,7 @@ describe('bespoke integration paths', () => {
     const initial = runVitest(root)
     expect(initial.status, initial.output).toBe(0)
 
-    writeFileSync(join(root, '.tia/graph.json'), '{"schema":1}\n')
+    writeFileSync(join(root, '.tia/state.json'), '{"schema":1}\n')
     resetExecutions(root)
 
     const corrupt = runVitest(root)
@@ -41,10 +43,7 @@ describe('bespoke integration paths', () => {
 
     const graph = readGraph(root)
     graph.baseline.sha = '0000000000000000000000000000000000000000'
-    writeFileSync(
-      join(root, '.tia/graph.json'),
-      `${JSON.stringify(graph)}\n`,
-    )
+    writeStateGraph(join(root, '.tia'), graph)
     resetExecutions(root)
 
     const unreachable = runVitest(root)
@@ -136,7 +135,7 @@ test('mutates a tracked source', () => {
     const result = runVitest(root)
     expect(result.status, result.output).toBe(0)
     expect(result.output).toContain('project files changed during the run')
-    expect(existsSync(join(root, '.tia/graph.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 
   test('composes with an existing setup file and custom reporter', () => {
@@ -723,7 +722,7 @@ test('persistently failing case', () => {
     })
     const initial = runVitest(root)
     expect(initial.status, initial.output).toBe(0)
-    expect(existsSync(join(root, 'tia-cache/graph.json'))).toBe(true)
+    expect(existsSync(join(root, 'tia-cache/state.json'))).toBe(true)
     resetExecutions(root)
 
     const replay = runVitest(root)
@@ -738,6 +737,6 @@ test('persistently failing case', () => {
 
     expect(executions(root).sort()).toEqual(['a', 'b'])
     expect(watch.output).not.toContain('TIA recording')
-    expect(existsSync(join(root, '.tia/graph.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 })

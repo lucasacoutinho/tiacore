@@ -40,6 +40,9 @@ contracts.
 
 The runtime graph may rebuild when its internal schema changes. It must not
 cross into a future non-JavaScript SDK as if it were a portable format.
+On disk, the graph is reconstructed from a bounded manifest and
+content-addressed record buckets; `TiaRuntimeGraph` is the in-memory view, not a
+promise of one JSON file.
 
 ## Conversion boundary
 

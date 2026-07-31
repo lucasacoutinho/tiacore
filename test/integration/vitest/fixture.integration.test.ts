@@ -12,6 +12,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import { readGraph as readStateGraph } from '../../../src/engine/state/store.js'
+
 import {
   cleanupProjects,
   createFixtureProject,
@@ -22,7 +24,6 @@ import {
   runVitest,
   runVitestAsync,
 } from '../../helpers/integration-project.js'
-import type { TiaRuntimeGraph } from '../../../src/shared/types.js'
 
 afterEach(() => {
   cleanupProjects()
@@ -335,20 +336,13 @@ describe('runnable fixture projects', () => {
     const groups = readdirSync(join(root, '.tia/fragments'))
     expect(groups).toHaveLength(1)
     const group = groups[0]!
-    const fragments = ['1-of-2', '2-of-2'].map((partition) =>
-      JSON.parse(
-        readFileSync(
-          join(
-            root,
-            '.tia/fragments',
-            group,
-            partition,
-            'graph.json',
-          ),
-          'utf8',
-        ),
-      ) as TiaRuntimeGraph,
-    )
+    const fragments = ['1-of-2', '2-of-2'].map((partition) => {
+      const graph = readStateGraph(
+        join(root, '.tia/fragments', group, partition),
+      )
+      if (graph === null) throw new Error('expected shard state')
+      return graph
+    })
     expect(fragments.map((graph) => graph.partition)).toEqual([
       { group: 'local-suite', index: 1, total: 2 },
       { group: 'local-suite', index: 2, total: 2 },
@@ -385,7 +379,7 @@ describe('runnable fixture projects', () => {
       { TIA_FRESH: '1', TIA_SHARD_GROUP: 'first-run' },
     )
     expect(first.status, first.output).toBe(0)
-    expect(existsSync(join(root, '.tia/graph.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
 
     const mixed = await runVitestAsync(
       root,
@@ -394,7 +388,7 @@ describe('runnable fixture projects', () => {
       { TIA_FRESH: '1', TIA_SHARD_GROUP: 'second-run' },
     )
     expect(mixed.status, mixed.output).toBe(0)
-    expect(existsSync(join(root, '.tia/graph.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 
   test('restores CI-downloaded shard directories without a platform API', async () => {
@@ -424,14 +418,9 @@ describe('runnable fixture projects', () => {
       )
       mkdirSync(destination, { recursive: true })
       cpSync(
-        join(
-          root,
-          '.tia/fragments',
-          group,
-          partition,
-          'graph.json',
-        ),
-        join(destination, 'graph.json'),
+        join(root, '.tia/fragments', group, partition),
+        destination,
+        { recursive: true },
       )
     }
     rmSync(join(root, '.tia'), { force: true, recursive: true })

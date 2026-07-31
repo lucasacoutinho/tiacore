@@ -124,11 +124,20 @@ steps:
   - run: npm test
     env:
       GITHUB_TOKEN: ${{ github.token }}
+  - run: >-
+      npx tiacore artifacts publish
+      --cache-dir .tia
+      --artifact-id ${{ github.run_id }}
+      --run-id ${{ github.run_id }}
+      --producer github-actions
+      --signing-key-id release-2026
+    env:
+      TIA_ARTIFACT_PRIVATE_KEY: ${{ secrets.TIA_ARTIFACT_PRIVATE_KEY }}
   - uses: actions/upload-artifact@v4
     if: always()
     with:
       name: tiacore
-      path: .tia
+      path: .tia-artifacts
       include-hidden-files: true
       if-no-files-found: ignore
 ```
@@ -139,7 +148,7 @@ engine falls back to a larger filesystem-content baseline.
 ## Vitest shards
 
 Vitest `--shard=<index>/<total>` runs write isolated fragments under
-`.tia/fragments/<group>/<index>-of-<total>/graph.json`. Set one stable group for
+`.tia/fragments/<group>/<index>-of-<total>/state.json`. Set one stable group for
 all shards in the same run:
 
 ```sh
@@ -209,9 +218,10 @@ same time. Graphs restored between worktrees are reusable only when their
 recorded commit is an ancestor of the target.
 
 Graph commits use a short cross-process transaction. A writer locks the commit,
-rereads the current generation, merges compatible disjoint changes, and
-atomically renames the result. Conflicting updates fail closed without
-overwriting the winning graph.
+rereads the current generation, merges compatible disjoint changes, writes only
+changed content-addressed buckets, and atomically swaps the bounded state
+manifest. Conflicting updates fail closed without overwriting the winning
+state.
 
 An absolute shared `cacheDir` is safe for identical worktree states. Diverged
 worktrees should keep separate caches because they cannot share one current

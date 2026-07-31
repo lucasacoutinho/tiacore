@@ -5,6 +5,12 @@ import {
 } from 'node:fs'
 import { resolve } from 'node:path'
 
+import {
+  MAX_ARTIFACT_ARCHIVE_BYTES,
+  readArtifactArchive,
+} from './archive.js'
+import { readGraph } from '../state/store.js'
+
 import type {
   TiaArtifactCandidate,
   TiaArtifactProvider,
@@ -12,10 +18,9 @@ import type {
 } from './types.js'
 
 const DEFAULT_PATHS = ['.tia-artifacts']
-const MAX_GRAPH_BYTES = 20 * 1024 * 1024
 const MAX_FILES = 1_000
 
-function graphFiles(path: string, files: string[]): void {
+function artifactFiles(path: string, files: string[]): void {
   if (files.length >= MAX_FILES) {
     return
   }
@@ -30,7 +35,10 @@ function graphFiles(path: string, files: string[]): void {
     return
   }
   if (stat.isFile()) {
-    if (path.endsWith('graph.json') && stat.size <= MAX_GRAPH_BYTES) {
+    if (
+      (path.endsWith('state.json') || path.endsWith('.zip')) &&
+      stat.size <= MAX_ARTIFACT_ARCHIVE_BYTES
+    ) {
       files.push(path)
     }
     return
@@ -40,7 +48,7 @@ function graphFiles(path: string, files: string[]): void {
   }
 
   for (const entry of readdirSync(path).sort()) {
-    graphFiles(resolve(path, entry), files)
+    artifactFiles(resolve(path, entry), files)
     if (files.length >= MAX_FILES) {
       return
     }
@@ -56,20 +64,33 @@ export function createFilesystemArtifactProvider(
       const root = context.root ?? process.cwd()
       const files: string[] = []
       for (const path of options.paths ?? DEFAULT_PATHS) {
-        graphFiles(resolve(root, path), files)
+        artifactFiles(resolve(root, path), files)
       }
 
       return files.flatMap((path): TiaArtifactCandidate[] => {
         try {
-          const graph = JSON.parse(readFileSync(path, 'utf8')) as {
-            partition?: { group?: unknown }
-          }
+          const isArchive = path.endsWith('.zip')
+          const archived = isArchive
+            ? readArtifactArchive(
+                new Uint8Array(readFileSync(path)),
+                context.runner,
+              )
+            : null
+          if (isArchive && archived === null) return []
+          const graph = archived?.graph ?? readGraph(resolve(path, '..'))
+          if (graph === null) return []
           const group =
             typeof graph.partition?.group === 'string'
               ? graph.partition.group
               : options.group
           return [{
+            ...(archived?.attestation === undefined
+              ? {}
+              : { attestation: archived.attestation }),
             graph,
+            ...(archived === null
+              ? {}
+              : { graphSha256: archived.graphSha256 }),
             ...(group === undefined ? {} : { group }),
             id: path,
           }]
