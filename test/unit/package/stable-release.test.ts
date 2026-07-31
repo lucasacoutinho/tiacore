@@ -18,10 +18,12 @@ import {
 
 interface PackageManifest {
   dependencies: Record<string, string>
+  devDependencies: Record<string, string>
   exports: Record<string, unknown>
   files: string[]
   license: string
   name: string
+  peerDependencies: Record<string, string>
   version: string
 }
 
@@ -52,8 +54,8 @@ describe('stable release contract', () => {
       name: '@usescherie/tiacore',
       version: PLUGIN_VERSION,
     })
-    expect(PLUGIN_VERSION).toBe('1.0.0')
-    expect(pythonProject).toMatch(/^version = "1\.0\.0"$/m)
+    expect(PLUGIN_VERSION).toBe('1.0.1')
+    expect(pythonProject).toMatch(/^version = "1\.0\.1"$/m)
   })
 
   test('freezes the supported package entry points', () => {
@@ -92,6 +94,17 @@ describe('stable release contract', () => {
         'SECURITY.md',
       ]),
     )
+  })
+
+  test('uses the current compiler and bundler without narrowing Vite support', () => {
+    const packageJson = json<PackageManifest>('package.json')
+
+    expect(packageJson.devDependencies).toMatchObject({
+      '@vitejs/plugin-react': '^6.0.5',
+      typescript: '^7.0.2',
+      vite: '^8.2.0',
+    })
+    expect(packageJson.peerDependencies.vite).toBe('>=6.0.0 <9.0.0')
   })
 
   test('freezes every published contract version', () => {
