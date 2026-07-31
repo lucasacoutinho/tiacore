@@ -1,6 +1,6 @@
 # Public API
 
-tiacore has eleven primary supported entry points plus the Playwright reporter
+tiacore has fifteen primary supported entry points plus the Playwright reporter
 configuration target. Everything below `dist/` or an internal `src/` folder is
 private and may change without notice.
 
@@ -35,6 +35,27 @@ entry point.
 Each exports named `tia(options?)`, returning a `TiaRunner` with an asynchronous
 `run()` method. Both share `TiaRunnerOptions` and `TiaRunnerResult`. Node also
 enforces its 22.10 runtime minimum when the adapter is executed.
+
+## `@usescherie/tiacore/evidence`
+
+Exports named `tia(options?)`, returning a `TiaEvidence` correlation client.
+It creates bounded correlation IDs and headers, carries correlation through
+asynchronous service code, records project-relative files atomically, and
+collects evidence emitted by other processes. Playwright uses the same API to
+join a browser test with API or worker files reached by that test.
+
+The default request header is `x-tiacore-correlation-id`. Set
+`TIA_EVIDENCE_DIRECTORY` for all participating processes and optionally
+`TIA_EVIDENCE_HEADER` when a deployment requires a different header. Evidence
+is inert unless a directory is configured by the runner or application.
+
+## `@usescherie/tiacore/gradle`
+
+Exports named `tia(options)`, returning a `TiaGradleRunner`. The adapter
+discovers Java and Kotlin test classes, follows transitive imports to local production
+sources, selects affected classes, delegates their execution to one native
+Gradle invocation, and validates that selected classes appear in JUnit XML.
+Gradle continues to own task caching, workers, forks, and connected devices.
 
 ## `@usescherie/tiacore/playwright`
 
@@ -88,6 +109,29 @@ schema change may force a safe cache rebuild during `0.x`.
 It also exports the runner-neutral `createImpactPlan()` and
 `mergeImpactGraphs()` functions plus protocol types.
 
+## `@usescherie/tiacore/artifacts`
+
+Exports named `tia(options)`, `TiaArtifactPublisher`, the filesystem sink
+factory, and provider-neutral publisher, sink, manifest, lineage, and receipt
+types. `publish()` accepts a complete graph or a valid partition; `promote()`
+accepts only a complete non-partition graph and can require complete coverage.
+
+The publisher creates a bounded ZIP, records its byte size and SHA-256 digest,
+and emits an HTTP-manifest-v1 document with source baseline, parent artifacts,
+producer, and run ID. The built-in filesystem sink produces files for any CI
+upload mechanism. A custom sink only implements `put()` and can target object
+storage or a CI-native artifact API.
+
+The CLI exposes both states:
+
+```sh
+tiacore artifacts publish --cache-dir .tia/node \
+  --artifact-id build-42 --run-id pipeline-42
+
+tiacore artifacts promote --cache-dir .tia/node \
+  --artifact-id release-42 --run-id pipeline-42 --require-coverage
+```
+
 ## `@usescherie/tiacore/protocol`
 
 Exports the versioned runner-neutral graph, suite, observation, change, policy,
@@ -138,6 +182,28 @@ failure.
 The workspace coordinator does not merge runner graphs or reinterpret cached
 results. Each adapter remains responsible for its own impact plan and native
 parallelism.
+
+## `@usescherie/tiacore/verification`
+
+Exports named `tia(options)`, `TiaVerifier`, and the verification receipt,
+snapshot, phase, runner, and issue types. The verifier executes the supplied
+command twice: once with normal selective behavior and once with `TIA_FRESH=1`.
+It compares complete outcomes and dependency graphs, plus coverage graphs when
+the runner declares complete coverage evidence.
+
+Receipts include per-runner phase metrics and a performance summary with
+executed, replayed, and fallback counts, wall-time savings, execution
+reduction, and measured speedup.
+
+The CLI exposes the same differential gate:
+
+```sh
+tiacore verify --output .tia/verification.json -- npm test
+```
+
+Every TIA runner reached by the command writes an isolated phase snapshot. A
+missing or duplicate runner snapshot fails verification, so a command may
+safely cover multiple Vitest configurations or heterogeneous workspace lanes.
 
 ## Compatibility policy
 

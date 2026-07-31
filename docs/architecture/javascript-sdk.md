@@ -12,7 +12,8 @@ Its physical boundaries are explicit:
 - `adapters` translate runner-native discovery and results;
 - `integrations` add coverage and framework-specific dependency evidence;
 - `orchestration` schedules independent adapter or command lanes;
-- `cli` exposes protocol, adapter, and orchestration operations.
+- `cli` assembles Commander registrars for protocol, adapter, and orchestration
+  operations. Adapter-specific command declarations remain under `adapters`.
 
 Supported subpath entry points stay as thin files in `src/entries/`; only the
 default compatibility entry remains at `src/index.ts`. Internal modules are

@@ -7,8 +7,8 @@ the next run, it compares the current project with that baseline, executes the
 affected tests, and reuses unaffected results. Uncertain input causes a safe
 full-suite run.
 
-It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6, and
-pytest. Git improves baseline comparison, but it is optional.
+It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6,
+Gradle/JUnit, and pytest. Git improves baseline comparison, but it is optional.
 
 > tiacore is pre-release, proprietary software. Install an exact reviewed VCS
 > revision until private packages are available.
@@ -56,6 +56,17 @@ per-test shards. No separate `:tia` script is required.
 [Read the setup guide](docs/guides/getting-started.md) for Playwright,
 `node:test`, Bun, Maestro, k6, pytest, and workspace orchestration.
 
+Before trusting a new adapter or framework edge, compare its selective result
+with a fresh full run of the same command:
+
+```sh
+npx tiacore verify --output .tia/verification.json -- npm test
+```
+
+The command fails when outcomes, dependency evidence, or complete coverage
+evidence diverge. It can verify a workspace command that invokes several TIA
+runners in one pass.
+
 ## Why tiacore
 
 - Runtime evidence catches lazy imports, rendered React components, browser
@@ -79,6 +90,7 @@ per-test shards. No separate `:tia` script is required.
 | `bun:test` | `@usescherie/tiacore/bun` | Test cases from isolated LCOV observations |
 | Maestro | `@usescherie/tiacore/maestro` | Flows and transitive `runFlow` dependencies |
 | k6 | `@usescherie/tiacore/k6` | Profiles and transitive local imports |
+| Gradle/JUnit | `@usescherie/tiacore/gradle` | Java/Kotlin test classes and local imports; JUnit result validation |
 | pytest | `sdks/python` | Test files and transitive local imports |
 
 Vitest 4.1 and Node.js 20 or newer are required for the main package. The
@@ -105,6 +117,8 @@ artifact provider.
 - [Getting started and runner setup](docs/guides/getting-started.md)
 - [Configuration and safety behavior](docs/guides/configuration.md)
 - [CI, parallelism, shards, and worktrees](docs/guides/ci-and-parallelism.md)
+- [Differential verification](docs/guides/verification.md)
+- [Scherie benchmark baseline](docs/benchmarks/scherie.md)
 - [Public API](docs/public-api.md)
 - [Target architecture](docs/architecture/target.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)

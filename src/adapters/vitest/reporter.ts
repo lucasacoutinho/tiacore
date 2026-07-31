@@ -34,6 +34,7 @@ import {
   replayedResults,
   replayRunEvent,
 } from '../../engine/replay/index.js'
+import { writeVerificationSnapshot } from '../../verification/snapshot.js'
 import { cachedTestCase } from './cached-test.js'
 import type {
   Baseline,
@@ -514,6 +515,19 @@ export class TiaReporter implements Reporter {
         }, ${replayed} replayed result${replayed === 1 ? '' : 's'}.`,
       )
     }
+
+    await writeVerificationSnapshot({
+      executedTestIds: this.results.keys(),
+      graph: savedGraph,
+      plan,
+      runner: `vitest:${
+        projectRelative(
+          this.runtime.root,
+          this.runtime.options.cacheDir,
+        ) ?? this.runtime.options.cacheDir
+      }`,
+      success: !failedRun,
+    })
 
     await notifyReplayAdapters(
       this.runtime.options.replayAdapters,

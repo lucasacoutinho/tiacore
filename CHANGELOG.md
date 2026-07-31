@@ -5,8 +5,30 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+## 0.5.0 - 2026-07-31
+
+- Replaced the hand-written executable argument parser with Commander 14 and
+  moved k6 and Maestro command declarations into their adapter modules.
+- Added the `@usescherie/tiacore/evidence` correlation SDK and Playwright
+  request propagation so browser tests can own files executed by API and worker
+  processes.
+- Added an adapter-owned Gradle/JUnit entry point and CLI namespace for Java and
+  Kotlin test-class selection, native Gradle execution, and JUnit completion
+  validation.
+- Added bounded executable certification and Scherie-scale protocol regression
+  coverage using the existing Vitest Bench harness.
+
 ### Added
 
+- Added differential verification through `tiacore verify` and
+  `@usescherie/tiacore/verification`. It compares a normal selective run with a
+  fresh full run across every participating runner and emits a machine-readable
+  receipt for outcomes, dependency evidence, complete coverage evidence,
+  executed and replayed counts, fallbacks, and measured speedup.
+- Added provider-neutral artifact publishing through
+  `@usescherie/tiacore/artifacts` and `tiacore artifacts publish|promote`, with
+  custom sinks, filesystem output, SHA-256 integrity, source and parent
+  lineage, explicit trust state, and coverage-aware promotion refusal.
 - Added runtime baseline provenance and per-target selection decisions to run
   plans and replay lifecycle events, with bounded human-readable explanations
   across Vitest, Playwright, Node, and Bun.

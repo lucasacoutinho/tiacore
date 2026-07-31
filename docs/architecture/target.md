@@ -38,7 +38,11 @@ coverage and database, view, subprocess, and custom framework edges.
 `orchestration` owns cross-lane concurrency, dependencies, failure propagation,
 and resource locks. It never decides which tests are affected.
 
-`cli` parses user input and invokes protocol, adapter, or orchestration APIs.
+`cli` composes the executable with Commander and registers only
+runner-neutral commands. Each adapter owns its Commander registrar beside its
+implementation, so runner vocabulary and options do not accumulate in a
+central dispatch table. The executable invokes protocol, adapter, or
+orchestration APIs without reimplementing argument parsing.
 `entries` contains thin package shims and the executable launcher. The source
 root contains only the default `index.ts` entry. `test/unit` mirrors
 component boundaries; `test/integration` proves real runner, storage, CLI, and
@@ -52,6 +56,8 @@ package behavior; `test/fixtures` contains reusable real projects.
 - Orchestration may invoke public runner contracts but does not import runner
   internals.
 - CLI code may compose protocol, adapters, and orchestration.
+- Adapter commands are declared in the adapter layer and registered by the CLI;
+  the core CLI may not switch on adapter-prefixed command names.
 - Public entry points expose supported contracts without exporting internal
   paths.
 

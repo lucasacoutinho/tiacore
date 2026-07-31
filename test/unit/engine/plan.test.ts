@@ -129,7 +129,7 @@ describe('run planning', () => {
     expect(baseline?.workingTree).not.toHaveProperty('coverage/generated.json')
   })
 
-  test('records a full suite when complete coverage is requested from a legacy graph', () => {
+  test('records a full suite when complete coverage evidence is unavailable', () => {
     const root = fixture()
     const cached = graph(root)
     cached.coverageComplete = false
@@ -430,7 +430,7 @@ describe('run planning', () => {
     expect(plan.affectedTestIds).toEqual(['a'])
   })
 
-  test('falls back to the whole linked file for a legacy graph', () => {
+  test('falls back to the whole linked file when per-case edges are incomplete', () => {
     const root = fixture()
     const cached = graph(root)
     cached.results.b!.state = 'passed'

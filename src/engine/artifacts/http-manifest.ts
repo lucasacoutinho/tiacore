@@ -16,7 +16,10 @@ interface ManifestArtifact {
   fingerprint?: string
   group?: number | string
   id: number | string
+  promoted?: boolean
   runner?: string
+  sha256?: string
+  size?: number
   url: string
 }
 
@@ -45,7 +48,14 @@ function manifestArtifacts(value: unknown): ManifestArtifact[] {
         (candidate.fingerprint === undefined ||
           typeof candidate.fingerprint === 'string') &&
         (candidate.runner === undefined ||
-          typeof candidate.runner === 'string')
+          typeof candidate.runner === 'string') &&
+        (candidate.promoted === undefined ||
+          typeof candidate.promoted === 'boolean') &&
+        (candidate.sha256 === undefined ||
+          (typeof candidate.sha256 === 'string' &&
+            /^[a-f0-9]{64}$/.test(candidate.sha256))) &&
+        (candidate.size === undefined ||
+          (Number.isSafeInteger(candidate.size) && candidate.size >= 0))
       )
     },
   )
@@ -98,7 +108,8 @@ async function loadHttpManifest(
         (artifact.fingerprint === undefined ||
           artifact.fingerprint === context.fingerprint) &&
         (artifact.runner === undefined ||
-          artifact.runner === context.runner),
+          artifact.runner === context.runner) &&
+        (!options.promotedOnly || artifact.promoted === true),
     )
     .slice(0, Math.max(1, Math.min(100, options.maxArtifacts ?? 20)))
   const candidates: TiaArtifactCandidate[] = []
@@ -121,6 +132,15 @@ async function loadHttpManifest(
       MAX_ARTIFACT_ARCHIVE_BYTES,
     )
     if (archive === null) continue
+    if (
+      (artifact.size !== undefined &&
+        archive.byteLength !== artifact.size) ||
+      (artifact.sha256 !== undefined &&
+        createHash('sha256').update(archive).digest('hex') !==
+          artifact.sha256)
+    ) {
+      continue
+    }
     const graph = archiveGraph(archive, context.runner)
     if (graph?.fingerprint !== context.fingerprint) continue
     candidates.push({
@@ -143,3 +163,4 @@ export function createHttpManifestArtifactProvider(
     load: (context) => loadHttpManifest(context, options, request),
   }
 }
+import { createHash } from 'node:crypto'

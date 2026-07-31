@@ -33,7 +33,9 @@ to them without observing the runner's execution. A plan may mark an
 unselected suite as cached, but that means only that its prior graph relation
 is reusable. It does not replay a native runner result.
 
-k6, Maestro, and the Python pytest SDK currently meet this level.
+k6, Maestro, Gradle/JUnit, and the Python pytest SDK currently meet this level.
+The Gradle adapter delegates all selected classes to one native Gradle task and
+uses JUnit XML as completion evidence; it does not replay JVM outcomes.
 
 ## Rules shared by every level
 

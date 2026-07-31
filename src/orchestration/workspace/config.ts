@@ -6,7 +6,7 @@ import {
   tia,
   TiaWorkspaceRunner,
   type TiaWorkspaceOptions,
-} from '../orchestration/workspace.js'
+} from '../workspace.js'
 
 export async function runWorkspaceCommand(options: {
   config: string

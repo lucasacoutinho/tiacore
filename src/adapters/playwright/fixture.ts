@@ -1,11 +1,20 @@
+import { randomUUID } from 'node:crypto'
+
 import type {
   BrowserContext,
   Fixtures,
   Page,
   PlaywrightTestArgs,
+  Route,
   TestInfo,
   TestType,
 } from '@playwright/test'
+
+import {
+  TiaEvidence,
+  TIA_EVIDENCE_DIRECTORY_ENV,
+  TIA_EVIDENCE_HEADER_ENV,
+} from '../../integrations/evidence/index.js'
 
 import {
   PLAYWRIGHT_DEPENDENCIES_ATTACHMENT,
@@ -42,6 +51,32 @@ async function recordDependencies(
   }
 
   const files = new Set<string>()
+  const evidenceDirectory = process.env[TIA_EVIDENCE_DIRECTORY_ENV]
+  const evidence =
+    evidenceDirectory === undefined
+      ? null
+      : new TiaEvidence({
+          directory: evidenceDirectory,
+          ...(process.env[TIA_EVIDENCE_HEADER_ENV] === undefined
+            ? {}
+            : { header: process.env[TIA_EVIDENCE_HEADER_ENV] }),
+          producer: `playwright:${testInfo.workerIndex}`,
+          root,
+        })
+  const correlationId = evidence?.correlationId(
+    `playwright:${testInfo.workerIndex}:${randomUUID()}`,
+  )
+  const correlatedRoute =
+    evidence === null || correlationId === undefined
+      ? null
+      : async (route: Route): Promise<void> => {
+          await route.continue({
+            headers: {
+              ...route.request().headers(),
+              ...evidence.headers(correlationId),
+            },
+          })
+        }
   const pending = new Set<Promise<void>>()
   const pages = new Set<Page>()
   const coverageStarts = new Map<Page, Promise<boolean>>()
@@ -89,9 +124,26 @@ async function recordDependencies(
     observe(page)
   }
   await (coverageStarts.get(initialPage) ?? Promise.resolve(false))
+  if (correlatedRoute !== null) {
+    await context.route('**/*', correlatedRoute)
+  }
   context.on('page', observe)
-  await use()
+  try {
+    await use()
+  } finally {
+    if (correlatedRoute !== null) {
+      await context.unroute('**/*', correlatedRoute)
+    }
+  }
   await Promise.allSettled([...pending])
+
+  if (evidence !== null && correlationId !== undefined) {
+    for (const file of await evidence.collect(correlationId, {
+      remove: true,
+    })) {
+      files.add(file)
+    }
+  }
 
   for (const page of pages) {
     const coverageStarted =

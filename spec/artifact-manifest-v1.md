@@ -6,13 +6,24 @@ provider publishes one JSON document:
 ```json
 {
   "version": 1,
+  "generatedAt": "2026-07-31T20:00:00.000Z",
   "artifacts": [
     {
       "id": "pipeline-42-shard-1",
       "url": "https://storage.example/tiacore-42-1.zip",
       "group": "pipeline-42",
-      "fingerprint": "optional-structural-fingerprint",
-      "runner": "optional-runner-namespace"
+      "fingerprint": "structural-fingerprint",
+      "runner": "optional-runner-namespace",
+      "promoted": true,
+      "sha256": "64-lowercase-hex-characters",
+      "size": 12345,
+      "lineage": {
+        "baseline": { "sha": "source-revision", "source": "git" },
+        "parents": ["previous-artifact-id"],
+        "producedAt": "2026-07-31T20:00:00.000Z",
+        "producer": "ci-system-name",
+        "runId": "pipeline-42"
+      }
     }
   ]
 }
@@ -23,6 +34,12 @@ relative to the manifest. The archive contains `graph.json`,
 `.tia/graph.json`, or the equivalent runner-namespaced path. `group` identifies
 partial graphs produced by one pipeline so fragments from different runs are
 never merged.
+
+Publishers set `promoted` only for a complete, non-partition graph. Consumers
+may require promoted entries at release or branch-bootstrap boundaries. The
+SHA-256 digest and byte size cover the archive exactly. `lineage` binds the
+artifact to its source baseline, producing run, optional producer, and parent
+artifact identifiers.
 
 The consumer reads at most 1 MiB of manifest data, inspects at most 100 entries,
 reads at most 25 MiB per archive, extracts only the expected graph entry in

@@ -10,3 +10,8 @@ export {
   type TiaAdapterScenarioEvidence,
   type TiaAdapterScenarioResult,
 } from '../conformance/certification.js'
+export {
+  executeAdapterCertification,
+  type TiaExecutableCertificationOptions,
+  type TiaExecutableScenario,
+} from '../conformance/executable.js'

@@ -1,0 +1,8 @@
+{
+  "name": "tiacore-fixture-evidence-service",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@usescherie/tiacore": "file:../../.."
+  }
+}

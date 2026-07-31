@@ -4,6 +4,7 @@ import {
   type Server,
   type ServerResponse,
 } from 'node:http'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -156,6 +157,63 @@ describe('provider-neutral CI artifact discovery', () => {
         path: '/artifact.zip',
       },
     ])
+  })
+
+  test('requires promoted artifacts and verifies archive integrity', async () => {
+    const zipped = archive('integrity-current')
+    const sha256 = createHash('sha256').update(zipped).digest('hex')
+    const requests: string[] = []
+    const baseUrl = await localServer((request, response) => {
+      requests.push(request.url ?? '')
+      if (request.url === '/manifest.json') {
+        response.end(
+          JSON.stringify({
+            artifacts: [
+              {
+                fingerprint: 'integrity-current',
+                id: 'unpromoted',
+                promoted: false,
+                sha256,
+                size: zipped.byteLength,
+                url: '/unpromoted.zip',
+              },
+              {
+                fingerprint: 'integrity-current',
+                id: 'corrupt',
+                promoted: true,
+                sha256: '0'.repeat(64),
+                size: zipped.byteLength,
+                url: '/corrupt.zip',
+              },
+            ],
+            version: 1,
+          }),
+        )
+        return
+      }
+      if (request.url === '/corrupt.zip') {
+        response.end(Buffer.from(zipped))
+        return
+      }
+      response.writeHead(404).end()
+    })
+
+    const result = await restoreGraphFromArtifacts({
+      cacheDir: cacheDirectory(),
+      fingerprint: 'integrity-current',
+      log: false,
+      providers: artifactProviders({
+        promotedOnly: true,
+        provider: 'http-manifest',
+        url: `${baseUrl}/manifest.json`,
+      }),
+    })
+
+    expect(result).toEqual({
+      reason: 'no provider returned a compatible artifact',
+      restored: false,
+    })
+    expect(requests).toEqual(['/manifest.json', '/corrupt.zip'])
   })
 
   test('discovers a successful prior GitLab pipeline job', async () => {

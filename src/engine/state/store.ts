@@ -46,17 +46,6 @@ export function parseGraph(source: string | unknown): TiaRuntimeGraph | null {
       return null
     }
 
-    if (value.schema === 1 || value.schema === 2) {
-      return {
-        ...value,
-        collectionCoverage: {},
-        coverageComplete: false,
-        schema: GRAPH_SCHEMA_VERSION,
-        testCoverage: {},
-        testEdges: value.schema === 1 ? {} : value.testEdges,
-      } as TiaRuntimeGraph
-    }
-
     return value as unknown as TiaRuntimeGraph
   } catch {
     return null
@@ -385,9 +374,7 @@ function isGraph(value: unknown): value is Record<string, unknown> {
   }
 
   if (
-    (value.schema !== 1 &&
-      value.schema !== 2 &&
-      value.schema !== GRAPH_SCHEMA_VERSION) ||
+    value.schema !== GRAPH_SCHEMA_VERSION ||
     typeof value.complete !== 'boolean' ||
     typeof value.fingerprint !== 'string' ||
     !isRecord(value.baseline) ||
@@ -429,21 +416,19 @@ function isGraph(value: unknown): value is Record<string, unknown> {
           result.state === 'skipped') &&
         (result.duration === undefined || typeof result.duration === 'number'),
     ) &&
-    (value.schema === 1 ||
-      (isRecord(testEdges) &&
-        Object.values(testEdges).every(
-          (edge) =>
-            isRecord(edge) &&
-            typeof edge.file === 'string' &&
-            Array.isArray(edge.files) &&
-            edge.files.every((file) => typeof file === 'string'),
-        ))) &&
-    (value.schema !== GRAPH_SCHEMA_VERSION ||
-      (typeof value.coverageComplete === 'boolean' &&
-        isRecord(collectionCoverage) &&
-        Object.values(collectionCoverage).every(isRecord) &&
-        isRecord(testCoverage) &&
-        Object.values(testCoverage).every(isRecord))) &&
+    isRecord(testEdges) &&
+    Object.values(testEdges).every(
+      (edge) =>
+        isRecord(edge) &&
+        typeof edge.file === 'string' &&
+        Array.isArray(edge.files) &&
+        edge.files.every((file) => typeof file === 'string'),
+    ) &&
+    typeof value.coverageComplete === 'boolean' &&
+    isRecord(collectionCoverage) &&
+    Object.values(collectionCoverage).every(isRecord) &&
+    isRecord(testCoverage) &&
+    Object.values(testCoverage).every(isRecord) &&
     (partition === undefined ||
       (isRecord(partition) &&
         (partition.group === undefined ||

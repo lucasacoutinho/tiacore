@@ -24,6 +24,7 @@ import {
   replayedResults as cachedReplayResults,
   replayRunEvent,
 } from './replay/index.js'
+import { writeVerificationSnapshot } from '../verification/snapshot.js'
 import type {
   CachedTestResult,
   EngineOptions,
@@ -67,7 +68,7 @@ function normalizedOptions(
     artifactProviders: artifactProviders(options.artifacts),
     cacheDir: resolveCacheDir(root, options.cacheDir ?? '.tia'),
     exclude: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
-    fresh: options.fresh ?? false,
+    fresh: options.fresh ?? process.env.TIA_FRESH === '1',
     frameworkFingerprint: '',
     ignoreChanges: options.ignoreChanges ?? [],
     include: options.include ?? DEFAULT_INCLUDE,
@@ -230,6 +231,16 @@ export class TiaCore {
     if (committed.status === 'conflict' || committed.graph === null) {
       return null
     }
+
+    await writeVerificationSnapshot({
+      executedTestIds: observations.map((observation) => observation.id),
+      graph: committed.graph,
+      plan,
+      runner: this.runner,
+      success: observations.every(
+        (observation) => observation.state !== 'failed',
+      ),
+    })
 
     await notifyReplayAdapters(
       this.options.replayAdapters,

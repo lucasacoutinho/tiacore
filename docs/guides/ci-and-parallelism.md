@@ -45,6 +45,31 @@ Candidates are validated for structure, environment, fingerprint, and ancestry
 before reuse. An unavailable or incompatible provider falls through to the
 next one and finally to a full run.
 
+## Publish without a CI-vendor adapter
+
+Create a portable archive and manifest after a successful lane:
+
+```sh
+npx tiacore artifacts publish \
+  --cache-dir .tia/playwright-feature \
+  --artifact-id "$CI_JOB_ID" \
+  --run-id "$CI_PIPELINE_ID" \
+  --runner playwright-feature \
+  --output-dir .tia-artifacts/playwright-feature
+```
+
+Upload `.tia-artifacts/playwright-feature` with the CI system's normal artifact
+step or sync it to object storage. The manifest carries archive integrity,
+source-baseline lineage, producing run, and optional parent IDs. For a custom
+destination, pass a sink implementing the public `put()` contract to
+`@usescherie/tiacore/artifacts`.
+
+Use `artifacts promote` only at a trusted baseline boundary. It refuses partial
+graphs; `--require-coverage` also refuses a graph without complete reconstructed
+coverage. HTTP consumers can set `promotedOnly: true` when bootstrapping a
+release lane. Publishing and promotion describe trust state; neither is tied to
+GitHub, GitLab, or any branch name.
+
 ## GitHub Actions example
 
 Use a unique key per commit with a restore prefix:
@@ -128,6 +153,37 @@ must assign the same `group` to candidates from one partition set.
 Use resource locks for scarce or stateful infrastructure such as Android
 emulators, databases, ports, and performance hosts. A lock should name the
 resource, not the test framework.
+
+## Cross-process evidence
+
+Browser tests can attribute API and worker code reached during one test by
+sharing a bounded correlation directory:
+
+```ts
+// Playwright runner
+await tia({
+  config: 'playwright.config.ts',
+  evidenceDirectory: '.tia/evidence/playwright',
+  root: process.cwd(),
+}).run()
+
+// API or worker process
+const evidence = tia({
+  directory: process.env.TIA_EVIDENCE_DIRECTORY,
+  producer: 'api',
+  root: process.cwd(),
+})
+const correlationId = evidence.fromHeaders(request.headers)
+if (correlationId) {
+  await evidence.run(correlationId, () => evidence.record(filesReached))
+}
+```
+
+The Playwright fixture adds the correlation header to browser requests and
+merges emitted files into that spec's dependency attachment. Give concurrent
+lanes separate evidence directories. The collector ignores malformed,
+oversized, and symlinked events rather than trusting arbitrary filesystem
+content.
 
 ## Worktrees and concurrent writers
 

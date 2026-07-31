@@ -20,6 +20,10 @@ import {
   frameworkFingerprint,
 } from '../../integrations/edges/index.js'
 import { resolveFrameworkEdges } from '../../integrations/edges/resolve.js'
+import {
+  TIA_EVIDENCE_DIRECTORY_ENV,
+  TIA_EVIDENCE_HEADER_ENV,
+} from '../../integrations/evidence/index.js'
 import type {
   TiaArtifactSource,
   TiaFrameworkOptions,
@@ -41,6 +45,8 @@ export interface TiaPlaywrightOptions {
   cacheDir?: string
   config?: string
   cwd?: string
+  evidenceDirectory?: string
+  evidenceHeader?: string
   fresh?: boolean
   frameworks?: TiaFrameworkOptions
   ignoreChanges?: string[]
@@ -183,9 +189,21 @@ export class TiaPlaywrightRunner {
     const cacheDir = resolve(root, this.options.cacheDir ?? '.tia')
     const configFingerprint = importedFilesFingerprint(config, root)
     const adapters = frameworkAdapters(this.options.frameworks)
+    const evidenceDirectory =
+      this.options.evidenceDirectory ??
+      process.env[TIA_EVIDENCE_DIRECTORY_ENV]
+    const evidenceHeader =
+      this.options.evidenceHeader ??
+      process.env[TIA_EVIDENCE_HEADER_ENV]
     const runnerFingerprint = createHash('sha256')
       .update(configFingerprint)
       .update(frameworkFingerprint(adapters))
+      .update(JSON.stringify({
+        correlatedEvidence:
+          evidenceDirectory === undefined ? 0 : 1,
+        evidenceHeader: evidenceHeader ?? '',
+        version: 1,
+      }))
       .digest('hex')
     const core = new TiaCore({
       ...(this.options.artifacts === undefined
@@ -249,6 +267,19 @@ export class TiaPlaywrightRunner {
         cwd,
         {
           ...process.env,
+          ...(evidenceDirectory === undefined
+            ? {}
+            : {
+                [TIA_EVIDENCE_DIRECTORY_ENV]: resolve(
+                  root,
+                  evidenceDirectory,
+                ),
+              }),
+          ...(evidenceHeader === undefined
+            ? {}
+            : {
+                [TIA_EVIDENCE_HEADER_ENV]: evidenceHeader,
+              }),
           [PLAYWRIGHT_ROOT_ENV]: root,
           [PLAYWRIGHT_SESSION_ENV]: session,
         },

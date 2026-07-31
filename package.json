@@ -1,7 +1,7 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "0.4.1",
-  "description": "Runner-neutral test impact analysis with JavaScript, Maestro, and k6 adapters",
+  "version": "0.5.0",
+  "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
   "author": "Lucas Coutinho",
   "private": false,
   "type": "module",
@@ -55,6 +55,16 @@
         "default": "./dist/entries/vitest.cjs"
       }
     },
+    "./artifacts": {
+      "import": {
+        "types": "./dist/entries/artifacts.d.ts",
+        "default": "./dist/entries/artifacts.js"
+      },
+      "require": {
+        "types": "./dist/entries/artifacts.d.cts",
+        "default": "./dist/entries/artifacts.cjs"
+      }
+    },
     "./core": {
       "import": {
         "types": "./dist/entries/core.d.ts",
@@ -63,6 +73,16 @@
       "require": {
         "types": "./dist/entries/core.d.cts",
         "default": "./dist/entries/core.cjs"
+      }
+    },
+    "./evidence": {
+      "import": {
+        "types": "./dist/entries/evidence.d.ts",
+        "default": "./dist/entries/evidence.js"
+      },
+      "require": {
+        "types": "./dist/entries/evidence.d.cts",
+        "default": "./dist/entries/evidence.cjs"
       }
     },
     "./protocol": {
@@ -83,6 +103,16 @@
       "require": {
         "types": "./dist/entries/conformance.d.cts",
         "default": "./dist/entries/conformance.cjs"
+      }
+    },
+    "./gradle": {
+      "import": {
+        "types": "./dist/entries/gradle.d.ts",
+        "default": "./dist/entries/gradle.js"
+      },
+      "require": {
+        "types": "./dist/entries/gradle.d.cts",
+        "default": "./dist/entries/gradle.cjs"
       }
     },
     "./maestro": {
@@ -154,6 +184,16 @@
         "types": "./dist/entries/workspace.d.cts",
         "default": "./dist/entries/workspace.cjs"
       }
+    },
+    "./verification": {
+      "import": {
+        "types": "./dist/entries/verification.d.ts",
+        "default": "./dist/entries/verification.js"
+      },
+      "require": {
+        "types": "./dist/entries/verification.d.cts",
+        "default": "./dist/entries/verification.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
@@ -185,7 +225,9 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
+    "commander": "^14.0.3",
     "es-module-lexer": "^2.3.1",
+    "fast-xml-parser": "^5.10.1",
     "fflate": "^0.8.3",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-instrument": "^6.0.3",

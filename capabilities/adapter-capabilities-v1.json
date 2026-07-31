@@ -98,6 +98,22 @@
       ]
     },
     {
+      "id": "gradle-junit",
+      "entryPoint": "@usescherie/tiacore/gradle",
+      "factory": "tia",
+      "capabilityLevel": "static-impact",
+      "selectionGranularity": "test-file",
+      "dependencyEvidence": "static",
+      "cachedOutcomes": false,
+      "coverageReconstruction": false,
+      "nativeParallelism": true,
+      "baselines": ["explicit-changes"],
+      "boundaries": [
+        "the adapter follows local Java and Kotlin imports and validates selected classes against JUnit XML",
+        "Gradle owns workers, forks, task caching, and device execution"
+      ]
+    },
+    {
       "id": "pytest",
       "entryPoint": "python:tiacore",
       "factory": "tia",

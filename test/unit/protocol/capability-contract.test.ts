@@ -38,6 +38,7 @@ describe('adapter capability contract', () => {
     expect(contract.contractVersion).toBe(1)
     expect(contract.adapters.map(({ id }) => id).sort()).toEqual([
       'bun-test',
+      'gradle-junit',
       'k6',
       'maestro',
       'node-test',
@@ -83,12 +84,18 @@ describe('adapter capability contract', () => {
         expect(adapter.dependencyEvidence).toBe('static')
         expect(adapter.cachedOutcomes).toBe(false)
         expect(adapter.coverageReconstruction).toBe(false)
-        expect(adapter.nativeParallelism).toBe(false)
       }
     }
   })
 
   test('does not overstate Playwright or coverage fidelity', () => {
+    expect(
+      contract.adapters.find(({ id }) => id === 'gradle-junit'),
+    ).toMatchObject({
+      capabilityLevel: 'static-impact',
+      nativeParallelism: true,
+      selectionGranularity: 'test-file',
+    })
     expect(
       contract.adapters.find(({ id }) => id === 'playwright'),
     ).toMatchObject({

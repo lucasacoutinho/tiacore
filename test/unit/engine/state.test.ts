@@ -34,25 +34,6 @@ function cacheWith(value: unknown): string {
   return cacheDir
 }
 
-function legacyGraph(): Record<string, unknown> {
-  return {
-    baseline: { sha: 'abc', workingTree: {} },
-    complete: true,
-    edges: { 'test/a.test.ts': ['src/a.ts', 'test/a.test.ts'] },
-    fingerprint: 'fingerprint',
-    results: {
-      a: {
-        file: 'test/a.test.ts',
-        fullName: 'a',
-        id: 'a',
-        state: 'passed',
-      },
-    },
-    schema: 1,
-    updatedAt: new Date(0).toISOString(),
-  }
-}
-
 function currentGraph(): TiaRuntimeGraph {
   return {
     baseline: { sha: 'old', workingTree: {} },
@@ -101,39 +82,9 @@ afterEach(() => {
 })
 
 describe('graph state', () => {
-  test('migrates schema-one file edges without discarding the graph', () => {
-    const graph = readGraph(cacheWith(legacyGraph()))
-
-    expect(graph?.schema).toBe(3)
-    expect(graph?.edges['test/a.test.ts']).toContain('src/a.ts')
-    expect(graph?.testEdges).toEqual({})
-    expect(graph?.coverageComplete).toBe(false)
-    expect(graph?.collectionCoverage).toEqual({})
-    expect(graph?.testCoverage).toEqual({})
-  })
-
-  test('rejects schema-two graphs without per-test edge storage', () => {
-    const value = { ...legacyGraph(), schema: 2 }
-
-    expect(readGraph(cacheWith(value))).toBeNull()
-  })
-
-  test('migrates schema-two test edges with incomplete cached coverage', () => {
-    const value = {
-      ...legacyGraph(),
-      schema: 2,
-      testEdges: {
-        a: {
-          file: 'test/a.test.ts',
-          files: ['src/a.ts', 'test/a.test.ts'],
-        },
-      },
-    }
-
-    const graph = readGraph(cacheWith(value))
-    expect(graph?.schema).toBe(3)
-    expect(graph?.testEdges).toEqual(value.testEdges)
-    expect(graph?.coverageComplete).toBe(false)
+  test('rejects unsupported schemas and rebuilds safely', () => {
+    expect(readGraph(cacheWith({ ...currentGraph(), schema: 99 }))).toBeNull()
+    expect(readGraph(cacheWith({ ...currentGraph(), schema: '3' }))).toBeNull()
   })
 
   test('merges disjoint updates from processes that planned the same graph', async () => {
