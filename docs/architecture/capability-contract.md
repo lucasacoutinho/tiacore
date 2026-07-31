@@ -16,6 +16,10 @@ through 22.14 records an aggregate dependency set for every case in one file,
 so those releases select conservatively even though replay still addresses
 individual named cases.
 
+Third-party TypeScript runtime adapters can implement this level through
+`@usescherie/tiacore/adapter`. Certification remains required before an adapter
+may claim the level; using the API alone is not certification.
+
 ## Observed file TIA
 
 An observed-file adapter records runtime evidence but selects whole test files.

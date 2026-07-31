@@ -1,6 +1,6 @@
 # Public API
 
-tiacore has fifteen primary supported entry points plus the Playwright reporter
+tiacore has sixteen primary supported entry points plus the Playwright reporter
 configuration target. Everything below `dist/` or an internal `src/` folder is
 private and may change without notice.
 
@@ -108,6 +108,23 @@ schema change may force a safe cache rebuild during `0.x`.
 
 It also exports the runner-neutral `createImpactPlan()` and
 `mergeImpactGraphs()` functions plus protocol types.
+
+## `@usescherie/tiacore/adapter`
+
+Exports named `tia(definition, options?)`, `TiaAdapter`, adapter API version 1,
+and its discovery, catalog, execution, observation, option, and result types.
+This is the stable extension boundary for a TypeScript runner that provides
+runtime test-case evidence and cached outcomes.
+
+Discovery returns stable test IDs and project-relative files without executing
+test bodies. Execution receives the selected cases and returns complete
+per-test dependency observations. Missing selected results, incomplete runs,
+duplicate IDs, or invalid paths prevent graph commit. The adapter keeps native
+control of workers and retries while the shared runtime owns baseline capture,
+planning, artifacts, replay, verification, and transactional persistence.
+
+See the [adapter guide](guides/custom-adapters.md) for the complete contract and
+reference implementation.
 
 ## `@usescherie/tiacore/artifacts`
 

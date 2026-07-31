@@ -64,6 +64,12 @@ A future adapter that needs JavaScript replay may use `TiaCore`. Every language
 SDK must implement protocol version 1 and pass the conformance vectors without
 reading `TiaRuntimeGraph`.
 
+External TypeScript adapters use `@usescherie/tiacore/adapter` instead of
+importing `TiaCore` or internal modules. Its versioned `tia()` contract composes
+discovery and native execution with the runtime lifecycle, validates evidence,
+and refuses incomplete commits. `TiaCore` remains the lower-level primitive
+used by built-in adapters with requirements outside contract version 1.
+
 ## Package layout decision
 
 The JavaScript SDK remains at the repository root while exact VCS installation

@@ -60,6 +60,8 @@ package behavior; `test/fixtures` contains reusable real projects.
   the core CLI may not switch on adapter-prefixed command names.
 - Public entry points expose supported contracts without exporting internal
   paths.
+- External TypeScript runner adapters enter through the versioned `adapter`
+  contract and the `tia()` factory, not through internal engine modules.
 
 ## Language boundary
 

@@ -3,6 +3,7 @@ import { chmod, writeFile } from 'node:fs/promises'
 import { build } from 'esbuild'
 
 const subpathEntryNames = [
+  'adapter',
   'artifacts',
   'core',
   'evidence',

@@ -55,6 +55,16 @@
         "default": "./dist/entries/vitest.cjs"
       }
     },
+    "./adapter": {
+      "import": {
+        "types": "./dist/entries/adapter.d.ts",
+        "default": "./dist/entries/adapter.js"
+      },
+      "require": {
+        "types": "./dist/entries/adapter.d.cts",
+        "default": "./dist/entries/adapter.cjs"
+      }
+    },
     "./artifacts": {
       "import": {
         "types": "./dist/entries/artifacts.d.ts",

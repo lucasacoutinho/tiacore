@@ -51,6 +51,7 @@ describe('adapter capability contract', () => {
     )
     expect(packageJson.files).toContain('capabilities')
     expect(packageJson.exports).toHaveProperty('./vitest')
+    expect(packageJson.exports).toHaveProperty('./adapter')
     expect(packageJson.exports).toHaveProperty('./workspace')
 
     for (const adapter of contract.adapters) {
