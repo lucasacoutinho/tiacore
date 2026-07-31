@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "@usescherie/tiacore": "file:../../..",
-    "vite": "^7.0.0",
+    "vite": "^8.2.0",
     "vitest": "^4.1.10"
   }
 }

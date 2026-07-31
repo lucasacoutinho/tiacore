@@ -5,6 +5,13 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.0.1 - 2026-07-31
+
+### Changed
+
+- Upgraded the development compiler to TypeScript 7.0.2 and the default Vite
+  integration fixtures to Vite 8.2.0 with `@vitejs/plugin-react` 6.0.5.
+
 ## 1.0.0 - 2026-07-31
 
 ### Added

@@ -30,8 +30,8 @@ npm run benchmark:parallel
 ```
 
 The benchmark is informational; correctness tests decide acceptance. The
-compatibility workflow exercises Node 20/22/24, Vite 6/7/8, Vitest 4.1, Bun 1.3,
-npm, pnpm, Yarn Plug'n'Play, and Bun installs.
+compatibility workflow compiles with TypeScript 7 and exercises Node 20/22/24,
+Vite 6/7/8, Vitest 4.1, Bun 1.3, npm, pnpm, Yarn Plug'n'Play, and Bun installs.
 
 ## Change expectations
 

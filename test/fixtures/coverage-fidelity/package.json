@@ -8,7 +8,7 @@
   "devDependencies": {
     "@usescherie/tiacore": "file:../../..",
     "@vitest/coverage-v8": "^4.1.10",
-    "vite": "^7.0.0",
+    "vite": "^8.2.0",
     "vitest": "^4.1.10"
   }
 }

@@ -30,7 +30,7 @@ jobs:
       - run: uv build --out-dir sdks/python/dist sdks/python
 
   vitest:
-    name: Vitest ${{ matrix.vitest }} / Vite ${{ matrix.vite }} / Node ${{ matrix.node }}
+    name: TypeScript 7 / Vitest ${{ matrix.vitest }} / Vite ${{ matrix.vite }} / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -43,7 +43,7 @@ jobs:
             vite: 7.3.6
             vitest: 4.1.10
           - node: 24
-            vite: 8.1.5
+            vite: 8.2.0
             vitest: 4.1.10
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
       - run: npm ci
       - run: npm pack --pack-destination test/fixtures/package-install
       - run: mv test/fixtures/package-install/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
-      - run: npm pkg set "devDependencies.vite=${{ matrix.vite }}" "devDependencies.vitest=${{ matrix.vitest }}"
+      - run: npm pkg set "devDependencies.typescript=7.0.2" "devDependencies.vite=${{ matrix.vite }}" "devDependencies.vitest=${{ matrix.vitest }}"
         working-directory: test/fixtures/package-install
       - run: npm install --ignore-scripts
         working-directory: test/fixtures/package-install
