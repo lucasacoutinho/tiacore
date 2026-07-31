@@ -72,8 +72,101 @@ describe('differential verification', () => {
     expect(result).toEqual({
       issues: [],
       runner: 'vitest:fixture',
+      selection: {
+        changedFiles: [],
+        executedTestIds: [],
+        expectedTestIds: [],
+        falseNegativeRate: 0,
+        missedTestIds: [],
+        precision: null,
+        unnecessaryTestIds: [],
+      },
       verified: true,
     })
+  })
+
+  test('rejects a test omitted for a changed dependency', () => {
+    const selective = snapshot('selective', graph())
+    selective.plan.changedFiles = ['src/example.ts']
+    const result = compareVerificationSnapshots(
+      selective,
+      snapshot('full', graph()),
+    )
+
+    expect(result.verified).toBe(false)
+    expect(result.issues).toContainEqual({
+      code: 'selection-miss',
+      message: 'selective phase missed 1 required test: case',
+      runner: 'vitest:fixture',
+    })
+    expect(result.selection).toMatchObject({
+      expectedTestIds: ['case'],
+      falseNegativeRate: 1,
+      missedTestIds: ['case'],
+    })
+  })
+
+  test('uses the full graph to detect a newly lazy-loaded dependency', () => {
+    const selectiveGraph = graph()
+    selectiveGraph.edges['test/example.test.ts'] = [
+      'test/example.test.ts',
+    ]
+    selectiveGraph.testEdges.case = {
+      file: 'test/example.test.ts',
+      files: ['test/example.test.ts'],
+    }
+    const selective = snapshot('selective', selectiveGraph)
+    selective.plan.changedFiles = ['src/lazy.ts']
+    const fullGraph = graph()
+    fullGraph.edges['test/example.test.ts']!.push('src/lazy.ts')
+    fullGraph.testEdges.case!.files.push('src/lazy.ts')
+
+    const result = compareVerificationSnapshots(
+      selective,
+      snapshot('full', fullGraph),
+    )
+
+    expect(result.selection?.missedTestIds).toEqual(['case'])
+    expect(result.issues.map((item) => item.code)).toContain(
+      'selection-miss',
+    )
+  })
+
+  test('requires the full suite for an unexplained changed file', () => {
+    const selective = snapshot('selective', graph())
+    selective.plan.changedFiles = ['src/unknown.ts']
+
+    const result = compareVerificationSnapshots(
+      selective,
+      snapshot('full', graph()),
+    )
+
+    expect(result.selection?.expectedTestIds).toEqual(['case'])
+    expect(result.selection?.missedTestIds).toEqual(['case'])
+  })
+
+  test('requires the full suite for structural changes', () => {
+    const selective = snapshot('selective', graph())
+    selective.plan.changedFiles = ['package.json']
+
+    expect(
+      compareVerificationSnapshots(
+        selective,
+        snapshot('full', graph()),
+      ).selection?.missedTestIds,
+    ).toEqual(['case'])
+  })
+
+  test('does not make a deleted test file select the surviving suite', () => {
+    const selective = snapshot('selective', graph())
+    selective.plan.changedFiles = ['test/deleted.test.ts']
+
+    expect(
+      compareVerificationSnapshots(
+        selective,
+        snapshot('full', graph()),
+      ).selection,
+    ).toMatchObject({ expectedTestIds: [], missedTestIds: [] })
   })
 
   test('rejects stale outcomes, dependencies, and coverage', () => {

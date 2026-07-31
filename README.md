@@ -63,9 +63,9 @@ with a fresh full run of the same command:
 npx tiacore verify --output .tia/verification.json -- npm test
 ```
 
-The command fails when outcomes, dependency evidence, or complete coverage
-evidence diverge. It can verify a workspace command that invokes several TIA
-runners in one pass.
+The command fails when selection misses a required test or when outcomes,
+dependency evidence, or complete coverage evidence diverge. It can verify a
+workspace command that invokes several TIA runners in one pass.
 
 ## Why tiacore
 

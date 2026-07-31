@@ -42,6 +42,7 @@ phase. Verification requires:
 
 - the same runner set in both phases;
 - complete graphs in both phases;
+- zero required tests omitted by the selective phase;
 - identical test outcomes, excluding timing;
 - identical test-to-file dependency evidence;
 - identical reconstructed coverage topology when coverage is complete.
@@ -51,6 +52,14 @@ Exact counters can vary with retries, polling, and worker scheduling while
 producing the same report and threshold result. Per-test shards may also vary
 without changing their merged report, so the gate compares the complete
 per-file reconstruction used by native coverage output.
+
+The selection audit is independent of the planner's selected IDs. It derives
+the required tests from the changed files and the dependency evidence in both
+graphs. The selective graph preserves dependencies removed by a change; the
+full graph reveals new and lazy-loaded dependencies. Structural or unexplained
+changes require the full suite. Deleted test files do not select unrelated
+tests. A strict verification run also treats configured unknown-file ignores
+as unverified unless dependency evidence proves their scope.
 
 The receipt distinguishes verification from command health. `verified` means
 both phases agreed; `success` additionally requires both commands to exit with
@@ -62,6 +71,11 @@ phase, executed and replayed test counts per runner, execution reduction,
 duration saved, measured speedup, and every selective runner that fell back to
 record mode with its reason. Treat speedup as a measured value for that
 repository state, not a universal package claim.
+
+The `accuracy` section reports expected, executed, missed, and unnecessary test
+counts, the false-negative rate, and selection precision. A verified receipt
+always has zero missed tests and a zero false-negative rate. Unnecessary tests
+reduce precision but do not fail the safety gate.
 
 ## Use it during adapter development
 

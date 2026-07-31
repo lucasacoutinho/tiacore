@@ -53,6 +53,14 @@ describe('verification CLI', () => {
       readFileSync(join(root, 'verification.json'), 'utf8'),
     ) as TiaVerificationReceipt
     expect(receipt).toMatchObject({
+      accuracy: {
+        executedTests: 1,
+        expectedTests: 1,
+        falseNegativeRate: 0,
+        missedTests: 0,
+        precision: 1,
+        unnecessaryTests: 0,
+      },
       performance: {
         executionReduction: 0.5,
         fallbacks: [],
@@ -60,12 +68,25 @@ describe('verification CLI', () => {
         selectiveExecutedTests: 1,
         selectiveReplayedTests: 2,
       },
-      schema: 1,
+      schema: 2,
       success: true,
       verified: true,
     })
     expect(receipt.runners).toEqual([
-      expect.objectContaining({ runner: 'node', verified: true }),
+      expect.objectContaining({
+        runner: 'node',
+        selection: expect.objectContaining({
+          executedTestIds: expect.arrayContaining([
+            expect.stringContaining('node case a'),
+          ]),
+          expectedTestIds: expect.arrayContaining([
+            expect.stringContaining('node case a'),
+          ]),
+          falseNegativeRate: 0,
+          missedTestIds: [],
+        }),
+        verified: true,
+      }),
     ])
     expect(receipt.phases.selective.runners).toEqual(['node'])
     expect(receipt.phases.full.runners).toEqual(['node'])

@@ -17,6 +17,7 @@ import {
 } from './snapshot.js'
 import type {
   TiaVerificationIssue,
+  TiaVerificationAccuracy,
   TiaVerificationOptions,
   TiaVerificationPhase,
   TiaVerificationPhaseResult,
@@ -167,7 +168,12 @@ function comparePhases(
         runner,
       }
       issues.push(missing)
-      runners.push({ issues: [missing], runner, verified: false })
+      runners.push({
+        issues: [missing],
+        runner,
+        selection: null,
+        verified: false,
+      })
       continue
     }
     if (fullSnapshot === undefined) {
@@ -177,7 +183,12 @@ function comparePhases(
         runner,
       }
       issues.push(missing)
-      runners.push({ issues: [missing], runner, verified: false })
+      runners.push({
+        issues: [missing],
+        runner,
+        selection: null,
+        verified: false,
+      })
       continue
     }
     const result = compareVerificationSnapshots(
@@ -195,6 +206,42 @@ function comparePhases(
     })
   }
   return { issues, runners }
+}
+
+function accuracyReceipt(
+  runners: TiaVerificationRunnerResult[],
+): TiaVerificationAccuracy {
+  const selections = runners.flatMap((runner) =>
+    runner.selection === null ? [] : [runner.selection],
+  )
+  const executedTests = selections.reduce(
+    (sum, selection) => sum + selection.executedTestIds.length,
+    0,
+  )
+  const expectedTests = selections.reduce(
+    (sum, selection) => sum + selection.expectedTestIds.length,
+    0,
+  )
+  const missedTests = selections.reduce(
+    (sum, selection) => sum + selection.missedTestIds.length,
+    0,
+  )
+  const unnecessaryTests = selections.reduce(
+    (sum, selection) => sum + selection.unnecessaryTestIds.length,
+    0,
+  )
+  const relevantExecutedTests = executedTests - unnecessaryTests
+
+  return {
+    executedTests,
+    expectedTests,
+    falseNegativeRate:
+      expectedTests === 0 ? 0 : missedTests / expectedTests,
+    missedTests,
+    precision:
+      executedTests === 0 ? null : relevantExecutedTests / executedTests,
+    unnecessaryTests,
+  }
 }
 
 function phaseResult(phase: ExecutedPhase): TiaVerificationPhaseResult {
@@ -321,6 +368,7 @@ export class TiaVerifier {
         )
       const completedAt = new Date()
       const receipt: TiaVerificationReceipt = {
+        accuracy: accuracyReceipt(comparison.runners),
         command: [command, ...arguments_],
         completedAt: completedAt.toISOString(),
         duration: performance.now() - started,
@@ -331,7 +379,7 @@ export class TiaVerifier {
           selective: phaseResult(selective),
         },
         runners: comparison.runners,
-        schema: 1,
+        schema: 2,
         startedAt: startedAt.toISOString(),
         success:
           verified && selective.status === 0 && full.status === 0,

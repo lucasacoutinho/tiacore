@@ -23,6 +23,7 @@ export type TiaVerificationIssueCode =
   | 'missing-full-snapshot'
   | 'missing-selective-snapshot'
   | 'outcome-mismatch'
+  | 'selection-miss'
   | 'selective-run-failed'
   | 'snapshot-invalid'
 
@@ -35,7 +36,27 @@ export interface TiaVerificationIssue {
 export interface TiaVerificationRunnerResult {
   issues: TiaVerificationIssue[]
   runner: string
+  selection: TiaVerificationSelection | null
   verified: boolean
+}
+
+export interface TiaVerificationSelection {
+  changedFiles: string[]
+  executedTestIds: string[]
+  expectedTestIds: string[]
+  falseNegativeRate: number
+  missedTestIds: string[]
+  precision: number | null
+  unnecessaryTestIds: string[]
+}
+
+export interface TiaVerificationAccuracy {
+  executedTests: number
+  expectedTests: number
+  falseNegativeRate: number
+  missedTests: number
+  precision: number | null
+  unnecessaryTests: number
 }
 
 export interface TiaVerificationRunnerMetrics {
@@ -69,6 +90,7 @@ export interface TiaVerificationPerformance {
 }
 
 export interface TiaVerificationReceipt {
+  accuracy: TiaVerificationAccuracy
   command: string[]
   completedAt: string
   duration: number
@@ -79,7 +101,7 @@ export interface TiaVerificationReceipt {
     selective: TiaVerificationPhaseResult
   }
   runners: TiaVerificationRunnerResult[]
-  schema: 1
+  schema: 2
   startedAt: string
   success: boolean
   verified: boolean

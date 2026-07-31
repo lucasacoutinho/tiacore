@@ -10,6 +10,7 @@ import type {
   TiaVerificationRunnerResult,
   TiaVerificationSnapshot,
 } from './types.js'
+import { auditVerificationSelection } from './selection.js'
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical)
@@ -109,6 +110,21 @@ export function compareVerificationSnapshots(
 ): TiaVerificationRunnerResult {
   const runner = full.runner
   const issues: TiaVerificationIssue[] = []
+  const selection = auditVerificationSelection(selective, full)
+
+  if (selection.missedTestIds.length > 0) {
+    const examples = selection.missedTestIds.slice(0, 3).join(', ')
+    const remainder = selection.missedTestIds.length - 3
+    issues.push(
+      issue(
+        runner,
+        'selection-miss',
+        `selective phase missed ${selection.missedTestIds.length} required test${
+          selection.missedTestIds.length === 1 ? '' : 's'
+        }: ${examples}${remainder > 0 ? ` and ${remainder} more` : ''}`,
+      ),
+    )
+  }
 
   if (!selective.graph.complete) {
     issues.push(
@@ -179,6 +195,7 @@ export function compareVerificationSnapshots(
   return {
     issues,
     runner,
+    selection,
     verified: issues.length === 0,
   }
 }
