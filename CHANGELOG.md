@@ -5,6 +5,8 @@ Semantic Versioning once a version is published.
 
 ## Unreleased
 
+## 0.3.1 - 2026-07-30
+
 ### Fixed
 
 - Scoped direct changed-test selection to each custom, Node, or Bun runner's

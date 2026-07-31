@@ -1,6 +1,6 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Runner-neutral test impact analysis with JavaScript, Maestro, and k6 adapters",
   "author": "Lucas Coutinho",
   "private": false,
