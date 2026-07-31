@@ -10,12 +10,12 @@ full-suite run.
 It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6,
 Gradle/JUnit, and pytest. Git improves baseline comparison, but it is optional.
 
-> tiacore is pre-release, proprietary software. Install an exact reviewed VCS
-> revision until private packages are available.
+> tiacore 1.x is stable, proprietary software. Install it from an
+> access-controlled registry or an exact reviewed VCS revision.
 
 ## Quick start
 
-Install tiacore from an exact commit:
+Install tiacore from an exact commit when a private registry is not configured:
 
 ```sh
 npm install --save-dev \
@@ -79,6 +79,10 @@ workspace command that invokes several TIA runners in one pass.
 - Complete Istanbul reports and thresholds survive partial test execution.
 - A versioned protocol and conformance suite support adapters outside
   JavaScript.
+
+The documented package entry points and versioned contracts follow Semantic
+Versioning throughout 1.x. Internal cache storage may rebuild safely between
+minor releases, but it is never treated as portable application data.
 
 ## Supported runners
 

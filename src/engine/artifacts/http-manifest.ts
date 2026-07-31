@@ -5,11 +5,12 @@ import {
   readArtifactArchive,
   readBoundedResponse,
 } from './archive.js'
-import type {
-  TiaArtifactCandidate,
-  TiaArtifactProvider,
-  TiaArtifactProviderContext,
-  TiaHttpManifestOptions,
+import {
+  TIA_ARTIFACT_MANIFEST_VERSION,
+  type TiaArtifactCandidate,
+  type TiaArtifactProvider,
+  type TiaArtifactProviderContext,
+  type TiaHttpManifestOptions,
 } from './types.js'
 
 const MAX_MANIFEST_BYTES = 1024 * 1024
@@ -29,7 +30,8 @@ function manifestArtifacts(value: unknown): ManifestArtifact[] {
   if (
     value === null ||
     typeof value !== 'object' ||
-    (value as { version?: unknown }).version !== 1 ||
+    (value as { version?: unknown }).version !==
+      TIA_ARTIFACT_MANIFEST_VERSION ||
     !Array.isArray((value as { artifacts?: unknown }).artifacts)
   ) {
     return []

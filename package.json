@@ -1,6 +1,6 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
   "author": "Lucas Coutinho",
   "private": false,
@@ -28,11 +28,13 @@
     "capabilities",
     "conformance",
     "dist",
+    "docs",
     "schemas",
     "spec",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "SECURITY.md"
   ],
   "exports": {
     ".": {
@@ -235,6 +237,8 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
+    "@types/istanbul-lib-coverage": "^2.0.6",
+    "@types/istanbul-lib-instrument": "^1.7.8",
     "commander": "^14.0.3",
     "es-module-lexer": "^2.3.1",
     "fast-xml-parser": "^5.10.1",
@@ -267,7 +271,6 @@
     "@arethetypeswrong/cli": "^0.18.5",
     "@playwright/test": "^1.62.0",
     "@testing-library/react": "^16.3.2",
-    "@types/istanbul-lib-instrument": "^1.7.8",
     "@types/istanbul-lib-report": "^3.0.3",
     "@types/istanbul-reports": "^3.0.4",
     "@types/node": "^24.0.0",

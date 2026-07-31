@@ -15,16 +15,18 @@ import {
   TIA_VERIFICATION_DIRECTORY_ENV,
   TIA_VERIFICATION_PHASE_ENV,
 } from './snapshot.js'
-import type {
-  TiaVerificationIssue,
-  TiaVerificationAccuracy,
-  TiaVerificationOptions,
-  TiaVerificationPhase,
-  TiaVerificationPhaseResult,
-  TiaVerificationPerformance,
-  TiaVerificationReceipt,
-  TiaVerificationRunnerResult,
-  TiaVerificationSnapshot,
+import {
+  TIA_VERIFICATION_RECEIPT_VERSION,
+  TIA_VERIFICATION_SNAPSHOT_VERSION,
+  type TiaVerificationIssue,
+  type TiaVerificationAccuracy,
+  type TiaVerificationOptions,
+  type TiaVerificationPhase,
+  type TiaVerificationPhaseResult,
+  type TiaVerificationPerformance,
+  type TiaVerificationReceipt,
+  type TiaVerificationRunnerResult,
+  type TiaVerificationSnapshot,
 } from './types.js'
 
 interface ExecutedPhase {
@@ -40,7 +42,7 @@ function validSnapshot(
   if (value === null || typeof value !== 'object') return false
   const candidate = value as Partial<TiaVerificationSnapshot>
   return (
-    candidate.schema === 1 &&
+    candidate.schema === TIA_VERIFICATION_SNAPSHOT_VERSION &&
     candidate.phase === phase &&
     typeof candidate.runner === 'string' &&
     candidate.runner !== '' &&
@@ -379,7 +381,7 @@ export class TiaVerifier {
           selective: phaseResult(selective),
         },
         runners: comparison.runners,
-        schema: 2,
+        schema: TIA_VERIFICATION_RECEIPT_VERSION,
         startedAt: startedAt.toISOString(),
         success:
           verified && selective.status === 0 && full.status === 0,

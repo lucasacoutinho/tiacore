@@ -2,15 +2,13 @@
 
 ## Supported versions
 
-Until the first publication, the current development branch is the only
-supported version. After publication, security fixes will target the latest
-minor release in the `0.x` line; this table will be updated when that policy
-changes.
+Security fixes target the latest minor release in the `1.x` line. Development
+snapshots and older major versions are not supported.
 
-| Version         | Supported |
-| --------------- | --------- |
-| Unreleased      | Yes       |
-| Older snapshots | No        |
+| Version | Supported |
+| ------- | --------- |
+| 1.x     | Yes       |
+| < 1.0   | No        |
 
 ## Reporting a vulnerability
 

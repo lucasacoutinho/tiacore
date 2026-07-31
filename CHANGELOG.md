@@ -1,9 +1,50 @@
 # Changelog
 
-All notable changes to tiacore will be documented here. The project follows
-Semantic Versioning once a version is published.
+All notable changes to tiacore will be documented here. Published releases
+follow Semantic Versioning.
 
 ## Unreleased
+
+## 1.0.0 - 2026-07-31
+
+### Added
+
+- Added independent shadow verification of selective runs. Verification now
+  derives required tests from the before/after dependency-graph union and
+  reports selection misses, false-negative rate, and precision.
+- Added signed, provider-neutral baseline artifacts with Ed25519 producer
+  attestations, bounded claims, lineage, expiry, and promotion policy. Shared
+  artifacts are rejected by default unless their producer is trusted.
+- Added the stable TypeScript adapter API at
+  `@usescherie/tiacore/adapter`. Third-party runners implement discovery and
+  execution behind the single `tia()` factory while tiacore owns planning,
+  replay, verification, artifacts, and persistence.
+- Added explicit public version constants for the TypeScript adapter,
+  artifact attestation and manifest, verification snapshot and receipt,
+  runner-neutral protocol, and adapter conformance contracts.
+
+### Changed
+
+- Replaced the monolithic local runtime graph with an atomic bounded manifest
+  and content-addressed record buckets. Small updates reuse unchanged objects;
+  invalid or incomplete state fails closed and rebuilds safely.
+- Qualified the supported JavaScript adapters across their failure paths and
+  expanded Linux, Windows, macOS, Bun, native Node, and Chromium Browser Mode
+  CI gates. Native runners retain their own parallelism and resource control.
+- Declared the documented package entry points and versioned wire formats as
+  the stable 1.x compatibility surface. Internal storage layout remains
+  rebuildable implementation detail.
+
+### Fixed
+
+- Prevented k6, Maestro, and Gradle failures from promoting partial state.
+- Prevented failed Playwright specs from being replayed as passing cached work.
+- Treated failed or missing Gradle JUnit results as incomplete execution even
+  when the Gradle process exits successfully.
+- Made the documented fresh release gate independent from record/replay tests
+  that intentionally override inherited `TIA_FRESH` behavior.
+- Shipped the Istanbul declaration packages required by strict TypeScript
+  consumers and qualified the generated npm tarball in a clean project.
 
 ## 0.5.0 - 2026-07-31
 

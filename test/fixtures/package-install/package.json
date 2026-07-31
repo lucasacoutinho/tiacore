@@ -7,6 +7,7 @@
   },
   "devDependencies": {
     "@usescherie/tiacore": "file:./tiacore.tgz",
+    "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vite": "^7.0.0",
     "vitest": "^4.1.0"

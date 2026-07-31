@@ -1,3 +1,6 @@
+export const TIA_ARTIFACT_ATTESTATION_VERSION = 1 as const
+export const TIA_ARTIFACT_MANIFEST_VERSION = 1 as const
+
 export interface TiaGitHubActionsOptions {
   apiUrl?: string
   artifactName?: string
@@ -50,7 +53,7 @@ export interface TiaArtifactAttestationV1 {
   claim: TiaArtifactClaimV1
   keyId: string
   signature: string
-  version: 1
+  version: typeof TIA_ARTIFACT_ATTESTATION_VERSION
 }
 
 export interface TiaArtifactSigningOptions {
@@ -84,7 +87,7 @@ export interface TiaArtifactManifestEntry {
 export interface TiaArtifactManifestV1 {
   artifacts: TiaArtifactManifestEntry[]
   generatedAt: string
-  version: 1
+  version: typeof TIA_ARTIFACT_MANIFEST_VERSION
 }
 
 export interface TiaArtifactSinkInput {

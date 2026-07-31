@@ -4,15 +4,24 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - ".github/workflows/release-candidate.yml"
+      - ".github/workflows/**"
+      - "capabilities/**"
       - "CHANGELOG.md"
+      - "config/**"
+      - "conformance/**"
+      - "LICENSE"
       - "README.md"
+      - "schemas/**"
       - "SECURITY.md"
       - "docs/**"
       - "package-lock.json"
       - "package.json"
       - "sdks/**"
+      - "spec/**"
       - "src/**"
+      - "test/**"
+      - "tsconfig*.json"
+      - "vitest*.ts"
 
 permissions:
   contents: read

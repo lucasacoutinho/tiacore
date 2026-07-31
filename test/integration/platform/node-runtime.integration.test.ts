@@ -63,6 +63,7 @@ describe('native Node adapter on the host platform', () => {
     const root = project()
     const options = {
       files: ['test/**/*.test.mjs'],
+      fresh: false,
       log: false,
       root,
     }

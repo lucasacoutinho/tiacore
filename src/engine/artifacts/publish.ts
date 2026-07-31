@@ -9,14 +9,15 @@ import {
   MAX_ARTIFACT_ARCHIVE_BYTES,
   MAX_ARTIFACT_GRAPH_BYTES,
 } from './archive.js'
-import type {
-  TiaArtifactClaimV1,
-  TiaArtifactManifestV1,
-  TiaArtifactPublishReceipt,
-  TiaArtifactPublisherOptions,
-  TiaArtifactSink,
-  TiaArtifactSinkInput,
-  TiaFilesystemArtifactSinkOptions,
+import {
+  TIA_ARTIFACT_MANIFEST_VERSION,
+  type TiaArtifactClaimV1,
+  type TiaArtifactManifestV1,
+  type TiaArtifactPublishReceipt,
+  type TiaArtifactPublisherOptions,
+  type TiaArtifactSink,
+  type TiaArtifactSinkInput,
+  type TiaFilesystemArtifactSinkOptions,
 } from './types.js'
 import { createArtifactAttestation } from './trust.js'
 
@@ -213,7 +214,7 @@ export class TiaArtifactPublisher {
         url: artifact.url,
       }],
       generatedAt: producedAt,
-      version: 1,
+      version: TIA_ARTIFACT_MANIFEST_VERSION,
     }
     const manifestBytes = strToU8(
       `${JSON.stringify(manifest, null, 2)}\n`,

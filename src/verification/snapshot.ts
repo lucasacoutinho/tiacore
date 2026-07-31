@@ -4,9 +4,10 @@ import { resolve } from 'node:path'
 
 import { replayRunEvent } from '../engine/replay/index.js'
 import type { RunPlan, TiaRuntimeGraph } from '../engine/types.js'
-import type {
-  TiaVerificationPhase,
-  TiaVerificationSnapshot,
+import {
+  TIA_VERIFICATION_SNAPSHOT_VERSION,
+  type TiaVerificationPhase,
+  type TiaVerificationSnapshot,
 } from './types.js'
 
 export const TIA_VERIFICATION_DIRECTORY_ENV =
@@ -62,7 +63,7 @@ export async function writeVerificationSnapshot(input: {
     phase,
     plan: replayRunEvent(input.plan),
     runner: input.runner,
-    schema: 1,
+    schema: TIA_VERIFICATION_SNAPSHOT_VERSION,
     success: input.success,
   }
   await writeFile(temporary, `${JSON.stringify(snapshot)}\n`, 'utf8')

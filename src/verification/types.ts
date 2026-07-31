@@ -1,6 +1,9 @@
 import type { TiaReplayRunEvent } from '../engine/replay/types.js'
 import type { TiaRuntimeGraph } from '../engine/types.js'
 
+export const TIA_VERIFICATION_RECEIPT_VERSION = 2 as const
+export const TIA_VERIFICATION_SNAPSHOT_VERSION = 1 as const
+
 export type TiaVerificationPhase = 'full' | 'selective'
 
 export interface TiaVerificationSnapshot {
@@ -10,7 +13,7 @@ export interface TiaVerificationSnapshot {
   phase: TiaVerificationPhase
   plan: TiaReplayRunEvent
   runner: string
-  schema: 1
+  schema: typeof TIA_VERIFICATION_SNAPSHOT_VERSION
   success: boolean
 }
 
@@ -101,7 +104,7 @@ export interface TiaVerificationReceipt {
     selective: TiaVerificationPhaseResult
   }
   runners: TiaVerificationRunnerResult[]
-  schema: 2
+  schema: typeof TIA_VERIFICATION_RECEIPT_VERSION
   startedAt: string
   success: boolean
   verified: boolean

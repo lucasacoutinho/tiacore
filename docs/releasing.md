@@ -4,12 +4,12 @@ This document prepares a release; it does not authorize one. Publishing,
 creating or moving a tag, pushing a release commit, and dispatching a release
 workflow require explicit maintainer approval.
 
-## One-time repository gates
+## Repository and publication gates
 
-Before the first proprietary release:
+Before publishing a proprietary release:
 
-1. Create or select the canonical repository.
-2. Add `repository`, `homepage`, and `bugs` metadata to `package.json`.
+1. Confirm the canonical repository and its package metadata.
+2. Confirm `repository`, `homepage`, and `bugs` metadata still point to it.
 3. Enable and test private vulnerability reporting, then replace the temporary
    instructions in `SECURITY.md` with its exact URL.
 4. Configure an access-controlled npm-compatible registry. The package remains
@@ -17,7 +17,8 @@ Before the first proprietary release:
 5. Confirm that release-candidate artifacts and registry packages remain
    restricted to authorized users.
 
-Do not invent repository metadata before those choices exist.
+Preparing and committing a candidate does not satisfy or bypass these external
+publication gates.
 
 ## Candidate checklist
 

@@ -6,11 +6,12 @@ import {
 } from 'node:crypto'
 
 import type { TiaRuntimeGraph } from '../types.js'
-import type {
-  TiaArtifactAttestationV1,
-  TiaArtifactClaimV1,
-  TiaArtifactSigningOptions,
-  TiaArtifactTrustPolicy,
+import {
+  TIA_ARTIFACT_ATTESTATION_VERSION,
+  type TiaArtifactAttestationV1,
+  type TiaArtifactClaimV1,
+  type TiaArtifactSigningOptions,
+  type TiaArtifactTrustPolicy,
 } from './types.js'
 
 function canonical(value: unknown): unknown {
@@ -66,7 +67,7 @@ export function parseArtifactAttestation(
   if (value === null || typeof value !== 'object') return null
   const attestation = value as Partial<TiaArtifactAttestationV1>
   if (
-    attestation.version !== 1 ||
+    attestation.version !== TIA_ARTIFACT_ATTESTATION_VERSION ||
     attestation.algorithm !== 'Ed25519' ||
     typeof attestation.keyId !== 'string' ||
     !KEY_ID_PATTERN.test(attestation.keyId) ||
@@ -90,7 +91,7 @@ export function createArtifactAttestation(
     algorithm: 'Ed25519' as const,
     claim,
     keyId: options.keyId,
-    version: 1 as const,
+    version: TIA_ARTIFACT_ATTESTATION_VERSION,
   }
   let privateKey
   try {

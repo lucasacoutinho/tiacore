@@ -104,7 +104,7 @@ repository.
 `TiaRuntimeGraph` and `TiaRuntimeGraphPartition` describe the JavaScript SDK's
 persisted runner cache. They are public so adapter authors can inspect a
 successful commit, but their schema is not the portable language contract. A
-schema change may force a safe cache rebuild during `0.x`.
+schema change may force a safe cache rebuild.
 
 The runtime graph is an in-memory contract. Its on-disk representation is a
 segmented, content-addressed state store and is not a public file-layout API.
@@ -234,7 +234,18 @@ safely cover multiple Vitest configurations or heterogeneous workspace lanes.
 
 ## Compatibility policy
 
-Published releases follow Semantic Versioning. During `0.x`, a breaking public
-API change increments the minor version. Internal cache schema changes may
-force a safe full-suite rebuild and are not a public data-migration guarantee.
-Portable graphs remain validated before reuse.
+Published releases follow Semantic Versioning. Throughout `1.x`, documented
+entry points, exported TypeScript APIs, configuration, CLI behavior, and
+versioned wire contracts remain backward compatible. Removing or changing one
+incompatibly requires a new major release.
+
+Protocol version 1, TypeScript adapter API version 1, adapter conformance
+version 1, artifact attestation and manifest version 1, verification snapshot
+version 1, and verification receipt version 2 are frozen contracts. Additive
+fields must remain optional to older consumers; an incompatible wire change
+requires a new contract version.
+
+The segmented runtime-store layout is internal. A minor release may replace it
+and force a conservative full-suite rebuild, but must never reinterpret invalid
+or incompatible state as trusted evidence. Portable graphs and artifacts remain
+strictly validated before reuse.

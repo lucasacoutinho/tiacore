@@ -71,6 +71,7 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const initial = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -91,6 +92,7 @@ describe('runner-neutral TIA core', () => {
     writeFileSync(join(root, 'src/a.ts'), 'export const a = 2\n')
     const replay = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -105,6 +107,7 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const initial = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -124,6 +127,7 @@ describe('runner-neutral TIA core', () => {
     race.contents = 'export const a = 2\n'
     const replay = new TiaCore({
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     })
@@ -137,6 +141,7 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const options = {
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
       testFiles: ['test/**/*.test.ts'],
@@ -171,6 +176,7 @@ describe('runner-neutral TIA core', () => {
     const root = fixture()
     const options = {
       files: ['test/**/*.test.ts'],
+      fresh: false,
       root,
       runner: 'custom',
     }

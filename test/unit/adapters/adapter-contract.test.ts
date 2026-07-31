@@ -78,6 +78,7 @@ describe('TypeScript adapter contract', () => {
     const executions: string[] = []
 
     const first = await tia(definition(executions), {
+      fresh: false,
       log: false,
       root,
     }).run()
@@ -90,6 +91,7 @@ describe('TypeScript adapter contract', () => {
     })
 
     const replay = await tia(definition(executions), {
+      fresh: false,
       log: false,
       root,
     }).run()
@@ -102,6 +104,7 @@ describe('TypeScript adapter contract', () => {
 
     writeFileSync(join(root, 'src/value.ts'), 'export const value = 2\n')
     const changed = await tia(definition(executions), {
+      fresh: false,
       log: false,
       root,
     }).run()
@@ -115,7 +118,11 @@ describe('TypeScript adapter contract', () => {
     const adapter = definition([])
     adapter.execute = () => ({ complete: true, observations: [] })
 
-    await expect(tia(adapter, { log: false, root }).run()).resolves.toMatchObject({
+    await expect(tia(adapter, {
+      fresh: false,
+      log: false,
+      root,
+    }).run()).resolves.toMatchObject({
       complete: false,
       graph: null,
       graphSaved: false,
@@ -129,7 +136,7 @@ describe('TypeScript adapter contract', () => {
     expect(() => tia({
       ...definition([]),
       name: '../outside',
-    }, { root })).toThrow('safe lowercase cache key')
+    }, { fresh: false, root })).toThrow('safe lowercase cache key')
 
     const duplicate = definition([])
     duplicate.discover = () => ({
@@ -138,7 +145,7 @@ describe('TypeScript adapter contract', () => {
         { file: 'test/b.test.ts', fullName: 'b', id: 'same' },
       ],
     })
-    await expect(tia(duplicate, { root }).run()).rejects.toThrow(
+    await expect(tia(duplicate, { fresh: false, root }).run()).rejects.toThrow(
       'duplicate test ids',
     )
 
@@ -146,7 +153,7 @@ describe('TypeScript adapter contract', () => {
     escaping.discover = () => ({
       tests: [{ file: '../outside.test.ts', fullName: 'a', id: 'a' }],
     })
-    await expect(tia(escaping, { root }).run()).rejects.toThrow(
+    await expect(tia(escaping, { fresh: false, root }).run()).rejects.toThrow(
       'project-relative',
     )
   })
