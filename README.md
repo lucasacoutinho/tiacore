@@ -149,6 +149,20 @@ npm run check:python
 
 `npm run check` enforces Oxfmt and Oxlint before type-checking and testing.
 
+The optional cross-food check runs this suite with both `tia()` and Archer's
+Vitest `archer()` plugin:
+
+```sh
+npm run build
+npm run check:architecture
+```
+
+It prefers an installed `@usescherie/archer` package and otherwise uses a built
+`../archer` checkout. Set `ARCHER_VITEST_ENTRY` for a checkout in another
+location. This command is separate from `npm run check` so each repository can
+still validate in a standalone checkout while the private packages are not
+available from a shared registry.
+
 Implementation code is grouped by responsibility. `src/index.ts` is the only
 file at the source root; package subpath shims and the CLI launcher live in
 `src/entries/`.

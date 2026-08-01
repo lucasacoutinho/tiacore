@@ -3,7 +3,7 @@ import type {
   RunPlanBaseline,
   RunPlanDecision,
   RunMode,
-} from '../types.js'
+} from '../contracts.js'
 
 export interface TiaReplayRunEvent {
   affectedTestIds: string[]

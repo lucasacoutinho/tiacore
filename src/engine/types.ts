@@ -4,22 +4,25 @@ import type {
 } from './artifacts/types.js'
 import type { TiaReplayAdapter } from './replay/types.js'
 import type { TiaCoverageMap } from '../integrations/coverage/types.js'
+import type {
+  Baseline,
+  CachedTestResult,
+  RunPlanBaseline,
+  RunPlanDecision,
+  RunMode,
+} from './contracts.js'
 
-export type CachedTestState = 'passed' | 'failed' | 'skipped'
-
-export interface CachedTestResult {
-  duration?: number
-  file: string
-  fullName: string
-  id: string
-  state: CachedTestState
-}
-
-export interface Baseline {
-  sha: string
-  source?: 'filesystem' | 'git'
-  workingTree: Record<string, string>
-}
+export type {
+  Baseline,
+  CachedTestResult,
+  CachedTestState,
+  RunMode,
+  RunPlanBaseline,
+  RunPlanDecision,
+  RunPlanRunDecision,
+  RunPlanTestCaseDecision,
+  RunPlanTestFileDecision,
+} from './contracts.js'
 
 export interface TiaRuntimeGraph {
   baseline: Baseline
@@ -46,40 +49,6 @@ export interface TiaTestEdge {
   file: string
   files: string[]
 }
-
-export type RunMode = 'record' | 'replay'
-
-export interface RunPlanBaseline {
-  artifactId?: Array<number | string> | number | string
-  origin: 'artifact' | 'local' | 'none'
-  provider?: string
-  reason: string
-  sha: string | null
-  source: Baseline['source'] | null
-}
-
-export interface RunPlanRunDecision {
-  reasons: string[]
-  target: 'run'
-}
-
-export interface RunPlanTestCaseDecision {
-  file: string
-  id: string
-  reasons: string[]
-  target: 'test-case'
-}
-
-export interface RunPlanTestFileDecision {
-  file: string
-  reasons: string[]
-  target: 'test-file'
-}
-
-export type RunPlanDecision =
-  | RunPlanRunDecision
-  | RunPlanTestCaseDecision
-  | RunPlanTestFileDecision
 
 export interface RunPlan {
   affectedTestIds: string[]
