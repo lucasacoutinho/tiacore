@@ -1,4 +1,6 @@
+import { realpathSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { isInside, slash } from '../../shared/paths.js'
 
@@ -33,6 +35,17 @@ interface NodeDiscoveryRecord {
   skipped: boolean
 }
 
+export function canonicalNodePath(value: string): string {
+  const resolved = value.startsWith('file:')
+    ? fileURLToPath(value)
+    : resolve(value)
+  try {
+    return realpathSync.native(resolved)
+  } catch {
+    return resolved
+  }
+}
+
 export function nodeDiscoveryHooksSupported(): boolean {
   if (process.env.TIACORE_NODE_DISCOVERY_HOOKS === '0') return false
   const [major = 0, minor = 0] = process.versions.node.split('.').map(Number)
@@ -52,15 +65,16 @@ export function parseNodeDiscoveryRecords(
   root: string,
   source: string,
 ): NodeCase[] {
+  const canonicalRoot = canonicalNodePath(root)
   return source
     .split('\n')
     .filter(Boolean)
     .flatMap((line): NodeCase[] => {
       try {
         const record = JSON.parse(line) as NodeDiscoveryRecord
-        const absoluteFile = resolve(record.file)
-        if (!isInside(root, absoluteFile)) return []
-        const file = slash(relative(root, absoluteFile))
+        const absoluteFile = canonicalNodePath(record.file)
+        if (!isInside(canonicalRoot, absoluteFile)) return []
+        const file = slash(relative(canonicalRoot, absoluteFile))
         return [
           {
             column: record.column,

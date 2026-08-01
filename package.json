@@ -1,6 +1,6 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
   "keywords": [
@@ -220,7 +220,7 @@
   "scripts": {
     "benchmark:parallel": "npm run build && vitest bench --run --config vitest.benchmark.config.ts",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node config/build-cjs.mjs",
-    "build:python": "node -e \"require('node:fs').rmSync('sdks/python/dist',{recursive:true,force:true})\" && uv build --offline --out-dir sdks/python/dist sdks/python",
+    "build:python": "node -e \"require('node:fs').rmSync('sdks/python/dist',{recursive:true,force:true})\" && uv build --out-dir sdks/python/dist sdks/python",
     "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
     "check:architecture": "vitest run --config vitest.archer.config.ts",
     "check:python": "npm run test:python && npm run build:python",
@@ -232,7 +232,7 @@
     "prepare": "node config/prepare.mjs",
     "publish:private": "node config/publish-private.mjs",
     "release:check": "npm run check && npm run check:package && npm run check:python && npm audit --omit=dev && npm pack --dry-run",
-    "test": "npm run build && vitest run",
+    "test": "npm run build && vitest run --exclude test/integration/vitest/playwright.integration.test.ts",
     "test:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
     "test:cross-platform": "npm run build && vitest run test/unit/protocol/paths.test.ts test/unit/engine/state.test.ts test/unit/engine/segmented-state.test.ts test/unit/engine/coverage.test.ts test/unit/engine/merge.test.ts test/unit/adapters/playwright-source-maps.test.ts test/unit/adapters/k6.test.ts test/unit/adapters/maestro.test.ts test/unit/adapters/gradle.test.ts test/integration/platform/node-runtime.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

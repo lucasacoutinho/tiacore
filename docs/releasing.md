@@ -33,7 +33,8 @@ publication gates.
    ```
 
    This requires `uv`; the gate runs the Python conformance suite and builds the
-   pytest SDK sdist and wheel offline under `sdks/python/dist`.
+   pytest SDK sdist and wheel under `sdks/python/dist`. A fresh runner may
+   resolve the declared Python build backend before producing those artifacts.
 
 4. Require the full CI, compatibility, cross-platform, shard/aggregate, and
    non-publishing release-candidate workflows at that exact commit. This

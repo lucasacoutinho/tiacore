@@ -8,7 +8,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { globSync } from 'tinyglobby'
 
@@ -30,6 +30,7 @@ import type {
   TiaRunnerResult,
 } from '../../engine/runner.js'
 import {
+  canonicalNodePath,
   nodeDiscoveryHooksSupported,
   parseNodeDiscoveryRecords,
   type NodeCase,
@@ -71,7 +72,7 @@ class NodeTiaRunner implements TiaRunner {
   private readonly executionChild = runnerAsset('execution-child.js')
 
   constructor(options: TiaRunnerOptions) {
-    this.root = resolve(options.root ?? process.cwd())
+    this.root = canonicalNodePath(options.root ?? process.cwd())
     this.concurrency = normalizedConcurrency(options.concurrency)
     this.files = this.resolveFiles(options.files ?? DEFAULT_NODE_TESTS)
     this.log = options.log ?? true
@@ -186,6 +187,11 @@ class NodeTiaRunner implements TiaRunner {
                   item.fullName === candidate.name ||
                   candidate.fullName.endsWith(` ${item.fullName}`),
               )
+              if (executed === undefined && this.log) {
+                console.error(
+                  `TIA node could not match ${JSON.stringify(candidate)} against ${JSON.stringify(execution)}.`,
+                )
+              }
               const result =
                 executed === undefined
                   ? {
@@ -351,11 +357,11 @@ class NodeTiaRunner implements TiaRunner {
     const status = await new Promise<number | null>((resolveStatus) => {
       const child = spawn(
         process.execPath,
-        ['--import', this.discoveryRegister, file],
+        ['--import', pathToFileURL(this.discoveryRegister).href, file],
         {
           cwd: this.root,
           env: environment,
-          stdio: 'ignore',
+          stdio: this.log ? 'inherit' : 'ignore',
         },
       )
       child.on('error', () => {
@@ -373,12 +379,14 @@ class NodeTiaRunner implements TiaRunner {
     coverage: boolean,
   ): Promise<NodeExecution> {
     const temporary = mkdtempSync(join(tmpdir(), 'tiacore-node-execution-'))
+    const coverageDirectory = join(temporary, 'v8-coverage')
     const request = join(temporary, 'request.json')
     const output = join(temporary, 'result.json')
     writeFileSync(
       request,
       JSON.stringify({
         coverage,
+        ...(coverage ? { coverageDirectory } : {}),
         files,
         ...(pattern === undefined
           ? {}
@@ -393,6 +401,12 @@ class NodeTiaRunner implements TiaRunner {
     )
     const environment: NodeJS.ProcessEnv = { ...process.env }
     delete environment.NODE_TEST_CONTEXT
+    if (coverage) {
+      environment.NODE_V8_COVERAGE = coverageDirectory
+    }
+    if (this.log) {
+      environment.TIACORE_NODE_DEBUG = '1'
+    }
 
     try {
       await new Promise<void>((resolveChild, rejectChild) => {
@@ -402,7 +416,7 @@ class NodeTiaRunner implements TiaRunner {
           {
             cwd: this.root,
             env: environment,
-            stdio: 'ignore',
+            stdio: this.log ? 'inherit' : 'ignore',
             timeout: 30_000,
           },
         )

@@ -2,10 +2,13 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { run as runNodeTests } from 'node:test'
 
+import { readNodeV8CoverageFiles } from './coverage.js'
+import { canonicalNodePath } from './discovery.js'
 import { isInside, slash } from '../../shared/paths.js'
 
 interface NodeExecutionRequest {
   coverage: boolean
+  coverageDirectory?: string
   files: string[]
   pattern?: {
     flags: string
@@ -42,6 +45,7 @@ function testId(
 }
 
 async function execute(request: NodeExecutionRequest): Promise<NodeExecution> {
+  const root = canonicalNodePath(request.root)
   const cases: NodeCase[] = []
   const coverageFiles = new Set<string>()
   const moduleFailures = new Set<string>()
@@ -59,10 +63,14 @@ async function execute(request: NodeExecutionRequest): Promise<NodeExecution> {
   })
 
   for await (const event of stream) {
+    if (event.type === 'test:fail' && process.env.TIACORE_NODE_DEBUG === '1') {
+      console.error(JSON.stringify(event.data))
+    }
     if (event.type === 'test:coverage') {
       for (const file of event.data.summary.files) {
-        if (file.coveredLineCount > 0 && isInside(request.root, file.path)) {
-          coverageFiles.add(slash(relative(request.root, file.path)))
+        const absoluteFile = canonicalNodePath(file.path)
+        if (file.coveredLineCount > 0 && isInside(root, absoluteFile)) {
+          coverageFiles.add(slash(relative(root, absoluteFile)))
         }
       }
       continue
@@ -84,14 +92,14 @@ async function execute(request: NodeExecutionRequest): Promise<NodeExecution> {
     ) {
       continue
     }
-    const absoluteFile = resolve(data.file)
-    if (!isInside(request.root, absoluteFile)) {
+    const absoluteFile = canonicalNodePath(data.file)
+    if (!isInside(root, absoluteFile)) {
       continue
     }
-    const file = slash(relative(request.root, absoluteFile))
+    const file = slash(relative(root, absoluteFile))
     if (
       data.name === data.file ||
-      resolve(request.root, data.name) === absoluteFile
+      canonicalNodePath(resolve(root, data.name)) === absoluteFile
     ) {
       if (event.type === 'test:fail') {
         moduleFailures.add(file)
@@ -118,6 +126,15 @@ async function execute(request: NodeExecutionRequest): Promise<NodeExecution> {
     })
   }
 
+  if (request.coverageDirectory !== undefined) {
+    for (const file of readNodeV8CoverageFiles(
+      request.coverageDirectory,
+      root,
+    )) {
+      coverageFiles.add(file)
+    }
+  }
+
   return {
     cases,
     coverageFiles: [...coverageFiles].sort(),
@@ -139,7 +156,10 @@ const request = JSON.parse(
 
 try {
   writeFileSync(outputFile, JSON.stringify(await execute(request)))
-} catch {
+} catch (error) {
+  if (process.env.TIACORE_NODE_DEBUG === '1') {
+    console.error(error)
+  }
   writeFileSync(
     outputFile,
     JSON.stringify({

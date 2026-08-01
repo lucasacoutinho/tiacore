@@ -5,6 +5,29 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.0.2 - 2026-07-31
+
+### Changed
+
+- Added Archer architecture checks for tiacore's source layers, entry points,
+  dependency cycles, module resolution, and source size.
+- Extracted shared engine contracts so replay types no longer depend on the
+  engine facade that imports them.
+
+### Fixed
+
+- Canonicalized native `node:test` file URLs and real paths before recording
+  per-test dependencies. This preserves precise selection on Windows and on
+  macOS temporary directories that resolve through `/private`.
+- Kept CommonJS `node:test` discovery independent of release-specific
+  module-hook condition shapes and built-in redirection behavior.
+- Supplemented native `node:test` coverage with V8 child-process data when
+  Node's coverage event omits executed modules.
+- Kept browser-installed Playwright tests in their dedicated compatibility job
+  and isolated the Yarn package-install fixture from the repository project.
+- Allowed Python release builds to resolve their build backend on fresh runners
+  instead of requiring a pre-populated local package cache.
+
 ## 1.0.1 - 2026-07-31
 
 ### Changed

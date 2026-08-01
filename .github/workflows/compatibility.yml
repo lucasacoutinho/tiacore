@@ -55,7 +55,7 @@ jobs:
       - run: mv test/fixtures/package-install/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
       - run: npm pkg set "devDependencies.typescript=7.0.2" "devDependencies.vite=${{ matrix.vite }}" "devDependencies.vitest=${{ matrix.vitest }}"
         working-directory: test/fixtures/package-install
-      - run: npm install --ignore-scripts
+      - run: npx --yes npm@11.8.0 install --ignore-scripts --package-lock=false
         working-directory: test/fixtures/package-install
       - run: npm test
         working-directory: test/fixtures/package-install
@@ -163,13 +163,19 @@ jobs:
         run: npx --yes pnpm@11.18.0 test
         working-directory: test/fixtures/package-install
       - if: matrix.manager == 'yarn'
+        run: touch yarn.lock
+        working-directory: test/fixtures/package-install
+      - if: matrix.manager == 'yarn'
         run: npx --yes @yarnpkg/cli-dist@4.18.0 install
         working-directory: test/fixtures/package-install
         env:
           YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
+          YARN_NODE_LINKER: node-modules
       - if: matrix.manager == 'yarn'
         run: npx --yes @yarnpkg/cli-dist@4.18.0 test
         working-directory: test/fixtures/package-install
+        env:
+          YARN_NODE_LINKER: node-modules
       - if: matrix.manager == 'bun'
         run: bun install --ignore-scripts
         working-directory: test/fixtures/package-install
