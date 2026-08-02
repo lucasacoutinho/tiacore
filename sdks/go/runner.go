@@ -17,10 +17,7 @@ import (
 
 func (runner *Runner) run(ctx context.Context) Result {
 	options := runner.options
-	if options.Root == "" {
-		options.Root = "."
-	}
-	root, err := filepath.Abs(options.Root)
+	root, err := resolveRoot(options.Root)
 	if err != nil {
 		return failedResult(options, fmt.Errorf("resolve project root: %w", err))
 	}
@@ -91,6 +88,17 @@ func (runner *Runner) run(ctx context.Context) Result {
 		}
 	}
 	return Result{Plan: plan, Packages: packages, Status: 0, Success: true}
+}
+
+func resolveRoot(value string) (string, error) {
+	if value == "" {
+		value = "."
+	}
+	absolute, err := filepath.Abs(value)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(absolute)
 }
 
 func goEnvironmentFingerprint(ctx context.Context, options Options, root string) (string, error) {

@@ -52,6 +52,24 @@ func TestRunnerRecordsSkipsAndSelectsAffectedPackages(t *testing.T) {
 	}
 }
 
+func TestRunnerCanonicalizesASymlinkedProjectRoot(t *testing.T) {
+	root, options := fixtureOptions(t)
+	linkedRoot := filepath.Join(t.TempDir(), "project-link")
+	if err := os.Symlink(root, linkedRoot); err != nil {
+		t.Skipf("create project-root symlink: %v", err)
+	}
+	options.Root = linkedRoot
+
+	baseline := New(options).Run(context.Background())
+	if !baseline.Success || baseline.Plan.Mode != "full" {
+		t.Fatalf("baseline = %#v", baseline)
+	}
+	skipped := New(options).Run(context.Background())
+	if !skipped.Success || skipped.Plan.Mode != "skip" {
+		t.Fatalf("skip = %#v", skipped)
+	}
+}
+
 func TestRunnerFallsBackForUnknownStructuralCorruptAndEnvironmentChanges(t *testing.T) {
 	t.Run("unknown", func(t *testing.T) {
 		root, options := fixtureOptions(t)
