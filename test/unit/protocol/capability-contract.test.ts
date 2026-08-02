@@ -14,7 +14,12 @@ interface AdapterCapability {
   factory: 'tia' | null
   id: string
   nativeParallelism: boolean
-  selectionGranularity: 'flow' | 'profile' | 'test-case' | 'test-file'
+  selectionGranularity:
+    | 'flow'
+    | 'package'
+    | 'profile'
+    | 'test-case'
+    | 'test-file'
 }
 
 interface CapabilityContract {
@@ -107,7 +112,7 @@ describe('adapter capability contract', () => {
       cachedOutcomes: false,
       capabilityLevel: 'static-impact',
       nativeParallelism: true,
-      selectionGranularity: 'test-file',
+      selectionGranularity: 'package',
     })
     expect(
       contract.adapters

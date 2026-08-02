@@ -32,10 +32,10 @@ entry point.
 The separately packaged Go SDK in `sdks/go` exports `New(options)`, returning a
 runner with `Run(context.Context)`. Its `cmd/tiacore-go` executable discovers
 the native package graph, stores a filesystem baseline, and invokes `go test`
-with the unique affected packages. The portable graph uses test-file suites;
-native execution conservatively expands each selection to the containing Go
-package. The SDK is not an npm entry point and does not claim cached outcomes:
-Go remains responsible for its own build and test cache.
+with the affected packages. The portable graph uses package suites, matching the
+native runner's execution boundary. The SDK is not an npm entry point and does
+not claim cached outcomes: Go remains responsible for its own build and test
+cache.
 
 ## `@usescherie/tiacore/node` and `@usescherie/tiacore/bun`
 

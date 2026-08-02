@@ -1,8 +1,8 @@
 # tiacore for Go
 
-This SDK implements tiacore protocol v1 for Go at static-impact granularity. It
-asks the Go toolchain for the real package and test inventory, follows
-transitive local imports, and passes the unique affected packages back to
+This SDK implements tiacore protocol v1 for Go at static-impact, package
+granularity. It asks the Go toolchain for the real package and test inventory,
+follows transitive local imports, and passes the affected packages back to
 `go test`.
 
 Install or run it from an exact reviewed revision:
@@ -22,9 +22,7 @@ The first run executes `go test ./...` and atomically records
 
 `go test` owns package workers and its native content-addressed build and test
 cache. The adapter does not claim cached outcomes, case-level selection, or
-coverage reconstruction. A selected test file expands conservatively to its Go
-package because the native runner does not execute file paths as isolated test
-suites.
+coverage reconstruction.
 
 Use `--packages` more than once to replace the default `./...` pattern,
 `--force` or `TIA_FRESH=1` for a full run, and `--json` for a machine-readable

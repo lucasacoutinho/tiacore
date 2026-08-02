@@ -97,7 +97,7 @@ minor releases, but it is never treated as portable application data.
 | k6           | `@usescherie/tiacore/k6`         | Profiles and transitive local imports                                   |
 | Gradle/JUnit | `@usescherie/tiacore/gradle`     | Java/Kotlin test classes and local imports; JUnit result validation     |
 | pytest       | `sdks/python`                    | Test files and transitive local imports                                 |
-| Go           | `sdks/go`                        | Test files and compile-only packages from the local package graph       |
+| Go           | `sdks/go`                        | Test and compile-only packages from the local package graph             |
 
 Vitest 4.1 and Node.js 20 or newer are required for the main package. The
 standalone Node adapter requires Node.js 22.10 or newer. See the

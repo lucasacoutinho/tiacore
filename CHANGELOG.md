@@ -8,7 +8,7 @@ follow Semantic Versioning.
 ### Added
 
 - Added a standalone Go SDK and CLI that records filesystem baselines, maps
-  native package dependencies to protocol-v1 test-file suites, selects affected
+  native package dependencies to protocol-v1 package suites, selects affected
   packages, and fails safely to the full Go suite when evidence is missing or
   incompatible.
 

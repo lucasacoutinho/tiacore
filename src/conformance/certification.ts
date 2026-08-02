@@ -44,7 +44,12 @@ export interface TiaAdapterCertificationReceipt {
     version: string
   }
   scenarios: TiaAdapterScenarioResult[]
-  selectionGranularity: 'flow' | 'profile' | 'test-case' | 'test-file'
+  selectionGranularity:
+    | 'flow'
+    | 'package'
+    | 'profile'
+    | 'test-case'
+    | 'test-file'
   sourceRevision: string
 }
 
@@ -117,7 +122,13 @@ const FEATURES = new Set<TiaAdapterFeature>([
   'subprocess-observation',
   'worktrees',
 ])
-const GRANULARITIES = new Set(['flow', 'profile', 'test-case', 'test-file'])
+const GRANULARITIES = new Set([
+  'flow',
+  'package',
+  'profile',
+  'test-case',
+  'test-file',
+])
 const RECEIPT_KEYS = new Set([
   'adapter',
   'capabilityLevel',

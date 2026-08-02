@@ -88,6 +88,6 @@
       "passed": true
     }
   ],
-  "selectionGranularity": "test-file",
-  "sourceRevision": "sha256:47d65802b738cafbb8a1929b6a2e12823e8c7e804c1fb3fd5ef7436f6d86f042"
+  "selectionGranularity": "package",
+  "sourceRevision": "sha256:bf60547a37763c34fd2233b3bdb4438a9a431e052aa109ff60fd0f84c7222df7"
 }

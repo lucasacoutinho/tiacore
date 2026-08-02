@@ -112,29 +112,22 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 		testFiles := append([]string{}, item.TestGoFiles...)
 		testFiles = append(testFiles, item.XTestGoFiles...)
 		sort.Strings(testFiles)
-		if len(testFiles) == 0 {
-			files := packageFiles(item)
-			if len(files) == 0 {
-				continue
-			}
-			file, err := relativePath(root, filepath.Join(item.Dir, files[0]))
-			if err != nil {
-				return catalog{}, err
-			}
-			id := "go-compile:" + importPath
-			suites = append(suites, Suite{Adapter: "go-test", File: file, ID: id, Project: project, Tags: []string{"go-compile", "go-package:" + importPath}})
-			suitePackages[id] = importPath
+		representative := testFiles
+		tags := []string{"go-package:" + importPath, "go-tests"}
+		if len(representative) == 0 {
+			representative = packageFiles(item)
+			tags[1] = "go-compile"
+		}
+		if len(representative) == 0 {
 			continue
 		}
-		for _, testFile := range testFiles {
-			file, err := relativePath(root, filepath.Join(item.Dir, testFile))
-			if err != nil {
-				return catalog{}, err
-			}
-			id := "go-test:" + importPath + ":" + testFile
-			suites = append(suites, Suite{Adapter: "go-test", File: file, ID: id, Project: project, Tags: []string{"go-package:" + importPath}})
-			suitePackages[id] = importPath
+		file, err := relativePath(root, filepath.Join(item.Dir, representative[0]))
+		if err != nil {
+			return catalog{}, err
 		}
+		id := "go-package:" + importPath
+		suites = append(suites, Suite{Adapter: "go-test", File: file, ID: id, Project: project, Tags: tags})
+		suitePackages[id] = importPath
 	}
 	sort.Slice(suites, func(left, right int) bool { return suites[left].ID < suites[right].ID })
 
