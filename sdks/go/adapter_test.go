@@ -108,6 +108,19 @@ func TestRunnerFallsBackForUnknownStructuralCorruptAndEnvironmentChanges(t *test
 			t.Fatalf("plan = %#v", result.Plan)
 		}
 	})
+
+	t.Run("shell bookkeeping", func(t *testing.T) {
+		_, options := fixtureOptions(t)
+		options.Environment = map[string]string{"OLDPWD": "/first/shell/directory"}
+		if result := New(options).Run(context.Background()); !result.Success {
+			t.Fatal(result)
+		}
+		options.Environment["OLDPWD"] = "/second/shell/directory"
+		result := New(options).Run(context.Background())
+		if result.Plan.Mode != "skip" {
+			t.Fatalf("shell bookkeeping invalidated the graph: %#v", result.Plan)
+		}
+	})
 }
 
 func TestFailedRunDoesNotPromoteItsSnapshot(t *testing.T) {

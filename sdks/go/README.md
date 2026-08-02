@@ -24,6 +24,11 @@ The first run executes `go test ./...` and atomically records
 cache. The adapter does not claim cached outcomes, case-level selection, or
 coverage reconstruction.
 
+The environment fingerprint includes Go's build environment, forwarded test
+arguments, and process environment values. Shell bookkeeping (`PWD`, `OLDPWD`,
+`SHLVL`, and `_`) is excluded because the explicit project root already owns
+path identity and those values change without changing test behavior.
+
 Use `--packages` more than once to replace the default `./...` pattern,
 `--force` or `TIA_FRESH=1` for a full run, and `--json` for a machine-readable
 plan. Flags after `--` are passed to `go test` before the selected package list.

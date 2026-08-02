@@ -106,7 +106,8 @@ func goEnvironmentFingerprint(ctx context.Context, options Options, root string)
 	environment := commandEnvironment(options.Environment)
 	sort.Strings(environment)
 	for _, value := range environment {
-		if strings.HasPrefix(value, "TIA_FRESH=") {
+		name, _, _ := strings.Cut(value, "=")
+		if name == "TIA_FRESH" || name == "PWD" || name == "OLDPWD" || name == "SHLVL" || name == "_" {
 			continue
 		}
 		_, _ = hash.Write([]byte(value))
