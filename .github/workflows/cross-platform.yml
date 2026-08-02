@@ -25,5 +25,9 @@ jobs:
         with:
           cache: npm
           node-version: 24
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23.x'
       - run: npm ci
       - run: npm run test:cross-platform
+      - run: npm run check:go

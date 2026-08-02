@@ -63,7 +63,7 @@
       "items": { "$ref": "#/$defs/scenario" }
     },
     "selectionGranularity": {
-      "enum": ["test-case", "test-file", "profile", "flow"]
+      "enum": ["test-case", "test-file", "package", "profile", "flow"]
     },
     "sourceRevision": { "$ref": "#/$defs/text" }
   },

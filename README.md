@@ -8,7 +8,8 @@ affected tests, and reuses unaffected results. Uncertain input causes a safe
 full-suite run.
 
 It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6,
-Gradle/JUnit, and pytest. Git improves baseline comparison, but it is optional.
+Gradle/JUnit, pytest, and Go's native test runner. Git improves baseline
+comparison, but it is optional.
 
 > tiacore 1.x is stable, proprietary software. Install it from an
 > access-controlled registry or an exact reviewed VCS revision.
@@ -96,6 +97,7 @@ minor releases, but it is never treated as portable application data.
 | k6           | `@usescherie/tiacore/k6`         | Profiles and transitive local imports                                   |
 | Gradle/JUnit | `@usescherie/tiacore/gradle`     | Java/Kotlin test classes and local imports; JUnit result validation     |
 | pytest       | `sdks/python`                    | Test files and transitive local imports                                 |
+| Go           | `sdks/go`                        | Test and compile-only packages from the local package graph             |
 
 Vitest 4.1 and Node.js 20 or newer are required for the main package. The
 standalone Node adapter requires Node.js 22.10 or newer. See the
@@ -145,6 +147,7 @@ npm ci
 npm run check
 npm run check:package
 npm run check:python
+npm run check:go
 ```
 
 `npm run check` enforces Oxfmt and Oxlint before type-checking and testing.

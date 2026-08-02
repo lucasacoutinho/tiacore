@@ -5,6 +5,19 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Added
+
+- Added a standalone Go SDK and CLI that records filesystem baselines, maps
+  native package dependencies to protocol-v1 package suites, selects affected
+  packages, and fails safely to the full Go suite when evidence is missing or
+  incompatible.
+
+### Changed
+
+- Qualified the Go adapter without overstating replay: `go test` retains
+  ownership of workers and its native build/test cache, while tiacore stores
+  only dependency and baseline evidence.
+
 ## 1.0.2 - 2026-07-31
 
 ### Changed

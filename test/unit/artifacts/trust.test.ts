@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { restoreGraphFromArtifacts } from '../../../src/engine/artifacts/restore.js'
 import {
@@ -105,6 +105,7 @@ function trust(overrides: TiaArtifactTrustPolicy = {}): TiaArtifactTrustPolicy {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true })
   }
@@ -112,6 +113,8 @@ afterEach(() => {
 
 describe('artifact authenticity and trust policy', () => {
   test('restores an artifact only after verifying its signature and policy', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-31T12:00:00.000Z'))
     const value = graph()
     const attestation = createArtifactAttestation(claim(value), {
       keyId: 'release-2026',

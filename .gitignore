@@ -4,6 +4,7 @@ node_modules/
 /coverage/
 .agents/
 .tia/
+.worktrees/
 *.tgz
 executions.log
 skills-lock.json

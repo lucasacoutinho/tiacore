@@ -36,9 +36,16 @@ them without observing the runner's execution. A plan may mark an unselected
 suite as cached, but that means only that its prior graph relation is reusable.
 It does not replay a native runner result.
 
-k6, Maestro, Gradle/JUnit, and the Python pytest SDK currently meet this level.
-The Gradle adapter delegates all selected classes to one native Gradle task and
-uses JUnit XML as completion evidence; it does not replay JVM outcomes.
+k6, Maestro, Gradle/JUnit, the Python pytest SDK, and the Go SDK currently meet
+this level. The Gradle adapter delegates all selected classes to one native
+Gradle task and uses JUnit XML as completion evidence; it does not replay JVM
+outcomes.
+
+The Go adapter identifies test and compile-only packages from the native package
+graph, follows transitive local imports, and delegates affected packages to
+`go test`. Go's runner executes every test in a selected package and owns its
+content-addressed build and test cache. tiacore neither stores nor replays those
+native outcomes.
 
 ## Rules shared by every level
 

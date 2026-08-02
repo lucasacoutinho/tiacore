@@ -14,7 +14,12 @@ interface AdapterCapability {
   factory: 'tia' | null
   id: string
   nativeParallelism: boolean
-  selectionGranularity: 'flow' | 'profile' | 'test-case' | 'test-file'
+  selectionGranularity:
+    | 'flow'
+    | 'package'
+    | 'profile'
+    | 'test-case'
+    | 'test-file'
 }
 
 interface CapabilityContract {
@@ -35,6 +40,7 @@ describe('adapter capability contract', () => {
     expect(contract.contractVersion).toBe(1)
     expect(contract.adapters.map(({ id }) => id).sort()).toEqual([
       'bun-test',
+      'go-test',
       'gradle-junit',
       'k6',
       'maestro',
@@ -58,7 +64,10 @@ describe('adapter capability contract', () => {
           exportKey === '.' ? '.' : exportKey,
         )
       } else {
-        expect(adapter.entryPoint).toBe('python:tiacore')
+        expect([
+          'go:github.com/usescherie/tiacore/sdks/go',
+          'python:tiacore',
+        ]).toContain(adapter.entryPoint)
       }
       expect(adapter.baselines.length).toBeGreaterThan(0)
       expect(adapter.boundaries.every((boundary) => boundary.length > 0)).toBe(
@@ -98,6 +107,12 @@ describe('adapter capability contract', () => {
       capabilityLevel: 'observed-file-tia',
       coverageReconstruction: false,
       selectionGranularity: 'test-file',
+    })
+    expect(contract.adapters.find(({ id }) => id === 'go-test')).toMatchObject({
+      cachedOutcomes: false,
+      capabilityLevel: 'static-impact',
+      nativeParallelism: true,
+      selectionGranularity: 'package',
     })
     expect(
       contract.adapters

@@ -55,7 +55,7 @@
           "enum": ["runtime-tia", "observed-file-tia", "static-impact"]
         },
         "selectionGranularity": {
-          "enum": ["test-case", "test-file", "profile", "flow"]
+          "enum": ["test-case", "test-file", "package", "profile", "flow"]
         },
         "dependencyEvidence": {
           "enum": ["runtime", "runtime-and-static", "static"]

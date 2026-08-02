@@ -128,6 +128,23 @@
         "the adapter follows local Python imports but does not claim runtime dependency evidence",
         "pytest outcomes and coverage are not replayed"
       ]
+    },
+    {
+      "id": "go-test",
+      "entryPoint": "go:github.com/usescherie/tiacore/sdks/go",
+      "factory": "New",
+      "capabilityLevel": "static-impact",
+      "selectionGranularity": "package",
+      "dependencyEvidence": "static",
+      "cachedOutcomes": false,
+      "coverageReconstruction": false,
+      "nativeParallelism": true,
+      "baselines": ["filesystem"],
+      "boundaries": [
+        "the adapter maps each Go package to its transitive local package inputs and delegates unique affected packages to go test",
+        "Go executes every test in a selected package because the native runner does not accept test-file paths",
+        "the Go build and test cache remains runner-owned; tiacore does not persist or replay native Go outcomes"
+      ]
     }
   ]
 }
