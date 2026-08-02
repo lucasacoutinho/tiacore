@@ -10,6 +10,30 @@ permissions:
   contents: read
 
 jobs:
+  go:
+    name: Go SDK / Go ${{ matrix.go }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        go:
+          - '1.23.x'
+          - '1.25.x'
+          - '1.26.x'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go test -count=1 ./...
+        working-directory: sdks/go
+      - run: go vet ./...
+        working-directory: sdks/go
+
   python:
     name: pytest SDK / Python ${{ matrix.python }}
     runs-on: ubuntu-latest

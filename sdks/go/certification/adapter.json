@@ -1,0 +1,93 @@
+{
+  "adapter": "go-test",
+  "capabilityLevel": "static-impact",
+  "contractVersion": 1,
+  "environment": {
+    "architecture": "amd64",
+    "operatingSystem": "linux"
+  },
+  "features": [],
+  "generatedAt": "2026-08-02T00:00:00.000Z",
+  "protocolVersion": 1,
+  "runner": {
+    "name": "go test",
+    "version": "1.23+"
+  },
+  "scenarios": [
+    {
+      "evidence": {
+        "assertions": 2,
+        "command": "go test -count=1 ./...",
+        "fixture": "adapter_test.go"
+      },
+      "id": "baseline-full",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 2,
+        "fixture": "adapter_test.go"
+      },
+      "id": "no-change-skip",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 3,
+        "fixture": "adapter_test.go"
+      },
+      "id": "affected-selective",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 2,
+        "fixture": "adapter_test.go"
+      },
+      "id": "unknown-change-full",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 1,
+        "fixture": "adapter_test.go"
+      },
+      "id": "structural-change-full",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 1,
+        "fixture": "adapter_test.go"
+      },
+      "id": "corrupt-graph-full",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 2,
+        "fixture": "adapter_test.go"
+      },
+      "id": "environment-change-full",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 2,
+        "fixture": "adapter_test.go"
+      },
+      "id": "cross-platform-paths",
+      "passed": true
+    },
+    {
+      "evidence": {
+        "assertions": 1,
+        "fixture": "adapter_test.go"
+      },
+      "id": "resource-locks",
+      "passed": true
+    }
+  ],
+  "selectionGranularity": "test-file",
+  "sourceRevision": "sha256:2bd0009478d459216c8957c7bee19a2891462e815c24ee2f4b8506b3f303002e"
+}
