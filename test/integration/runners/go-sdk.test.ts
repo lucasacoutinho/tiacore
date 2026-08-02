@@ -8,9 +8,10 @@ import { describe, expect, test } from 'vitest'
 import { certifyAdapterReceipt } from '../../../src/entries/conformance.js'
 
 const sdkRoot = join(process.cwd(), 'sdks/go')
+const repositoryRoot = process.cwd()
 
 function sourceRevision(): string {
-  const files: string[] = [join(sdkRoot, 'go.mod')]
+  const files: string[] = [join(repositoryRoot, 'go.mod')]
   const walk = (directory: string): void => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
@@ -24,7 +25,7 @@ function sourceRevision(): string {
   walk(sdkRoot)
   const digest = createHash('sha256')
   for (const file of files.sort()) {
-    digest.update(relative(sdkRoot, file).replaceAll('\\', '/'))
+    digest.update(relative(repositoryRoot, file).replaceAll('\\', '/'))
     digest.update('\0')
     digest.update(readFileSync(file))
     digest.update('\0')
