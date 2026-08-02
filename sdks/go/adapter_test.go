@@ -12,6 +12,7 @@ import (
 
 func fixtureOptions(t *testing.T) (string, Options) {
 	t.Helper()
+	t.Setenv("TIA_FRESH", "")
 	root := filepath.Join(t.TempDir(), "project")
 	if err := os.CopyFS(root, os.DirFS("testdata/project")); err != nil {
 		t.Fatal(err)
@@ -137,6 +138,18 @@ func TestRunnerFallsBackForUnknownStructuralCorruptAndEnvironmentChanges(t *test
 		result := New(options).Run(context.Background())
 		if result.Plan.Mode != "skip" {
 			t.Fatalf("shell bookkeeping invalidated the graph: %#v", result.Plan)
+		}
+	})
+
+	t.Run("explicit full run", func(t *testing.T) {
+		_, options := fixtureOptions(t)
+		if result := New(options).Run(context.Background()); !result.Success {
+			t.Fatal(result)
+		}
+		options.ForceFull = true
+		result := New(options).Run(context.Background())
+		if result.Plan.Mode != "full" || !strings.Contains(result.Plan.Reason, "requested") {
+			t.Fatalf("plan = %#v", result.Plan)
 		}
 	})
 }
