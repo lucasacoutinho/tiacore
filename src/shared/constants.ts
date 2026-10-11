@@ -1,4 +1,4 @@
-export const GRAPH_SCHEMA_VERSION = 3
+export const GRAPH_SCHEMA_VERSION = 4
 export const PLUGIN_VERSION = '1.0.2'
 export const TIA_META_KEY = '__tiacore__'
 export const TIA_REPLAY_META_KEY = '__tiacore_replay__'

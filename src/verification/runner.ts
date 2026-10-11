@@ -28,6 +28,7 @@ import {
   type TiaVerificationRunnerResult,
   type TiaVerificationSnapshot,
 } from './types.js'
+import { parseArtifactGraph } from '../engine/artifacts/portable-graph.js'
 
 interface ExecutedPhase {
   duration: number
@@ -70,10 +71,14 @@ async function snapshots(
     const value = JSON.parse(
       await readFile(resolve(root, entry), 'utf8'),
     ) as unknown
-    if (!validSnapshot(value, phase)) {
+    // Older producers embed a schema-3 graph; compact it like an artifact.
+    const graph = validSnapshot(value, phase)
+      ? parseArtifactGraph(value.graph)
+      : null
+    if (graph === null) {
       throw new Error(`invalid TIA verification snapshot: ${basename(entry)}`)
     }
-    values.push(value)
+    values.push({ ...(value as TiaVerificationSnapshot), graph })
   }
   return values
 }

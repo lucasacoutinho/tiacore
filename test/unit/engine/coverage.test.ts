@@ -9,6 +9,7 @@ import {
   mergeCoverageCounters,
   snapshotCoverage,
 } from '../../../src/integrations/coverage/runtime.js'
+import { expandCoverageHits } from '../../../src/engine/state/coverage.js'
 import { CoverageTemplates } from '../../../src/integrations/coverage/templates.js'
 import { coverageThresholdFailures } from '../../../src/integrations/coverage/thresholds.js'
 import type { CoverageMapLike } from '../../../src/shared/types.js'
@@ -187,31 +188,33 @@ describe('coverage templates', () => {
     const delta = coverageCounterDelta(before, coverage())
 
     expect(templates.unknownFiles('/project', delta)).toEqual([])
-    expect(templates.expand('/project', delta)).toEqual({
-      'src/a.js': {
-        b: Object.fromEntries(
-          Object.entries(after.b!).map(([key, counts]) => [
-            key,
-            counts.map((count, index) => count - live.b![key]![index]!),
-          ]),
-        ),
-        branchMap: live.branchMap,
-        f: Object.fromEntries(
-          Object.entries(after.f!).map(([key, count]) => [
-            key,
-            count - live.f![key]!,
-          ]),
-        ),
-        fnMap: live.fnMap,
-        path: 'src/a.js',
-        s: Object.fromEntries(
-          Object.entries(after.s!).map(([key, count]) => [
-            key,
-            count - live.s![key]!,
-          ]),
-        ),
-        statementMap: live.statementMap,
-      },
+    const record = templates.record('/project', delta)
+    const hits = record['src/a.js']!
+    const template = templates.maps([record])[hits.map]!
+
+    expect(expandCoverageHits(template, 'src/a.js', hits)).toEqual({
+      b: Object.fromEntries(
+        Object.entries(after.b!).map(([key, counts]) => [
+          key,
+          counts.map((count, index) => count - live.b![key]![index]!),
+        ]),
+      ),
+      branchMap: live.branchMap,
+      f: Object.fromEntries(
+        Object.entries(after.f!).map(([key, count]) => [
+          key,
+          count - live.f![key]!,
+        ]),
+      ),
+      fnMap: live.fnMap,
+      path: 'src/a.js',
+      s: Object.fromEntries(
+        Object.entries(after.s!).map(([key, count]) => [
+          key,
+          count - live.s![key]!,
+        ]),
+      ),
+      statementMap: live.statementMap,
     })
   })
 
@@ -228,18 +231,25 @@ describe('coverage templates', () => {
     expect(payload(500)).toBe(payload(1))
   })
 
-  test('share one copy of static maps between rebuilt tests', () => {
-    const templates = load('/project/src/a.js', 1)
-    const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
-    globals.__tiacore_unit_call__?.(2)
-    const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
+  test('name one content-addressed map per file across tests and checkouts', () => {
+    const record = (root: string) => {
+      const templates = load(`${root}/src/a.js`, 1)
+      const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
+      globals.__tiacore_unit_call__?.(2)
+      const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
+      delete globals[COVERAGE_VARIABLE]
+      const first = templates.record(root, delta)
+      const second = templates.record(root, delta)
+      return { first, maps: templates.maps([first, second]), second }
+    }
 
-    const first = templates.expand('/project', delta)['src/a.js']
-    const second = templates.expand('/project', delta)['src/a.js']
+    const local = record('/project')
+    const ci = record('/runner/work/project')
 
-    expect(second).toEqual(first)
-    expect(second?.statementMap).toBe(first?.statementMap)
-    expect(second?.s).not.toBe(first?.s)
+    expect(Object.keys(local.maps)).toEqual([local.first['src/a.js']!.map])
+    expect(local.second).toEqual(local.first)
+    expect(ci.first).toEqual(local.first)
+    expect(ci.maps).toEqual(local.maps)
   })
 
   test('report project files whose instrumentation is unknown', () => {

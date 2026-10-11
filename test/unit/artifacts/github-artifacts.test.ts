@@ -23,6 +23,7 @@ function graph(fingerprint: string): TiaRuntimeGraph {
     collectionCoverage: {},
     complete: true,
     coverageComplete: true,
+    coverageMaps: {},
     edges: { 'test/a.test.ts': ['src/a.ts', 'test/a.test.ts'] },
     fingerprint,
     results: {
@@ -33,7 +34,7 @@ function graph(fingerprint: string): TiaRuntimeGraph {
         state: 'passed',
       },
     },
-    schema: 3,
+    schema: 4,
     testCoverage: {},
     testEdges: {
       a: {

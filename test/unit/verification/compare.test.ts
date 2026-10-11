@@ -167,38 +167,12 @@ describe('differential verification', () => {
     selective.testEdges.case!.files = ['test/example.test.ts']
     selective.edges['test/example.test.ts'] = ['test/example.test.ts']
     selective.collectionCoverage['test/example.test.ts'] = {
-      'src/example.ts': {
-        b: {},
-        branchMap: {},
-        f: {},
-        fnMap: {},
-        path: 'src/example.ts',
-        s: { 0: 0 },
-        statementMap: {
-          0: {
-            end: { column: 1, line: 1 },
-            start: { column: 0, line: 1 },
-          },
-        },
-      },
+      'src/example.ts': { b: {}, f: {}, map: 'example', s: {} },
     }
     const full = graph()
     full.results.case!.state = 'failed'
     full.collectionCoverage['test/example.test.ts'] = {
-      'src/example.ts': {
-        b: {},
-        branchMap: {},
-        f: {},
-        fnMap: {},
-        path: 'src/example.ts',
-        s: { 0: 1 },
-        statementMap: {
-          0: {
-            end: { column: 1, line: 1 },
-            start: { column: 0, line: 1 },
-          },
-        },
-      },
+      'src/example.ts': { b: {}, f: {}, map: 'example', s: { 0: 1 } },
     }
 
     const result = compareVerificationSnapshots(
@@ -219,12 +193,9 @@ describe('differential verification', () => {
     const full = graph()
     const coverage = {
       b: { 0: [1, 0] },
-      branchMap: {},
       f: { 0: 1 },
-      fnMap: {},
-      path: 'src/example.ts',
+      map: 'example',
       s: { 0: 1 },
-      statementMap: {},
     }
     selective.collectionCoverage['test/example.test.ts'] = {
       'src/example.ts': coverage,

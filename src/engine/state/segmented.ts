@@ -12,8 +12,9 @@ import {
 import { join } from 'node:path'
 
 import type { TiaRuntimeGraph } from '../types.js'
+import { referencedCoverageMaps } from './coverage.js'
 
-export const TIA_RUNTIME_STORE_VERSION = 1 as const
+export const TIA_RUNTIME_STORE_VERSION = 2 as const
 export const TIA_RUNTIME_STORE_BUCKETS = 64
 
 const STORE_FORMAT = 'tiacore-runtime-state'
@@ -21,6 +22,7 @@ const MAX_MANIFEST_BYTES = 1024 * 1024
 const MAX_SEGMENT_BYTES = 20 * 1024 * 1024
 const SEGMENT_DOMAINS = [
   'collectionCoverage',
+  'coverageMaps',
   'edges',
   'results',
   'testCoverage',
@@ -36,7 +38,7 @@ interface SegmentReference {
   sha256: string
 }
 
-interface RuntimeStateManifestV1 {
+interface RuntimeStateManifest {
   format: typeof STORE_FORMAT
   generation: string
   metadata: Omit<TiaRuntimeGraph, SegmentDomain>
@@ -44,7 +46,7 @@ interface RuntimeStateManifestV1 {
   version: typeof TIA_RUNTIME_STORE_VERSION
 }
 
-interface RuntimeStateSegmentV1 {
+interface RuntimeStateSegment {
   bucket: number
   domain: SegmentDomain
   records: Record<string, unknown>
@@ -94,7 +96,7 @@ function segmentReference(value: unknown): value is SegmentReference {
   )
 }
 
-function manifest(value: unknown): RuntimeStateManifestV1 | null {
+function manifest(value: unknown): RuntimeStateManifest | null {
   if (!isRecord(value)) return null
   if (
     value.version !== TIA_RUNTIME_STORE_VERSION ||
@@ -120,7 +122,7 @@ function manifest(value: unknown): RuntimeStateManifestV1 | null {
     }
   }
 
-  const candidate = value as unknown as RuntimeStateManifestV1
+  const candidate = value as unknown as RuntimeStateManifest
   const generation = digest(
     JSON.stringify({
       metadata: candidate.metadata,
@@ -144,7 +146,7 @@ function parseSegment(
   source: string,
   domain: SegmentDomain,
   reference: SegmentReference,
-): RuntimeStateSegmentV1 | null {
+): RuntimeStateSegment | null {
   if (
     Buffer.byteLength(source) !== reference.bytes ||
     digest(source) !== reference.sha256
@@ -170,7 +172,7 @@ function parseSegment(
   ) {
     return null
   }
-  return value as unknown as RuntimeStateSegmentV1
+  return value as unknown as RuntimeStateSegment
 }
 
 export function readSegmentedState(cacheDir: string): unknown | null {
@@ -213,46 +215,112 @@ export function readSegmentedState(cacheDir: string): unknown | null {
   return graph
 }
 
-function serializeSegments(
+function serializeSegment(
   domain: SegmentDomain,
-  records: Record<string, unknown>,
-): SerializedSegment[] {
-  const buckets = new Map<number, Array<[string, unknown]>>()
-  for (const [key, value] of Object.entries(records)) {
-    const bucket = bucketFor(key)
-    const entries = buckets.get(bucket) ?? []
-    entries.push([key, value])
-    buckets.set(bucket, entries)
+  bucket: number,
+  entries: Array<[string, unknown]>,
+): SerializedSegment {
+  const records = Object.fromEntries(
+    entries.sort(([left], [right]) => left.localeCompare(right)),
+  )
+  const body = `${JSON.stringify({
+    bucket,
+    domain,
+    records,
+    version: TIA_RUNTIME_STORE_VERSION,
+  } satisfies RuntimeStateSegment)}\n`
+  const bytes = Buffer.byteLength(body)
+  if (bytes > MAX_SEGMENT_BYTES) {
+    throw new Error(
+      `TIA runtime ${domain} segment ${bucket} exceeds the storage limit`,
+    )
   }
+  return {
+    body,
+    reference: { bucket, bytes, entries: entries.length, sha256: digest(body) },
+  }
+}
 
-  return [...buckets.entries()]
-    .sort(([left], [right]) => left - right)
-    .map(([bucket, entries]) => {
-      const bucketRecords = Object.fromEntries(
-        entries.sort(([left], [right]) => left.localeCompare(right)),
-      )
-      const body = `${JSON.stringify({
-        bucket,
-        domain,
-        records: bucketRecords,
-        version: TIA_RUNTIME_STORE_VERSION,
-      } satisfies RuntimeStateSegmentV1)}\n`
-      const bytes = Buffer.byteLength(body)
-      if (bytes > MAX_SEGMENT_BYTES) {
-        throw new Error(
-          `TIA runtime ${domain} segment ${bucket} exceeds the storage limit`,
-        )
-      }
-      return {
-        body,
-        reference: {
-          bucket,
-          bytes,
-          entries: entries.length,
-          sha256: digest(body),
-        },
-      }
-    })
+function stateRecords(
+  graph: TiaRuntimeGraph,
+): [Omit<TiaRuntimeGraph, SegmentDomain>, Record<SegmentDomain, object>] {
+  const {
+    collectionCoverage,
+    coverageMaps,
+    edges,
+    results,
+    testCoverage,
+    testEdges,
+    ...metadata
+  } = graph
+  const referenced = referencedCoverageMaps(graph)
+  return [
+    metadata,
+    {
+      collectionCoverage,
+      coverageMaps: Object.fromEntries(
+        Object.entries(coverageMaps).filter(([id]) => referenced.has(id)),
+      ),
+      edges,
+      results,
+      testCoverage,
+      testEdges,
+    },
+  ]
+}
+
+/**
+ * Serializes the graph one bucket at a time. Each body is handed to `visit`
+ * and released before the next is built, so no string holds the whole graph.
+ */
+function visitSegments(
+  graph: TiaRuntimeGraph,
+  visit: (segment: SerializedSegment) => void,
+): RuntimeStateManifest {
+  const [metadata, records] = stateRecords(graph)
+  const segments = {} as Record<SegmentDomain, SegmentReference[]>
+  for (const domain of SEGMENT_DOMAINS) {
+    const buckets = new Map<number, Array<[string, unknown]>>()
+    for (const [key, value] of Object.entries(records[domain])) {
+      const bucket = bucketFor(key)
+      const entries = buckets.get(bucket) ?? []
+      entries.push([key, value])
+      buckets.set(bucket, entries)
+    }
+    segments[domain] = [...buckets.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([bucket, entries]) => {
+        const segment = serializeSegment(domain, bucket, entries)
+        visit(segment)
+        return segment.reference
+      })
+  }
+  return {
+    format: STORE_FORMAT,
+    generation: digest(JSON.stringify({ metadata, segments })),
+    metadata,
+    segments,
+    version: TIA_RUNTIME_STORE_VERSION,
+  }
+}
+
+/**
+ * Returns the manifest generation the store would record for this graph. It
+ * identifies graph content without serializing the graph into one string.
+ */
+export function stateGeneration(graph: TiaRuntimeGraph): string {
+  return visitSegments(graph, () => {}).generation
+}
+
+/** Reads the generation of the current manifest without loading segments. */
+export function readStateGeneration(cacheDir: string): string | null {
+  const source = boundedFile(statePath(cacheDir), MAX_MANIFEST_BYTES)
+  if (source === null) return null
+  try {
+    return manifest(JSON.parse(source) as unknown)?.generation ?? null
+  } catch {
+    return null
+  }
 }
 
 function atomicWrite(path: string, body: string): void {
@@ -301,57 +369,20 @@ export function writeSegmentedState(
   cacheDir: string,
   graph: TiaRuntimeGraph,
 ): void {
-  const {
-    collectionCoverage,
-    edges,
-    results,
-    testCoverage,
-    testEdges,
-    ...metadata
-  } = graph
-  const records: Record<SegmentDomain, Record<string, unknown>> = {
-    collectionCoverage,
-    edges,
-    results,
-    testCoverage,
-    testEdges,
-  }
-  const serialized = Object.fromEntries(
-    SEGMENT_DOMAINS.map((domain) => [
-      domain,
-      serializeSegments(domain, records[domain]),
-    ]),
-  ) as Record<SegmentDomain, SerializedSegment[]>
-  const segments = Object.fromEntries(
-    SEGMENT_DOMAINS.map((domain) => [
-      domain,
-      serialized[domain].map((segment) => segment.reference),
-    ]),
-  ) as Record<SegmentDomain, SegmentReference[]>
-  const generation = digest(JSON.stringify({ metadata, segments }))
-  const state: RuntimeStateManifestV1 = {
-    format: STORE_FORMAT,
-    generation,
-    metadata,
-    segments,
-    version: TIA_RUNTIME_STORE_VERSION,
-  }
+  mkdirSync(stateObjectsPath(cacheDir), { recursive: true })
+  const state = visitSegments(graph, (segment) => {
+    storeObject(cacheDir, segment)
+  })
   const body = `${JSON.stringify(state, null, 2)}\n`
   if (Buffer.byteLength(body) > MAX_MANIFEST_BYTES) {
     throw new Error('TIA runtime state manifest exceeds the storage limit')
   }
 
-  mkdirSync(stateObjectsPath(cacheDir), { recursive: true })
-  for (const domain of SEGMENT_DOMAINS) {
-    for (const segment of serialized[domain]) {
-      storeObject(cacheDir, segment)
-    }
-  }
   atomicWrite(statePath(cacheDir), body)
   garbageCollectObjects(
     cacheDir,
     new Set(
-      Object.values(segments).flatMap((references) =>
+      Object.values(state.segments).flatMap((references) =>
         references.map((reference) => reference.sha256),
       ),
     ),

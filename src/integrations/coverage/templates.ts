@@ -1,9 +1,10 @@
 import type { FileCoverageData } from 'istanbul-lib-coverage'
 
+import { coverageMapId, coverageTemplate } from '../../engine/state/coverage.js'
 import { projectRelative } from '../../shared/paths.js'
 import type {
   TiaCoverageCounterMap,
-  TiaCoverageMap,
+  TiaCoverageRecord,
   TiaCoverageTemplate,
 } from './types.js'
 
@@ -20,26 +21,21 @@ export function instrumentationHash(instrumentedCode: string): string | null {
  * coverage can travel and stay in memory as advanced counters only.
  */
 export class CoverageTemplates {
-  private readonly templates = new Map<string, TiaCoverageTemplate>()
-
-  get size(): number {
-    return this.templates.size
-  }
+  private readonly byHash = new Map<string, string>()
+  private readonly byId = new Map<string, TiaCoverageTemplate>()
 
   register(instrumentedCode: string, coverage: FileCoverageData): void {
     const hash = instrumentationHash(instrumentedCode)
-    if (hash === null || this.templates.has(hash)) {
+    if (hash === null || this.byHash.has(hash)) {
       return
     }
 
-    this.templates.set(hash, {
-      b: coverage.b,
-      branchMap: coverage.branchMap,
-      f: coverage.f,
-      fnMap: coverage.fnMap,
-      s: coverage.s,
-      statementMap: coverage.statementMap,
-    })
+    const template = coverageTemplate(coverage)
+    const id = coverageMapId(template)
+    this.byHash.set(hash, id)
+    if (!this.byId.has(id)) {
+      this.byId.set(id, template)
+    }
   }
 
   /** Lists project files whose counters have no registered template. */
@@ -47,41 +43,41 @@ export class CoverageTemplates {
     return Object.entries(counters)
       .filter(
         ([path, file]) =>
-          !this.templates.has(file.hash) &&
+          !this.byHash.has(file.hash) &&
           (projectRelative(root, path) ?? '') !== '',
       )
       .map(([path]) => path)
   }
 
-  /**
-   * Rebuilds project-relative Istanbul file coverage from advanced counters.
-   * Files share their template's static maps instead of copying them.
-   */
-  expand(root: string, counters: TiaCoverageCounterMap): TiaCoverageMap {
-    const coverage: TiaCoverageMap = {}
+  /** Converts worker counters into a project-relative graph record. */
+  record(root: string, counters: TiaCoverageCounterMap): TiaCoverageRecord {
+    const record: TiaCoverageRecord = {}
 
     for (const [key, file] of Object.entries(counters)) {
-      const template = this.templates.get(file.hash)
+      const map = this.byHash.get(file.hash)
       const path = projectRelative(root, key)
-      if (template === undefined || path === null || path === '') {
+      if (map === undefined || path === null || path === '') {
         continue
       }
-
-      const b: Record<string, number[]> = {}
-      for (const [branch, zeros] of Object.entries(template.b)) {
-        b[branch] = [...zeros]
-      }
-      coverage[path] = {
-        b: Object.assign(b, file.b),
-        branchMap: template.branchMap,
-        f: { ...template.f, ...file.f },
-        fnMap: template.fnMap,
-        path,
-        s: { ...template.s, ...file.s },
-        statementMap: template.statementMap,
-      }
+      record[path] = { b: file.b, f: file.f, map, s: file.s }
     }
 
-    return coverage
+    return record
+  }
+
+  /** Returns the templates that the given records name. */
+  maps(
+    records: Iterable<TiaCoverageRecord>,
+  ): Record<string, TiaCoverageTemplate> {
+    const maps: Record<string, TiaCoverageTemplate> = {}
+    for (const record of records) {
+      for (const hits of Object.values(record)) {
+        const template = this.byId.get(hits.map)
+        if (template !== undefined) {
+          maps[hits.map] = template
+        }
+      }
+    }
+    return maps
   }
 }

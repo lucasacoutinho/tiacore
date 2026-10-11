@@ -17,6 +17,17 @@ follow Semantic Versioning.
 - Qualified the Go adapter without overstating replay: `go test` retains
   ownership of workers and its native build/test cache, while tiacore stores
   only dependency and baseline evidence.
+- Moved the JavaScript runtime graph to schema 4 and the runtime store to
+  version 2. Each file's static Istanbul maps are now stored once in
+  `TiaRuntimeGraph.coverageMaps`, and per-test and collection coverage keep only
+  advanced counters. Stored state for a 96-test synthetic project drops from
+  229.5 MB to 0.8 MB with identical edges, results, and reconstructed coverage.
+  Existing caches are not read; the first run after upgrading records a full
+  baseline. See ADR 0003.
+- Graph digests now come from the segmented store's manifest generation, and
+  artifact publication and verification snapshots write graphs piece by piece,
+  so no step serializes a whole graph into one string. Artifact `graph.json`
+  keeps the schema-3 layout and 20 MiB limit; restore converts it.
 
 ### Fixed
 

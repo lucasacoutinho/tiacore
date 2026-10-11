@@ -38,6 +38,7 @@ function currentGraph(): TiaRuntimeGraph {
     collectionCoverage: {},
     complete: true,
     coverageComplete: false,
+    coverageMaps: {},
     edges: {
       'test/a.test.ts': ['src/a.ts', 'test/a.test.ts'],
       'test/b.test.ts': ['src/b.ts', 'test/b.test.ts'],
@@ -57,7 +58,7 @@ function currentGraph(): TiaRuntimeGraph {
         state: 'passed',
       },
     },
-    schema: 3,
+    schema: 4,
     testCoverage: {},
     testEdges: {
       a: {

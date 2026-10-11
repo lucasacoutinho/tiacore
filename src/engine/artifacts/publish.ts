@@ -19,6 +19,7 @@ import {
   type TiaArtifactSinkInput,
   type TiaFilesystemArtifactSinkOptions,
 } from './types.js'
+import { portableGraphBytes } from './portable-graph.js'
 import { createArtifactAttestation } from './trust.js'
 
 function digest(value: Uint8Array): string {
@@ -129,11 +130,7 @@ export class TiaArtifactPublisher {
       throw new Error('TIA refuses to publish a graph without baseline lineage')
     }
 
-    const serialized = `${JSON.stringify(graph)}\n`
-    const graphBytes = strToU8(serialized)
-    if (graphBytes.byteLength > MAX_ARTIFACT_GRAPH_BYTES) {
-      throw new Error('TIA graph exceeds the artifact graph limit')
-    }
+    const graphBytes = portableGraphBytes(graph, MAX_ARTIFACT_GRAPH_BYTES)
     const producedAt = new Date().toISOString()
     const expiresInSeconds =
       this.options.signing.expiresInSeconds ?? 7 * 24 * 60 * 60

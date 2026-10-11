@@ -5,37 +5,30 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
 
 import { GRAPH_SCHEMA_VERSION } from '../../shared/constants.js'
 import type { TiaRuntimeGraph } from '../types.js'
+import { cloneGraph, pruneCoverageMaps } from './coverage.js'
 import {
   cleanSegmentedWrites,
   purgeSegmentedState,
   readSegmentedState,
+  readStateGeneration,
+  stateGeneration,
   writeSegmentedState,
 } from './segmented.js'
 
 export { statePath } from './segmented.js'
 
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical)
-  if (value === null || typeof value !== 'object') return value
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([key, item]) => [key, canonical(item)]),
-  )
-}
-
+/**
+ * Identifies a graph by the manifest generation the segmented store records
+ * for it, so callers never serialize a whole graph into one string.
+ */
 export function graphDigest(graph: TiaRuntimeGraph | null): string | null {
-  return graph === null
-    ? null
-    : createHash('sha256')
-        .update(JSON.stringify(canonical(graph)))
-        .digest('hex')
+  return graph === null ? null : stateGeneration(graph)
 }
 
 export function readGraph(cacheDir: string): TiaRuntimeGraph | null {
@@ -265,7 +258,7 @@ function mergeConcurrentGraphs(
     testCoverage: {},
     testEdges: {},
   }
-  const merged = structuredClone(current)
+  const merged = cloneGraph(current)
   const records = [
     ['collectionCoverage', same],
     ['edges', same],
@@ -287,6 +280,8 @@ function mergeConcurrentGraphs(
     }
   }
 
+  Object.assign(merged.coverageMaps, proposed.coverageMaps)
+  pruneCoverageMaps(merged)
   merged.updatedAt =
     proposed.updatedAt > current.updatedAt
       ? proposed.updatedAt
@@ -313,11 +308,14 @@ export async function commitGraph(
 
   try {
     cleanAbandonedWrites(cacheDir)
-    const current = readGraph(cacheDir)
-    if (graphDigest(current) === options.expectedDigest) {
+    const unchanged =
+      options.expectedDigest !== null &&
+      readStateGeneration(cacheDir) === options.expectedDigest
+    const current = unchanged ? null : readGraph(cacheDir)
+    if (unchanged || graphDigest(current) === options.expectedDigest) {
       writeGraph(cacheDir, options.graph)
       return {
-        graph: structuredClone(options.graph),
+        graph: cloneGraph(options.graph),
         status: 'committed',
       }
     }
@@ -349,6 +347,54 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isCounterRecord(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    Object.values(value).every((count) => Number.isSafeInteger(count))
+  )
+}
+
+function isBranchCounterRecord(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (counts) =>
+        Array.isArray(counts) &&
+        counts.every((count) => Number.isSafeInteger(count)),
+    )
+  )
+}
+
+function isCoverageTemplate(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isRecord(value.statementMap) &&
+    isRecord(value.fnMap) &&
+    isRecord(value.branchMap) &&
+    isCounterRecord(value.s) &&
+    isCounterRecord(value.f) &&
+    isBranchCounterRecord(value.b)
+  )
+}
+
+function isCoverageRecord(
+  value: unknown,
+  maps: Record<string, unknown>,
+): boolean {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (hits) =>
+        isRecord(hits) &&
+        typeof hits.map === 'string' &&
+        Object.hasOwn(maps, hits.map) &&
+        isCounterRecord(hits.s) &&
+        isCounterRecord(hits.f) &&
+        isBranchCounterRecord(hits.b),
+    )
+  )
+}
+
 function isGraph(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) {
     return false
@@ -376,6 +422,7 @@ function isGraph(value: unknown): value is Record<string, unknown> {
   const results = value.results
   const testEdges = value.testEdges
   const collectionCoverage = value.collectionCoverage
+  const coverageMaps = value.coverageMaps
   const testCoverage = value.testCoverage
   const partition = value.partition
 
@@ -405,10 +452,16 @@ function isGraph(value: unknown): value is Record<string, unknown> {
         edge.files.every((file) => typeof file === 'string'),
     ) &&
     typeof value.coverageComplete === 'boolean' &&
+    isRecord(coverageMaps) &&
+    Object.values(coverageMaps).every(isCoverageTemplate) &&
     isRecord(collectionCoverage) &&
-    Object.values(collectionCoverage).every(isRecord) &&
+    Object.values(collectionCoverage).every((record) =>
+      isCoverageRecord(record, coverageMaps),
+    ) &&
     isRecord(testCoverage) &&
-    Object.values(testCoverage).every(isRecord) &&
+    Object.values(testCoverage).every((record) =>
+      isCoverageRecord(record, coverageMaps),
+    ) &&
     (partition === undefined ||
       (isRecord(partition) &&
         (partition.group === undefined ||

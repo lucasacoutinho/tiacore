@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import { expandCoverageHits } from '../../../src/engine/state/coverage.js'
 import {
   cleanupProjects,
   createProject,
@@ -25,9 +26,11 @@ interface Probe {
   testMetaBytes: number[]
 }
 
+// Each file gets a different number of functions, so each has its own
+// content-addressed coverage map.
 function sourceFile(index: number): string {
   return Array.from(
-    { length: FUNCTIONS },
+    { length: FUNCTIONS + index },
     (_, fn) => `export function f${fn}(value: number): number {
   if (value > ${fn}) {
     return value % 2 === 0 ? value + ${fn} : value - ${fn}
@@ -115,23 +118,25 @@ describe('Vitest coverage payloads', () => {
       expect(Object.keys(coverage).sort()).toEqual(
         Array.from({ length: SOURCE_FILES }, (_, index) => `src/m${index}.ts`),
       )
-      for (const file of Object.values(coverage)) {
+      for (const [path, hits] of Object.entries(coverage)) {
+        const file = expandCoverageHits(
+          graph.coverageMaps[hits.map]!,
+          path,
+          hits,
+        )
         expect(Object.keys(file.s)).toEqual(Object.keys(file.statementMap))
         expect(Object.keys(file.f)).toEqual(Object.keys(file.fnMap))
         expect(Object.keys(file.b)).toEqual(Object.keys(file.branchMap))
         expect(Object.values(file.f).some((count) => count > 0)).toBe(true)
       }
     }
+    expect(Object.keys(graph.coverageMaps)).toHaveLength(SOURCE_FILES)
 
     const staticMapBytes = Math.min(
       ...testCoverage.map(
         (coverage) =>
           JSON.stringify(
-            Object.values(coverage).map((file) => [
-              file.statementMap,
-              file.fnMap,
-              file.branchMap,
-            ]),
+            Object.values(coverage).map((hits) => graph.coverageMaps[hits.map]),
           ).length,
       ),
     )

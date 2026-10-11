@@ -61,12 +61,11 @@ describe('portable path handling', () => {
     const templates = new CoverageTemplates()
     templates.register(code, instrumenter.lastFileCoverage())
     const hash = instrumentationHash(code) ?? ''
-    const portable = templates.expand('C:\\work\\repo', {
+    const record = templates.record('C:\\work\\repo', {
       'C:\\work\\repo\\src\\a.ts': { b: {}, f: {}, hash, s: { 0: 1 } },
     })
 
-    expect(Object.keys(portable)).toEqual(['src/a.ts'])
-    expect(portable['src/a.ts']?.path).toBe('src/a.ts')
+    expect(Object.keys(record)).toEqual(['src/a.ts'])
   })
 
   test('preserves POSIX containment behavior', () => {

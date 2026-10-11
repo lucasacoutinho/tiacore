@@ -73,6 +73,7 @@ function graph(root: string): TiaRuntimeGraph {
     collectionCoverage: {},
     complete: true,
     coverageComplete: true,
+    coverageMaps: {},
     edges: {
       'test/a.test.ts': ['src/a.ts', 'test/a.test.ts'],
       'test/b.test.ts': ['src/b.ts', 'test/b.test.ts'],
@@ -92,7 +93,7 @@ function graph(root: string): TiaRuntimeGraph {
         state: 'failed',
       },
     },
-    schema: 3,
+    schema: 4,
     testCoverage: {},
     testEdges: {
       a: {

@@ -11,6 +11,7 @@ function fragment(index: number, total = 2): TiaRuntimeGraph {
     collectionCoverage: { [file]: {} },
     complete: false,
     coverageComplete: true,
+    coverageMaps: {},
     edges: { [file]: [`src/${index}.ts`, file] },
     fingerprint: 'same',
     partition: { index, total },
@@ -22,7 +23,7 @@ function fragment(index: number, total = 2): TiaRuntimeGraph {
         state: 'passed',
       },
     },
-    schema: 3,
+    schema: 4,
     testCoverage: { [id]: {} },
     testEdges: {
       [id]: { file, files: [`src/${index}.ts`, file] },
@@ -38,6 +39,7 @@ describe('partial graph merging', () => {
     expect(merged).toMatchObject({
       complete: true,
       coverageComplete: true,
+      coverageMaps: {},
       fingerprint: 'same',
       updatedAt: '2026-07-22T00:00:00.000Z',
     })

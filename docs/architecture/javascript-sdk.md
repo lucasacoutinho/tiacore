@@ -33,7 +33,7 @@ Its version 1 schema and conformance vectors are public contracts.
 
 - cached Vitest, Node, and Bun outcomes;
 - per-test and collection-level dependency edges;
-- Istanbul coverage shards;
+- per-test Istanbul counters plus one shared copy of each file's coverage maps;
 - Git or filesystem baseline data;
 - JavaScript shard metadata.
 

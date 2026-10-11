@@ -6,12 +6,18 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
-import { readGraph, writeGraph } from '../../../src/engine/state/store.js'
+import {
+  commitGraph,
+  graphDigest,
+  readGraph,
+  writeGraph,
+} from '../../../src/engine/state/store.js'
 import {
   stateObjectsPath,
   statePath,
@@ -34,10 +40,11 @@ function largeGraph(size: number): TiaRuntimeGraph {
     collectionCoverage: {},
     complete: true,
     coverageComplete: false,
+    coverageMaps: {},
     edges: {},
     fingerprint: 'large-fixture',
     results: {},
-    schema: 3,
+    schema: 4,
     testCoverage: {},
     testEdges: {},
     updatedAt: new Date(0).toISOString(),
@@ -54,6 +61,39 @@ function largeGraph(size: number): TiaRuntimeGraph {
       state: 'passed',
     }
     graph.testEdges[id] = { file, files: [file, source] }
+  }
+  return graph
+}
+
+function coverageGraph(tests: number): TiaRuntimeGraph {
+  const graph = largeGraph(tests)
+  const template = {
+    b: { 0: [0, 0] },
+    branchMap: {
+      0: {
+        loc: { end: { column: 9, line: 1 }, start: { column: 0, line: 1 } },
+        locations: [],
+        type: 'if',
+      },
+    },
+    f: { 0: 0 },
+    fnMap: {},
+    s: { 0: 0, 1: 0 },
+    statementMap: {
+      0: { end: { column: 9, line: 1 }, start: { column: 0, line: 1 } },
+      1: { end: { column: 9, line: 2 }, start: { column: 0, line: 2 } },
+    },
+  } as unknown as TiaRuntimeGraph['coverageMaps'][string]
+  graph.coverageMaps = { shared: template, unused: template }
+  for (const id of Object.keys(graph.testEdges)) {
+    graph.testCoverage[id] = {
+      'src/shared.ts': {
+        b: { 0: [1, 0] },
+        f: { 0: 1 },
+        map: 'shared',
+        s: { 1: 2 },
+      },
+    }
   }
   return graph
 }
@@ -120,5 +160,63 @@ describe('segmented runtime state', () => {
     )
 
     expect(readGraph(cacheDir)).toBeNull()
+  })
+
+  test('stores each coverage map once and identifies graphs by generation', () => {
+    const cacheDir = directory()
+    const graph = coverageGraph(2_000)
+
+    writeGraph(cacheDir, graph)
+
+    const manifest = JSON.parse(readFileSync(statePath(cacheDir), 'utf8')) as {
+      generation: string
+      segments: { coverageMaps: Array<{ entries: number }> }
+    }
+    const stored = readGraph(cacheDir)
+    expect(manifest.segments.coverageMaps).toEqual([
+      expect.objectContaining({ entries: 1 }),
+    ])
+    expect(Object.keys(stored?.coverageMaps ?? {})).toEqual(['shared'])
+    expect(stored?.testCoverage).toEqual(graph.testCoverage)
+    expect(graphDigest(stored)).toBe(manifest.generation)
+    expect(graphDigest(graph)).toBe(manifest.generation)
+  })
+
+  test('rejects coverage that names a missing map', () => {
+    const cacheDir = directory()
+    const graph = coverageGraph(3)
+    graph.coverageMaps = {}
+
+    writeGraph(cacheDir, graph)
+
+    expect(readGraph(cacheDir)).toBeNull()
+  })
+
+  test('rebuilds instead of reading a store written by an older version', async () => {
+    const cacheDir = directory()
+    const graph = coverageGraph(3)
+    writeGraph(cacheDir, graph)
+    const manifest = JSON.parse(readFileSync(statePath(cacheDir), 'utf8')) as {
+      generation: string
+      metadata: unknown
+      segments: unknown
+      version: number
+    }
+    manifest.version = 1
+    manifest.generation = createHash('sha256')
+      .update(
+        JSON.stringify({
+          metadata: manifest.metadata,
+          segments: manifest.segments,
+        }),
+      )
+      .digest('hex')
+    writeFileSync(statePath(cacheDir), JSON.stringify(manifest))
+
+    expect(readGraph(cacheDir)).toBeNull()
+    await expect(
+      commitGraph(cacheDir, { expected: null, expectedDigest: null, graph }),
+    ).resolves.toMatchObject({ status: 'committed' })
+    expect(readGraph(cacheDir)?.testCoverage).toEqual(graph.testCoverage)
   })
 })
