@@ -1,13 +1,15 @@
 import coverageLibrary from 'istanbul-lib-coverage'
 import type { FileCoverageData } from 'istanbul-lib-coverage'
-import { describe, expect, test } from 'vitest'
+import { createInstrumenter } from 'istanbul-lib-instrument'
+import { afterEach, describe, expect, test } from 'vitest'
 
 import {
-  coverageDelta,
+  coverageCounterDelta,
   executedFilesSince,
-  mergeCoverageMaps,
+  mergeCoverageCounters,
   snapshotCoverage,
 } from '../../../src/integrations/coverage/runtime.js'
+import { CoverageTemplates } from '../../../src/integrations/coverage/templates.js'
 import { coverageThresholdFailures } from '../../../src/integrations/coverage/thresholds.js'
 import type { CoverageMapLike } from '../../../src/shared/types.js'
 
@@ -78,16 +80,22 @@ describe('coverage snapshots', () => {
     ])
   })
 
-  test('captures only the counter delta with Istanbul source metadata', () => {
+  test('captures only advanced counters and the instrumentation hash', () => {
     const coverage: CoverageMapLike = {
       '/project/src/a.ts': {
-        b: { 0: [1, 0] },
+        b: { 0: [1, 0], 1: [2, 2] },
         branchMap: {},
-        f: { 0: 1 },
+        f: { 0: 1, 1: 5 },
         fnMap: {},
+        hash: 'abc',
         path: '/project/src/a.ts',
-        s: { 0: 1, 1: 0 },
+        s: { 0: 1, 1: 0, 2: 7 },
         statementMap: {},
+      },
+      '/project/src/idle.ts': {
+        hash: 'def',
+        path: '/project/src/idle.ts',
+        s: { 0: 3 },
       },
     }
     const baseline = snapshotCoverage(coverage)
@@ -96,32 +104,153 @@ describe('coverage snapshots', () => {
     coverage['/project/src/a.ts']!.f![0] = 2
     coverage['/project/src/a.ts']!.b![0]![1] = 4
 
-    expect(coverageDelta(baseline, coverage)).toEqual({
+    expect(coverageCounterDelta(baseline, coverage)).toEqual({
       '/project/src/a.ts': {
         b: { 0: [0, 4] },
-        branchMap: {},
         f: { 0: 1 },
-        fnMap: {},
-        path: '/project/src/a.ts',
+        hash: 'abc',
         s: { 0: 2, 1: 1 },
-        statementMap: {},
       },
     })
   })
 
-  test('merges disjoint lifecycle coverage without losing counters', () => {
-    const first = fileCoverage('/project/src/a.ts', [1, 0])
-    const second = fileCoverage('/project/src/a.ts', [2, 3])
+  test('merges disjoint lifecycle counters without losing hits', () => {
+    expect(
+      mergeCoverageCounters(
+        {
+          '/project/src/a.ts': {
+            b: { 0: [1, 0] },
+            f: {},
+            hash: 'h',
+            s: { 0: 1 },
+          },
+        },
+        {
+          '/project/src/a.ts': {
+            b: { 0: [2, 3], 1: [1] },
+            f: { 0: 2 },
+            hash: 'h',
+            s: { 0: 2, 1: 3 },
+          },
+        },
+      ),
+    ).toEqual({
+      '/project/src/a.ts': {
+        b: { 0: [3, 3], 1: [1] },
+        f: { 0: 2 },
+        hash: 'h',
+        s: { 0: 3, 1: 3 },
+      },
+    })
+  })
+})
+
+const COVERAGE_VARIABLE = '__tiacore_unit_coverage__'
+const globals = globalThis as typeof globalThis & {
+  [COVERAGE_VARIABLE]?: CoverageMapLike
+  __tiacore_unit_call__?: (value: number) => number
+}
+
+afterEach(() => {
+  delete globals[COVERAGE_VARIABLE]
+  delete globals.__tiacore_unit_call__
+})
+
+function load(path: string, unusedFunctions: number) {
+  const instrumenter = createInstrumenter({
+    coverageVariable: COVERAGE_VARIABLE,
+  })
+  const unused = Array.from(
+    { length: unusedFunctions },
+    (_, index) =>
+      `function unused${index}(value) { return value ? ${index} : -${index} }`,
+  ).join('\n')
+  const code = instrumenter.instrumentSync(
+    `function used(value) { return value > 0 ? value : -value }\n${unused}\nglobalThis.__tiacore_unit_call__ = used\n`,
+    path,
+  )
+  const templates = new CoverageTemplates()
+  templates.register(code, instrumenter.lastFileCoverage())
+  new Function(code)()
+  return templates
+}
+
+describe('coverage templates', () => {
+  test('rebuild the exact Istanbul delta from advanced counters', () => {
+    const templates = load('/project/src/a.js', 3)
+    const coverage = () => globals[COVERAGE_VARIABLE]
+    const before = snapshotCoverage(coverage())
+    const live = structuredClone(coverage()!['/project/src/a.js']!)
+
+    globals.__tiacore_unit_call__?.(2)
+    const after = coverage()!['/project/src/a.js']!
+    const delta = coverageCounterDelta(before, coverage())
+
+    expect(templates.unknownFiles('/project', delta)).toEqual([])
+    expect(templates.expand('/project', delta)).toEqual({
+      'src/a.js': {
+        b: Object.fromEntries(
+          Object.entries(after.b!).map(([key, counts]) => [
+            key,
+            counts.map((count, index) => count - live.b![key]![index]!),
+          ]),
+        ),
+        branchMap: live.branchMap,
+        f: Object.fromEntries(
+          Object.entries(after.f!).map(([key, count]) => [
+            key,
+            count - live.f![key]!,
+          ]),
+        ),
+        fnMap: live.fnMap,
+        path: 'src/a.js',
+        s: Object.fromEntries(
+          Object.entries(after.s!).map(([key, count]) => [
+            key,
+            count - live.s![key]!,
+          ]),
+        ),
+        statementMap: live.statementMap,
+      },
+    })
+  })
+
+  test('keep the per-test payload independent of static map size', () => {
+    const payload = (unusedFunctions: number): string => {
+      load('/project/src/a.js', unusedFunctions)
+      const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
+      globals.__tiacore_unit_call__?.(2)
+      const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
+      delete globals[COVERAGE_VARIABLE]
+      return JSON.stringify(delta).replace(/"hash":"[0-9a-f]+"/, '')
+    }
+
+    expect(payload(500)).toBe(payload(1))
+  })
+
+  test('share one copy of static maps between rebuilt tests', () => {
+    const templates = load('/project/src/a.js', 1)
+    const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
+    globals.__tiacore_unit_call__?.(2)
+    const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
+
+    const first = templates.expand('/project', delta)['src/a.js']
+    const second = templates.expand('/project', delta)['src/a.js']
+
+    expect(second).toEqual(first)
+    expect(second?.statementMap).toBe(first?.statementMap)
+    expect(second?.s).not.toBe(first?.s)
+  })
+
+  test('report project files whose instrumentation is unknown', () => {
+    const templates = new CoverageTemplates()
 
     expect(
-      mergeCoverageMaps({ [first.path]: first }, { [second.path]: second })[
-        first.path
-      ],
-    ).toMatchObject({
-      b: { 0: [3, 3] },
-      f: { 0: 3 },
-      s: { 0: 3, 1: 3 },
-    })
+      templates.unknownFiles('/project', {
+        '/elsewhere/b.js': { b: {}, f: {}, hash: 'missing', s: { 0: 1 } },
+        '/project/src/a.js': { b: {}, f: {}, hash: 'missing', s: { 0: 1 } },
+      }),
+    ).toEqual(['/project/src/a.js'])
   })
 })
 

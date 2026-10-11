@@ -16,10 +16,7 @@ import {
 } from '../../shared/constants.js'
 import { snapshotRuntimeProject } from '../../engine/lifecycle.js'
 import { formatRunPlanDetails } from '../../engine/explain.js'
-import {
-  portableCoverageMap,
-  writeCoverageReports,
-} from '../../integrations/coverage/report.js'
+import { writeCoverageReports } from '../../integrations/coverage/report.js'
 import { aggregateLocalPartitions } from '../../engine/state/partitions.js'
 import { resolveFrameworkEdges } from '../../integrations/edges/resolve.js'
 import {
@@ -39,6 +36,7 @@ import { cachedTestCase } from './cached-test.js'
 import type {
   Baseline,
   CachedTestResult,
+  TiaCoverageCounterMap,
   TiaCoverageMap,
   TiaModuleMeta,
   TiaRuntime,
@@ -58,13 +56,14 @@ function baselineDifferences(before: Baseline, after: Baseline): string[] {
 }
 
 export class TiaReporter implements Reporter {
-  private readonly collectionCoverage = new Map<string, TiaCoverageMap>()
+  private readonly collectionCoverage = new Map<string, TiaCoverageCounterMap>()
   private readonly edges = new Map<string, string[]>()
   private readonly executedFiles = new Set<string>()
   private readonly results = new Map<string, CachedTestResult>()
   private readonly testEdges = new Map<string, TiaTestEdge>()
-  private readonly testCoverage = new Map<string, TiaCoverageMap>()
+  private readonly testCoverage = new Map<string, TiaCoverageCounterMap>()
   private incomplete = false
+  private uninstrumentedCoverage = false
   private vitest: Vitest | null = null
 
   constructor(private readonly runtime: TiaRuntime) {}
@@ -126,7 +125,9 @@ export class TiaReporter implements Reporter {
       return
     }
 
-    const value = module.meta()[TIA_META_KEY] as TiaModuleMeta | undefined
+    const meta = module.meta()
+    const value = meta[TIA_META_KEY] as TiaModuleMeta | undefined
+    delete meta[TIA_META_KEY]
 
     if (value === undefined) {
       this.incomplete = true
@@ -135,9 +136,10 @@ export class TiaReporter implements Reporter {
 
     const dependencies = new Set<string>([testFile])
     const sharedTestDependencies = new Set<string>([testFile])
-    this.collectionCoverage.set(
+    this.retainCoverage(
+      this.collectionCoverage,
       testFile,
-      portableCoverageMap(this.runtime.root, value.collectionCoverage),
+      value.collectionCoverage,
     )
 
     for (const file of value.files) {
@@ -249,7 +251,11 @@ export class TiaReporter implements Reporter {
       return
     }
 
-    if (testCase.meta()[TIA_REPLAY_META_KEY] === true) {
+    const taskMeta = testCase.meta()
+    const meta = taskMeta[TIA_TEST_META_KEY] as TiaTestMeta | undefined
+    delete taskMeta[TIA_TEST_META_KEY]
+
+    if (taskMeta[TIA_REPLAY_META_KEY] === true) {
       return
     }
 
@@ -267,7 +273,6 @@ export class TiaReporter implements Reporter {
       state: result.state,
     })
 
-    const meta = testCase.meta()[TIA_TEST_META_KEY] as TiaTestMeta | undefined
     if (meta === undefined) {
       if (result.state !== 'skipped') {
         this.incomplete = true
@@ -300,10 +305,39 @@ export class TiaReporter implements Reporter {
       file,
       files: [...dependencies].sort(),
     })
-    this.testCoverage.set(
-      testCase.id,
-      portableCoverageMap(this.runtime.root, meta.coverage),
+    this.retainCoverage(this.testCoverage, testCase.id, meta.coverage)
+  }
+
+  private retainCoverage(
+    target: Map<string, TiaCoverageCounterMap>,
+    key: string,
+    counters: TiaCoverageCounterMap,
+  ): void {
+    const unknown = this.runtime.coverageTemplates.unknownFiles(
+      this.runtime.root,
+      counters,
     )
+    if (unknown.length > 0 && !this.uninstrumentedCoverage) {
+      this.uninstrumentedCoverage = true
+      this.incomplete = true
+      this.warn(
+        `TIA cannot reconstruct coverage for ${unknown[0]} because tiacore did not instrument it in this run, for example when Vitest's experimental.fsModuleCache served a cached transform.`,
+      )
+    }
+    target.set(key, counters)
+  }
+
+  private expandCoverage(
+    counters: ReadonlyMap<string, TiaCoverageCounterMap>,
+  ): Map<string, TiaCoverageMap> {
+    const expanded = new Map<string, TiaCoverageMap>()
+    for (const [key, value] of counters) {
+      expanded.set(
+        key,
+        this.runtime.coverageTemplates.expand(this.runtime.root, value),
+      )
+    }
+    return expanded
   }
 
   async onTestRunEnd(
@@ -386,7 +420,7 @@ export class TiaReporter implements Reporter {
       this.runtime.partition !== null ||
       (await this.recordIncludesEveryConfiguredTestFile(modules))
     const graph = updateGraph({
-      collectionCoverage: this.collectionCoverage,
+      collectionCoverage: this.expandCoverage(this.collectionCoverage),
       executedFiles: this.executedFiles,
       fallbackEdges: this.edges,
       fullyExecutedFiles:
@@ -398,7 +432,7 @@ export class TiaReporter implements Reporter {
       previous: plan.mode === 'record' ? null : plan.graph,
       results: this.results,
       root: this.runtime.root,
-      testCoverage: this.testCoverage,
+      testCoverage: this.expandCoverage(this.testCoverage),
       testEdges: this.testEdges,
     })
     graph.baseline = baseline

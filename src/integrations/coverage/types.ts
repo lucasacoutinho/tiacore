@@ -91,11 +91,29 @@ export interface TiaCoverageReporterRuntime {
 
 export type TiaCoverageMap = Record<string, FileCoverageData>
 
+/**
+ * Counters that advanced in one file during a test or collection window. Keys
+ * absent from `s`, `f`, and `b` did not advance. `hash` is Istanbul's
+ * instrumentation hash, which identifies the file's static coverage maps.
+ */
+export interface TiaCoverageCounters {
+  b: Record<string, number[]>
+  f: Record<string, number>
+  hash: string
+  s: Record<string, number>
+}
+
+export type TiaCoverageCounterMap = Record<string, TiaCoverageCounters>
+
+/** Static maps and zeroed counters of one instrumented file. */
+export type TiaCoverageTemplate = Omit<FileCoverageData, 'path'>
+
 export interface CoverageFile extends Partial<
   Omit<FileCoverageData, 'b' | 'f' | 'path' | 's'>
 > {
   b?: Record<string, number[]>
   f?: Record<string, number>
+  hash?: string
   path?: string
   s?: Record<string, number>
 }

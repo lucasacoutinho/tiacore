@@ -70,15 +70,15 @@ export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
   for (const [id, edge] of input.testEdges) {
     graph.testEdges[id] = structuredClone(edge)
   }
+  // Coverage inputs are owned by the caller's run and may share static
+  // Istanbul maps between tests; the graph adopts them without copying.
   for (const [id, coverage] of input.testCoverage ?? []) {
-    graph.testCoverage[id] = structuredClone(coverage)
+    graph.testCoverage[id] = coverage
   }
 
   for (const file of executedFiles) {
     if (input.collectionCoverage !== undefined) {
-      graph.collectionCoverage[file] = structuredClone(
-        input.collectionCoverage.get(file) ?? {},
-      )
+      graph.collectionCoverage[file] = input.collectionCoverage.get(file) ?? {}
     }
 
     const dependencies = Object.values(graph.testEdges)

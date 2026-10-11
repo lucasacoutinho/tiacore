@@ -5,7 +5,6 @@ import coverageLibrary from 'istanbul-lib-coverage'
 import reportLibrary from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
 
-import { projectRelative } from '../../shared/paths.js'
 import type { TiaCoverageMap, TiaCoverageRuntime } from './types.js'
 import type { TiaRuntimeGraph } from '../../engine/types.js'
 import {
@@ -18,27 +17,6 @@ export interface CoverageReportResult {
   files: number
   thresholdFailures: CoverageThresholdFailure[]
   warnings: string[]
-}
-
-export function portableCoverageMap(
-  root: string,
-  coverage: TiaCoverageMap,
-): TiaCoverageMap {
-  const portable: TiaCoverageMap = {}
-
-  for (const [key, value] of Object.entries(coverage)) {
-    const file = projectRelative(root, value.path || key)
-    if (file === null || file === '') {
-      continue
-    }
-
-    portable[file] = {
-      ...structuredClone(value),
-      path: file,
-    }
-  }
-
-  return portable
 }
 
 function absoluteCoverageMap(

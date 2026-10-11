@@ -18,6 +18,20 @@ follow Semantic Versioning.
   ownership of workers and its native build/test cache, while tiacore stores
   only dependency and baseline evidence.
 
+### Fixed
+
+- Stopped the Vitest adapter from sending and retaining full Istanbul maps for
+  every test. Workers now report only advanced counters and the file's
+  instrumentation hash. The main process keeps one copy of each file's
+  statement, function, and branch maps from its own instrumentation, rebuilds
+  identical graph coverage at the end of the run, and removes tiacore metadata
+  from Vitest tasks once recorded. Per-test task metadata no longer grows with
+  source size, and main-process memory no longer grows with every test file.
+- Because the main process now owns the static maps, a run that executes code
+  tiacore did not instrument in that run leaves the graph unchanged with a
+  warning. Vitest's `experimental.fsModuleCache` can cause this by serving
+  cached transforms; disable it while TIA records.
+
 ## 1.0.2 - 2026-07-31
 
 ### Changed

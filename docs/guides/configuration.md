@@ -64,9 +64,12 @@ for downloaded CI artifacts.
 ## Coverage
 
 `coverage: true` reconstructs complete Istanbul `text`, `html`, and `json`
-reports from fresh and cached per-test shards. An object can configure source
-inclusion, exclusions, cleaning, failed-run reporting, report paths, reporter
-tuples, watermarks, and Vitest-compatible thresholds:
+reports from fresh and cached per-test shards. The Vitest plugin keeps each
+file's static coverage maps from its own instrumentation, so disable Vitest's
+`experimental.fsModuleCache` while TIA records; otherwise TIA leaves the graph
+unchanged and warns. An object can configure source inclusion, exclusions,
+cleaning, failed-run reporting, report paths, reporter tuples, watermarks, and
+Vitest-compatible thresholds:
 
 ```ts
 tia({
