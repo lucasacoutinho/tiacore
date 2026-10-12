@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-11
+
 ### Added
 
 - Added a standalone Go SDK and CLI that records filesystem baselines, maps
