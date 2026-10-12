@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 
 import { strFromU8, unzipSync } from 'fflate'
 
-import { parseGraph } from '../state/store.js'
 import type { TiaRuntimeGraph } from '../types.js'
+import { parseArtifactGraph } from './portable-graph.js'
 import { parseArtifactAttestation } from './trust.js'
 import type { TiaArtifactAttestationV1 } from './types.js'
 
@@ -58,7 +58,7 @@ function readArchive(
       continue
     }
 
-    const graph = parseGraph(strFromU8(bytes))
+    const graph = parseArtifactGraph(strFromU8(bytes))
     if (graph !== null) {
       let attestation: TiaArtifactAttestationV1 | undefined
       for (const attestationPath of attestationPaths) {

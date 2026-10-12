@@ -3,7 +3,10 @@ import type {
   TiaArtifactTrustPolicy,
 } from './artifacts/types.js'
 import type { TiaReplayAdapter } from './replay/types.js'
-import type { TiaCoverageMap } from '../integrations/coverage/types.js'
+import type {
+  TiaCoverageRecord,
+  TiaCoverageTemplate,
+} from '../integrations/coverage/types.js'
 import type {
   Baseline,
   CachedTestResult,
@@ -26,15 +29,17 @@ export type {
 
 export interface TiaRuntimeGraph {
   baseline: Baseline
-  collectionCoverage: Record<string, TiaCoverageMap>
+  collectionCoverage: Record<string, TiaCoverageRecord>
   complete: boolean
   coverageComplete: boolean
+  /** Static Istanbul maps keyed by the digest that coverage records name. */
+  coverageMaps: Record<string, TiaCoverageTemplate>
   edges: Record<string, string[]>
   fingerprint: string
   partition?: TiaRuntimeGraphPartition
   results: Record<string, CachedTestResult>
   schema: number
-  testCoverage: Record<string, TiaCoverageMap>
+  testCoverage: Record<string, TiaCoverageRecord>
   testEdges: Record<string, TiaTestEdge>
   updatedAt: string
 }

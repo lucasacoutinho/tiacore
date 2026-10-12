@@ -1,6 +1,6 @@
 {
   "name": "@usescherie/tiacore",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": false,
   "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
   "keywords": [

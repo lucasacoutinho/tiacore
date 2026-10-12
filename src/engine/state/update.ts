@@ -2,22 +2,27 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { GRAPH_SCHEMA_VERSION } from '../../shared/constants.js'
+import { cloneGraph, pruneCoverageMaps } from './coverage.js'
 import type {
   CachedTestResult,
   TiaRuntimeGraph,
   TiaTestEdge,
 } from '../types.js'
-import type { TiaCoverageMap } from '../../integrations/coverage/types.js'
+import type {
+  TiaCoverageRecord,
+  TiaCoverageTemplate,
+} from '../../integrations/coverage/types.js'
 
 export interface GraphUpdateInput {
-  collectionCoverage?: ReadonlyMap<string, TiaCoverageMap>
+  collectionCoverage?: ReadonlyMap<string, TiaCoverageRecord>
+  coverageMaps?: Readonly<Record<string, TiaCoverageTemplate>>
   executedFiles: Iterable<string>
   fallbackEdges?: ReadonlyMap<string, string[]>
   fullyExecutedFiles: Iterable<string>
   previous: TiaRuntimeGraph | null
   results: ReadonlyMap<string, CachedTestResult>
   root: string
-  testCoverage?: ReadonlyMap<string, TiaCoverageMap>
+  testCoverage?: ReadonlyMap<string, TiaCoverageRecord>
   testEdges: ReadonlyMap<string, TiaTestEdge>
 }
 
@@ -27,6 +32,7 @@ export function emptyGraph(): TiaRuntimeGraph {
     collectionCoverage: {},
     complete: false,
     coverageComplete: false,
+    coverageMaps: {},
     edges: {},
     fingerprint: '',
     results: {},
@@ -57,7 +63,7 @@ function deleteFileRecords(graph: TiaRuntimeGraph, file: string): void {
 
 export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
   const graph =
-    input.previous === null ? emptyGraph() : structuredClone(input.previous)
+    input.previous === null ? emptyGraph() : cloneGraph(input.previous)
   const executedFiles = new Set(input.executedFiles)
 
   for (const file of input.fullyExecutedFiles) {
@@ -70,15 +76,16 @@ export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
   for (const [id, edge] of input.testEdges) {
     graph.testEdges[id] = structuredClone(edge)
   }
+  // Coverage records are owned by the caller's run and maps are immutable,
+  // content-addressed values, so the graph adopts both without copying.
+  Object.assign(graph.coverageMaps, input.coverageMaps)
   for (const [id, coverage] of input.testCoverage ?? []) {
-    graph.testCoverage[id] = structuredClone(coverage)
+    graph.testCoverage[id] = coverage
   }
 
   for (const file of executedFiles) {
     if (input.collectionCoverage !== undefined) {
-      graph.collectionCoverage[file] = structuredClone(
-        input.collectionCoverage.get(file) ?? {},
-      )
+      graph.collectionCoverage[file] = input.collectionCoverage.get(file) ?? {}
     }
 
     const dependencies = Object.values(graph.testEdges)
@@ -100,6 +107,7 @@ export function updateGraph(input: GraphUpdateInput): TiaRuntimeGraph {
     }
   }
 
+  pruneCoverageMaps(graph)
   graph.schema = GRAPH_SCHEMA_VERSION
   return graph
 }

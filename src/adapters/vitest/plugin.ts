@@ -34,6 +34,7 @@ import {
   resolveCacheDir,
   slash,
 } from '../../shared/paths.js'
+import { CoverageTemplates } from '../../integrations/coverage/templates.js'
 import { TiaReporter } from './reporter.js'
 import type {
   NormalizedOptions,
@@ -473,6 +474,7 @@ export function tia(options: TiaOptions = {}): Plugin {
         statements: [50, 80],
       },
     },
+    coverageTemplates: new CoverageTemplates(),
     fingerprintAtStart: '',
     graphAtStart: null,
     graphDigestAtStart: null,
@@ -743,6 +745,10 @@ export function tia(options: TiaOptions = {}): Plugin {
             : (inputMap as unknown as Parameters<
                 typeof runtime.instrumenter.instrumentSync
               >[2]),
+        )
+        runtime.coverageTemplates.register(
+          transformed,
+          runtime.instrumenter.lastFileCoverage(),
         )
 
         return {

@@ -18,6 +18,7 @@ function graph(): TiaRuntimeGraph {
     },
     complete: true,
     coverageComplete: true,
+    coverageMaps: {},
     edges: {
       'test/a.test.ts': ['src/old.ts', 'test/a.test.ts'],
       'test/deleted.test.ts': ['test/deleted.test.ts'],
@@ -37,7 +38,7 @@ function graph(): TiaRuntimeGraph {
         state: 'passed',
       },
     },
-    schema: 3,
+    schema: 4,
     testCoverage: {
       old: {},
       removed: {},

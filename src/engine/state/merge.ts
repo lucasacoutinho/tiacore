@@ -1,4 +1,6 @@
 import type { TiaRuntimeGraph } from '../types.js'
+import { pruneCoverageMaps } from './coverage.js'
+import { stateGeneration } from './segmented.js'
 
 function same(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
@@ -50,7 +52,10 @@ export function mergePartitionedGraphs(
     }
 
     const existing = partitions.get(partition.index)
-    if (existing !== undefined && !same(existing, fragment)) {
+    if (
+      existing !== undefined &&
+      stateGeneration(existing) !== stateGeneration(fragment)
+    ) {
       return null
     }
     partitions.set(partition.index, fragment)
@@ -70,6 +75,7 @@ export function mergePartitionedGraphs(
     collectionCoverage: {},
     complete: true,
     coverageComplete: true,
+    coverageMaps: {},
     edges: {},
     fingerprint,
     results: {},
@@ -92,11 +98,13 @@ export function mergePartitionedGraphs(
       return null
     }
 
+    Object.assign(merged.coverageMaps, fragment.coverageMaps)
     merged.coverageComplete &&= fragment.coverageComplete
     if (fragment.updatedAt > merged.updatedAt) {
       merged.updatedAt = fragment.updatedAt
     }
   }
 
+  pruneCoverageMaps(merged)
   return merged
 }

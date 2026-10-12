@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-11
+
 ### Added
 
 - Added a standalone Go SDK and CLI that records filesystem baselines, maps
@@ -17,6 +19,31 @@ follow Semantic Versioning.
 - Qualified the Go adapter without overstating replay: `go test` retains
   ownership of workers and its native build/test cache, while tiacore stores
   only dependency and baseline evidence.
+- Moved the JavaScript runtime graph to schema 4 and the runtime store to
+  version 2. Each file's static Istanbul maps are now stored once in
+  `TiaRuntimeGraph.coverageMaps`, and per-test and collection coverage keep only
+  advanced counters. Stored state for a 96-test synthetic project drops from
+  229.5 MB to 0.8 MB with identical edges, results, and reconstructed coverage.
+  Existing caches are not read; the first run after upgrading records a full
+  baseline. See ADR 0003.
+- Graph digests now come from the segmented store's manifest generation, and
+  artifact publication and verification snapshots write graphs piece by piece,
+  so no step serializes a whole graph into one string. Artifact `graph.json`
+  keeps the schema-3 layout and 20 MiB limit; restore converts it.
+
+### Fixed
+
+- Stopped the Vitest adapter from sending and retaining full Istanbul maps for
+  every test. Workers now report only advanced counters and the file's
+  instrumentation hash. The main process keeps one copy of each file's
+  statement, function, and branch maps from its own instrumentation, rebuilds
+  identical graph coverage at the end of the run, and removes tiacore metadata
+  from Vitest tasks once recorded. Per-test task metadata no longer grows with
+  source size, and main-process memory no longer grows with every test file.
+- Because the main process now owns the static maps, a run that executes code
+  tiacore did not instrument in that run leaves the graph unchanged with a
+  warning. Vitest's `experimental.fsModuleCache` can cause this by serving
+  cached transforms; disable it while TIA records.
 
 ## 1.0.2 - 2026-07-31
 

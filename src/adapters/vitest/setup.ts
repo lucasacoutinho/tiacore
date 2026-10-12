@@ -1,9 +1,9 @@
 import { aroundEach, beforeAll, inject } from 'vitest'
 
 import {
-  coverageDelta,
+  coverageCounterDelta,
   executedFilesSince,
-  mergeCoverageMaps,
+  mergeCoverageCounters,
   snapshotCoverage,
 } from '../../integrations/coverage/runtime.js'
 import {
@@ -14,7 +14,7 @@ import {
 } from '../../shared/constants.js'
 import type {
   CoverageMapLike,
-  TiaCoverageMap,
+  TiaCoverageCounterMap,
   TiaModuleMeta,
   TiaTestSelection,
   TiaTestMeta,
@@ -27,7 +27,7 @@ const coverage = (): CoverageMapLike | undefined =>
 const baseline = snapshotCoverage(coverage())
 let boundary = baseline
 const collectionFiles = new Set<string>()
-let collectionCoverage: TiaCoverageMap = {}
+let collectionCoverage: TiaCoverageCounterMap = {}
 let concurrent = false
 const selection = (() => {
   try {
@@ -49,9 +49,9 @@ function recordCollectionGap(): void {
   for (const file of executedFilesSince(boundary, current)) {
     collectionFiles.add(file)
   }
-  collectionCoverage = mergeCoverageMaps(
+  collectionCoverage = mergeCoverageCounters(
     collectionCoverage,
-    coverageDelta(boundary, current),
+    coverageCounterDelta(boundary, current),
   )
   boundary = snapshotCoverage(current)
 }
@@ -59,7 +59,7 @@ function recordCollectionGap(): void {
 function moduleMeta(): TiaModuleMeta {
   return {
     collectionCoverage: concurrent
-      ? coverageDelta(baseline, coverage())
+      ? coverageCounterDelta(baseline, coverage())
       : collectionCoverage,
     collectionFiles: concurrent
       ? executedFilesSince(baseline, coverage())
@@ -101,7 +101,7 @@ aroundEach(async (runTest, context) => {
     await runTest()
   } finally {
     const meta: TiaTestMeta = {
-      coverage: coverageDelta(before, coverage()),
+      coverage: coverageCounterDelta(before, coverage()),
       files: executedFilesSince(before, coverage()),
     }
     context.task.meta[TIA_TEST_META_KEY] = meta

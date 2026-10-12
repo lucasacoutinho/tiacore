@@ -1,14 +1,10 @@
 import { mergePartitionedGraphs } from '../state/merge.js'
-import {
-  commitGraph,
-  graphDigest,
-  parseGraph,
-  readGraph,
-} from '../state/store.js'
+import { commitGraph, graphDigest, readGraph } from '../state/store.js'
 import { createGitHubActionsArtifactProvider } from './github-actions.js'
 import { createGitLabCiArtifactProvider } from './gitlab-ci.js'
 import { createHttpManifestArtifactProvider } from './http-manifest.js'
 import { createFilesystemArtifactProvider } from './filesystem.js'
+import { parseArtifactGraph } from './portable-graph.js'
 import { verifyArtifactAttestation } from './trust.js'
 import type { TiaRuntimeGraph } from '../types.js'
 import type {
@@ -102,7 +98,7 @@ export async function restoreGraphFromArtifacts(
       const candidates = Array.isArray(candidate) ? candidate : [candidate]
       const parsed = candidates
         .map((item) => {
-          const graph = parseGraph(item.graph)
+          const graph = parseArtifactGraph(item.graph)
           if (graph === null) return null
           const trust = verifyArtifactAttestation({
             attestation: item.attestation,
@@ -134,7 +130,7 @@ export async function restoreGraphFromArtifacts(
           (
             item,
           ): item is {
-            graph: NonNullable<ReturnType<typeof parseGraph>>
+            graph: TiaRuntimeGraph
             group: number | string | undefined
             id: number | string
             trust: ReturnType<typeof verifyArtifactAttestation>

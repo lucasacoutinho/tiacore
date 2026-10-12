@@ -5,9 +5,12 @@ import coverageLibrary from 'istanbul-lib-coverage'
 import reportLibrary from 'istanbul-lib-report'
 import reports from 'istanbul-reports'
 
-import { projectRelative } from '../../shared/paths.js'
-import type { TiaCoverageMap, TiaCoverageRuntime } from './types.js'
+import {
+  coverageRecords,
+  expandCoverageHits,
+} from '../../engine/state/coverage.js'
 import type { TiaRuntimeGraph } from '../../engine/types.js'
+import type { TiaCoverageHits, TiaCoverageRuntime } from './types.js'
 import {
   coverageThresholdFailures,
   type CoverageThresholdFailure,
@@ -20,56 +23,59 @@ export interface CoverageReportResult {
   warnings: string[]
 }
 
-export function portableCoverageMap(
-  root: string,
-  coverage: TiaCoverageMap,
-): TiaCoverageMap {
-  const portable: TiaCoverageMap = {}
-
-  for (const [key, value] of Object.entries(coverage)) {
-    const file = projectRelative(root, value.path || key)
-    if (file === null || file === '') {
-      continue
-    }
-
-    portable[file] = {
-      ...structuredClone(value),
-      path: file,
-    }
+function addCounters(
+  target: Record<string, number>,
+  source: Record<string, number>,
+): void {
+  for (const [key, count] of Object.entries(source)) {
+    target[key] = (target[key] ?? 0) + count
   }
-
-  return portable
 }
 
-function absoluteCoverageMap(
-  root: string,
-  coverage: TiaCoverageMap,
-): TiaCoverageMap {
-  return Object.fromEntries(
-    Object.entries(coverage).map(([key, value]) => {
-      const path = resolve(root, value.path || key)
-      return [
-        path,
-        {
-          ...structuredClone(value),
-          path,
-        },
-      ]
-    }),
-  )
-}
-
+/**
+ * Merges every coverage record in the graph into one Istanbul coverage map.
+ * Counters are summed per file and map first, so each file's maps are
+ * expanded once instead of once per test.
+ */
 export function mergedGraphCoverage(
   graph: TiaRuntimeGraph,
   root: string,
 ): ReturnType<typeof coverageLibrary.createCoverageMap> {
-  const merged = coverageLibrary.createCoverageMap()
+  const totals = new Map<
+    string,
+    { hits: Omit<TiaCoverageHits, 'map'>; map: string; path: string }
+  >()
 
-  for (const coverage of Object.values(graph.collectionCoverage)) {
-    merged.merge(absoluteCoverageMap(root, coverage))
+  for (const record of coverageRecords(graph)) {
+    for (const [path, hits] of Object.entries(record)) {
+      const key = `${path}\0${hits.map}`
+      let total = totals.get(key)
+      if (total === undefined) {
+        total = { hits: { b: {}, f: {}, s: {} }, map: hits.map, path }
+        totals.set(key, total)
+      }
+      addCounters(total.hits.s, hits.s)
+      addCounters(total.hits.f, hits.f)
+      for (const [branch, counts] of Object.entries(hits.b)) {
+        const previous = total.hits.b[branch] ?? []
+        total.hits.b[branch] = Array.from(
+          { length: Math.max(previous.length, counts.length) },
+          (_, index) => (previous[index] ?? 0) + (counts[index] ?? 0),
+        )
+      }
+    }
   }
-  for (const coverage of Object.values(graph.testCoverage)) {
-    merged.merge(absoluteCoverageMap(root, coverage))
+
+  const merged = coverageLibrary.createCoverageMap()
+  for (const { hits, map, path } of totals.values()) {
+    const template = graph.coverageMaps[map]
+    if (template === undefined) continue
+    const absolute = resolve(root, path)
+    // Istanbul may extend a file's maps while merging another version of the
+    // same file, so the report works on its own copy of the shared maps.
+    merged.merge({
+      [absolute]: expandCoverageHits(structuredClone(template), absolute, hits),
+    })
   }
 
   return merged

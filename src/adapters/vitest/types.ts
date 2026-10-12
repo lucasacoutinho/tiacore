@@ -8,9 +8,10 @@ import type {
   TiaRuntimeGraphPartition,
 } from '../../engine/types.js'
 import type { TiaReplayReporter } from '../../engine/replay/types.js'
+import type { CoverageTemplates } from '../../integrations/coverage/templates.js'
 import type {
   NormalizedCoverageOptions,
-  TiaCoverageMap,
+  TiaCoverageCounterMap,
   TiaCoverageRuntime,
 } from '../../integrations/coverage/types.js'
 import type { TiaFrameworkEdgeAdapter } from '../../integrations/edges/types.js'
@@ -24,14 +25,14 @@ export interface NormalizedOptions extends EngineOptions {
 }
 
 export interface TiaModuleMeta {
-  collectionCoverage: TiaCoverageMap
+  collectionCoverage: TiaCoverageCounterMap
   collectionFiles: string[]
   concurrent: boolean
   files: string[]
 }
 
 export interface TiaTestMeta {
-  coverage: TiaCoverageMap
+  coverage: TiaCoverageCounterMap
   files: string[]
 }
 
@@ -45,6 +46,7 @@ export interface TiaRuntime {
   active: boolean
   baselineAtStart: Baseline | null
   coverage: TiaCoverageRuntime
+  coverageTemplates: CoverageTemplates
   fingerprintAtStart: string
   graphAtStart: TiaRuntimeGraph | null
   graphDigestAtStart: string | null

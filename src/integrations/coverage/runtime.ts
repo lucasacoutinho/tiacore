@@ -1,4 +1,8 @@
-import type { CoverageFile, CoverageMapLike, TiaCoverageMap } from './types.js'
+import type {
+  CoverageFile,
+  CoverageMapLike,
+  TiaCoverageCounterMap,
+} from './types.js'
 
 interface CoverageSnapshot {
   b: Record<string, number[]>
@@ -91,49 +95,53 @@ function scalarDelta(
   before: Record<string, number> | undefined,
   after: Record<string, number> | undefined,
 ): Record<string, number> {
-  return Object.fromEntries(
-    Object.entries(after ?? {}).map(([key, count]) => [
-      key,
-      Math.max(0, count - (before?.[key] ?? 0)),
-    ]),
-  )
+  const delta: Record<string, number> = {}
+  for (const [key, count] of Object.entries(after ?? {})) {
+    const advanced = count - (before?.[key] ?? 0)
+    if (advanced > 0) {
+      delta[key] = advanced
+    }
+  }
+  return delta
 }
 
 function branchDelta(
   before: Record<string, number[]> | undefined,
   after: Record<string, number[]> | undefined,
 ): Record<string, number[]> {
-  return Object.fromEntries(
-    Object.entries(after ?? {}).map(([key, counts]) => [
-      key,
-      counts.map((count, index) =>
-        Math.max(0, count - (before?.[key]?.[index] ?? 0)),
-      ),
-    ]),
-  )
+  const delta: Record<string, number[]> = {}
+  for (const [key, counts] of Object.entries(after ?? {})) {
+    const advanced = counts.map((count, index) =>
+      Math.max(0, count - (before?.[key]?.[index] ?? 0)),
+    )
+    if (advanced.some((count) => count > 0)) {
+      delta[key] = advanced
+    }
+  }
+  return delta
 }
 
-function hasHits(file: {
-  b: Record<string, number[]>
-  f: Record<string, number>
-  s: Record<string, number>
-}): boolean {
-  return (
-    Object.values(file.s).some((count) => count > 0) ||
-    Object.values(file.f).some((count) => count > 0) ||
-    Object.values(file.b).some((counts) => counts.some((count) => count > 0))
-  )
+function isEmpty(record: Record<string, unknown>): boolean {
+  for (const _ in record) {
+    return false
+  }
+  return true
 }
 
-export function coverageDelta(
+/**
+ * Returns only the counters that advanced since `before`, keyed by file and
+ * tagged with Istanbul's instrumentation hash. The static statement, function,
+ * and branch maps stay out of the delta; `expandCoverageCounters` restores them.
+ */
+export function coverageCounterDelta(
   before: CoverageSnapshotMap,
   coverage: CoverageMapLike | undefined,
-): TiaCoverageMap {
+): TiaCoverageCounterMap {
   if (coverage === undefined) {
     return {}
   }
 
-  const delta: TiaCoverageMap = {}
+  const delta: TiaCoverageCounterMap = {}
 
   for (const [key, file] of Object.entries(coverage)) {
     const path = file.path ?? key
@@ -142,19 +150,11 @@ export function coverageDelta(
       f: scalarDelta(before[path]?.f, file.f),
       s: scalarDelta(before[path]?.s, file.s),
     }
-    if (!hasHits(counters)) {
+    if (isEmpty(counters.s) && isEmpty(counters.f) && isEmpty(counters.b)) {
       continue
     }
 
-    delta[path] = {
-      b: counters.b,
-      branchMap: structuredClone(file.branchMap ?? {}),
-      f: counters.f,
-      fnMap: structuredClone(file.fnMap ?? {}),
-      path,
-      s: counters.s,
-      statementMap: structuredClone(file.statementMap ?? {}),
-    }
+    delta[path] = { ...counters, hash: file.hash ?? '' }
   }
 
   return delta
@@ -175,7 +175,7 @@ function mergeBranchCounters(
   left: Record<string, number[]>,
   right: Record<string, number[]>,
 ): Record<string, number[]> {
-  const merged = structuredClone(left)
+  const merged = { ...left }
   for (const [key, values] of Object.entries(right)) {
     const previous = merged[key] ?? []
     merged[key] = Array.from(
@@ -186,23 +186,23 @@ function mergeBranchCounters(
   return merged
 }
 
-export function mergeCoverageMaps(...maps: TiaCoverageMap[]): TiaCoverageMap {
-  const merged: TiaCoverageMap = {}
+export function mergeCoverageCounters(
+  ...maps: TiaCoverageCounterMap[]
+): TiaCoverageCounterMap {
+  const merged: TiaCoverageCounterMap = {}
 
   for (const map of maps) {
     for (const [path, file] of Object.entries(map)) {
       const previous = merged[path]
-      if (previous === undefined) {
-        merged[path] = structuredClone(file)
-        continue
-      }
-
-      merged[path] = {
-        ...structuredClone(file),
-        b: mergeBranchCounters(previous.b, file.b),
-        f: mergeScalarCounters(previous.f, file.f),
-        s: mergeScalarCounters(previous.s, file.s),
-      }
+      merged[path] =
+        previous === undefined
+          ? file
+          : {
+              b: mergeBranchCounters(previous.b, file.b),
+              f: mergeScalarCounters(previous.f, file.f),
+              hash: file.hash,
+              s: mergeScalarCounters(previous.s, file.s),
+            }
     }
   }
 

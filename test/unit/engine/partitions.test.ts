@@ -28,6 +28,7 @@ function fragment(partition: TiaRuntimeGraphPartition): TiaRuntimeGraph {
     collectionCoverage: { [file]: {} },
     complete: false,
     coverageComplete: true,
+    coverageMaps: {},
     edges: { [file]: [file, `src/${partition.index}.ts`] },
     fingerprint: 'partition-failure-injection',
     partition,
@@ -39,7 +40,7 @@ function fragment(partition: TiaRuntimeGraphPartition): TiaRuntimeGraph {
         state: 'passed',
       },
     },
-    schema: 3,
+    schema: 4,
     testCoverage: { [id]: {} },
     testEdges: {
       [id]: {
@@ -84,6 +85,7 @@ describe('partition promotion failure injection', () => {
     expect(promoted).toMatchObject({
       complete: true,
       coverageComplete: true,
+      coverageMaps: {},
     })
     expect(Object.keys(readGraph(cacheDir)?.results ?? {})).toEqual([
       'case-1',
