@@ -15,17 +15,22 @@ command again to verify replay before adding CI restoration.
 
 ## Install
 
-Until private packages are published, install a local checkout or an exact VCS
-revision:
+Install the package from npm:
+
+```sh
+npm install -D @lucasacoutinho/tiacore
+```
+
+To test unreleased changes, install a local checkout or an exact VCS revision:
 
 ```sh
 npm install --save-dev ../tiacore
 npm install --save-dev \
-  git+ssh://git@github.com/usescherie/tiacore.git#<exact-commit>
+  git+https://github.com/lucasacoutinho/tiacore.git#<exact-commit>
 ```
 
 VCS installations compile during `prepare`; generated `dist/` files are not
-committed. Bun VCS consumers must list `@usescherie/tiacore` in the root
+committed. Bun VCS consumers must list `@lucasacoutinho/tiacore` in the root
 `trustedDependencies` and have npm available for the temporary, lockfile-pinned
 build toolchain.
 
@@ -37,7 +42,7 @@ provide both ESM and CommonJS exports.
 ```ts
 // vitest.config.ts
 import { defineConfig } from 'vitest/config'
-import { tia } from '@usescherie/tiacore/vitest'
+import { tia } from '@lucasacoutinho/tiacore/vitest'
 
 export default defineConfig({
   plugins: [tia()],
@@ -53,7 +58,7 @@ Run the existing command:
 npx vitest run
 ```
 
-The root `@usescherie/tiacore` export remains a compatibility alias, but new
+The root `@lucasacoutinho/tiacore` export remains a compatibility alias, but new
 configs should use `/vitest`. Watch mode and explicit Vitest file, project,
 name, related-file, changed-file, tag, or exclusion filters remain native Vitest
 operations and do not replace the reusable full-suite graph.
@@ -65,7 +70,7 @@ Wrap the test fixture once:
 ```ts
 // e2e/fixture.ts
 import { expect, test as base } from '@playwright/test'
-import { tia } from '@usescherie/tiacore/playwright'
+import { tia } from '@lucasacoutinho/tiacore/playwright'
 
 export const test = tia(base)
 export { expect }
@@ -76,7 +81,7 @@ Append the reporter without removing existing reporters:
 ```ts
 // playwright.config.ts
 import { defineConfig } from '@playwright/test'
-import { tia } from '@usescherie/tiacore/playwright'
+import { tia } from '@lucasacoutinho/tiacore/playwright'
 
 export default defineConfig({
   reporter: [['line'], ['html', { open: 'never' }], tia()],
@@ -88,7 +93,7 @@ Run through the adapter:
 
 ```ts
 // e2e/run-tia.ts
-import { tia } from '@usescherie/tiacore/playwright'
+import { tia } from '@lucasacoutinho/tiacore/playwright'
 
 const result = await tia({
   config: 'playwright.config.ts',
@@ -110,7 +115,7 @@ Existing tests continue importing their native APIs. Create one runner file:
 
 ```js
 // run-tia.mjs
-import { tia } from '@usescherie/tiacore/node'
+import { tia } from '@lucasacoutinho/tiacore/node'
 
 const result = await tia({
   concurrency: 4,
@@ -120,9 +125,10 @@ const result = await tia({
 process.exitCode = result.success ? 0 : 1
 ```
 
-Use `node run-tia.mjs`. For Bun, change the import to `@usescherie/tiacore/bun`,
-use Bun test globs, and run `bun run-tia.ts`. Files execute concurrently up to
-the configured bound; cases within one file stay sequential.
+Use `node run-tia.mjs`. For Bun, change the import to
+`@lucasacoutinho/tiacore/bun`, use Bun test globs, and run `bun run-tia.ts`.
+Files execute concurrently up to the configured bound; cases within one file
+stay sequential.
 
 ## Maestro and k6
 
@@ -156,7 +162,7 @@ dependencies and exclusive resources:
 
 ```js
 // tiacore.config.mjs
-import { tia } from '@usescherie/tiacore/workspace'
+import { tia } from '@lucasacoutinho/tiacore/workspace'
 
 export default tia({
   concurrency: 4,

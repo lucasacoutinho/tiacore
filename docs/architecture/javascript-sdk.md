@@ -1,6 +1,6 @@
 # JavaScript SDK boundary
 
-The repository currently ships one npm package, `@usescherie/tiacore`. That
+The repository currently ships one npm package, `@lucasacoutinho/tiacore`. That
 package is the JavaScript SDK. It owns integrations with Vitest, Vite, Istanbul,
 Playwright, Node, Bun, k6, and Maestro.
 
@@ -66,7 +66,7 @@ A future adapter that needs JavaScript replay may use `TiaCore`. Every language
 SDK must implement protocol version 1 and pass the conformance vectors without
 reading `TiaRuntimeGraph`.
 
-External TypeScript adapters use `@usescherie/tiacore/adapter` instead of
+External TypeScript adapters use `@lucasacoutinho/tiacore/adapter` instead of
 importing `TiaCore` or internal modules. Its versioned `tia()` contract composes
 discovery and native execution with the runtime lifecycle, validates evidence,
 and refuses incomplete commits. `TiaCore` remains the lower-level primitive used

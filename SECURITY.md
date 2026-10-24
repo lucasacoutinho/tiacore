@@ -12,15 +12,11 @@ snapshots and older major versions are not supported.
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a suspected vulnerability. Use the canonical
-repository's private vulnerability-reporting channel once that repository is
-configured. Before the public repository exists, report through the same private
-maintainer channel by which you received the source.
+Do not open a public issue for a suspected vulnerability. Report it privately
+through GitHub's vulnerability reporting at
+<https://github.com/lucasacoutinho/tiacore/security/advisories/new>.
 
 Include the affected version or commit, runner and operating system, a minimal
 reproduction, impact, and any suggested mitigation. Please avoid accessing data
 that is not yours and do not publish exploit details before a fix and
 coordinated disclosure are available.
-
-The canonical repository URL and a tested private reporting path are release
-gates documented in `docs/releasing.md`.

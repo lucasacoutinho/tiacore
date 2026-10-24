@@ -17,8 +17,8 @@ those releases select conservatively even though replay still addresses
 individual named cases.
 
 Third-party TypeScript runtime adapters can implement this level through
-`@usescherie/tiacore/adapter`. Certification remains required before an adapter
-may claim the level; using the API alone is not certification.
+`@lucasacoutinho/tiacore/adapter`. Certification remains required before an
+adapter may claim the level; using the API alone is not certification.
 
 ## Observed file TIA
 

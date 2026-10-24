@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test'
-import { tia } from '@usescherie/tiacore/playwright'
+import { tia } from '@lucasacoutinho/tiacore/playwright'
 
 export default defineConfig({
   testDir: './test',

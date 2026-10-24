@@ -3,7 +3,7 @@ import { appendFileSync, existsSync } from 'node:fs'
 import { playwright } from '@vitest/browser-playwright'
 import { chromium } from 'playwright'
 import { defineConfig } from 'vitest/config'
-import { tia } from '@usescherie/tiacore'
+import { tia } from '@lucasacoutinho/tiacore'
 
 const executablePath =
   process.env.TIA_CHROME_PATH ??

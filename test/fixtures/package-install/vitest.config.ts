@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { tia } from '@usescherie/tiacore'
+import { tia } from '@lucasacoutinho/tiacore'
 
 export default defineConfig({
   plugins: [tia({ log: true })],

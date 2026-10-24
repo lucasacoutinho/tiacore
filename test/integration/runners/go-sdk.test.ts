@@ -41,7 +41,7 @@ describe('Go SDK', () => {
     })
     const output = `${completed.stdout}${completed.stderr}`
     expect(completed.status, output).toBe(0)
-    expect(output).toContain('github.com/usescherie/tiacore/sdks/go')
+    expect(output).toContain('github.com/lucasacoutinho/tiacore/sdks/go')
   })
 
   test('has a capability-complete receipt tied to its source digest', () => {

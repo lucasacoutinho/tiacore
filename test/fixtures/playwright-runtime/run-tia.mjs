@@ -2,8 +2,8 @@ import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, resolve } from 'node:path'
 
-import * as evidenceApi from '@usescherie/tiacore/evidence'
-import * as playwrightApi from '@usescherie/tiacore/playwright'
+import * as evidenceApi from '@lucasacoutinho/tiacore/evidence'
+import * as playwrightApi from '@lucasacoutinho/tiacore/playwright'
 
 const root = process.cwd()
 process.env.TIA_EVIDENCE_DIRECTORY = '.tia/evidence/playwright'

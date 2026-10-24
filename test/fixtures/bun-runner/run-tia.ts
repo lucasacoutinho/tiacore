@@ -1,4 +1,4 @@
-import { tia } from '@usescherie/tiacore/bun'
+import { tia } from '@lucasacoutinho/tiacore/bun'
 
 const result = await tia({
   files: ['test/**/*.test.ts'],

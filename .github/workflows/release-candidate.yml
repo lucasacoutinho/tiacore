@@ -10,6 +10,7 @@ on:
       - 'config/**'
       - 'conformance/**'
       - 'LICENSE'
+      - 'NOTICE'
       - 'README.md'
       - 'schemas/**'
       - 'SECURITY.md'
@@ -50,7 +51,7 @@ jobs:
       - run: mkdir release-candidate
       - run: npm pack --pack-destination release-candidate
       - run: cp sdks/python/dist/* release-candidate/
-      - run: cp release-candidate/usescherie-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
+      - run: cp release-candidate/lucasacoutinho-tiacore-*.tgz test/fixtures/package-install/tiacore.tgz
       - run: npm install --ignore-scripts
         working-directory: test/fixtures/package-install
       - run: npm test

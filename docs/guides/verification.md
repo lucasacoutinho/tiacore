@@ -24,7 +24,7 @@ npx tiacore verify \
 Programmatic callers use the same `tia()` factory:
 
 ```ts
-import { tia } from '@usescherie/tiacore/verification'
+import { tia } from '@lucasacoutinho/tiacore/verification'
 
 const receipt = await tia({
   command: 'npm',

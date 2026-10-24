@@ -88,7 +88,7 @@ class NodeTiaRunner implements TiaRunner {
   async run(): Promise<TiaRunnerResult> {
     if (!nodeVersionSupported()) {
       throw new Error(
-        '@usescherie/tiacore/node requires Node.js 22.10 or newer for programmatic test coverage',
+        '@lucasacoutinho/tiacore/node requires Node.js 22.10 or newer for programmatic test coverage',
       )
     }
 

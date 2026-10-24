@@ -53,7 +53,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Link this checkout as tiacore
-        run: mkdir -p node_modules/@usescherie && ln -s "$GITHUB_WORKSPACE" node_modules/@usescherie/tiacore
+        run: mkdir -p node_modules/@lucasacoutinho && ln -s "$GITHUB_WORKSPACE" node_modules/@lucasacoutinho/tiacore
       - name: Run shard
         run: npx vitest run --root test/fixtures/sharded-vitest --shard=${{ matrix.shard }}/2
         env:
@@ -80,7 +80,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Link this checkout as tiacore
-        run: mkdir -p node_modules/@usescherie && ln -s "$GITHUB_WORKSPACE" node_modules/@usescherie/tiacore
+        run: mkdir -p node_modules/@lucasacoutinho && ln -s "$GITHUB_WORKSPACE" node_modules/@lucasacoutinho/tiacore
       - uses: actions/download-artifact@v4
         with:
           path: test/fixtures/sharded-vitest/.tia-artifacts

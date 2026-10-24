@@ -1,4 +1,4 @@
-import { tia } from '@usescherie/tiacore/node'
+import { tia } from '@lucasacoutinho/tiacore/node'
 
 const result = await tia({
   files: ['test/**/*.test.mjs', 'test/**/*.test.cjs'],

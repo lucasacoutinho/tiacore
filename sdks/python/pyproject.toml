@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tiacore-pytest"
-version = "1.1.0"
+version = "1.2.0"
 description = "pytest adapter for the tiacore test impact protocol"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Proprietary" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Lucas Coutinho" }]
 dependencies = []
 

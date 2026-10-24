@@ -58,14 +58,17 @@ describe('adapter capability contract', () => {
     expect(packageJson.exports).toHaveProperty('./workspace')
 
     for (const adapter of contract.adapters) {
-      if (adapter.entryPoint.startsWith('@usescherie/tiacore')) {
-        const exportKey = adapter.entryPoint.replace('@usescherie/tiacore', '.')
+      if (adapter.entryPoint.startsWith('@lucasacoutinho/tiacore')) {
+        const exportKey = adapter.entryPoint.replace(
+          '@lucasacoutinho/tiacore',
+          '.',
+        )
         expect(packageJson.exports).toHaveProperty(
           exportKey === '.' ? '.' : exportKey,
         )
       } else {
         expect([
-          'go:github.com/usescherie/tiacore/sdks/go',
+          'go:github.com/lucasacoutinho/tiacore/sdks/go',
           'python:tiacore',
         ]).toContain(adapter.entryPoint)
       }

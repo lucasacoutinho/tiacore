@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 let archerModule
 
 try {
-  archerModule = await import('@usescherie/archer/vitest')
+  archerModule = await import('@lucasacoutinho/archer/vitest')
 } catch (error) {
   if (error?.code !== 'ERR_MODULE_NOT_FOUND') throw error
 
@@ -17,7 +17,7 @@ try {
   const entry = candidates.find((candidate) => existsSync(candidate))
   if (entry === undefined) {
     throw new Error(
-      'Archer is unavailable. Install @usescherie/archer, set ARCHER_VITEST_ENTRY, or build the adjacent ../archer checkout.',
+      'Archer is unavailable. Install @lucasacoutinho/archer, set ARCHER_VITEST_ENTRY, or build the adjacent ../archer checkout.',
       { cause: error },
     )
   }

@@ -50,12 +50,12 @@ describe('stable release contract', () => {
         '@types/istanbul-lib-coverage': '^2.0.6',
         '@types/istanbul-lib-instrument': '^1.7.8',
       },
-      license: 'UNLICENSED',
-      name: '@usescherie/tiacore',
+      license: 'Apache-2.0',
+      name: '@lucasacoutinho/tiacore',
       version: PLUGIN_VERSION,
     })
-    expect(PLUGIN_VERSION).toBe('1.1.0')
-    expect(pythonProject).toMatch(/^version = "1\.1\.0"$/m)
+    expect(PLUGIN_VERSION).toBe('1.2.0')
+    expect(pythonProject).toMatch(/^version = "1\.2\.0"$/m)
   })
 
   test('freezes the supported package entry points', () => {

@@ -38,9 +38,9 @@ Vite 6/7/8, Vitest 4.1, Bun 1.3, npm, pnpm, Yarn Plug'n'Play, and Bun installs.
 - Add a regression test that executes the real runner or framework path where
   practical. Use component tests for atomic-write, merge, parser, and explicit
   failure-injection boundaries.
-- Keep stable entry points limited to `@usescherie/tiacore`,
-  `@usescherie/tiacore/node`, `@usescherie/tiacore/bun`, and
-  `@usescherie/tiacore/core`. Do not import package internals in consumer
+- Keep stable entry points limited to `@lucasacoutinho/tiacore`,
+  `@lucasacoutinho/tiacore/node`, `@lucasacoutinho/tiacore/bun`, and
+  `@lucasacoutinho/tiacore/core`. Do not import package internals in consumer
   examples.
 - Store cache paths with project-relative forward slashes.
 - Treat cache and artifact input as untrusted: validate before use and fail

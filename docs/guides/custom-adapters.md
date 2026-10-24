@@ -1,6 +1,6 @@
 # TypeScript adapter contract
 
-`@usescherie/tiacore/adapter` is the supported boundary for a JavaScript or
+`@lucasacoutinho/tiacore/adapter` is the supported boundary for a JavaScript or
 TypeScript test runner that needs runtime test-case selection and cached
 outcomes. Adapter code imports only this package entry point and constructs the
 runner through `tia()`.
@@ -9,7 +9,7 @@ runner through `tia()`.
 import {
   tia,
   TIA_TYPESCRIPT_ADAPTER_VERSION,
-} from '@usescherie/tiacore/adapter'
+} from '@lucasacoutinho/tiacore/adapter'
 
 const runner = tia(
   {

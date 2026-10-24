@@ -3,7 +3,7 @@ import { appendFileSync } from 'node:fs'
 import {
   tia,
   TIA_TYPESCRIPT_ADAPTER_VERSION,
-} from '@usescherie/tiacore/adapter'
+} from '@lucasacoutinho/tiacore/adapter'
 
 const runner = tia(
   {

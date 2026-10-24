@@ -5,6 +5,26 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.2.0 - Unreleased
+
+### Breaking changes
+
+- Renamed the package from `@usescherie/tiacore` to `@lucasacoutinho/tiacore`.
+  Update imports, configuration, and `trustedDependencies` entries to the new
+  scope. No public consumers of the old name exist; it was only distributed
+  through a private registry and VCS revisions. Earlier entries in this file use
+  the new name.
+- Renamed the Go module to `github.com/lucasacoutinho/tiacore` and the artifact
+  schema `$id`s to `https://lucasacoutinho.github.io/tiacore/schemas/`.
+
+### Changed
+
+- Licensed tiacore and the pytest SDK under Apache-2.0 and added a `NOTICE`
+  file.
+- Moved the repository to `github.com/lucasacoutinho/tiacore`.
+- Replaced private registry publication (`publish:private`) with public npm
+  publishing through npm trusted publishing (OIDC) with provenance.
+
 ## 1.1.0 - 2026-10-11
 
 ### Added
@@ -85,7 +105,7 @@ follow Semantic Versioning.
 - Added signed, provider-neutral baseline artifacts with Ed25519 producer
   attestations, bounded claims, lineage, expiry, and promotion policy. Shared
   artifacts are rejected by default unless their producer is trusted.
-- Added the stable TypeScript adapter API at `@usescherie/tiacore/adapter`.
+- Added the stable TypeScript adapter API at `@lucasacoutinho/tiacore/adapter`.
   Third-party runners implement discovery and execution behind the single
   `tia()` factory while tiacore owns planning, replay, verification, artifacts,
   and persistence.
@@ -122,7 +142,7 @@ follow Semantic Versioning.
 
 - Replaced the hand-written executable argument parser with Commander 14 and
   moved k6 and Maestro command declarations into their adapter modules.
-- Added the `@usescherie/tiacore/evidence` correlation SDK and Playwright
+- Added the `@lucasacoutinho/tiacore/evidence` correlation SDK and Playwright
   request propagation so browser tests can own files executed by API and worker
   processes.
 - Added an adapter-owned Gradle/JUnit entry point and CLI namespace for Java and
@@ -134,14 +154,14 @@ follow Semantic Versioning.
 ### Added
 
 - Added differential verification through `tiacore verify` and
-  `@usescherie/tiacore/verification`. It compares a normal selective run with a
-  fresh full run across every participating runner and emits a machine-readable
-  receipt for outcomes, dependency evidence, complete coverage evidence,
-  executed and replayed counts, fallbacks, and measured speedup.
+  `@lucasacoutinho/tiacore/verification`. It compares a normal selective run
+  with a fresh full run across every participating runner and emits a
+  machine-readable receipt for outcomes, dependency evidence, complete coverage
+  evidence, executed and replayed counts, fallbacks, and measured speedup.
 - Added provider-neutral artifact publishing through
-  `@usescherie/tiacore/artifacts` and `tiacore artifacts publish|promote`, with
-  custom sinks, filesystem output, SHA-256 integrity, source and parent lineage,
-  explicit trust state, and coverage-aware promotion refusal.
+  `@lucasacoutinho/tiacore/artifacts` and `tiacore artifacts publish|promote`,
+  with custom sinks, filesystem output, SHA-256 integrity, source and parent
+  lineage, explicit trust state, and coverage-aware promotion refusal.
 - Added runtime baseline provenance and per-target selection decisions to run
   plans and replay lifecycle events, with bounded human-readable explanations
   across Vitest, Playwright, Node, and Bun.
@@ -165,11 +185,11 @@ follow Semantic Versioning.
 
 ### Added
 
-- Added an explicit `@usescherie/tiacore/vitest` entry point while preserving
-  the root Vitest compatibility export.
-- Added `@usescherie/tiacore/workspace` and `tiacore run` for bounded parallel
-  command and adapter lanes with dependencies, fail-fast behavior, and resource
-  locks.
+- Added an explicit `@lucasacoutinho/tiacore/vitest` entry point while
+  preserving the root Vitest compatibility export.
+- Added `@lucasacoutinho/tiacore/workspace` and `tiacore run` for bounded
+  parallel command and adapter lanes with dependencies, fail-fast behavior, and
+  resource locks.
 
 ### Changed
 

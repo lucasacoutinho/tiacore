@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 
 const { readGraph } = await import(
   new URL(
-    '../node_modules/@usescherie/tiacore/dist/engine/state/store.js',
+    '../node_modules/@lucasacoutinho/tiacore/dist/engine/state/store.js',
     import.meta.url,
   )
 )

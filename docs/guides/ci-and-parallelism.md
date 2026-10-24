@@ -77,7 +77,7 @@ step or sync it to object storage. The manifest carries archive integrity,
 source-baseline lineage, producing run, and optional parent IDs. The archive's
 Ed25519 attestation authenticates the exact graph and those trust properties.
 For a custom destination, pass a sink implementing the public `put()` contract
-to `@usescherie/tiacore/artifacts`.
+to `@lucasacoutinho/tiacore/artifacts`.
 
 Use `artifacts promote` only at a trusted baseline boundary. It refuses partial
 graphs; `--require-coverage` also refuses a graph without complete reconstructed

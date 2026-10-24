@@ -1,6 +1,6 @@
 {
-  "name": "@usescherie/tiacore",
-  "version": "1.1.0",
+  "name": "@lucasacoutinho/tiacore",
+  "version": "1.2.0",
   "private": false,
   "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
   "keywords": [
@@ -13,15 +13,15 @@
     "tia",
     "vitest"
   ],
-  "homepage": "https://github.com/usescherie/tiacore#readme",
+  "homepage": "https://github.com/lucasacoutinho/tiacore#readme",
   "bugs": {
-    "url": "https://github.com/usescherie/tiacore/issues"
+    "url": "https://github.com/lucasacoutinho/tiacore/issues"
   },
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "author": "Lucas Coutinho",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/usescherie/tiacore.git"
+    "url": "git+https://github.com/lucasacoutinho/tiacore.git"
   },
   "bin": {
     "tiacore": "dist/entries/cli.js"
@@ -36,6 +36,7 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
+    "NOTICE",
     "SECURITY.md"
   ],
   "type": "module",
@@ -217,6 +218,9 @@
       }
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "benchmark:parallel": "npm run build && vitest bench --run --config vitest.benchmark.config.ts",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node config/build-cjs.mjs",
@@ -231,7 +235,6 @@
     "lint": "oxlint --deny-warnings --report-unused-disable-directives",
     "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
     "prepare": "node config/prepare.mjs",
-    "publish:private": "node config/publish-private.mjs",
     "release:check": "npm run check && npm run check:package && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
     "test": "npm run build && vitest run --exclude test/integration/vitest/playwright.integration.test.ts",
     "test:python": "python3 -B -m unittest discover -s sdks/python/tests -v",

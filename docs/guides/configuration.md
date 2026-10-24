@@ -171,8 +171,8 @@ not corrupt the run.
 Runtime plans report the baseline source and the reason for each selected test
 or file. Console output is capped at 20 decisions. The same structured
 `baseline` and `decisions` data is exposed in `RunPlan` and replay lifecycle
-events. `formatRunPlanDetails()` from `@usescherie/tiacore/core` formats it for
-custom logs.
+events. `formatRunPlanDetails()` from `@lucasacoutinho/tiacore/core` formats it
+for custom logs.
 
 ## Safety rules
 

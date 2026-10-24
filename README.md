@@ -11,16 +11,14 @@ It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6,
 Gradle/JUnit, pytest, and Go's native test runner. Git improves baseline
 comparison, but it is optional.
 
-> tiacore 1.x is stable, proprietary software. Install it from an
-> access-controlled registry or an exact reviewed VCS revision.
+tiacore 1.x is stable and licensed under Apache-2.0.
 
 ## Quick start
 
-Install tiacore from an exact commit when a private registry is not configured:
+Install tiacore from npm:
 
 ```sh
-npm install --save-dev \
-  git+ssh://git@github.com/usescherie/tiacore.git#<exact-commit>
+npm install -D @lucasacoutinho/tiacore
 ```
 
 Add the Vitest plugin:
@@ -28,7 +26,7 @@ Add the Vitest plugin:
 ```ts
 // vitest.config.ts
 import { defineConfig } from 'vitest/config'
-import { tia } from '@usescherie/tiacore/vitest'
+import { tia } from '@lucasacoutinho/tiacore/vitest'
 
 export default defineConfig({
   plugins: [tia()],
@@ -87,17 +85,17 @@ minor releases, but it is never treated as portable application data.
 
 ## Supported runners
 
-| Runner       | Import                           | Selection                                                               |
-| ------------ | -------------------------------- | ----------------------------------------------------------------------- |
-| Vitest       | `@usescherie/tiacore/vitest`     | Exact test cases; conservative whole-file handling for concurrent cases |
-| Playwright   | `@usescherie/tiacore/playwright` | Affected spec files from browser and fixture evidence                   |
-| `node:test`  | `@usescherie/tiacore/node`       | Test cases, with precise discovery on Node 22.15 and newer              |
-| `bun:test`   | `@usescherie/tiacore/bun`        | Test cases from isolated LCOV observations                              |
-| Maestro      | `@usescherie/tiacore/maestro`    | Flows and transitive `runFlow` dependencies                             |
-| k6           | `@usescherie/tiacore/k6`         | Profiles and transitive local imports                                   |
-| Gradle/JUnit | `@usescherie/tiacore/gradle`     | Java/Kotlin test classes and local imports; JUnit result validation     |
-| pytest       | `sdks/python`                    | Test files and transitive local imports                                 |
-| Go           | `sdks/go`                        | Test and compile-only packages from the local package graph             |
+| Runner       | Import                               | Selection                                                               |
+| ------------ | ------------------------------------ | ----------------------------------------------------------------------- |
+| Vitest       | `@lucasacoutinho/tiacore/vitest`     | Exact test cases; conservative whole-file handling for concurrent cases |
+| Playwright   | `@lucasacoutinho/tiacore/playwright` | Affected spec files from browser and fixture evidence                   |
+| `node:test`  | `@lucasacoutinho/tiacore/node`       | Test cases, with precise discovery on Node 22.15 and newer              |
+| `bun:test`   | `@lucasacoutinho/tiacore/bun`        | Test cases from isolated LCOV observations                              |
+| Maestro      | `@lucasacoutinho/tiacore/maestro`    | Flows and transitive `runFlow` dependencies                             |
+| k6           | `@lucasacoutinho/tiacore/k6`         | Profiles and transitive local imports                                   |
+| Gradle/JUnit | `@lucasacoutinho/tiacore/gradle`     | Java/Kotlin test classes and local imports; JUnit result validation     |
+| pytest       | `sdks/python`                        | Test files and transitive local imports                                 |
+| Go           | `sdks/go`                            | Test and compile-only packages from the local package graph             |
 
 Vitest 4.1 and Node.js 20 or newer are required for the main package. The
 standalone Node adapter requires Node.js 22.10 or newer. See the
@@ -160,11 +158,10 @@ npm run build
 npm run check:architecture
 ```
 
-It prefers an installed `@usescherie/archer` package and otherwise uses a built
-`../archer` checkout. Set `ARCHER_VITEST_ENTRY` for a checkout in another
+It prefers an installed `@lucasacoutinho/archer` package and otherwise uses a
+built `../archer` checkout. Set `ARCHER_VITEST_ENTRY` for a checkout in another
 location. This command is separate from `npm run check` so each repository can
-still validate in a standalone checkout while the private packages are not
-available from a shared registry.
+still validate in a standalone checkout.
 
 Implementation code is grouped by responsibility. `src/index.ts` is the only
 file at the source root; package subpath shims and the CLI launcher live in
@@ -172,5 +169,5 @@ file at the source root; package subpath shims and the CLI launcher live in
 
 ## License
 
-tiacore is proprietary software. All rights are reserved. See
-[LICENSE](LICENSE).
+tiacore is licensed under the [Apache License, Version 2.0](LICENSE). See
+[NOTICE](NOTICE) for attribution.

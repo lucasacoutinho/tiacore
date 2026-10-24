@@ -20,7 +20,7 @@ export const packageRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../..',
 )
-export const packageName = '@usescherie/tiacore'
+export const packageName = '@lucasacoutinho/tiacore'
 
 const temporaryDirectories: string[] = []
 const fixtureRoot = resolve(packageRoot, 'test/fixtures')

@@ -4,7 +4,7 @@
   "adapters": [
     {
       "id": "vitest",
-      "entryPoint": "@usescherie/tiacore/vitest",
+      "entryPoint": "@lucasacoutinho/tiacore/vitest",
       "factory": "tia",
       "capabilityLevel": "runtime-tia",
       "selectionGranularity": "test-case",
@@ -20,7 +20,7 @@
     },
     {
       "id": "playwright",
-      "entryPoint": "@usescherie/tiacore/playwright",
+      "entryPoint": "@lucasacoutinho/tiacore/playwright",
       "factory": "tia",
       "capabilityLevel": "observed-file-tia",
       "selectionGranularity": "test-file",
@@ -36,7 +36,7 @@
     },
     {
       "id": "node-test",
-      "entryPoint": "@usescherie/tiacore/node",
+      "entryPoint": "@lucasacoutinho/tiacore/node",
       "factory": "tia",
       "capabilityLevel": "runtime-tia",
       "selectionGranularity": "test-case",
@@ -52,7 +52,7 @@
     },
     {
       "id": "bun-test",
-      "entryPoint": "@usescherie/tiacore/bun",
+      "entryPoint": "@lucasacoutinho/tiacore/bun",
       "factory": "tia",
       "capabilityLevel": "runtime-tia",
       "selectionGranularity": "test-case",
@@ -67,7 +67,7 @@
     },
     {
       "id": "k6",
-      "entryPoint": "@usescherie/tiacore/k6",
+      "entryPoint": "@lucasacoutinho/tiacore/k6",
       "factory": "tia",
       "capabilityLevel": "static-impact",
       "selectionGranularity": "profile",
@@ -83,7 +83,7 @@
     },
     {
       "id": "maestro",
-      "entryPoint": "@usescherie/tiacore/maestro",
+      "entryPoint": "@lucasacoutinho/tiacore/maestro",
       "factory": "tia",
       "capabilityLevel": "static-impact",
       "selectionGranularity": "flow",
@@ -99,7 +99,7 @@
     },
     {
       "id": "gradle-junit",
-      "entryPoint": "@usescherie/tiacore/gradle",
+      "entryPoint": "@lucasacoutinho/tiacore/gradle",
       "factory": "tia",
       "capabilityLevel": "static-impact",
       "selectionGranularity": "test-file",
@@ -131,7 +131,7 @@
     },
     {
       "id": "go-test",
-      "entryPoint": "go:github.com/usescherie/tiacore/sdks/go",
+      "entryPoint": "go:github.com/lucasacoutinho/tiacore/sdks/go",
       "factory": "New",
       "capabilityLevel": "static-impact",
       "selectionGranularity": "package",

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	tiacore "github.com/usescherie/tiacore/sdks/go"
+	tiacore "github.com/lucasacoutinho/tiacore/sdks/go"
 )
 
 type repeatedFlag []string

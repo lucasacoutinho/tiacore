@@ -1,4 +1,4 @@
-import { tia } from '@usescherie/tiacore/evidence'
+import { tia } from '@lucasacoutinho/tiacore/evidence'
 
 const [correlationId, file, producer] = process.argv.slice(2)
 const evidence = tia({

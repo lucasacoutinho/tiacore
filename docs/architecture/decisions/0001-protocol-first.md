@@ -32,5 +32,5 @@ core with evidence from that adapter.
   graph.
 - A language SDK may not claim compatibility from type similarity alone. It must
   pass the conformance kit.
-- `@usescherie/tiacore` remains one root npm package while exact VCS installs
-  are in active use.
+- `@lucasacoutinho/tiacore` remains one root npm package while exact VCS
+  installs are in active use.

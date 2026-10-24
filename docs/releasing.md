@@ -6,19 +6,15 @@ workflow require explicit maintainer approval.
 
 ## Repository and publication gates
 
-Before publishing a proprietary release:
+Before publishing a release:
 
-1. Confirm the canonical repository and its package metadata.
-2. Confirm `repository`, `homepage`, and `bugs` metadata still point to it.
-3. Enable and test private vulnerability reporting, then replace the temporary
-   instructions in `SECURITY.md` with its exact URL.
-4. Configure an access-controlled npm-compatible registry. The package remains
-   `UNLICENSED`; package access does not grant a software license.
-5. Confirm that release-candidate artifacts and registry packages remain
-   restricted to authorized users.
-
-Preparing and committing a candidate does not satisfy or bypass these external
-publication gates.
+1. Confirm `repository`, `homepage`, and `bugs` in `package.json` point to
+   `https://github.com/lucasacoutinho/tiacore`. npm trusted publishing requires
+   `repository.url` to match the publishing repository exactly.
+2. Confirm private vulnerability reporting is enabled for the repository, as
+   `SECURITY.md` describes.
+3. Confirm the `npm` GitHub Actions environment exists and the package's trusted
+   publisher on npmjs.com names this repository and `publish.yml`.
 
 ## Candidate checklist
 
@@ -48,23 +44,34 @@ publication gates.
 8. Verify the candidate has no `.tia`, coverage, execution logs, credentials,
    test fixtures, or development-only files in its tarball.
 
-## Private publication
+## Publication
 
-Publication is provider-neutral. Set `TIA_REGISTRY_URL` to an access-controlled
-npm-compatible registry and expose its credential as `NODE_AUTH_TOKEN`:
+tiacore publishes to the public npm registry as `@lucasacoutinho/tiacore`.
+`publishConfig.access` is `public`.
+
+Releases publish from the `Publish package` workflow
+(`.github/workflows/publish.yml`). It runs `TIA_FRESH=1 npm run release:check`
+and then `npm publish` with npm trusted publishing: the workflow exchanges a
+GitHub Actions OIDC token for a short-lived publish credential, so no npm token
+is stored in the repository, and npm attaches provenance automatically. Trusted
+publishing requires npm 11.5.1 or newer; the workflow installs a current npm 11.
+
+npm can only attach a trusted publisher to a package that already exists. The
+first version is therefore published manually by a maintainer with two-factor
+authentication, from a clean checkout of the candidate commit:
 
 ```sh
-TIA_REGISTRY_URL=https://packages.example.test/npm/ \
-NODE_AUTH_TOKEN=... \
-npm run publish:private
+npm ci
+TIA_FRESH=1 npm run release:check
+npm publish
 ```
 
-The command creates an ephemeral npm configuration, always requests restricted
-access, and refuses the public npm registry. `--dry-run` verifies the package
-without requiring a token. The GitHub Actions workflow is one deployment
-adapter; GitLab, Artifactory, Verdaccio, and other npm-compatible registries can
-invoke the same package command.
+Then link the workflow once with npm 11.15 or newer:
 
-Public registry publication is not part of the proprietary release process.
-Changing that policy requires separate approval, a deliberate license and
-package-metadata update, and fresh release verification.
+```sh
+npm trust github @lucasacoutinho/tiacore --file publish.yml \
+  --repo lucasacoutinho/tiacore --allow-publish
+```
+
+Later releases dispatch the workflow. Renaming `publish.yml` requires updating
+the trusted publisher.

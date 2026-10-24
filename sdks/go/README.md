@@ -8,7 +8,7 @@ follows transitive local imports, and passes the affected packages back to
 Install or run it from an exact reviewed revision:
 
 ```sh
-go run github.com/usescherie/tiacore/sdks/go/cmd/tiacore-go@<exact-commit> \
+go run github.com/lucasacoutinho/tiacore/sdks/go/cmd/tiacore-go@<exact-commit> \
   -- -timeout=30m
 ```
 

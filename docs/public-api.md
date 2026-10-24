@@ -4,10 +4,11 @@ tiacore has sixteen primary supported entry points plus the Playwright reporter
 configuration target. Everything below `dist/` or an internal `src/` folder is
 private and may change without notice.
 
-## `@usescherie/tiacore`
+## `@lucasacoutinho/tiacore`
 
-Remains a compatibility alias for `@usescherie/tiacore/vitest`. It exports named
-and default `tia(options?)`, the Vitest plugin factory. Public types cover:
+Remains a compatibility alias for `@lucasacoutinho/tiacore/vitest`. It exports
+named and default `tia(options?)`, the Vitest plugin factory. Public types
+cover:
 
 - plugin, coverage, framework, artifact, and replay options;
 - filesystem, GitHub Actions, GitLab CI, HTTP-manifest, and custom artifact
@@ -19,7 +20,7 @@ and default `tia(options?)`, the Vitest plugin factory. Public types cover:
 The factory name is always `tia`; runner- or framework-prefixed variants are not
 part of the API.
 
-## `@usescherie/tiacore/vitest`
+## `@lucasacoutinho/tiacore/vitest`
 
 The explicit Vitest entry point. It has the same named and default `tia()`
 factory and public option types as the root compatibility export. New Vitest
@@ -37,13 +38,13 @@ native runner's execution boundary. The SDK is not an npm entry point and does
 not claim cached outcomes: Go remains responsible for its own build and test
 cache.
 
-## `@usescherie/tiacore/node` and `@usescherie/tiacore/bun`
+## `@lucasacoutinho/tiacore/node` and `@lucasacoutinho/tiacore/bun`
 
 Each exports named `tia(options?)`, returning a `TiaRunner` with an asynchronous
 `run()` method. Both share `TiaRunnerOptions` and `TiaRunnerResult`. Node also
 enforces its 22.10 runtime minimum when the adapter is executed.
 
-## `@usescherie/tiacore/evidence`
+## `@lucasacoutinho/tiacore/evidence`
 
 Exports named `tia(options?)`, returning a `TiaEvidence` correlation client. It
 creates bounded correlation IDs and headers, carries correlation through
@@ -56,7 +57,7 @@ The default request header is `x-tiacore-correlation-id`. Set
 `TIA_EVIDENCE_HEADER` when a deployment requires a different header. Evidence is
 inert unless a directory is configured by the runner or application.
 
-## `@usescherie/tiacore/gradle`
+## `@lucasacoutinho/tiacore/gradle`
 
 Exports named `tia(options)`, returning a `TiaGradleRunner`. The adapter
 discovers Java and Kotlin test classes, follows transitive imports to local
@@ -65,7 +66,7 @@ native Gradle invocation, and validates that selected classes appear in JUnit
 XML. Gradle continues to own task caching, workers, forks, and connected
 devices.
 
-## `@usescherie/tiacore/playwright`
+## `@lucasacoutinho/tiacore/playwright`
 
 Exports overloaded named `tia()`:
 
@@ -84,11 +85,11 @@ attribution; other browser engines use conservative map-level attribution.
 `frameworks` accepts the same database, view, subprocess, and custom edge
 adapters as Vitest so browser specs can own backend or external-service files.
 
-`@usescherie/tiacore/playwright/reporter` is a supported configuration target
-used by the reporter tuple. Applications should obtain it through `tia()`
+`@lucasacoutinho/tiacore/playwright/reporter` is a supported configuration
+target used by the reporter tuple. Applications should obtain it through `tia()`
 instead of constructing the path.
 
-## `@usescherie/tiacore/core`
+## `@lucasacoutinho/tiacore/core`
 
 Exports `TiaCore`, `TiaCoreOptions`, and `TiaObservation` for authors building a
 runner adapter. This is an advanced API: callers prepare a run plan, execute the
@@ -122,7 +123,7 @@ counters each test advanced. Each file entry names its static Istanbul maps in
 It also exports the runner-neutral `createImpactPlan()` and
 `mergeImpactGraphs()` functions plus protocol types.
 
-## `@usescherie/tiacore/adapter`
+## `@lucasacoutinho/tiacore/adapter`
 
 Exports named `tia(definition, options?)`, `TiaAdapter`, adapter API version 1,
 and its discovery, catalog, execution, observation, option, and result types.
@@ -139,7 +140,7 @@ artifacts, replay, verification, and transactional persistence.
 See the [adapter guide](guides/custom-adapters.md) for the complete contract and
 reference implementation.
 
-## `@usescherie/tiacore/artifacts`
+## `@lucasacoutinho/tiacore/artifacts`
 
 Exports named `tia(options)`, `TiaArtifactPublisher`, the filesystem sink
 factory, artifact attestation helpers, and provider-neutral publisher, sink,
@@ -167,7 +168,7 @@ tiacore artifacts promote --cache-dir .tia/node \
   --signing-key-id release-2026
 ```
 
-## `@usescherie/tiacore/protocol`
+## `@lucasacoutinho/tiacore/protocol`
 
 Exports the versioned runner-neutral graph, suite, observation, change, policy,
 plan, and artifact-envelope types. It also exports portable path normalization,
@@ -177,7 +178,7 @@ stored in the protocol are project-relative with forward slashes.
 The protocol graph is `TiaImpactGraph`. It never contains JavaScript coverage or
 cached native test results.
 
-## `@usescherie/tiacore/conformance`
+## `@lucasacoutinho/tiacore/conformance`
 
 Exports the adapter scenario catalog, receipt types, strict receipt parser, and
 `certifyAdapterReceipt()`. A receipt declares its capability level and optional
@@ -190,14 +191,14 @@ The CLI exposes the same gate through:
 tiacore certify adapter --receipt adapter-certification.json
 ```
 
-## `@usescherie/tiacore/maestro`
+## `@lucasacoutinho/tiacore/maestro`
 
 Discovers real Maestro YAML flows, tags, and `runFlow` relationships. It exports
 catalog fingerprinting, graph recording, impact planning, and `tia(options)`.
 The returned runner executes selected flows and promotes its graph only after
 the command succeeds. Every selected suite declares a device resource lock.
 
-## `@usescherie/tiacore/k6`
+## `@lucasacoutinho/tiacore/k6`
 
 Discovers real k6 profile entrypoints and follows their transitive local ESM
 imports. It exports catalog fingerprinting, graph recording, lane-bounded impact
@@ -205,7 +206,7 @@ planning, and `tia(options)`. The returned runner executes selected profiles and
 promotes its graph only after the command succeeds. Every selected suite
 declares a performance-host resource lock.
 
-## `@usescherie/tiacore/workspace`
+## `@lucasacoutinho/tiacore/workspace`
 
 Exports named `tia(options)`, `TiaWorkspaceRunner`, and workspace lane and
 result types. A lane defines exactly one command or runner, optional
@@ -218,7 +219,7 @@ The workspace coordinator does not merge runner graphs or reinterpret cached
 results. Each adapter remains responsible for its own impact plan and native
 parallelism.
 
-## `@usescherie/tiacore/verification`
+## `@lucasacoutinho/tiacore/verification`
 
 Exports named `tia(options)`, `TiaVerifier`, and the verification receipt,
 snapshot, phase, runner, and issue types. The verifier executes the supplied
