@@ -45,7 +45,7 @@ function scaleGraph(count: number): TiaImpactGraph {
 
 describe('protocol scale', () => {
   test(
-    'selects deterministically across a Scherie-scale graph',
+    'selects deterministically across a monorepo-scale graph',
     { timeout: 20_000 },
     () => {
       const graph = scaleGraph(25_000)

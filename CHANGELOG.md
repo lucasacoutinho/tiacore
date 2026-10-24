@@ -148,7 +148,7 @@ follow Semantic Versioning.
 - Added an adapter-owned Gradle/JUnit entry point and CLI namespace for Java and
   Kotlin test-class selection, native Gradle execution, and JUnit completion
   validation.
-- Added bounded executable certification and Scherie-scale protocol regression
+- Added bounded executable certification and monorepo-scale protocol regression
   coverage using the existing Vitest Bench harness.
 
 ### Added

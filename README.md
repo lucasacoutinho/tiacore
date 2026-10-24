@@ -127,7 +127,7 @@ attestation by default.
 - [CI, parallelism, shards, and worktrees](docs/guides/ci-and-parallelism.md)
 - [Differential verification](docs/guides/verification.md)
 - [TypeScript adapter contract](docs/guides/custom-adapters.md)
-- [Scherie benchmark baseline](docs/benchmarks/scherie.md)
+- [Monorepo benchmark baseline](docs/benchmarks/monorepo-baseline.md)
 - [Public API](docs/public-api.md)
 - [Target architecture](docs/architecture/target.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)
