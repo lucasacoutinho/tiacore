@@ -224,10 +224,10 @@ describe('runnable fixture projects', () => {
       .split('\n')
     expect(events).toEqual(
       expect.arrayContaining([
-        'ready:cached:reporter case b:passed',
-        'result:cached:reporter case b:passed',
-        'ready:live:reporter case a:passed',
-        'result:live:reporter case a:passed',
+        'ready:cached:reporter case b',
+        'result:passed:cached:reporter case b',
+        'ready:live:reporter case a',
+        'result:passed:live:reporter case a',
       ]),
     )
     expect(replay.output).toMatch(/Tests\s+1 passed \(1\)/)
