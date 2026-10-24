@@ -7,8 +7,8 @@
   },
   "devDependencies": {
     "@lucasacoutinho/tiacore": "file:../../..",
-    "@vitest/coverage-v8": "^4.1.10",
-    "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "@vitest/coverage-v8": "^4.1.12",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12"
   }
 }

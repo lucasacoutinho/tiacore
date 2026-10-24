@@ -176,6 +176,26 @@ function load(path: string, unusedFunctions: number) {
   return templates
 }
 
+function payload(unusedFunctions: number): string {
+  load('/project/src/a.js', unusedFunctions)
+  const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
+  globals.__tiacore_unit_call__?.(2)
+  const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
+  delete globals[COVERAGE_VARIABLE]
+  return JSON.stringify(delta).replace(/"hash":"[0-9a-f]+"/, '')
+}
+
+function recordTwice(root: string) {
+  const templates = load(`${root}/src/a.js`, 1)
+  const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
+  globals.__tiacore_unit_call__?.(2)
+  const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
+  delete globals[COVERAGE_VARIABLE]
+  const first = templates.record(root, delta)
+  const second = templates.record(root, delta)
+  return { first, maps: templates.maps([first, second]), second }
+}
+
 describe('coverage templates', () => {
   test('rebuild the exact Istanbul delta from advanced counters', () => {
     const templates = load('/project/src/a.js', 3)
@@ -219,32 +239,12 @@ describe('coverage templates', () => {
   })
 
   test('keep the per-test payload independent of static map size', () => {
-    const payload = (unusedFunctions: number): string => {
-      load('/project/src/a.js', unusedFunctions)
-      const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
-      globals.__tiacore_unit_call__?.(2)
-      const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
-      delete globals[COVERAGE_VARIABLE]
-      return JSON.stringify(delta).replace(/"hash":"[0-9a-f]+"/, '')
-    }
-
     expect(payload(500)).toBe(payload(1))
   })
 
   test('name one content-addressed map per file across tests and checkouts', () => {
-    const record = (root: string) => {
-      const templates = load(`${root}/src/a.js`, 1)
-      const before = snapshotCoverage(globals[COVERAGE_VARIABLE])
-      globals.__tiacore_unit_call__?.(2)
-      const delta = coverageCounterDelta(before, globals[COVERAGE_VARIABLE])
-      delete globals[COVERAGE_VARIABLE]
-      const first = templates.record(root, delta)
-      const second = templates.record(root, delta)
-      return { first, maps: templates.maps([first, second]), second }
-    }
-
-    const local = record('/project')
-    const ci = record('/runner/work/project')
+    const local = recordTwice('/project')
+    const ci = recordTwice('/runner/work/project')
 
     expect(Object.keys(local.maps)).toEqual([local.first['src/a.js']!.map])
     expect(local.second).toEqual(local.first)

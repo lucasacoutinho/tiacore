@@ -73,8 +73,12 @@ async function localImports(root: string, entry: string): Promise<string[]> {
     const source = await readFile(path, 'utf8')
     const [imports] = parse(source)
     for (const imported of imports) {
-      if (imported.n === undefined) continue
-      const resolved = await existingImportPath(path, imported.n)
+      if (
+        typeof imported.specifier !== 'string' ||
+        (imported.type === 'dynamic' && imported.glob)
+      )
+        continue
+      const resolved = await existingImportPath(path, imported.specifier)
       if (resolved === null) continue
       const projectFile = normalizeProtocolPath(relative(root, resolved))
       const absolute = resolve(root, projectFile)

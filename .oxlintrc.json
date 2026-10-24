@@ -27,6 +27,7 @@
     "eslint/no-await-in-loop": "off",
     "eslint/no-empty-pattern": "off",
     "eslint/no-underscore-dangle": "off",
+    "eslint/no-unused-vars": ["error", { "ignoreRestSiblings": true }],
     "oxc/no-map-spread": "off",
     "promise/always-return": "off",
     "unicorn/no-array-reverse": "off",
