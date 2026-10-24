@@ -16,8 +16,8 @@ command belongs to another workspace:
 
 ```sh
 npx tiacore verify \
-  --cwd apps/platform \
-  --output ../../.tia/platform-verification.json \
+  --cwd packages/web \
+  --output ../../.tia/web-verification.json \
   -- npm test
 ```
 
