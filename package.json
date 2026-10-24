@@ -260,6 +260,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@lucasacoutinho/archer": "^0.2.1",
     "@playwright/test": "^1.62.0",
     "@testing-library/react": "^16.3.2",
     "@types/istanbul-lib-report": "^3.0.3",
