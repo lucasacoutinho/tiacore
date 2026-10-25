@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 1.2.1 - 2026-10-25
+
 ### Added
 
 - Supported Vitest 5 alongside Vitest 4.1. The `vitest` peer range is now
@@ -20,7 +22,7 @@ follow Semantic Versioning.
 - Updated runtime dependencies within their ranges, including
   `es-module-lexer` 3.
 
-## 1.2.0 - Unreleased
+## 1.2.0 - 2026-10-24
 
 ### Breaking changes
 

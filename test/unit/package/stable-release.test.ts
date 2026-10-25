@@ -54,8 +54,8 @@ describe('stable release contract', () => {
       name: '@lucasacoutinho/tiacore',
       version: PLUGIN_VERSION,
     })
-    expect(PLUGIN_VERSION).toBe('1.2.0')
-    expect(pythonProject).toMatch(/^version = "1\.2\.0"$/m)
+    expect(PLUGIN_VERSION).toBe('1.2.1')
+    expect(pythonProject).toMatch(/^version = "1\.2\.1"$/m)
   })
 
   test('freezes the supported package entry points', () => {
