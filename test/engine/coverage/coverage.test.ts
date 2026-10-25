@@ -20,7 +20,7 @@ import {
   coverageMapId,
   coverageTemplate,
   expandCoverageHits,
-} from '../../../src/engine/coverage/maps.ts'
+} from '../../../src/engine/state/coverage.ts'
 import {
   mergedGraphCoverage,
   renderCoverageReports,

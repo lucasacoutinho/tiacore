@@ -1,10 +1,7 @@
-import {
-  GRAPH_SCHEMA_VERSION,
-  type TiaRuntimeGraph,
-} from '../../core/runtime.ts'
+import { GRAPH_SCHEMA_VERSION, type TiaRuntimeGraph } from '../core/runtime.ts'
 
 // A hand-written type guard for a graph read back from the store. It accepts
-// exactly what `parseRuntimeGraph` (src/wire/runtime-graph.ts) accepts, which
+// exactly what the `RuntimeGraph` Schema (src/wire/runtime-graph.ts) accepts, which
 // test/engine/state/graph-guard.test.ts checks differentially. It exists for
 // speed: the store validates a 2,000-test graph on every run, and the Schema
 // guard costs about 150 ms there against about 25 ms for this one.

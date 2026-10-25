@@ -11,7 +11,7 @@ import type { ReportBase } from 'istanbul-lib-report'
 import type { TiaCoverageHits, TiaRuntimeGraph } from '../../core/runtime.ts'
 import { TiaIo } from '../../wire/errors.ts'
 import { selectedCoverage } from './files.ts'
-import { coverageRecords, expandCoverageHits } from './maps.ts'
+import { coverageRecords, expandCoverageHits } from '../state/coverage.ts'
 import {
   coverageThresholdFailures,
   type CoverageThresholdFailure,

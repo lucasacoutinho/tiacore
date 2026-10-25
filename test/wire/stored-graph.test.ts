@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest'
 
-import { isStoredGraph } from '../../../src/engine/state/graph-guard.ts'
-import { parseRuntimeGraph } from '../../../src/wire/runtime-graph.ts'
-import { coverageGraph } from '../support/graphs.ts'
+import { isStoredGraph } from '../../src/wire/stored-graph.ts'
+import { matchesRuntimeGraphSchema } from '../../src/wire/runtime-graph.ts'
+import { coverageGraph } from '../engine/support/graphs.ts'
 
 // The store validates with a hand-written guard because the Schema guard is
 // five times slower on a 2,000-test graph. This test pins the two together:
@@ -140,17 +140,17 @@ const mutations: Array<[string, (graph: Mutable) => void]> = [
 
 describe('stored-graph guard', () => {
   for (const [name, mutate] of mutations) {
-    test(`agrees with parseRuntimeGraph: ${name}`, () => {
+    test(`agrees with the RuntimeGraph Schema: ${name}`, () => {
       const graph = base()
       mutate(graph)
-      expect(isStoredGraph(graph), name).toBe(parseRuntimeGraph(graph) !== null)
+      expect(isStoredGraph(graph), name).toBe(matchesRuntimeGraphSchema(graph))
     })
   }
 
   test('rejects everything that is not an object', () => {
     for (const value of [null, undefined, 1, 'graph', [], true]) {
       expect(isStoredGraph(value)).toBe(false)
-      expect(parseRuntimeGraph(value)).toBeNull()
+      expect(matchesRuntimeGraphSchema(value)).toBe(false)
     }
   })
 

@@ -6,7 +6,7 @@ import type {
 } from '../../core/runtime.ts'
 import type { ProbeCounterMap } from '../../probe/types.ts'
 import { projectRelative } from '../project-relative.ts'
-import { coverageMapId, coverageTemplate } from './maps.ts'
+import { coverageMapId, coverageTemplate } from '../state/coverage.ts'
 
 // Istanbul prepends a coverage function that declares the file's hash before
 // any program code, so the first declaration is the instrumentation's own.

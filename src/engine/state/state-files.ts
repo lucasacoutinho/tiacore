@@ -13,7 +13,7 @@ import * as FileSystem from 'effect/FileSystem'
 
 import type { StoredGraph } from '../ports.ts'
 import { TiaIo } from '../../wire/errors.ts'
-import { isStoredGraph } from './graph-guard.ts'
+import { parseRuntimeGraph } from '../../wire/runtime-graph.ts'
 import {
   assembleGraph,
   digest,
@@ -177,10 +177,10 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
       if (segment === null) return NO_GRAPH
       records[jobs[index]!.domain].push(segment)
     }
-    const graph = assembleGraph(manifest, records)
-    return isStoredGraph(graph)
-      ? ({ digest: manifest.generation, graph } satisfies StoredGraph)
-      : NO_GRAPH
+    const graph = parseRuntimeGraph(assembleGraph(manifest, records))
+    return graph === null
+      ? NO_GRAPH
+      : ({ digest: manifest.generation, graph } satisfies StoredGraph)
   })
 
   /** Reads and validates the stored graph. Anything wrong reads as no graph. */
