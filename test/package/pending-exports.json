@@ -19,7 +19,6 @@
   "./conformance executeAdapterCertification",
   "./conformance parseAdapterCertificationReceipt",
   "./core TiaCore",
-  "./core formatRunPlanDetails",
   "./evidence DEFAULT_TIA_EVIDENCE_HEADER",
   "./evidence TIA_EVIDENCE_DIRECTORY_ENV",
   "./evidence TIA_EVIDENCE_HEADER_ENV",
