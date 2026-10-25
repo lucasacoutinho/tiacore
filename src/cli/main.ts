@@ -19,14 +19,11 @@ const root = Command.make('tiacore').pipe(
   Command.withDescription('Test impact analysis for heterogeneous test suites'),
   Command.withSubcommands([
     ...protocolCommands,
-    certifyCommand,
-  Command.withSubcommands([
-    ...protocolCommands,
     artifactsCommand,
+    certifyCommand,
     gradleCommand,
     k6Command,
     maestroCommand,
-  ]),
     runCommand,
   ]),
 )
