@@ -83,6 +83,14 @@ describe('built package', () => {
     }
   })
 
+  test('the Vitest worker setup loads no Effect module', () => {
+    const effectInputs = [
+      ...staticInputs('dist/entries/vitest-setup.js'),
+    ].filter((input) => input.includes('node_modules/effect/'))
+    expect(effectInputs).toEqual([])
+    expect(staticInputs('dist/entries/vitest-setup.js').size).toBeGreaterThan(0)
+  })
+
   test('the CLI version path loads no Effect module', () => {
     const effectInputs = [...staticInputs('dist/entries/cli.js')].filter(
       (input) => input.includes('node_modules/effect/'),

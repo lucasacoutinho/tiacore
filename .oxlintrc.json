@@ -64,9 +64,10 @@
       }
     },
     {
-      "files": ["src/entries/**"],
+      "files": ["src/entries/**", "src/runners/vitest/setup.ts"],
       "rules": {
-        "unicorn/require-module-specifiers": "off"
+        "unicorn/require-module-specifiers": "off",
+        "import/no-empty-named-blocks": "off"
       }
     }
   ]

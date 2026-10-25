@@ -13,9 +13,15 @@ import { join } from 'node:path'
 import { build } from 'esbuild'
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
-const entries = readdirSync('src/entries')
-  .filter((file) => file.endsWith('.ts'))
-  .map((file) => join('src/entries', file))
+const entries = {
+  ...Object.fromEntries(
+    readdirSync('src/entries')
+      .filter((file) => file.endsWith('.ts'))
+      .map((file) => [file.replace(/\.ts$/u, ''), join('src/entries', file)]),
+  ),
+  // Loaded by Vitest workers through setupFiles, so it is its own file.
+  'vitest-setup': 'src/runners/vitest/setup.ts',
+}
 
 rmSync('dist', { force: true, recursive: true })
 mkdirSync('.build', { recursive: true })

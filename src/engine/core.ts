@@ -1,7 +1,6 @@
 import { resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
-import * as Layer from 'effect/Layer'
 
 import {
   DEFAULT_CACHE_DIR,
@@ -18,7 +17,6 @@ import type {
   TiaTestEdge,
 } from '../core/runtime.ts'
 import { runPromise } from '../host/runtime.ts'
-import { BaselinesLive } from './baseline/live.ts'
 import {
   hashBytes,
   projectFingerprint,
@@ -31,13 +29,13 @@ import {
   snapshotProject,
   type ProjectSnapshot,
 } from './lifecycle.ts'
+import { EngineLive } from './layers.ts'
 import { GraphStore } from './ports.ts'
 import {
   notifyReplayAdapters,
   replayedResults,
   replayRunEvent,
 } from './replay.ts'
-import { GraphStoreLive } from './state/graph-store.ts'
 import { updateGraph } from './state/update.ts'
 import { writeVerificationSnapshot } from './verification-snapshot.ts'
 
@@ -72,8 +70,6 @@ export interface TiaCoreEngineOptions
   readonly log: boolean
   readonly replayAdapters: readonly TiaReplayAdapter[]
 }
-
-const EngineLive = Layer.mergeAll(GraphStoreLive, BaselinesLive)
 
 function normalizedOptions(
   root: string,
