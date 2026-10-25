@@ -450,9 +450,14 @@ describe('workspace config', () => {
       `export default { lanes: [{ id: 'bad', command: ${JSON.stringify(process.execPath)}, arguments: ['-e', 'process.exit(1)'] }] }`,
     )
     const output = join(path, '..', 'out.json')
-    await expect(
-      runCli(['run', '--config', path, '--output', output]),
-    ).rejects.toThrow(/did not succeed/)
+    // As in 1.x, a failed run is reported by the receipt and the exit code only.
+    const previous = process.exitCode
+    try {
+      await runCli(['run', '--config', path, '--output', output])
+      expect(process.exitCode).toBe(1)
+    } finally {
+      process.exitCode = previous
+    }
     expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
       lanes: [{ id: 'bad', status: 'failed' }],
       success: false,

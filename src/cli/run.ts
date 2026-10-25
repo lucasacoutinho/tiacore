@@ -35,6 +35,7 @@ export const runCommand = Command.make(
     if (!succeeded) {
       return yield* new TiaFailed({
         message: 'TIA workspace run did not succeed',
+        silent: true,
       })
     }
   }),

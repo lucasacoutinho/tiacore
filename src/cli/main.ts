@@ -25,6 +25,8 @@ export interface CliOutcome {
   readonly code: number
   /** What went wrong, for stderr; absent on success and on requested help. */
   readonly message?: string
+  /** The failure was already reported, for example in a written receipt. */
+  readonly silent?: boolean
 }
 
 /** Runs the CLI without printing failures; the caller decides where they go. */
@@ -46,12 +48,18 @@ export async function execute(argv: readonly string[]): Promise<CliOutcome> {
       message: error.errors.map((problem) => problem.message).join('\n'),
     }
   }
+  if (error._tag === 'TiaFailed' && error.silent === true)
+    return { code: 1, silent: true }
   return { code: 1, message: error.message }
 }
 
 /** The 1.x programmatic entry: resolves on success and throws the failure message. */
 export async function runCli(argv: readonly string[]): Promise<void> {
   const outcome = await execute(argv)
+  if (outcome.silent === true) {
+    process.exitCode = outcome.code
+    return
+  }
   if (outcome.code !== 0) {
     throw new Error(
       outcome.message ?? `tiacore exited with code ${outcome.code}`,

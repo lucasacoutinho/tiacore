@@ -26,12 +26,17 @@ export class TiaUntrusted extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()('TiaUntrusted', { message: Schema.String }) {}
 
-/** A verification or certification receipt reports failure. */
+/**
+ * A verification, certification or workspace receipt reports failure. When
+ * `silent` is set the receipt already says why, so the CLI exits 1 without a
+ * message, as 1.x did.
+ */
 export class TiaFailed extends Schema.TaggedError<
   TiaFailed,
   { readonly brand: unique symbol }
 >()('TiaFailed', {
   message: Schema.String,
+  silent: Schema.optionalKey(Schema.Boolean),
 }) {}
 
 export type TiaError = TiaFailed | TiaInvalid | TiaIo | TiaUntrusted

@@ -7,7 +7,7 @@ import * as Schema from 'effect/Schema'
 import { certifyAdapterReceipt } from '../assurance/certify/parse.ts'
 import { executeCertification } from '../assurance/certify/execute.ts'
 import { ExecutableSpec } from '../assurance/certify/spec.ts'
-import { TiaInvalid } from '../wire/errors.ts'
+import { TiaFailed, TiaInvalid } from '../wire/errors.ts'
 import { describeIssue } from '../wire/issue.ts'
 import { attempt, emitJson, readJson } from './io.ts'
 
@@ -58,7 +58,11 @@ const execute = Command.make(
     const receipt = yield* executeCertification(spec)
     yield* emitJson(receipt, Option.getOrUndefined(options.output))
     // The receipt is written first so a failing run still leaves its evidence.
-    yield* attempt(() => certifyAdapterReceipt(receipt))
+    yield* attempt(() => certifyAdapterReceipt(receipt)).pipe(
+      Effect.mapError(
+        (error) => new TiaFailed({ message: error.message, silent: true }),
+      ),
+    )
   }),
 ).pipe(
   Command.withDescription('Execute an adapter certification specification'),
