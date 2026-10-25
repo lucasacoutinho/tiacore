@@ -127,12 +127,13 @@
     "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
     "check:architecture": "vitest run --config vitest.archer.config.ts",
     "check:package": "npm run build && publint && attw --pack . --profile esm-only",
-    "check:proofs": "cd proofs && lake build && lake exe tia-axioms",
+    "check:proofs": "cd proofs && lake build --wfail && lake exe tia-axioms && cd .. && node config/selection-vectors.ts check && node config/selection-vectors.ts fuzz 20000",
     "check:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
     "check:go": "cd sdks/go && go test -count=1 ./... && go vet ./...",
     "check:legacy": "cd .legacy && npm test",
     "release:check": "npm run check && npm run check:architecture && npm run check:package && npm run check:proofs && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
-    "prepare": "effect-tsgo patch --typescript --no-oxlint"
+    "prepare": "effect-tsgo patch --typescript --no-oxlint",
+    "build:legacy": "cd .legacy && npm run build"
   },
   "dependencies": {
     "picomatch": "^4.0.7",

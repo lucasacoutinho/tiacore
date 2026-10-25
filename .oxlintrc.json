@@ -40,7 +40,20 @@
     "unicorn/no-array-reverse": "off",
     "unicorn/no-array-sort": "off",
     "vitest/no-conditional-expect": "off",
-    "vitest/valid-expect": "off"
+    "vitest/valid-expect": "off",
+    "vitest/no-standalone-expect": [
+      "error",
+      {
+        "additionalTestBlockFunctions": [
+          "it.prop",
+          "it.effect",
+          "it.live",
+          "it.effect.prop",
+          "it.scoped",
+          "it.layer"
+        ]
+      }
+    ]
   },
   "overrides": [
     {

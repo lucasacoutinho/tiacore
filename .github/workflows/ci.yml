@@ -26,6 +26,8 @@ jobs:
           cache: npm
           node-version: ${{ matrix.node }}
       - run: npm ci
+      - run: npm ci && npm run build
+        working-directory: .legacy
       - run: npm run check
       - run: npm run check:architecture
       - run: npm run check:package
@@ -35,12 +37,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: 24
+      - run: npm ci
       - uses: leanprover/lean-action@v1
         with:
           lake-package-directory: proofs
           build-args: --wfail
-      - run: lake exe tia-axioms
-        working-directory: proofs
+      - run: npm run check:proofs
 
   sdks:
     name: Python and Go SDKs

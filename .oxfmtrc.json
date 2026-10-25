@@ -6,7 +6,8 @@
     "coverage/**",
     "dist/**",
     "proofs/.lake/**",
-    "sdks/python/dist/**"
+    "sdks/python/dist/**",
+    "conformance/selection/v1/vectors.json"
   ],
   "printWidth": 80,
   "proseWrap": "always",
