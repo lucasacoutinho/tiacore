@@ -8,12 +8,15 @@ const root = new URL('../../', import.meta.url)
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
 
-/** True when `source` names `title` literally or as a `%s` or `${…}` title template. */
+/** True when `source` names `title` literally or as a `%s`, `$name` or `${…}` title template. */
 function containsTitle(source: string, title: string): boolean {
   if (source.includes(title)) return true
   const templates = [
     ...[...source.matchAll(/'([^'\n]*%[sdi][^'\n]*)'/gu)].map(([, text]) =>
       escape(text ?? '').replace(/%[sdi]/gu, '.+'),
+    ),
+    ...[...source.matchAll(/'([^'\n]*\$[A-Za-z_][^'\n]*)'/gu)].map(([, text]) =>
+      escape(text ?? '').replace(/\\\$[A-Za-z_][\w.]*/gu, '.+'),
     ),
     ...[...source.matchAll(/`([^`\n]*\$\{[^`\n]*)`/gu)].map(([, text]) =>
       (text ?? '')
