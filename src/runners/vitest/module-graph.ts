@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 
-import { projectRelative } from '../../engine/host-path.ts'
+import { trackedFile } from '../../engine/host-path.ts'
 
 interface ModuleNodeLike {
   file: string | null
@@ -42,6 +42,7 @@ export function importedAssetFiles(
   graph: ModuleGraphLike,
   moduleId: string,
   root: string,
+  boundary = root,
 ): string[] {
   const queue = entryModules(graph, moduleId)
   const visited = new Set<ModuleNodeLike>()
@@ -62,8 +63,8 @@ export function importedAssetFiles(
         continue
       }
 
-      const relative = projectRelative(root, file)
-      if (relative !== null && relative !== '') {
+      const relative = trackedFile(root, file, boundary)
+      if (relative !== null) {
         assets.add(relative)
       }
     }
@@ -76,6 +77,7 @@ export function directlyImportedAssetFiles(
   graph: ModuleGraphLike,
   moduleId: string,
   root: string,
+  boundary = root,
 ): string[] {
   const assets = new Set<string>()
 
@@ -86,8 +88,8 @@ export function directlyImportedAssetFiles(
         continue
       }
 
-      const relative = projectRelative(root, file)
-      if (relative !== null && relative !== '') {
+      const relative = trackedFile(root, file, boundary)
+      if (relative !== null) {
         assets.add(relative)
       }
     }

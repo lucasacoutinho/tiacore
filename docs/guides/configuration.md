@@ -55,6 +55,12 @@ tia({
 | `replayReporters`    | Sends detached cached-test events to named reporter instances.                                |
 | `log`                | Prints baseline provenance, selection reasons, a bounded recap, and the bypass notice.        |
 
+Vitest also instruments a module outside its root when the module is inside the
+same git repository and the repository-relative path matches `include` and not
+`exclude`. The graph stores that file relative to the Vitest root, so the path
+may begin with `..`. A changed file that is not in the graph still runs every
+test.
+
 Node and Bun share `cacheDir`, `concurrency`, `files`, `fresh`, `ignoreChanges`,
 `log`, `onUnknownChange`, `replayAdapters`, and `root`. Their cache paths are
 namespaced by runner.

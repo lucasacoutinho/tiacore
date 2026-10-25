@@ -23,6 +23,10 @@ follow Semantic Versioning.
   File filters, `-t`, `--changed`, `--related`, `--project` and `--tagsFilter`
   are named the same way. `log: false` hides the line. Before, that bypass
   printed nothing.
+- The Vitest plugin records a source file outside the Vitest root when that file
+  is inside the same git repository. Editing the file runs the tests whose
+  import closure reaches it. A changed file the graph does not name still runs
+  the whole suite.
 
 ## 2.0.0 - 2026-10-25
 

@@ -192,6 +192,7 @@ export function makeGit(
 
   return {
     currentSha,
+    repositoryTop,
     isAncestor: (root: string, ancestor: string, descendant: string) =>
       run(root, ['merge-base', '--is-ancestor', ancestor, descendant]).pipe(
         Effect.map((output) => output !== null),

@@ -5,7 +5,7 @@ import type {
   TiaCoverageTemplate,
 } from '../../core/runtime.ts'
 import type { ProbeCounterMap } from '../../probe/types.ts'
-import { projectFile } from '../host-path.ts'
+import { trackedFile } from '../host-path.ts'
 import { coverageMapId, coverageTemplate } from '../state/coverage.ts'
 
 // Istanbul prepends a coverage function that declares the file's hash before
@@ -38,23 +38,32 @@ export class CoverageTemplates {
     }
   }
 
-  /** Lists project files whose counters have no registered template. */
-  unknownFiles(root: string, counters: ProbeCounterMap): string[] {
+  /** Lists tracked files whose counters have no registered template. */
+  unknownFiles(
+    root: string,
+    counters: ProbeCounterMap,
+    boundary = root,
+  ): string[] {
     return Object.entries(counters)
       .filter(
         ([path, file]) =>
-          !this.byHash.has(file.hash) && projectFile(root, path) !== null,
+          !this.byHash.has(file.hash) &&
+          trackedFile(root, path, boundary) !== null,
       )
       .map(([path]) => path)
   }
 
-  /** Converts worker counters into a project-relative graph record. */
-  record(root: string, counters: ProbeCounterMap): TiaCoverageRecord {
+  /** Converts worker counters into a root-relative graph record. */
+  record(
+    root: string,
+    counters: ProbeCounterMap,
+    boundary = root,
+  ): TiaCoverageRecord {
     const record: TiaCoverageRecord = {}
 
     for (const [key, file] of Object.entries(counters)) {
       const map = this.byHash.get(file.hash)
-      const path = projectFile(root, key)
+      const path = trackedFile(root, key, boundary)
       if (map === undefined || path === null) continue
       record[path] = { b: file.b, f: file.f, map, s: file.s }
     }
