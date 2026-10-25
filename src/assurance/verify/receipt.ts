@@ -1,25 +1,27 @@
 import { byCodeUnit } from '../../core/canonical.ts'
+import { snapshotPlan } from '../../core/snapshot-plan.ts'
 import {
+  type TiaPhaseSnapshot,
   type TiaVerificationAccuracy,
   type TiaVerificationIssue,
   type TiaVerificationPerformance,
   type TiaVerificationPhaseResult,
   type TiaVerificationRunnerResult,
-  type TiaVerificationSnapshot,
 } from '../../core/verification.ts'
 import { compareVerificationSnapshots } from './compare.ts'
+import { compareProtocolSnapshots } from './protocol-compare.ts'
 
 export interface ExecutedPhase {
   readonly duration: number
-  readonly snapshots: readonly TiaVerificationSnapshot[]
+  readonly snapshots: readonly TiaPhaseSnapshot[]
   readonly status: number
 }
 
 function indexed(
-  values: readonly TiaVerificationSnapshot[],
+  values: readonly TiaPhaseSnapshot[],
   issues: TiaVerificationIssue[],
-): Map<string, TiaVerificationSnapshot> {
-  const byRunner = new Map<string, TiaVerificationSnapshot>()
+): Map<string, TiaPhaseSnapshot> {
+  const byRunner = new Map<string, TiaPhaseSnapshot>()
   for (const snapshot of values) {
     if (byRunner.has(snapshot.runner)) {
       issues.push({
@@ -34,9 +36,33 @@ function indexed(
   return byRunner
 }
 
+/** Compares one runner's phases; a runner's kind cannot change between them. */
+function compareSnapshots(
+  selective: TiaPhaseSnapshot,
+  full: TiaPhaseSnapshot,
+): TiaVerificationRunnerResult {
+  if (selective.kind === 'protocol' && full.kind === 'protocol') {
+    return compareProtocolSnapshots(selective, full)
+  }
+  if (selective.kind !== 'protocol' && full.kind !== 'protocol') {
+    return compareVerificationSnapshots(selective, full)
+  }
+  const issue: TiaVerificationIssue = {
+    code: 'snapshot-invalid',
+    message: `${full.runner} wrote a different kind of snapshot in each phase`,
+    runner: full.runner,
+  }
+  return {
+    issues: [issue],
+    runner: full.runner,
+    selection: null,
+    verified: false,
+  }
+}
+
 export function comparePhases(
-  selective: readonly TiaVerificationSnapshot[],
-  full: readonly TiaVerificationSnapshot[],
+  selective: readonly TiaPhaseSnapshot[],
+  full: readonly TiaPhaseSnapshot[],
 ): { issues: TiaVerificationIssue[]; runners: TiaVerificationRunnerResult[] } {
   const issues: TiaVerificationIssue[] = []
   const selectiveByRunner = indexed(selective, issues)
@@ -68,7 +94,7 @@ export function comparePhases(
       })
       continue
     }
-    const result = compareVerificationSnapshots(selectiveSnapshot, fullSnapshot)
+    const result = compareSnapshots(selectiveSnapshot, fullSnapshot)
     issues.push(...result.issues)
     runners.push(result)
   }
@@ -112,13 +138,16 @@ export function accuracyReceipt(
 export function phaseResult(phase: ExecutedPhase): TiaVerificationPhaseResult {
   return {
     duration: phase.duration,
-    metrics: phase.snapshots.map((snapshot) => ({
-      executedTests: snapshot.executedTestIds.length,
-      mode: snapshot.plan.mode,
-      reason: snapshot.plan.reason,
-      replayedTests: snapshot.plan.replayedTests,
-      runner: snapshot.runner,
-    })),
+    metrics: phase.snapshots.map((snapshot) => {
+      const plan = snapshotPlan(snapshot)
+      return {
+        executedTests: snapshot.executedTestIds.length,
+        mode: plan.mode,
+        reason: plan.reason,
+        replayedTests: plan.replayedTests,
+        runner: snapshot.runner,
+      }
+    }),
     runners: phase.snapshots
       .map((snapshot) => snapshot.runner)
       .sort(byCodeUnit),
@@ -127,8 +156,8 @@ export function phaseResult(phase: ExecutedPhase): TiaVerificationPhaseResult {
 }
 
 function total(
-  snapshots: readonly TiaVerificationSnapshot[],
-  value: (snapshot: TiaVerificationSnapshot) => number,
+  snapshots: readonly TiaPhaseSnapshot[],
+  value: (snapshot: TiaPhaseSnapshot) => number,
 ): number {
   return snapshots.reduce((sum, snapshot) => sum + value(snapshot), 0)
 }
@@ -151,16 +180,17 @@ export function performanceReceipt(
       fullExecutedTests === 0
         ? null
         : 1 - selectiveExecutedTests / fullExecutedTests,
-    fallbacks: selective.snapshots.flatMap((snapshot) =>
-      snapshot.plan.mode === 'record'
-        ? [{ reason: snapshot.plan.reason, runner: snapshot.runner }]
-        : [],
-    ),
+    fallbacks: selective.snapshots.flatMap((snapshot) => {
+      const plan = snapshotPlan(snapshot)
+      return plan.mode === 'record'
+        ? [{ reason: plan.reason, runner: snapshot.runner }]
+        : []
+    }),
     fullExecutedTests,
     selectiveExecutedTests,
     selectiveReplayedTests: total(
       selective.snapshots,
-      (snapshot) => snapshot.plan.replayedTests,
+      (snapshot) => snapshotPlan(snapshot).replayedTests,
     ),
     speedup:
       selective.duration === 0 ? null : full.duration / selective.duration,

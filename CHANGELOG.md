@@ -71,6 +71,21 @@ Effect package and write no Effect code, and no public type mentions Effect. The
   takes `retention: { keep?, maxAgeDays? }` or `false`, and
   `tiacore artifacts publish|promote` takes `--keep`, `--max-age-days` and
   `--no-prune`.
+- `tiacore verify` works over k6, Maestro, Gradle and the Python and Go SDKs.
+  They run suites (a profile, a flow, a test class, a pytest file, a Go
+  package), not test cases, and wrote no snapshot, so a verification that
+  reached only them failed with `snapshot-invalid`. They now write a
+  suite-granular snapshot (`kind: "protocol"`): the protocol plan, the executed
+  suite ids, a `suiteOutcomes` map of `passed`, `failed` or `unknown`, and the
+  impact graph the run would record. The verifier compares outcomes, the
+  recorded observations and the full phase's coverage of its plan, and audits
+  selection by asking the protocol planner which suites the changed files reach.
+  A suite the selective phase did not run counts as passed, and a failure the
+  full phase finds there is an `outcome-mismatch`. An outcome a run cannot
+  attribute to a suite is `unknown` and never verifies. Receipt entries of these
+  runners carry `unit: "suite"`. Both new fields are optional, so verification
+  snapshot version 1 and receipt version 2 stay as they were. The outcome rule
+  is modeled in `proofs/Tia/Verdict.lean`.
 
 ### Changed
 
@@ -97,6 +112,13 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 - `TIA_FRESH` accepts `1`, `true`, `yes` and `on` in any case in every runner
   and in the Go and Python SDKs. Before, only the Vitest plugin did. Playwright,
   the shared engine and Go accepted only `1`.
+- The Go SDK's environment fingerprint ignores `TIA_VERIFICATION_DIRECTORY` and
+  `TIA_VERIFICATION_PHASE`, as it already ignores `TIA_FRESH`. Without that, a
+  verified run always saw a changed environment and planned every package.
+- The `run()` of k6, Maestro and Gradle reads `TIA_FRESH` and plans every suite,
+  like every other runner. Before, they ignored it, so the full phase of
+  `tiacore verify` would have repeated the selective run. `forceFull` still
+  works.
 - `TIACORE_NODE_DEBUG` accepts `1`, `true`, `yes` and `on` in any case, like
   every other flag. Before, only `1` turned on the Node execution child's
   diagnostics.

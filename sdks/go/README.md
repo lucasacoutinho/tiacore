@@ -63,3 +63,32 @@ it returns matches the TypeScript planner field for field, including the
 - `TIA_FRESH` set to `1`, `true`, `yes` or `on` (any ASCII case) in the process
   environment forces a full run.
 - A package at the project root is a suite like any other.
+
+## Verification
+
+`tiacore verify -- <command>` runs a command twice, selective then fresh, and
+compares what each run executed and how it ended. It sets
+`TIA_VERIFICATION_DIRECTORY` and `TIA_VERIFICATION_PHASE` (`selective` or
+`full`); when both are in the process environment, a run writes one snapshot,
+`<directory>/<phase>/<sha256 of runner NUL graph fingerprint>.json`, after
+`go test` finished, whatever its exit status. Setting only one of them, or a
+phase other than `selective` or `full`, fails the run before it plans anything.
+With neither set nothing changes: no snapshot, and the output of `go test`
+passes through untouched.
+
+- The runner is `go-test:` plus the state file relative to the project root, for
+  example `go-test:.tia/go/state.json`, so two lanes with different cache
+  directories stay apart.
+- The suites that ran are the plan's selected suites (every suite for a full
+  plan, none for a skip plan). The graph is the one the run promotes, found
+  again after `go test`; it is incomplete when project files changed during the
+  run, and no snapshot is written when it cannot be found.
+- An exit status of 0 passes every executed suite. For any other status the
+  snapshot reads the package results `go test` printed (`ok  \t<package>`,
+  `FAIL\t<package>` with or without `[build failed]` or `[setup failed]`,
+  `?   \t<package>\t[no test files]`, and the package-level events of `-json`):
+  a package that reported a result has it (a package without test files was
+  built and passed), and every other suite is `unknown`. A package that reported
+  both results is `unknown` too.
+- The environment fingerprint ignores the two variables, so a verification
+  selects against the state of an earlier run made without them.

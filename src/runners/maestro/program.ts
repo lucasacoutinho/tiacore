@@ -20,6 +20,7 @@ import {
   planExternal,
   protocolSuite,
   runExternal,
+  withFresh,
 } from '../external.ts'
 import type {
   DiscoverMaestroOptions,
@@ -203,13 +204,14 @@ export const planSuites = (
 export const run = Effect.fn('tia.maestro.run')(function* (
   options: TiaMaestroOptions,
 ) {
+  const planning = withFresh(options)
   return yield* runExternal({
     defaultArguments: ['test'],
     name: 'maestro',
     options,
     prepare: Effect.fnUntraced(function* (graph) {
       const suites = yield* discover(options)
-      const plan = yield* planSuites(suites, { ...options, graph })
+      const plan = yield* planSuites(suites, { ...planning, graph })
       return {
         plan,
         recordGraph: () =>

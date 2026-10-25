@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { dirname, resolve } from 'node:path'
+import { dirname, relative, resolve, sep } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
@@ -7,10 +7,12 @@ import type * as PlatformError from 'effect/PlatformError'
 import { glob } from 'tinyglobby'
 
 import { byCodeUnit } from '../core/canonical.ts'
+import { freshRequested } from '../core/env.ts'
 import type {
   ExternalPlanFields,
   ExternalSuitesResult,
 } from '../core/external.ts'
+import type { TiaSuiteOutcome } from '../core/verification.ts'
 import type {
   TiaDependencyObservation,
   TiaImpactGraph,
@@ -22,6 +24,10 @@ import type {
 import { TIA_PROTOCOL_VERSION } from '../core/protocol.ts'
 import { createImpactPlan } from '../engine/plan/protocol.ts'
 import { aggregateStatus, executeSuites } from '../engine/scheduling.ts'
+import {
+  verificationTarget,
+  writeProtocolVerificationSnapshot,
+} from '../engine/verification-snapshot.ts'
 import { parseImpactGraph } from '../wire/decode.ts'
 import {
   errorMessage,
@@ -39,6 +45,17 @@ export function attempt<A>(compute: () => A): Effect.Effect<A, TiaInvalid> {
       }),
     try: compute,
   })
+}
+
+/**
+ * The options a run plans with: `TIA_FRESH` asks for a full run exactly as
+ * `forceFull` does, like it does in every other runner.
+ */
+export function withFresh<Options extends { forceFull?: boolean }>(
+  options: Options,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Options {
+  return freshRequested(env) ? { ...options, forceFull: true } : options
 }
 
 /** sha256 over the suites sorted by id; the descriptors' key order is part of it. */
@@ -175,6 +192,18 @@ export const writeAdapterGraph = Effect.fnUntraced(function* (
   )
 })
 
+/**
+ * The name `tiacore verify` knows a suite-granular runner by: its adapter and
+ * the state file it keeps, which tells two lanes of one command apart.
+ */
+export function verificationRunnerName(
+  name: string,
+  root: string,
+  graphPath: string,
+): string {
+  return `${name}:${relative(root, graphPath).split(sep).join('/')}`
+}
+
 /** What an adapter decided before any suite runs. */
 export interface PreparedSuites<Suite extends TiaSuiteDescriptor> {
   readonly plan: TiaImpactPlan
@@ -218,6 +247,7 @@ export const runExternal = Effect.fnUntraced(function* <
   Requirements,
 >(run: ExternalSuitesRun<Suite, Failure, Requirements>) {
   const { options } = run
+  const verification = yield* verificationTarget(process.env)
   const root = resolve(options.root)
   const graphPath = resolve(
     root,
@@ -241,7 +271,26 @@ export const runExternal = Effect.fnUntraced(function* <
     suites: suites.filter((suite) => selected.has(suite.id)),
   })
   const status = aggregateStatus(executions)
-  if (status === 0) yield* writeAdapterGraph(graphPath, recordGraph())
+  // A failed run promotes no graph, but a verification still compares the one
+  // it would have recorded.
+  if (status === 0 || verification !== undefined) {
+    const recorded = recordGraph()
+    if (status === 0) yield* writeAdapterGraph(graphPath, recorded)
+    yield* writeProtocolVerificationSnapshot({
+      executed: executions.map((execution) => execution.suiteId),
+      graph: recorded,
+      outcomes: Object.fromEntries(
+        executions.map((execution): [string, TiaSuiteOutcome] => [
+          execution.suiteId,
+          execution.status === 0 ? 'passed' : 'failed',
+        ]),
+      ),
+      plan,
+      runner: verificationRunnerName(run.name, root, graphPath),
+      success: status === 0,
+      target: verification,
+    })
+  }
   const result: ExternalSuitesResult = {
     executions,
     plan,

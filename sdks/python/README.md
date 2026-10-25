@@ -38,3 +38,25 @@ it returns matches the TypeScript planner field for field.
 - A graph file that is missing, unreadable, not UTF-8 or not valid JSON counts
   as no graph and yields a full run. Symlinks that leave the project are
   skipped, and relative imports are followed.
+
+## Verification snapshots
+
+`tiacore verify -- <command>` runs a command selectively and in full with
+`TIA_VERIFICATION_DIRECTORY` and `TIA_VERIFICATION_PHASE` (`selective` or
+`full`) set. When both are set, `TiaPytestRunner.run` also writes a
+suite-granular snapshot to
+`<directory>/<phase>/<sha256 of runner NUL graph fingerprint>.json`: the plan,
+the graph it would promote (also after a failed run), the suites it executed and
+how each ended. The runner is `pytest:<graph_path>`, for example
+`pytest:.tia/pytest/graph.json`. With neither variable set nothing changes; with
+only one, or an unknown phase, `run` raises `ValueError` before it plans.
+
+A run that exits 0 passes every executed suite. When a target is set, pytest
+also gets `--junitxml=<temporary file>` after `command_arguments`, and a run
+that exits 1 is attributed through that report: a testcase belongs to the suite
+whose module name (`tests/test_a.py` is `tests.test_a`) is its `classname` or a
+dotted prefix of it. A suite with a failing or erroring testcase is `failed`, a
+suite whose testcases all passed is `passed`, and a suite without a testcase is
+`unknown`. A failure no suite owns (a collection error, a `rootdir` that names
+tests differently), a report that is missing or unreadable, a report without any
+failure, and any other exit status leave every executed suite `unknown`.

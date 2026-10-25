@@ -10,7 +10,7 @@ import {
   type TiaVerificationOptions,
   type TiaVerificationPhase,
   type TiaVerificationReceipt,
-  type TiaVerificationSnapshot,
+  type TiaPhaseSnapshot,
 } from '../../core/verification.ts'
 import { inheritedEnvironment, runProcess } from '../../engine/process.ts'
 import {
@@ -36,7 +36,7 @@ const readSnapshots = Effect.fnUntraced(function* (
   const entries = yield* fs
     .readDirectory(root)
     .pipe(Effect.orElseSucceed((): string[] => []))
-  const values: TiaVerificationSnapshot[] = []
+  const values: TiaPhaseSnapshot[] = []
   for (const entry of entries.sort(byCodeUnit)) {
     if (!entry.endsWith('.json')) continue
     const text = yield* fs

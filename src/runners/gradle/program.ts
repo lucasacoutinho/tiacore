@@ -8,10 +8,16 @@ import { XMLParser } from 'fast-xml-parser'
 import { byCodeUnit } from '../../core/canonical.ts'
 import type {
   TiaDependencyObservation,
+  TiaImpactGraph,
   TiaInvalidator,
 } from '../../core/protocol.ts'
+import type { TiaSuiteOutcome } from '../../core/verification.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
 import { inheritedEnvironment, runAttached } from '../../engine/process.ts'
+import {
+  verificationTarget,
+  writeProtocolVerificationSnapshot,
+} from '../../engine/verification-snapshot.ts'
 import {
   attempt,
   catalogFingerprint,
@@ -20,6 +26,8 @@ import {
   ioFailure,
   planExternal,
   readAdapterGraph,
+  verificationRunnerName,
+  withFresh,
   writeAdapterGraph,
 } from '../external.ts'
 import type {
@@ -288,9 +296,34 @@ const runMarker = Effect.fnUntraced(function* (directory: string) {
   return Option.getOrUndefined(info.mtime)
 })
 
+/**
+ * How each selected class ended, from the JUnit cases of the run: failed when
+ * a case failed, passed when it reported cases that all held, and unknown when
+ * it reported none.
+ */
+function classOutcomes(
+  selected: readonly GradleSuite[],
+  cases: readonly JUnitCase[],
+): Record<string, TiaSuiteOutcome> {
+  return Object.fromEntries(
+    selected.map((suite): [string, TiaSuiteOutcome] => {
+      const own = cases.filter((item) => item.className === suite.className)
+      return [
+        suite.id,
+        own.length === 0
+          ? 'unknown'
+          : own.some((item) => item.status === 'failed')
+            ? 'failed'
+            : 'passed',
+      ]
+    }),
+  )
+}
+
 export const run = Effect.fn('tia.gradle.run')(function* (
   options: TiaGradleOptions,
 ) {
+  const verification = yield* verificationTarget(process.env)
   const root = resolve(options.root)
   const graphPath = resolve(root, options.graphPath ?? '.tia/gradle/graph.json')
   const graph =
@@ -298,16 +331,39 @@ export const run = Effect.fn('tia.gradle.run')(function* (
       ? yield* readAdapterGraph(graphPath)
       : options.graph
   const suites = yield* discover(options)
-  const plan = yield* planSuites(suites, { ...options, graph })
+  const plan = yield* planSuites(suites, { ...withFresh(options), graph })
   const selected = new Set(plan.selected)
-  const classes = suites
-    .filter((suite) => selected.has(suite.id))
-    .map((suite) => suite.className)
+  const chosen = suites.filter((suite) => selected.has(suite.id))
+  const classes = chosen.map((suite) => suite.className)
+  const recordGraph = createGraph(root, {
+    environmentFingerprint: options.currentEnvironmentFingerprint,
+    ...(options.currentFingerprint === undefined
+      ? {}
+      : { fingerprint: options.currentFingerprint }),
+    ...(options.sources === undefined ? {} : { sources: options.sources }),
+    suites,
+  })
+  const verify = (
+    recorded: TiaImpactGraph,
+    junit: readonly JUnitCase[],
+    success: boolean,
+  ) =>
+    writeProtocolVerificationSnapshot({
+      executed: chosen.map((suite) => suite.id),
+      graph: recorded,
+      outcomes: classOutcomes(chosen, junit),
+      plan,
+      runner: verificationRunnerName('gradle', root, graphPath),
+      success,
+      target: verification,
+    })
   if (classes.length === 0) {
+    if (verification !== undefined) yield* verify(yield* recordGraph, [], true)
     return { cases: [], plan, status: 0, success: true }
   }
   const command = yield* executable(root, options.command)
-  const { cases, status } = yield* Effect.scoped(
+  const reportPatterns = options.reports ?? DEFAULT_REPORTS
+  const { cases, forOutcomes, status } = yield* Effect.scoped(
     Effect.gen(function* () {
       const started = yield* runMarker(dirname(graphPath)).pipe(
         Effect.orElseSucceed(() => new Date()),
@@ -323,35 +379,31 @@ export const run = Effect.fn('tia.gradle.run')(function* (
         env: inheritedEnvironment(options.environment),
       })
       const reported =
-        exit === 0
-          ? yield* readReports(
-              root,
-              options.reports ?? DEFAULT_REPORTS,
-              started,
+        exit === 0 ? yield* readReports(root, reportPatterns, started) : []
+      // A failing run reports no cases, but a verification still wants to
+      // know which classes failed.
+      const attributable =
+        exit !== 0 && verification !== undefined
+          ? yield* readReports(root, reportPatterns, started).pipe(
+              Effect.orElseSucceed((): JUnitCase[] => []),
             )
-          : []
-      return { cases: reported, status: exit }
+          : reported
+      return { cases: reported, forOutcomes: attributable, status: exit }
     }),
   )
-  const observed = new Set(cases.map((testCase) => testCase.className))
+  const reportedClasses = new Set(cases.map((testCase) => testCase.className))
   const missingReports =
     (options.requireReports ?? true) &&
-    classes.some((className) => !observed.has(className))
+    classes.some((className) => !reportedClasses.has(className))
   const failedCases = cases.some((testCase) => testCase.status === 'failed')
   const finalStatus =
     status === 0 && (missingReports || failedCases) ? 1 : status
-  if (finalStatus === 0) {
-    yield* writeAdapterGraph(
-      graphPath,
-      yield* createGraph(root, {
-        environmentFingerprint: options.currentEnvironmentFingerprint,
-        ...(options.currentFingerprint === undefined
-          ? {}
-          : { fingerprint: options.currentFingerprint }),
-        ...(options.sources === undefined ? {} : { sources: options.sources }),
-        suites,
-      }),
-    )
+  // A failed run promotes no graph, but a verification still compares the one
+  // it would have recorded.
+  if (finalStatus === 0 || verification !== undefined) {
+    const recorded = yield* recordGraph
+    if (finalStatus === 0) yield* writeAdapterGraph(graphPath, recorded)
+    yield* verify(recorded, forOutcomes, finalStatus === 0)
   }
   return { cases, plan, status: finalStatus, success: finalStatus === 0 }
 })

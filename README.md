@@ -144,10 +144,15 @@ attestation by default.
 
 ## Known limits
 
-- `tiacore verify` needs a runner that writes a phase snapshot. The Vitest,
-  Node, Bun, Playwright, and TypeScript adapter runners do. k6, Gradle, Maestro,
-  and the Python and Go SDKs plan impact graphs but run no tests, so a
-  verification that reaches only them fails with `snapshot-invalid`.
+- `tiacore verify` over k6, Maestro, Gradle, and the Python and Go SDKs compares
+  suites, and a suite's outcome is only as exact as its tool reports it. Gradle,
+  pytest and `go test` run several suites in one invocation, so after a failure
+  they name the failing suite only through their report (JUnit XML, or
+  `go test`'s package lines). A suite the report does not account for is
+  `unknown`, and a verification that depends on an `unknown` outcome is not
+  verified. The k6, Maestro, Gradle and Python runners take the changed files
+  from the caller, so the audit measures selection against the files they were
+  told changed.
 - Work that a test leaves running outside an Effect fiber, such as a timer
   callback, gets charged to the later test that is running when it executes.
   `tiacore verify` then reports different evidence when the first test is

@@ -264,9 +264,17 @@ are read as `tiacore verify` options and rejected.
 The Vitest, Node, Bun, Playwright, and TypeScript adapter runners each write an
 isolated phase snapshot. A missing or duplicate runner snapshot fails
 verification, so a command may safely cover multiple Vitest configurations or
-heterogeneous workspace lanes. The k6, Gradle, and Maestro runners and the
-Python and Go SDKs plan impact graphs but do not run tests, so they write no
-snapshot. A verification that reaches only them fails with `snapshot-invalid`.
+heterogeneous workspace lanes.
+
+The k6, Gradle, and Maestro runners and the Python and Go SDKs run suites, not
+test cases, and write a suite-granular snapshot: the same envelope with
+`kind: "protocol"`, the protocol plan and impact graph, the executed suite ids,
+and a `suiteOutcomes` map of `passed`, `failed`, or `unknown`. The receipt marks
+their entries with `unit: "suite"`. Both fields are additive and optional, so
+verification snapshot version 1 and verification receipt version 2 keep their
+numbers. A snapshot without `kind` is the test-granular one. A verification
+whose command reaches no runner that writes a snapshot fails with
+`snapshot-invalid`. See [Differential verification](guides/verification.md).
 
 To keep the phase snapshots, pass `--artifacts <dir>`. Each verification writes
 them to `<dir>/run-XXXXXX/selective/` and `<dir>/run-XXXXXX/full/`.

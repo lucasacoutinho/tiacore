@@ -21,6 +21,7 @@ import {
   planExternal,
   protocolSuite,
   runExternal,
+  withFresh,
 } from '../external.ts'
 import type {
   DiscoverK6Options,
@@ -266,6 +267,7 @@ export const planSuites = Effect.fnUntraced(function* (
 })
 
 export const run = Effect.fn('tia.k6.run')(function* (options: TiaK6Options) {
+  const planning = withFresh(options)
   return yield* runExternal({
     defaultArguments: ['run'],
     name: 'k6',
@@ -278,7 +280,7 @@ export const run = Effect.fn('tia.k6.run')(function* (options: TiaK6Options) {
         scan._tag === 'Unlexable' ? [scan] : [],
       )[0]
       const planned = yield* planSuites(suites, {
-        ...options,
+        ...planning,
         ...(unlexable === undefined ? {} : { forceFull: true }),
         graph,
       })

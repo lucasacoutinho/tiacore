@@ -16,6 +16,13 @@ from .protocol import (
     sorted_utf16,
     utf16_key,
 )
+from .verification import (
+    junit_report,
+    runner_name,
+    suite_outcomes,
+    verification_target,
+    write_snapshot,
+)
 
 EXCLUDED_DIRECTORIES = {
     ".git",
@@ -314,6 +321,7 @@ class TiaPytestRunner:
         self.options = options
 
     def run(self) -> TiaPytestResult:
+        target = verification_target(os.environ)
         root = Path(self.options.root).resolve()
         graph_path = (root / self.options.graph_path).resolve()
         suites = discover_pytest_suites(self.options)
@@ -331,27 +339,44 @@ class TiaPytestRunner:
             on_unknown_change=self.options.on_unknown_change,
         )
         selected = set(plan["selected"])
-        files = [
-            suite["file"] for suite in suites if suite["id"] in selected
-        ]
+        executed = [suite for suite in suites if suite["id"] in selected]
         status = 0
-        if files:
-            completed = subprocess.run(
-                [
-                    *self.options.command,
-                    *self.options.command_arguments,
-                    *files,
-                ],
-                cwd=root,
-                env={**os.environ, **self.options.environment},
-                check=False,
+        outcomes: dict[str, str] = {}
+        if executed:
+            with junit_report(target is not None) as report:
+                completed = subprocess.run(
+                    [
+                        *self.options.command,
+                        *self.options.command_arguments,
+                        *report.arguments,
+                        *(suite["file"] for suite in executed),
+                    ],
+                    cwd=root,
+                    env={**os.environ, **self.options.environment},
+                    check=False,
+                )
+                status = completed.returncode
+                outcomes = suite_outcomes(executed, status, report.path)
+        promoted = None
+        if status == 0 or target is not None:
+            try:
+                promoted = create_pytest_graph(self.options, suites)
+            except (OSError, ValueError):
+                # A failed run promotes nothing, so a graph that cannot be
+                # built only costs its snapshot, never the run's result.
+                if status == 0:
+                    raise
+        if target is not None and promoted is not None:
+            write_snapshot(
+                target,
+                runner=runner_name("pytest", root, graph_path),
+                plan=plan,
+                graph=promoted,
+                outcomes=outcomes,
+                success=status == 0,
             )
-            status = completed.returncode
-        if status == 0:
-            _write_graph(
-                graph_path,
-                create_pytest_graph(self.options, suites),
-            )
+        if status == 0 and promoted is not None:
+            _write_graph(graph_path, promoted)
         return TiaPytestResult(
             plan=plan,
             status=status,

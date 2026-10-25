@@ -17,6 +17,10 @@ import (
 
 func (runner *Runner) run(ctx context.Context) Result {
 	options := runner.options
+	target, err := readVerificationTarget()
+	if err != nil {
+		return failedResult(options, err)
+	}
 	root, err := resolveRoot(options.Root)
 	if err != nil {
 		return failedResult(options, fmt.Errorf("resolve project root: %w", err))
@@ -80,13 +84,24 @@ func (runner *Runner) run(ctx context.Context) Result {
 	packages := selectedPackages(plan, currentCatalog, options)
 	writePlan(options, plan, packages)
 
+	var verification *verificationRun
+	goTestOptions := options
+	if target != nil {
+		verification = newVerificationRun(*target, root, cachePath, plan, currentCatalog)
+		goTestOptions = verification.observe(options)
+	}
+
 	status := 0
 	if plan.Mode != "skip" {
-		status = runGoTest(ctx, options, root, packages)
+		status = runGoTest(ctx, goTestOptions, root, packages)
 	}
 	if status != 0 {
+		if verification != nil {
+			verification.recordUnpromoted(ctx, options, root, environmentFingerprint, status, projectUnchanged(root, currentSnapshot))
+		}
 		return Result{Plan: plan, Packages: packages, Status: status, Success: false}
 	}
+	promoted := currentCatalog.Graph
 	if plan.Mode != "skip" {
 		freshSnapshot, snapshotErr := captureSnapshot(root)
 		if snapshotErr != nil {
@@ -94,6 +109,9 @@ func (runner *Runner) run(ctx context.Context) Result {
 		}
 		if !reflect.DeepEqual(currentSnapshot, freshSnapshot) {
 			fmt.Fprintln(options.Stderr, "tiacore-go: project files changed during go test; successful results were not promoted")
+			if verification != nil {
+				verification.recordUnpromoted(ctx, options, root, environmentFingerprint, 0, false)
+			}
 			return Result{Plan: plan, Packages: packages, Status: 0, Success: true}
 		}
 		freshCatalog, discoverErr := discover(ctx, options, root, environmentFingerprint)
@@ -102,6 +120,12 @@ func (runner *Runner) run(ctx context.Context) Result {
 		}
 		if writeErr := writeState(cachePath, state{StateVersion: stateVersion, Graph: freshCatalog.Graph, Snapshot: freshSnapshot}); writeErr != nil {
 			return failedResult(options, fmt.Errorf("promote Go impact state: %w", writeErr))
+		}
+		promoted = freshCatalog.Graph
+	}
+	if verification != nil {
+		if writeErr := verification.write(promoted, 0); writeErr != nil {
+			return failedResult(options, fmt.Errorf("write verification snapshot: %w", writeErr))
 		}
 	}
 	return Result{Plan: plan, Packages: packages, Status: 0, Success: true}
@@ -132,7 +156,8 @@ func goEnvironmentFingerprint(ctx context.Context, options Options, root string)
 	sort.Strings(environment)
 	for _, value := range environment {
 		name, _, _ := strings.Cut(value, "=")
-		if name == "TIA_FRESH" || name == "PWD" || name == "OLDPWD" || name == "SHLVL" || name == "_" {
+		if name == "TIA_FRESH" || name == "PWD" || name == "OLDPWD" || name == "SHLVL" || name == "_" ||
+			name == verificationDirectoryEnv || name == verificationPhaseEnv {
 			continue
 		}
 		_, _ = hash.Write([]byte(value))

@@ -42,6 +42,16 @@ func readState(path string) (*state, error) {
 }
 
 func writeState(path string, value state) error {
+	return writeAtomically(path, func(file io.Writer) error {
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(value)
+	})
+}
+
+// writeAtomically writes path through a sibling temporary file renamed into place,
+// so a reader never sees a partial file and a failed write leaves no temporary behind.
+func writeAtomically(path string, encode func(io.Writer) error) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -51,9 +61,7 @@ func writeState(path string, value state) error {
 	}
 	temporaryPath := temporary.Name()
 	defer os.Remove(temporaryPath)
-	encoder := json.NewEncoder(temporary)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(value); err != nil {
+	if err := encode(temporary); err != nil {
 		temporary.Close()
 		return err
 	}

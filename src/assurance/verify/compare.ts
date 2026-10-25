@@ -1,19 +1,11 @@
-import * as Match from 'effect/Match'
-
-import { canonicalJson } from '../../core/canonical.ts'
 import type { TiaCoverageRecord, TiaRuntimeGraph } from '../../core/runtime.ts'
 import type {
-  TiaVerificationIssue,
   TiaVerificationRunnerResult,
   TiaVerificationSnapshot,
 } from '../../core/verification.ts'
-import { verdict, type VerdictIssue } from '../../core/verdict.ts'
-import { hashBytes } from '../../engine/baseline/fingerprint.ts'
+import { verdict } from '../../core/verdict.ts'
+import { digest, verdictIssues } from './issues.ts'
 import { auditVerificationSelection } from './selection.ts'
-
-function digest(value: unknown): string {
-  return hashBytes(canonicalJson(value))
-}
 
 function outcomes(graph: TiaRuntimeGraph) {
   return Object.fromEntries(
@@ -77,29 +69,6 @@ function coverageDigest(graph: TiaRuntimeGraph): string {
   })
 }
 
-function describe(issue: VerdictIssue): string {
-  return Match.value(issue).pipe(
-    Match.discriminatorsExhaustive('code')({
-      'coverage-mismatch': () =>
-        'selective and full phases produced different reconstructed coverage evidence',
-      'dependency-mismatch': () =>
-        'selective and full phases produced different dependency evidence',
-      'incomplete-graph': ({ phase }) =>
-        `${phase} phase produced an incomplete graph`,
-      'outcome-mismatch': () =>
-        'selective and full phases produced different test outcomes',
-      'selection-miss': ({ missed }) => {
-        const remainder = missed.length - 3
-        return `selective phase missed ${missed.length} required test${
-          missed.length === 1 ? '' : 's'
-        }: ${missed.slice(0, 3).join(', ')}${
-          remainder > 0 ? ` and ${remainder} more` : ''
-        }`
-      },
-    }),
-  )
-}
-
 export function compareVerificationSnapshots(
   selective: TiaVerificationSnapshot,
   full: TiaVerificationSnapshot,
@@ -123,10 +92,6 @@ export function compareVerificationSnapshots(
       digest(outcomes(selective.graph)) === digest(outcomes(full.graph)),
     selectiveComplete: selective.graph.complete,
   })
-  const issues: TiaVerificationIssue[] = result.issues.map((issue) => ({
-    code: issue.code,
-    message: describe(issue),
-    runner,
-  }))
+  const issues = verdictIssues(runner, result)
   return { issues, runner, selection, verified: result.verified }
 }

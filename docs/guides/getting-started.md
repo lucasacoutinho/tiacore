@@ -180,7 +180,12 @@ tiacore k6 record \
 
 Their `tia(options).run()` APIs execute selected flows or profiles and promote
 the graph only after success. Maestro declares a device resource lock; k6
-declares a performance-host lock.
+declares a performance-host lock. `TIA_FRESH=1` plans every flow or profile, as
+it does in every other runner.
+
+To compare a selective run of such a script with a fresh full run, put it behind
+`tiacore verify`, as in `tiacore verify -- node scripts/run-k6.mjs`. See
+[Differential verification](verification.md#suite-granular-runners).
 
 ## pytest
 

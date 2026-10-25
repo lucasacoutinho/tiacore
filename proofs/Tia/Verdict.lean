@@ -68,4 +68,127 @@ def cleanCompare : Compare where
 /-- Anti-vacuity: a clean comparison verifies. -/
 example : cleanCompare.verified = true := by decide
 
+/-! ## Suite outcomes
+
+A suite-granular runner (k6, Maestro, Gradle, the Python and Go SDKs) keeps no cache of
+results, so a suite its selective phase did not run has no outcome of its own. Its graph is
+only promoted after every suite passed, so the suite stands for what the baseline recorded:
+it passed. The full phase shows whether that still holds. -/
+
+inductive Result
+  | passed | failed | unknown
+  deriving DecidableEq, Repr
+
+/-- One phase of a suite-granular run as far as outcomes go: the suites its plan covered, the
+suites it ran, and how each of those ended. -/
+structure SuitePhase where
+  scope    : List Key
+  executed : List Key
+  outcome  : Key → Option Result
+
+/-- What the phase says about a suite: an executed suite's own outcome (`unknown` when the run
+recorded none), a covered suite's carried-over pass, and nothing for a suite outside the plan. -/
+def SuitePhase.effective (p : SuitePhase) (k : Key) : Option Result :=
+  if p.executed.contains k then some ((p.outcome k).getD .unknown)
+  else if p.scope.contains k then some .passed
+  else none
+
+/-- Every suite either phase mentions. -/
+def mentioned (s f : SuitePhase) : List Key := s.scope ++ s.executed ++ f.scope ++ f.executed
+
+/-- The phases agree on a suite when both say the same, and what they say is not `unknown`. -/
+def Agree (s f : SuitePhase) (k : Key) : Bool :=
+  match s.effective k, f.effective k with
+  | some a, some b => a == b && a != .unknown
+  | _, _ => false
+
+def outcomesEq (s f : SuitePhase) : Bool := (mentioned s f).all (Agree s f)
+
+theorem agree_iff (s f : SuitePhase) (k : Key) : Agree s f k = true ↔
+    ∃ r, r ≠ .unknown ∧ s.effective k = some r ∧ f.effective k = some r := by
+  unfold Agree
+  cases hs : s.effective k with
+  | none => simp
+  | some a =>
+    cases hf : f.effective k with
+    | none => simp
+    | some b =>
+      constructor
+      · intro h
+        simp only [Bool.and_eq_true, beq_iff_eq, bne_iff_ne, ne_eq] at h
+        exact ⟨a, h.2, rfl, by rw [← h.1]⟩
+      · rintro ⟨r, hr, h1, h2⟩
+        cases h1
+        cases h2
+        simp [hr]
+
+/-- The outcomes agree exactly when every suite either phase mentions has the same known outcome
+in both. -/
+theorem outcomesEq_iff (s f : SuitePhase) : outcomesEq s f = true ↔
+    ∀ k ∈ mentioned s f, ∃ r, r ≠ .unknown ∧ s.effective k = some r ∧ f.effective k = some r := by
+  unfold outcomesEq
+  rw [List.all_eq_true]
+  exact forall_congr' fun k => imp_congr_right fun _ => agree_iff s f k
+
+/-- A suite the plan did not run stands for the baseline: it passed when the plan covered it. -/
+theorem effective_unrun (p : SuitePhase) (k : Key) (hn : k ∉ p.executed) :
+    p.effective k = if p.scope.contains k then some .passed else none := by
+  rw [SuitePhase.effective, if_neg (by simpa using hn)]
+
+/-- A suite the selective phase did not run is carried as passed, so it cannot hide a failure:
+a suite that fails in the full phase makes the outcomes differ. -/
+theorem unselected_failure_detected (s f : SuitePhase) (k : Key) (hk : k ∈ mentioned s f)
+    (hn : k ∉ s.executed) (hf : f.effective k = some .failed) : outcomesEq s f = false := by
+  cases h : outcomesEq s f
+  · rfl
+  · obtain ⟨r, _, h1, h2⟩ := (outcomesEq_iff s f).1 h k hk
+    rw [effective_unrun s k hn] at h1
+    rw [hf] at h2
+    split at h1
+    · cases h1
+      cases h2
+    · cases h1
+
+/-- An outcome the run could not attribute never agrees, not even with itself. -/
+theorem unknown_never_agrees (s f : SuitePhase) (k : Key) (hk : k ∈ mentioned s f)
+    (hu : s.effective k = some .unknown) : outcomesEq s f = false := by
+  cases h : outcomesEq s f
+  · rfl
+  · obtain ⟨r, hr, h1, _⟩ := (outcomesEq_iff s f).1 h k hk
+    rw [hu] at h1
+    exact absurd (Option.some.inj h1).symm hr
+
+/-- A verified comparison whose outcome guard is the one above leaves no unrun suite unaccounted
+for: each is covered by the selective plan and passes in the full phase. -/
+theorem verified_unselected_passes (s f : SuitePhase) (c : Compare)
+    (hc : c.outcomesEq = outcomesEq s f) (hv : c.verified = true)
+    (k : Key) (hk : k ∈ mentioned s f) (hn : k ∉ s.executed) :
+    s.scope.contains k = true ∧ f.effective k = some .passed := by
+  have h := ((verified_iff c).1 hv).2.2.2.1
+  rw [hc] at h
+  obtain ⟨r, hr, h1, h2⟩ := (outcomesEq_iff s f).1 h k hk
+  rw [effective_unrun s k hn] at h1
+  split at h1
+  · cases h1
+    exact ⟨by assumption, h2⟩
+  · cases h1
+
+def cleanPhase : SuitePhase where
+  scope := ["a", "b"]
+  executed := ["a"]
+  outcome := fun _ => some .passed
+
+/-- Anti-vacuity: a selective phase that ran one suite agrees with a full phase that ran both. -/
+example : outcomesEq cleanPhase { cleanPhase with executed := ["a", "b"] } = true := by decide
+
+/-- Anti-vacuity: the unrun suite failing in the full phase is caught. -/
+example : outcomesEq cleanPhase
+    { cleanPhase with executed := ["a", "b"],
+                      outcome := fun k => if k == "b" then some .failed else some .passed }
+    = false := by decide
+
+/-- Anti-vacuity: an outcome the run could not attribute does not verify. -/
+example : outcomesEq { cleanPhase with outcome := fun _ => none }
+    { cleanPhase with executed := ["a", "b"] } = false := by decide
+
 end Tia

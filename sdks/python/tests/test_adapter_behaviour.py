@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Mapping
+from unittest import mock
 
 SDK_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SDK_ROOT / "src"))
@@ -50,6 +51,11 @@ class ProjectCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in ("TIA_VERIFICATION_DIRECTORY", "TIA_VERIFICATION_PHASE"):
+            os.environ.pop(name, None)
         self.base = Path(self.temporary.name)
         self.root = self.base / "project"
         write(self.root, {"fake_pytest.py": FAKE_PYTEST, **self.files})

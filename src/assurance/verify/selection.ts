@@ -1,4 +1,3 @@
-import { byCodeUnit } from '../../core/canonical.ts'
 import {
   isModuleFailureId,
   type CachedTestResult,
@@ -12,6 +11,7 @@ import type {
   TiaVerificationSnapshot,
 } from '../../core/verification.ts'
 import { planRuntimeChanges } from '../../engine/plan/runtime.ts'
+import { selectionReport } from './selection-report.ts'
 
 const BASELINE: RunPlanBaseline = {
   origin: 'none',
@@ -80,10 +80,6 @@ function evidenceGraph(
   return { ...full, edges, results, testEdges }
 }
 
-function rate(numerator: number, denominator: number): number {
-  return denominator === 0 ? 0 : numerator / denominator
-}
-
 /**
  * Derives the tests a selective phase had to execute by asking the runtime
  * planner (the same Lean-modelled `select` the real planner uses) about the
@@ -129,21 +125,5 @@ export function auditVerificationSelection(
   const executed = new Set(
     selective.executedTestIds.filter((id) => universe.has(id)),
   )
-  const expectedTestIds = [...expected].sort(byCodeUnit)
-  const executedTestIds = [...executed].sort(byCodeUnit)
-  const missedTestIds = expectedTestIds.filter((id) => !executed.has(id))
-  const unnecessaryTestIds = executedTestIds.filter((id) => !expected.has(id))
-  return {
-    changedFiles: [...selective.plan.changedFiles].sort(byCodeUnit),
-    executedTestIds,
-    expectedTestIds,
-    falseNegativeRate: rate(missedTestIds.length, expectedTestIds.length),
-    missedTestIds,
-    precision:
-      executedTestIds.length === 0
-        ? null
-        : (executedTestIds.length - unnecessaryTestIds.length) /
-          executedTestIds.length,
-    unnecessaryTestIds,
-  }
+  return selectionReport(selective.plan.changedFiles, expected, executed)
 }

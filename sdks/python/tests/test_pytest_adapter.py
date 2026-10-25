@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SDK_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SDK_ROOT / "src"))
@@ -15,6 +17,11 @@ from tiacore import TiaPytestOptions, tia  # noqa: E402
 
 class PytestAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in ("TIA_VERIFICATION_DIRECTORY", "TIA_VERIFICATION_PHASE"):
+            os.environ.pop(name, None)
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name) / "project"
         shutil.copytree(
