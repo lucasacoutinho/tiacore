@@ -5,7 +5,7 @@ import type * as Scope from 'effect/Scope'
 import * as DevToolsServer from 'effect/devtools/DevToolsServer'
 import * as SocketServer from 'effect/socket/SocketServer'
 
-import { TiaIo } from '../wire/errors.ts'
+import { errorMessage, TiaIo } from '../wire/errors.ts'
 import type { SpanBook } from './span-book.ts'
 
 /** Fewest milliseconds between two metrics requests that follow ended spans. */
@@ -103,5 +103,5 @@ function causeMessage(error: unknown): string {
     typeof cause === 'object' && cause !== null && 'cause' in cause
       ? cause.cause
       : cause
-  return inner instanceof Error ? inner.message : String(inner)
+  return errorMessage(inner)
 }

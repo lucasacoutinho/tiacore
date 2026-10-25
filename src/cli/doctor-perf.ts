@@ -8,7 +8,7 @@ import type { TiaObservation } from '../engine/core.ts'
 import { CoreRun } from '../engine/core-run.ts'
 import { recordSpans, runPromise } from '../host/runtime.ts'
 import type { FinishedSpan } from '../host/observe.ts'
-import { TiaIo } from '../wire/errors.ts'
+import { errorMessage, TiaIo } from '../wire/errors.ts'
 import { runGit } from './doctor-checks.ts'
 
 /** Test files in the throwaway project; enough to make the stages measurable. */
@@ -162,7 +162,7 @@ export const measurePerformance = Effect.fnUntraced(function* () {
     catch: (error) =>
       new TiaIo({
         cause: error,
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       }),
     try: () =>
       recordSpans(async () => {

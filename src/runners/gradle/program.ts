@@ -30,6 +30,7 @@ import type {
   PlanGradleOptions,
   TiaGradleOptions,
 } from './types.ts'
+import { isRecord } from '../../core/record.ts'
 
 const DEFAULT_TESTS = [
   '**/src/test/**/*.{java,kt}',
@@ -187,10 +188,6 @@ export const createGraph = Effect.fnUntraced(function* (
 
 export const planSuites = (suites: GradleSuite[], options: PlanGradleOptions) =>
   planExternal('gradle-junit', suites, options)
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function asList(value: unknown): unknown[] {
   return value === undefined ? [] : Array.isArray(value) ? value : [value]

@@ -1,6 +1,7 @@
 import { sortByKey } from '../core/canonical.ts'
 import type { TiaReplayAdapter, TiaReplayRunEvent } from '../core/replay.ts'
 import type { CachedTestResult, RunPlan } from '../core/runtime.ts'
+import { errorMessage } from '../wire/errors.ts'
 
 /** Cached results the plan replays instead of running, in id order. */
 export function replayedResults(plan: RunPlan): CachedTestResult[] {
@@ -46,11 +47,7 @@ async function notifyAdapters(
     try {
       await call(adapter)
     } catch (error) {
-      warn(
-        `TIA replay adapter ${method} failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      )
+      warn(`TIA replay adapter ${method} failed: ${errorMessage(error)}`)
     }
   }
 }

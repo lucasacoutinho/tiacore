@@ -11,7 +11,7 @@ import type {
   TiaImpactPlan,
 } from '../../core/protocol.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
-import { TiaInvalid } from '../../wire/errors.ts'
+import { errorMessage, TiaInvalid } from '../../wire/errors.ts'
 import {
   attempt,
   catalogFingerprint,
@@ -71,7 +71,7 @@ function lexImports(source: string): Lexed {
   } catch (error) {
     return {
       _tag: 'Failed',
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     }
   }
 }

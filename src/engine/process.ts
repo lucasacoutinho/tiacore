@@ -5,7 +5,7 @@ import * as Stream from 'effect/Stream'
 import * as ChildProcess from 'effect/process/ChildProcess'
 import { ChildProcessSpawner } from 'effect/process/ChildProcessSpawner'
 
-import { TiaIo } from '../wire/errors.ts'
+import { systemIoError } from '../wire/errors.ts'
 
 /** What a caller says about the child it wants run. */
 export interface ProcessSpec {
@@ -76,14 +76,6 @@ export function inheritedEnvironment(
   return { ...process.env, ...overlay }
 }
 
-/** Node's own message for an I/O failure, which 1.x printed verbatim. */
-export function systemMessage(error: {
-  readonly cause?: unknown
-  readonly message: string
-}): string {
-  return error.cause instanceof Error ? error.cause.message : error.message
-}
-
 /**
  * Spawns one process without a shell and waits for it. A spawn failure
  * (missing command or directory) is a TiaIo failure; a non-zero exit, a
@@ -140,11 +132,7 @@ export const runProcess = Effect.fnUntraced(function* (spec: ProcessSpec) {
       }
       return code
     }),
-  ).pipe(
-    Effect.mapError(
-      (error) => new TiaIo({ cause: error, message: systemMessage(error) }),
-    ),
-  )
+  ).pipe(Effect.mapError(systemIoError))
   const result = yield* spec.timeoutMs === undefined
     ? attempt.pipe(Effect.asSome)
     : attempt.pipe(Effect.timeoutOption(spec.timeoutMs))

@@ -20,7 +20,7 @@ import { formatRunPlanDetails } from '../../engine/explain.ts'
 import { slash } from '../../engine/host-path.ts'
 import { runAttached } from '../../engine/process.ts'
 import { replayedResults } from '../../engine/replay.ts'
-import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
+import { errorMessage, TiaInvalid, TiaIo } from '../../wire/errors.ts'
 import {
   importedFilesFingerprint,
   importedProjectFiles,
@@ -145,7 +145,7 @@ function resolved(options: TiaPlaywrightOptions) {
   return Effect.try({
     catch: (error) =>
       new TiaInvalid({
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       }),
     try: (): Resolved => {
       const root = resolve(options.root ?? process.cwd())
@@ -279,7 +279,7 @@ export const run = Effect.fn('tia.playwright.run')(function* (
       catch: (error) =>
         new TiaIo({
           cause: error,
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage(error),
         }),
       try: () => {
         mkdirSync(runtimeDirectory, { recursive: true })

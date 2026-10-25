@@ -28,10 +28,7 @@ import type {
   PlanMaestroOptions,
   TiaMaestroOptions,
 } from './types.ts'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
+import { isRecord } from '../../core/record.ts'
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value)

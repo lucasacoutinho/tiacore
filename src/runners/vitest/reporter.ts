@@ -42,6 +42,8 @@ import {
   type TiaTestMeta,
 } from './protocol.ts'
 import type { TiaRuntime } from './state.ts'
+import { errorMessage } from '../../wire/errors.ts'
+import { isModuleFailureId, moduleFailureResult } from '../../core/runtime.ts'
 
 /** The warning for a commit that left the stored graph untouched. */
 function skippedCommitWarning(skipped: CommitSkipped): string {
@@ -520,7 +522,7 @@ export class TiaReporter implements Reporter {
           await handler.call(reporter, testCase)
         } catch (error) {
           this.warn(
-            `TIA replay reporter ${method} failed: ${error instanceof Error ? error.message : String(error)}`,
+            `TIA replay reporter ${method} failed: ${errorMessage(error)}`,
           )
         }
       }
@@ -536,16 +538,11 @@ export class TiaReporter implements Reporter {
         (result) =>
           result.file === file &&
           result.state === 'failed' &&
-          !result.id.startsWith('module:'),
+          !isModuleFailureId(result.id),
       )
       if (hasFailedTestCase) continue
-      const id = `module:${file}`
-      this.results.set(id, {
-        file,
-        fullName: `${file} (module failure)`,
-        id,
-        state: 'failed',
-      })
+      const failure = moduleFailureResult(file)
+      this.results.set(failure.id, failure)
     }
   }
 

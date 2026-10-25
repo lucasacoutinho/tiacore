@@ -36,6 +36,7 @@ import {
 import { TIA_SELECTION_KEY, type TiaTestSelection } from './protocol.ts'
 import { TiaReporter } from './reporter.ts'
 import { initialRuntime, type TiaRuntime } from './state.ts'
+import { errorMessage } from '../../wire/errors.ts'
 
 interface SharedPluginState {
   bypassed: boolean
@@ -411,7 +412,7 @@ export function tia(options: TiaOptions = {}): Plugin {
         }
       } catch (error) {
         this.warn(
-          `tiacore could not instrument ${relativeId}: ${error instanceof Error ? error.message : String(error)}`,
+          `tiacore could not instrument ${relativeId}: ${errorMessage(error)}`,
         )
         return
       }

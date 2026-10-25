@@ -21,17 +21,21 @@ import type {
 } from '../core/protocol.ts'
 import { TIA_PROTOCOL_VERSION } from '../core/protocol.ts'
 import { createImpactPlan } from '../engine/plan/protocol.ts'
-import { systemMessage } from '../engine/process.ts'
 import { aggregateStatus, executeSuites } from '../engine/scheduling.ts'
 import { parseImpactGraph } from '../wire/decode.ts'
-import { TiaInvalid, TiaIo } from '../wire/errors.ts'
+import {
+  errorMessage,
+  systemIoError,
+  TiaInvalid,
+  TiaIo,
+} from '../wire/errors.ts'
 
 /** Runs a computation that throws 1.x-style errors, keeping the message. */
 export function attempt<A>(compute: () => A): Effect.Effect<A, TiaInvalid> {
   return Effect.try({
     catch: (error) =>
       new TiaInvalid({
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       }),
     try: compute,
   })
@@ -122,7 +126,7 @@ export function globFiles(
   return Effect.tryPromise({
     catch: (error) =>
       new TiaIo({
-        message: error instanceof Error ? error.message : String(error),
+        message: errorMessage(error),
       }),
     try: () =>
       glob([...patterns], {
@@ -136,7 +140,7 @@ export function globFiles(
 
 /** A platform failure as the TiaIo that carries Node's own message. */
 export function ioFailure(error: PlatformError.PlatformError): TiaIo {
-  return new TiaIo({ cause: error, message: systemMessage(error) })
+  return systemIoError(error)
 }
 
 /** Reads a recorded graph; a missing, unreadable or invalid file is no graph. */
