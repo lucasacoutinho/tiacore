@@ -12,14 +12,14 @@ import {
   TIA_META_KEY,
   TIA_TEST_META_KEY,
 } from '../../../src/runners/vitest/protocol.ts'
-import { TiaReporter } from '../../../src/runners/vitest/reporter.ts'
 import type { TiaRuntime } from '../../../src/runners/vitest/state.ts'
 import { disposeHost } from '../../../src/host/runtime.ts'
 import { assertNoLeak } from '../../support/leak.ts'
 
-// The Vitest plugin and reporter keep per-run state in a runtime that
-// outlives one Vitest instance (browser-mode servers share it), so a process
-// that starts Vitest again and again must not keep one run's state for the next.
+// The Vitest plugin gives every Vitest instance its own runtime and reporter and
+// registers the latest runtime for the servers Vitest starts later (Browser
+// Mode), so a process that starts Vitest again and again must not keep one
+// instance's state once the next has started.
 
 interface Hooks {
   config(config: Record<string, unknown>): void
@@ -204,13 +204,9 @@ describe('the Vitest reporter', () => {
           join(root, 'src/gen.ts'),
         )
         const hash = instrumentationHash(transformed?.code ?? '')
-        // Vitest gives the reporter to the first instance of a runtime only.
-        const runtime = [...runtimes().entries()].find(([key]) =>
-          key.startsWith(root),
-        )?.[1]
-        if (runtime === undefined) throw new Error('no runtime')
-        const reporter: ReporterHooks = new TiaReporter(runtime) as never
-        expect(reporters.length).toBeLessThanOrEqual(1)
+        // The plugin adds one reporter to each instance, and no other.
+        expect(reporters).toHaveLength(1)
+        const reporter = reporters[0] as ReporterHooks
         reporter.onInit(vitest)
         await reporter.onTestRunStart()
         const file = join(root, 'test/gen.test.ts')

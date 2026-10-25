@@ -7,11 +7,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as Effect from 'effect/Effect'
 import { createInstrumenter } from 'istanbul-lib-instrument'
 import type { Plugin } from 'vite'
+import type { TestProject, Vitest } from 'vitest/node'
 
 import { VERSION } from '../../core/version.ts'
 import { runPromise } from '../../host/runtime.ts'
 import { projectFingerprint } from '../../engine/baseline/fingerprint.ts'
-import { CoverageTemplates } from '../../engine/coverage/templates.ts'
 import { globMatcher } from '../../engine/glob.ts'
 import {
   isInside,
@@ -31,6 +31,7 @@ import {
   coverageRuntime,
   hasNativeSelection,
   normalizeOptions,
+  type NormalizedOptions,
   type TiaOptions,
 } from './options.ts'
 import { TIA_SELECTION_KEY, type TiaTestSelection } from './protocol.ts'
@@ -38,11 +39,11 @@ import { TiaReporter } from './reporter.ts'
 import { initialRuntime, type TiaRuntime } from './state.ts'
 import { errorMessage } from '../../wire/errors.ts'
 
+/** What the projects of one Vitest instance share. */
 interface SharedPluginState {
   bypassed: boolean
-  excludeMatcher: ((path: string) => boolean) | null
-  includeMatcher: ((path: string) => boolean) | null
-  initialized: boolean
+  /** The one planning of the run; every project's hook waits for it. */
+  initialization: Promise<void> | null
   runtime: TiaRuntime
   selectedProjects: Set<object>
 }
@@ -56,18 +57,28 @@ function registry<T>(name: string, create: () => T): T {
   return holder[key]
 }
 
+/** Each Vitest instance's state: its runtime, and with it its one reporter. */
 const sharedStates = registry(
   'shared-state',
   () => new WeakMap<object, SharedPluginState>(),
 )
+/**
+ * The runtime of the Vitest instance configured last for a project root and
+ * cache directory. Vitest 4 starts a Browser Mode server after the hooks ran
+ * and loads the plugin again for it. That copy never sees `configureVitest`,
+ * so it finds the runtime here. Instances alive at once on one root and cache
+ * directory cannot tell their browser servers apart: the last one configured
+ * receives the instrumentation of all of them, and the others, missing the
+ * templates of browser-only modules, commit nothing.
+ */
 const runtimeStates = registry(
   'browser-runtime-state',
   () => new Map<string, TiaRuntime>(),
 )
-const reporterRuntimes = registry(
-  'reporter-runtime-state',
-  () => new WeakSet<TiaRuntime>(),
-)
+
+function runtimeKey(root: string, cacheDir: string): string {
+  return `${slash(root)}\0${slash(resolveCacheDir(root, cacheDir))}`
+}
 
 function normalizeSetupFiles(value: unknown): string[] {
   if (typeof value === 'string') return [value]
@@ -149,6 +160,108 @@ function affectedTestsForProject(
     .map((file) => file.projectRelative)
 }
 
+/**
+ * Plans the instance's run once: reads the stored graph, decides what runs and
+ * adds the instance's reporter. Vitest starts the `configureVitest` hook of
+ * every project at once, so the projects of one instance wait for this single
+ * planning instead of each starting their own.
+ */
+async function planInstance(
+  current: TiaRuntime,
+  normalized: NormalizedOptions,
+  vitest: Vitest,
+  candidates: readonly TestProject[],
+): Promise<void> {
+  const nativeCoverageProject = candidates.find(
+    (candidate) => candidate.config.coverage.enabled,
+  )
+  current.root = resolve(vitest.config.root)
+  current.options = {
+    ...normalized,
+    cacheDir: resolveCacheDir(current.root, normalized.cacheDir),
+  }
+  current.coverage = coverageRuntime(
+    current.root,
+    normalized.coverage,
+    nativeCoverageProject?.config.coverage ?? null,
+  )
+  if (nativeCoverageProject !== undefined) vitest.disableCoverage()
+
+  const cachePrefix =
+    projectRelative(current.root, current.options.cacheDir) ?? ''
+  const ignoredPrefixes = [
+    cachePrefix,
+    projectRelative(current.root, current.coverage.reportsDirectory),
+    ...candidates.map((candidate) =>
+      projectRelative(
+        current.root,
+        resolve(current.root, candidate.config.coverage.reportsDirectory),
+      ),
+    ),
+  ].filter((file): file is string => file !== null && file !== '')
+  current.structuralFiles = [
+    ...new Set(
+      candidates
+        .map((candidate) => candidate.vite.config.configFile)
+        .filter((file): file is string => typeof file === 'string')
+        .map((file) => projectRelative(current.root, file))
+        .filter((file): file is string => file !== null),
+    ),
+  ]
+
+  const shard = vitest.config.shard
+  current.run = await runPromise(
+    Effect.gen(function* () {
+      current.verification = yield* verificationTarget(process.env)
+      const fingerprint = yield* projectFingerprint(
+        current.root,
+        current.options,
+        current.structuralFiles,
+      )
+      const snapshot = yield* snapshotProject(
+        current.root,
+        ignoredPrefixes,
+        fingerprint,
+      )
+      current.partition =
+        shard === undefined
+          ? null
+          : {
+              group: partitionGroup(
+                snapshot.baseline,
+                fingerprint,
+                shard.count,
+                current.options.shardGroup,
+              ),
+              index: shard.index,
+              total: shard.count,
+            }
+      const writeCacheDir =
+        current.partition === null
+          ? current.options.cacheDir
+          : partitionCacheDir(current.options.cacheDir, current.partition)
+      const restore = yield* artifactRestore(
+        current.options.artifacts,
+        current.options.log,
+        current.options.artifactTrust,
+      )
+      return yield* beginRun({
+        cacheDir: current.options.cacheDir,
+        ...(restore === undefined ? {} : { restore }),
+        coverageRequested: current.coverage.enabled,
+        ignoredPrefixes,
+        options: current.options,
+        partitioned: current.partition !== null,
+        root: current.root,
+        snapshot,
+        writeCacheDir,
+      })
+    }).pipe(Effect.provide(EngineLive)),
+  )
+  current.active = true
+  vitest.config.reporters.push(new TiaReporter(current))
+}
+
 export interface TiaPlugin {
   name: string
 }
@@ -158,9 +271,18 @@ export function tia(options?: TiaOptions): TiaPlugin
 export function tia(options: TiaOptions = {}): Plugin {
   const normalized = normalizeOptions(options)
   const setupPath = pluginSetupPath()
+  // The runtime of the Vitest instance that configured this plugin; until
+  // then an inactive placeholder.
   let runtime = initialRuntime(normalized, process.cwd())
-  let includeMatcher: ((path: string) => boolean) | null = null
-  let excludeMatcher: ((path: string) => boolean) | null = null
+  let configured = false
+  let key: string | null = null
+
+  /**
+   * The runtime to transform with: the configuring instance's own, or, for a
+   * copy no instance configured, the one registered for its project.
+   */
+  const currentRuntime = (): TiaRuntime =>
+    configured || key === null ? runtime : (runtimeStates.get(key) ?? runtime)
 
   return {
     name: 'tiacore',
@@ -169,10 +291,7 @@ export function tia(options: TiaOptions = {}): Plugin {
     config(config) {
       if (!normalized.enabled) return
       const root = resolve(config.root ?? process.cwd())
-      const runtimeKey = `${slash(root)}\0${slash(resolveCacheDir(root, normalized.cacheDir))}`
-      const existing = runtimeStates.get(runtimeKey)
-      if (existing === undefined) runtimeStates.set(runtimeKey, runtime)
-      else runtime = existing
+      key = runtimeKey(root, normalized.cacheDir)
       const setupProxy = ensureSetupProxy(root, normalized.cacheDir, setupPath)
       config.test ??= {}
       // Vitest 5 enables both by default. A cached transform skips tiacore's
@@ -193,18 +312,21 @@ export function tia(options: TiaOptions = {}): Plugin {
       if (shared === undefined) {
         shared = {
           bypassed: false,
-          excludeMatcher: null,
-          includeMatcher: null,
-          initialized: false,
-          runtime,
+          initialization: null,
+          runtime: initialRuntime(
+            normalized,
+            resolve(vitest.config.root ?? process.cwd()),
+          ),
           selectedProjects: new Set<object>(),
         }
         sharedStates.set(vitest, shared)
-      } else {
-        runtime = shared.runtime
-        includeMatcher = shared.includeMatcher
-        excludeMatcher = shared.excludeMatcher
       }
+      runtime = shared.runtime
+      configured = true
+      runtimeStates.set(
+        runtimeKey(resolve(project.config.root), normalized.cacheDir),
+        runtime,
+      )
       if (shared.bypassed) return
 
       const candidates = [...new Set([...vitest.projects, project])]
@@ -215,9 +337,6 @@ export function tia(options: TiaOptions = {}): Plugin {
         testIds: [],
         wholeTestFiles: [],
       }
-      const nativeCoverageProject = candidates.find(
-        (candidate) => candidate.config.coverage.enabled,
-      )
 
       if (
         vitest.config.watch ||
@@ -233,107 +352,13 @@ export function tia(options: TiaOptions = {}): Plugin {
         return
       }
 
-      if (!shared.initialized) {
-        const current = runtime
-        // The runtime outlives a Vitest instance, and so would the templates
-        // of every file version this process ever transformed. This run
-        // registers the ones it needs as it transforms.
-        current.coverageTemplates = new CoverageTemplates()
-        current.root = resolve(vitest.config.root)
-        current.options = {
-          ...normalized,
-          cacheDir: resolveCacheDir(current.root, normalized.cacheDir),
-        }
-        current.coverage = coverageRuntime(
-          current.root,
-          normalized.coverage,
-          nativeCoverageProject?.config.coverage ?? null,
-        )
-        if (nativeCoverageProject !== undefined) vitest.disableCoverage()
-
-        const cachePrefix =
-          projectRelative(current.root, current.options.cacheDir) ?? ''
-        const ignoredPrefixes = [
-          cachePrefix,
-          projectRelative(current.root, current.coverage.reportsDirectory),
-          ...candidates.map((candidate) =>
-            projectRelative(
-              current.root,
-              resolve(current.root, candidate.config.coverage.reportsDirectory),
-            ),
-          ),
-        ].filter((file): file is string => file !== null && file !== '')
-        current.structuralFiles = [
-          ...new Set(
-            candidates
-              .map((candidate) => candidate.vite.config.configFile)
-              .filter((file): file is string => typeof file === 'string')
-              .map((file) => projectRelative(current.root, file))
-              .filter((file): file is string => file !== null),
-          ),
-        ]
-
-        const shard = vitest.config.shard
-        current.run = await runPromise(
-          Effect.gen(function* () {
-            current.verification = yield* verificationTarget(process.env)
-            const fingerprint = yield* projectFingerprint(
-              current.root,
-              current.options,
-              current.structuralFiles,
-            )
-            const snapshot = yield* snapshotProject(
-              current.root,
-              ignoredPrefixes,
-              fingerprint,
-            )
-            current.partition =
-              shard === undefined
-                ? null
-                : {
-                    group: partitionGroup(
-                      snapshot.baseline,
-                      fingerprint,
-                      shard.count,
-                      current.options.shardGroup,
-                    ),
-                    index: shard.index,
-                    total: shard.count,
-                  }
-            const writeCacheDir =
-              current.partition === null
-                ? current.options.cacheDir
-                : partitionCacheDir(current.options.cacheDir, current.partition)
-            const restore = yield* artifactRestore(
-              current.options.artifacts,
-              current.options.log,
-              current.options.artifactTrust,
-            )
-            return yield* beginRun({
-              cacheDir: current.options.cacheDir,
-              ...(restore === undefined ? {} : { restore }),
-              coverageRequested: current.coverage.enabled,
-              ignoredPrefixes,
-              options: current.options,
-              partitioned: current.partition !== null,
-              root: current.root,
-              snapshot,
-              writeCacheDir,
-            })
-          }).pipe(Effect.provide(EngineLive)),
-        )
-        current.active = true
-        shared.initialized = true
-
-        if (!reporterRuntimes.has(current)) {
-          reporterRuntimes.add(current)
-          vitest.config.reporters.push(new TiaReporter(current))
-        }
-        includeMatcher = globMatcher(current.options.include)
-        excludeMatcher = globMatcher(current.options.exclude)
-        shared.includeMatcher = includeMatcher
-        shared.excludeMatcher = excludeMatcher
-      }
+      shared.initialization ??= planInstance(
+        runtime,
+        normalized,
+        vitest,
+        candidates,
+      )
+      await shared.initialization
 
       const plan = runtime.run?.plan
       if (plan === undefined) return
@@ -373,42 +398,45 @@ export function tia(options: TiaOptions = {}): Plugin {
     },
 
     transform(code, id) {
-      if (!runtime.active) return
-      includeMatcher ??= globMatcher(runtime.options.include)
-      excludeMatcher ??= globMatcher(runtime.options.exclude)
+      const current = currentRuntime()
+      if (!current.active) return
+      const matchers = (current.matchers ??= {
+        exclude: globMatcher(current.options.exclude),
+        include: globMatcher(current.options.include),
+      })
       const cleanId = id.split('?', 1)[0]
       if (
         cleanId === undefined ||
         cleanId.startsWith('\0') ||
-        !isInside(runtime.root, cleanId)
+        !isInside(current.root, cleanId)
       )
         return
-      const relativeId = slash(relative(runtime.root, cleanId))
-      if (!includeMatcher(relativeId) || excludeMatcher(relativeId)) return
+      const relativeId = slash(relative(current.root, cleanId))
+      if (!matchers.include(relativeId) || matchers.exclude(relativeId)) return
 
-      runtime.instrumenter ??= createInstrumenter({
+      const instrumenter = (current.instrumenter ??= createInstrumenter({
         coverageVariable: '__coverage__',
         esModules: true,
         produceSourceMap: true,
-      })
+      }))
       try {
         const inputMap = this.getCombinedSourcemap()
-        const transformed = runtime.instrumenter.instrumentSync(
+        const transformed = instrumenter.instrumentSync(
           code,
           cleanId,
           inputMap.mappings === ''
             ? undefined
             : (inputMap as unknown as Parameters<
-                typeof runtime.instrumenter.instrumentSync
+                typeof instrumenter.instrumentSync
               >[2]),
         )
-        runtime.coverageTemplates.register(
+        current.coverageTemplates.register(
           transformed,
-          runtime.instrumenter.lastFileCoverage(),
+          instrumenter.lastFileCoverage(),
         )
         return {
           code: transformed,
-          map: runtime.instrumenter.lastSourceMap() as never,
+          map: instrumenter.lastSourceMap() as never,
         }
       } catch (error) {
         this.warn(

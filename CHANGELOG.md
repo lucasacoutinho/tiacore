@@ -196,6 +196,13 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 - The runtime planner missed tests in `__tests__` directories.
 - The Vitest plugin kept the coverage templates of every file version it had
   transformed in the same process.
+- Only the first Vitest instance in a process got the tiacore reporter. A later
+  one, such as a second `createVitest` call, shared the first one's run state,
+  ran its plan and committed nothing. Each instance now has its own reporter and
+  run state, and instances on one cache directory commit through its lock and
+  merge. The projects of one instance still share one reporter. Overlapping
+  instances that run Browser Mode on Vitest 4 on the same root and cache
+  directory are a known limit.
 - A refused or oversized artifact response, or Playwright source-map response,
   kept its connection open.
 - A file that was re-instrumented during a run lost counter increments.
