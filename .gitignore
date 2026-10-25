@@ -12,3 +12,4 @@ skills-lock.json
 proofs/.lake/
 test/fixtures/**/build/
 test/fixtures/**/executions.log
+.bench/

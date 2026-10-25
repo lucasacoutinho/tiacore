@@ -9,6 +9,7 @@
     "node": true
   },
   "ignorePatterns": [
+    ".bench/**",
     ".tia/**",
     "coverage/**",
     "dist/**",
