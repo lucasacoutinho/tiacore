@@ -36,10 +36,12 @@ const helperEntries = Object.fromEntries(
 rmSync('dist', { force: true, recursive: true })
 mkdirSync('.build', { recursive: true })
 
-const declarations = spawnSync('tsc', ['-p', 'tsconfig.build.json'], {
-  shell: process.platform === 'win32',
-  stdio: 'inherit',
-})
+// The local compiler, so a Git-dependency build does not depend on PATH.
+const declarations = spawnSync(
+  process.execPath,
+  ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.build.json'],
+  { stdio: 'inherit' },
+)
 if (declarations.status !== 0) process.exit(declarations.status ?? 1)
 
 const result = await build({

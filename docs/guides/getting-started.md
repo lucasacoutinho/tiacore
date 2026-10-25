@@ -22,13 +22,21 @@ Install the package from npm:
 npm install -D @lucasacoutinho/tiacore
 ```
 
-To test unreleased changes, build a checkout and install the tarball it packs. A
-Git URL does not work: `dist/` is not committed, and `prepare` does not build
-it.
+To test unreleased changes, install from Git. The package manager installs
+tiacore's development dependencies and its `prepare` script builds `dist/`:
+
+```sh
+npm install -D github:lucasacoutinho/tiacore#<commit>
+```
+
+Bun does not install a Git dependency's development dependencies, so `prepare`
+installs the pinned build toolchain with npm, builds, and removes it. Bun runs
+the `prepare` script only for packages listed in `trustedDependencies`.
+
+You can also build a checkout and install the tarball it packs:
 
 ```sh
 npm ci
-npm run build
 npm pack
 npm install --save-dev /path/to/tiacore/lucasacoutinho-tiacore-<version>.tgz
 ```
