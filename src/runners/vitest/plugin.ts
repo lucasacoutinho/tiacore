@@ -1,6 +1,13 @@
 /// <reference types="vitest/config" />
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -120,9 +127,15 @@ function ensureSetupProxy(
 ): string {
   const proxyPath = setupProxyPath(root, cacheDir)
   const contents = `import ${JSON.stringify(pathToFileURL(setupPath).href)}\n`
+  const directory = dirname(proxyPath)
   if (!existsSync(proxyPath) || readFileSync(proxyPath, 'utf8') !== contents) {
-    mkdirSync(dirname(proxyPath), { recursive: true })
+    mkdirSync(directory, { recursive: true })
     writeFileSync(proxyPath, contents)
+  }
+  for (const name of readdirSync(directory)) {
+    if (!name.startsWith('setup-') || !name.endsWith('.mjs')) continue
+    const stale = resolve(directory, name)
+    if (stale !== proxyPath) unlinkSync(stale)
   }
   return proxyPath
 }
