@@ -2,7 +2,7 @@
 // generic adapter). src/wire/runtime-graph.ts validates stored graphs against it.
 import type { FileCoverageData } from 'istanbul-lib-coverage'
 
-/** Bumped from 4 in 2.0: hook-marker attribution and code-unit ordering. */
+/** The runtime graph layout; a graph of another version is rebuilt. */
 export const GRAPH_SCHEMA_VERSION = 6
 
 export type CachedTestState = 'passed' | 'failed' | 'skipped'

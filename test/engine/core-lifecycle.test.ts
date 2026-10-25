@@ -46,7 +46,7 @@ afterEach(() => {
 })
 
 function project(): string {
-  const root = mkdtempSync(join(tmpdir(), 'tiacore-core-rows-'))
+  const root = mkdtempSync(join(tmpdir(), 'tiacore-core-lifecycle-'))
   temporaryDirectories.push(root)
   mkdirSync(join(root, 'src'))
   mkdirSync(join(root, 'test'))
@@ -71,7 +71,11 @@ function observation(name: string, extra: object = {}): TiaObservation {
   }
 }
 
-const OPTIONS = { files: ['test/**/*.test.ts'], log: false, runner: 'rows' }
+const OPTIONS = {
+  files: ['test/**/*.test.ts'],
+  log: false,
+  runner: 'lifecycle',
+}
 
 function plan(overrides: Partial<RunPlan> = {}): RunPlan {
   return {
@@ -344,7 +348,7 @@ describe('TiaCore options and lifecycle', () => {
       root,
     })
     expect(core.root).toBe(root)
-    expect(core.cacheDir).toBe(join(root, '.tia', 'rows'))
+    expect(core.cacheDir).toBe(join(root, '.tia', 'lifecycle'))
     expect(core.options.exclude).toEqual(
       expect.arrayContaining(['generated/**', '**/node_modules/**']),
     )
@@ -463,7 +467,7 @@ describe('TiaCore options and lifecycle', () => {
     const recording = new TiaCore({ ...OPTIONS, root })
     await recording.prepare()
     await recording.commit([observation('a')], ['test/a.test.ts'])
-    expect(existsSync(join(root, '.tia/rows/state.json'))).toBe(true)
+    expect(existsSync(join(root, '.tia/lifecycle/state.json'))).toBe(true)
 
     const fresh = new TiaCore({ ...OPTIONS, fresh: true, root })
     const freshPlan = await fresh.prepare()
@@ -472,7 +476,7 @@ describe('TiaCore options and lifecycle', () => {
       reason: 'fresh graph requested',
     })
     expect(freshPlan.baseline.reason).toBe('fresh graph requested')
-    expect(existsSync(join(root, '.tia/rows/state.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/lifecycle/state.json'))).toBe(false)
   })
 
   test('writes a verification snapshot only when both variables are set', async () => {
@@ -506,7 +510,7 @@ describe('TiaCore options and lifecycle', () => {
     await expect(
       core.commit([observation('a')], ['test/a.test.ts']),
     ).rejects.toThrow('TIA core has not been prepared')
-    expect(existsSync(join(root, '.tia/rows/state.json'))).toBe(false)
+    expect(existsSync(join(root, '.tia/lifecycle/state.json'))).toBe(false)
     expect(existsSync(directory)).toBe(false)
   })
 
