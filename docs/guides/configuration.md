@@ -53,7 +53,7 @@ tia({
 | `frameworks`         | Adds explicit view, database, subprocess, or custom edges.                                    |
 | `replayAdapters`     | Receives cached lifecycle events without mutating Vitest state.                               |
 | `replayReporters`    | Sends detached cached-test events to named reporter instances.                                |
-| `log`                | Prints baseline provenance, selection reasons, and a bounded recap.                           |
+| `log`                | Prints baseline provenance, selection reasons, a bounded recap, and the bypass notice.        |
 
 Node and Bun share `cacheDir`, `concurrency`, `files`, `fresh`, `ignoreChanges`,
 `log`, `onUnknownChange`, `replayAdapters`, and `root`. Their cache paths are

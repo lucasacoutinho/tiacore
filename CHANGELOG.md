@@ -16,6 +16,13 @@ follow Semantic Versioning.
   versions in `.tia/runtime` when it writes the current one. After an upgrade,
   only the current setup file remains. Before, `setup-1.2.1.mjs` stayed next to
   `setup-2.0.0.mjs`. Other files in that directory are left in place.
+- The Vitest plugin prints one line when watch mode or Vitest's own selection
+  bypasses TIA and leaves the graph unchanged. The line names the reason, for
+  example
+  `tiacore: bypassed, native selection (--exclude) in use; graph not updated`.
+  File filters, `-t`, `--changed`, `--related`, `--project` and `--tagsFilter`
+  are named the same way. `log: false` hides the line. Before, that bypass
+  printed nothing.
 
 ## 2.0.0 - 2026-10-25
 

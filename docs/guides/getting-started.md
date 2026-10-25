@@ -67,7 +67,10 @@ npx vitest run
 The root `@lucasacoutinho/tiacore` export remains a compatibility alias, but new
 configs should use `/vitest`. Watch mode and explicit Vitest file, project,
 name, related-file, changed-file, tag, or exclusion filters remain native Vitest
-operations and do not replace the reusable full-suite graph.
+operations and do not replace the reusable full-suite graph. Tiacore prints one
+line that names the bypass, such as
+`tiacore: bypassed, native selection (--exclude) in use; graph not updated`, and
+leaves the graph unchanged. `log: false` hides the line.
 
 ### Testing with `@effect/vitest`
 
