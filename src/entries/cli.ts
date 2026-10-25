@@ -3,13 +3,22 @@ import { pathToFileURL } from 'node:url'
 
 import { VERSION } from '../core/version.ts'
 
-function main(argv: readonly string[]): void {
+/** Runs the tiacore CLI with `argv`; throws with the failure message. */
+export async function runCli(argv: readonly string[]): Promise<void> {
+  const cli = await import('../cli/main.ts')
+  await cli.runCli(argv)
+}
+
+async function main(argv: readonly string[]): Promise<void> {
   if (argv.length === 1 && (argv[0] === '--version' || argv[0] === '-V')) {
     process.stdout.write(`${VERSION}\n`)
     return
   }
-  process.stderr.write('tiacore 2.0 CLI is not implemented yet\n')
-  process.exitCode = 1
+  const { execute } = await import('../cli/main.ts')
+  const outcome = await execute(argv)
+  if (outcome.message !== undefined)
+    process.stderr.write(`${outcome.message}\n`)
+  process.exitCode = outcome.code
 }
 
 const invokedPath = process.argv[1]
@@ -17,5 +26,5 @@ if (
   invokedPath !== undefined &&
   import.meta.url === pathToFileURL(realpathSync(invokedPath)).href
 ) {
-  main(process.argv.slice(2))
+  await main(process.argv.slice(2))
 }

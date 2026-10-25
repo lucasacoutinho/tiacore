@@ -54,6 +54,5 @@
   "./vitest default",
   "./vitest tia",
   "./workspace TiaWorkspaceRunner",
-  "./workspace tia",
-  "bin runCli"
+  "./workspace tia"
 ]
