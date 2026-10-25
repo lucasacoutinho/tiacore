@@ -1,8 +1,6 @@
 import * as Match from 'effect/Match'
 
-import { createHash } from 'node:crypto'
-
-import { byCodeUnit } from '../../core/canonical.ts'
+import { canonicalJson } from '../../core/canonical.ts'
 import type { TiaCoverageRecord, TiaRuntimeGraph } from '../../core/runtime.ts'
 import type {
   TiaVerificationIssue,
@@ -10,23 +8,11 @@ import type {
   TiaVerificationSnapshot,
 } from '../../core/verification.ts'
 import { verdict, type VerdictIssue } from '../../core/verdict.ts'
+import { hashBytes } from '../../engine/baseline/fingerprint.ts'
 import { auditVerificationSelection } from './selection.ts'
 
-/** Plain data with object keys sorted at every depth and array order kept. */
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical)
-  if (value === null || typeof value !== 'object') return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => byCodeUnit(left, right))
-      .map(([key, item]) => [key, canonical(item)]),
-  )
-}
-
 function digest(value: unknown): string {
-  return createHash('sha256')
-    .update(JSON.stringify(canonical(value)))
-    .digest('hex')
+  return hashBytes(canonicalJson(value))
 }
 
 function outcomes(graph: TiaRuntimeGraph) {

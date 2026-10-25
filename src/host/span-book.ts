@@ -3,6 +3,8 @@ import type * as DevToolsSchema from 'effect/devtools/DevToolsSchema'
 import * as Exit from 'effect/Exit'
 import * as Match from 'effect/Match'
 
+import { byCodeUnit } from '../core/canonical.ts'
+
 /**
  * What `tiacore devtools` knows about the spans and metrics its clients sent.
  * Every collection is bounded, so a server that runs for days holds a fixed
@@ -107,7 +109,7 @@ function attributeText(
 ): string {
   if (attributes === undefined) return ''
   return Object.entries(attributes)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .sort(([left], [right]) => byCodeUnit(left, right))
     .map(([key, value]) => `${key}=${value}`)
     .join(',')
 }
@@ -162,7 +164,7 @@ export class SpanBook {
       metrics: [...this.metrics.values()].sort(compareMetrics),
       names: [...this.byName.values()].sort(
         (left, right) =>
-          right.totalMs - left.totalMs || compareText(left.name, right.name),
+          right.totalMs - left.totalMs || byCodeUnit(left.name, right.name),
       ),
       open,
       slowest: this.slowest,
@@ -254,13 +256,9 @@ export class SpanBook {
   }
 }
 
-function compareText(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0
-}
-
 function compareMetrics(left: MetricRow, right: MetricRow): number {
   return (
-    compareText(left.name, right.name) ||
-    compareText(left.attributes, right.attributes)
+    byCodeUnit(left.name, right.name) ||
+    byCodeUnit(left.attributes, right.attributes)
   )
 }

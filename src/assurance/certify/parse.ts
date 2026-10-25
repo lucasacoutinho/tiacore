@@ -1,6 +1,3 @@
-import * as Cause from 'effect/Cause'
-import * as Exit from 'effect/Exit'
-import * as Option from 'effect/Option'
 import * as Schema from 'effect/Schema'
 
 import { byCodeUnit } from '../../core/canonical.ts'
@@ -9,7 +6,7 @@ import {
   type TiaAdapterCertification,
   type TiaAdapterCertificationReceipt,
 } from '../../core/conformance.ts'
-import { describeIssue } from '../../wire/issue.ts'
+import { valueOrThrow } from '../../wire/issue.ts'
 import { CertificationReceipt } from './receipt.ts'
 
 const decodeReceipt = Schema.decodeUnknownExit(CertificationReceipt)
@@ -18,15 +15,10 @@ const decodeReceipt = Schema.decodeUnknownExit(CertificationReceipt)
 export function parseAdapterCertificationReceipt(
   value: unknown,
 ): TiaAdapterCertificationReceipt {
-  const exit = decodeReceipt(value, { onExcessProperty: 'error' })
-  if (!Exit.isSuccess(exit)) {
-    const error = Cause.findErrorOption(exit.cause)
-    if (Option.isNone(error)) throw Cause.squash(exit.cause)
-    throw new Error(
-      describeIssue('TIA adapter certification receipt', error.value.issue),
-    )
-  }
-  const receipt: TiaAdapterCertificationReceipt = exit.value
+  const receipt: TiaAdapterCertificationReceipt = valueOrThrow(
+    'TIA adapter certification receipt',
+    decodeReceipt(value, { onExcessProperty: 'error' }),
+  )
   return {
     ...receipt,
     features: [...receipt.features].sort(byCodeUnit),

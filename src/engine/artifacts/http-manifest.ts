@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 import * as Effect from 'effect/Effect'
 import * as Redacted from 'effect/Redacted'
 
@@ -12,6 +10,7 @@ import {
   type TiaHttpManifestOptions,
 } from '../../core/artifacts.ts'
 import { runPromise } from '../../host/runtime.ts'
+import { hashBytes } from '../baseline/fingerprint.ts'
 import { readArtifactArchive } from './archive.ts'
 import { type Fetch, getBytes, getJson } from './http.ts'
 import { readManifest } from './schema.ts'
@@ -76,8 +75,7 @@ export const loadHttpManifest = Effect.fnUntraced(function* (
     if (archive === null) continue
     if (
       (artifact.size !== undefined && archive.byteLength !== artifact.size) ||
-      (artifact.sha256 !== undefined &&
-        createHash('sha256').update(archive).digest('hex') !== artifact.sha256)
+      (artifact.sha256 !== undefined && hashBytes(archive) !== artifact.sha256)
     ) {
       continue
     }

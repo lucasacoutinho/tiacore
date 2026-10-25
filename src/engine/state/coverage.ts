@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 import type { FileCoverageData } from 'istanbul-lib-coverage'
 
 import {
@@ -10,6 +8,7 @@ import {
   type TiaCoverageTemplate,
   type TiaRuntimeGraph,
 } from '../../core/runtime.ts'
+import { hashBytes } from '../baseline/fingerprint.ts'
 
 // Graph-side coverage: content-addressed static maps plus the counters each
 // test advanced. These loops run per file and per counter, so they stay plain.
@@ -42,7 +41,7 @@ export function coverageTemplate(
 
 /** Content digest that names a template in `TiaRuntimeGraph.coverageMaps`. */
 export function coverageMapId(template: TiaCoverageTemplate): string {
-  return createHash('sha256').update(JSON.stringify(template)).digest('hex')
+  return hashBytes(JSON.stringify(template))
 }
 
 /** Rebuilds the dense Istanbul file coverage a record describes. */

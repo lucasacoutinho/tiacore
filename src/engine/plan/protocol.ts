@@ -20,6 +20,7 @@ import {
   type SelectionItem,
 } from '../../core/select.ts'
 import { parseImpactGraph } from '../../wire/decode.ts'
+import { errorMessage } from '../../wire/errors.ts'
 import { globMatcher } from '../glob.ts'
 
 /** Normalizes a project-relative path, throwing for paths outside the project. */
@@ -127,8 +128,11 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
   try {
     graph = parseImpactGraph(input.graph)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return planAll(suites, changedFiles, `invalid impact graph: ${message}`)
+    return planAll(
+      suites,
+      changedFiles,
+      `invalid impact graph: ${errorMessage(error)}`,
+    )
   }
   if (!graph.complete) {
     return planAll(

@@ -171,3 +171,20 @@ export interface RuntimePlanOptions {
   ignoreChanges: string[]
   onUnknownChange: 'full' | 'ignore'
 }
+
+/** The result id of the failed case that stands for a test file that did not run. */
+export const moduleFailureId = (file: string): string => `module:${file}`
+
+/** Whether `id` is any file's module-failure id. */
+export const isModuleFailureId = (id: string): boolean =>
+  id.startsWith('module:')
+
+/** The failed result that stands for a test file that did not load or run. */
+export function moduleFailureResult(file: string): CachedTestResult {
+  return {
+    file,
+    fullName: `${file} (module failure)`,
+    id: moduleFailureId(file),
+    state: 'failed',
+  }
+}

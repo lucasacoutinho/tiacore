@@ -17,7 +17,7 @@ import {
   TIA_VERIFICATION_DIRECTORY_ENV,
   TIA_VERIFICATION_PHASE_ENV,
 } from '../../engine/verification-snapshot.ts'
-import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
+import { errorMessage, ioError, TiaInvalid } from '../../wire/errors.ts'
 import {
   accuracyReceipt,
   comparePhases,
@@ -26,9 +26,6 @@ import {
   type ExecutedPhase,
 } from './receipt.ts'
 import { readSnapshot } from './snapshot-read.ts'
-
-const asIo = (error: { readonly message: string }) =>
-  new TiaIo({ cause: error, message: error.message })
 
 const readSnapshots = Effect.fnUntraced(function* (
   directory: string,
@@ -44,12 +41,9 @@ const readSnapshots = Effect.fnUntraced(function* (
     if (!entry.endsWith('.json')) continue
     const text = yield* fs
       .readFileString(resolve(root, entry))
-      .pipe(Effect.mapError(asIo))
+      .pipe(Effect.mapError(ioError))
     const parsed = yield* Effect.try({
-      catch: (error) =>
-        new TiaInvalid({
-          message: error instanceof Error ? error.message : String(error),
-        }),
+      catch: (error) => new TiaInvalid({ message: errorMessage(error) }),
       try: (): unknown => JSON.parse(text),
     })
     const snapshot = readSnapshot(parsed, phase)
@@ -116,7 +110,7 @@ export const verify = Effect.fn('tia.verify.run')(function* (
   if (artifactsRoot !== undefined) {
     yield* fs
       .makeDirectory(resolve(cwd, artifactsRoot), { recursive: true })
-      .pipe(Effect.mapError(asIo))
+      .pipe(Effect.mapError(ioError))
   }
   const directory = yield* fs
     .makeTempDirectory(
@@ -124,7 +118,7 @@ export const verify = Effect.fn('tia.verify.run')(function* (
         ? { prefix: 'tiacore-verify-' }
         : { directory: resolve(cwd, artifactsRoot), prefix: 'run-' },
     )
-    .pipe(Effect.mapError(asIo))
+    .pipe(Effect.mapError(ioError))
   const cleanup = keep
     ? Effect.void
     : fs.remove(directory, { force: true, recursive: true }).pipe(Effect.ignore)
@@ -182,10 +176,10 @@ export const verify = Effect.fn('tia.verify.run')(function* (
       const output = resolve(cwd, options.output)
       yield* fs
         .makeDirectory(path.dirname(output), { recursive: true })
-        .pipe(Effect.mapError(asIo))
+        .pipe(Effect.mapError(ioError))
       yield* fs
         .writeFileString(output, `${JSON.stringify(receipt, null, 2)}\n`)
-        .pipe(Effect.mapError(asIo))
+        .pipe(Effect.mapError(ioError))
     }
     return receipt
   }).pipe(Effect.ensuring(cleanup))

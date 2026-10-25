@@ -1,6 +1,3 @@
-import * as Cause from 'effect/Cause'
-import * as Exit from 'effect/Exit'
-import * as Option from 'effect/Option'
 import * as Predicate from 'effect/Predicate'
 import * as Schema from 'effect/Schema'
 
@@ -8,7 +5,7 @@ import type {
   TiaWorkspaceLaneRunner,
   TiaWorkspaceOptions,
 } from '../../core/workspace.ts'
-import { describeIssue } from '../../wire/issue.ts'
+import { valueOrThrow } from '../../wire/issue.ts'
 
 // A runner is anything with a run() method, decided structurally so a runner
 // built by another copy of tiacore (or any adapter package) is accepted.
@@ -50,9 +47,5 @@ const decode = Schema.decodeUnknownExit(WorkspaceOptions)
 
 /** Decodes a workspace configuration, keeping runner objects by reference. */
 export function decodeWorkspaceOptions(value: unknown): TiaWorkspaceOptions {
-  const exit = decode(value)
-  if (Exit.isSuccess(exit)) return exit.value
-  const error = Cause.findErrorOption(exit.cause)
-  if (Option.isNone(error)) throw Cause.squash(exit.cause)
-  throw new Error(describeIssue('TIA workspace options', error.value.issue))
+  return valueOrThrow('TIA workspace options', decode(value))
 }

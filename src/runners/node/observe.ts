@@ -4,12 +4,12 @@ import { pathToFileURL } from 'node:url'
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 
-import type { CachedTestResult } from '../../core/runtime.ts'
+import { isRecord } from '../../core/record.ts'
+import { moduleFailureId, type CachedTestResult } from '../../core/runtime.ts'
 import type { TiaObservation } from '../../engine/core.ts'
 import { slash } from '../../engine/host-path.ts'
 import { runProcess } from '../../engine/process.ts'
 import type { HostServices } from '../../host/runtime.ts'
-import { isObject } from '../shared/json.ts'
 import {
   childEnvironment,
   groupBy,
@@ -52,7 +52,7 @@ function stringArray(value: unknown): value is string[] {
 
 function isNodeCase(value: unknown): value is NodeCase {
   return (
-    isObject(value) &&
+    isRecord(value) &&
     typeof value['file'] === 'string' &&
     typeof value['fullName'] === 'string' &&
     typeof value['id'] === 'string' &&
@@ -68,7 +68,7 @@ function isNodeCase(value: unknown): value is NodeCase {
 /** The child's result file, or null when it is not a complete result. */
 export function parseNodeExecution(source: string): NodeExecution | null {
   const value: unknown = JSON.parse(source)
-  if (!isObject(value)) return null
+  if (!isRecord(value)) return null
   const { cases, coverageFiles, moduleFailures, success } = value
   if (
     !Array.isArray(cases) ||
@@ -307,7 +307,7 @@ const observeCachedCase = Effect.fnUntraced(function* (
   context: NodeContext,
   cached: CachedTestResult,
 ) {
-  const moduleFailure = cached.id === `module:${cached.file}`
+  const moduleFailure = cached.id === moduleFailureId(cached.file)
   const execution = yield* executeNode(
     context,
     [resolve(context.root, cached.file)],

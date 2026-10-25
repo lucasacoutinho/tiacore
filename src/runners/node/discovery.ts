@@ -1,7 +1,6 @@
 import { relative } from 'node:path'
 
-import { isObject } from '../shared/json.ts'
-
+import { isRecord } from '../../core/record.ts'
 import { isInside, slash } from '../../engine/host-path.ts'
 import { canonicalNodePath } from './paths.ts'
 
@@ -67,7 +66,7 @@ interface NodeDiscoveryRecord {
 
 function parseRecord(line: string): NodeDiscoveryRecord | null {
   const value: unknown = JSON.parse(line)
-  if (!isObject(value)) return null
+  if (!isRecord(value)) return null
   const { column, file, fullName, line: row, name, skipped } = value
   if (
     typeof file !== 'string' ||

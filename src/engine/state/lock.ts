@@ -8,8 +8,7 @@ import * as FileSystem from 'effect/FileSystem'
 import * as Option from 'effect/Option'
 import * as Random from 'effect/Random'
 
-import type { TiaIo } from '../../wire/errors.ts'
-import { ioError } from './state-files.ts'
+import { ioError, type TiaIo } from '../../wire/errors.ts'
 
 // The commit lock: the directory <cacheDir>/state.lock holding owner.json.
 // A lock is stale when its owner is a dead process on this host, or when it is

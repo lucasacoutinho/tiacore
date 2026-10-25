@@ -9,6 +9,8 @@ import * as Layer from 'effect/Layer'
 import * as Option from 'effect/Option'
 import * as Tracer from 'effect/Tracer'
 
+import { DEFAULT_DEVTOOLS_PORT } from '../core/defaults.ts'
+import { envFlag } from '../core/env.ts'
 import { VERSION } from '../core/version.ts'
 
 /**
@@ -31,7 +33,7 @@ export interface ObserveConfig {
   readonly traceFile?: string
 }
 
-const DEFAULT_DEVTOOLS = 'ws://localhost:34437'
+const DEFAULT_DEVTOOLS = `ws://localhost:${DEFAULT_DEVTOOLS_PORT}`
 
 function setting(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
@@ -49,7 +51,7 @@ export function observeConfig(
     ...(devtools === undefined
       ? {}
       : {
-          devtools: /^(?:1|true|yes|on)$/iu.test(devtools)
+          devtools: envFlag(env, 'TIACORE_DEVTOOLS')
             ? DEFAULT_DEVTOOLS
             : devtools,
         }),

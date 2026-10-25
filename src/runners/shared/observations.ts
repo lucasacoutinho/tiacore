@@ -1,4 +1,9 @@
-import type { RunPlan } from '../../core/runtime.ts'
+import {
+  isModuleFailureId,
+  moduleFailureId,
+  moduleFailureResult,
+  type RunPlan,
+} from '../../core/runtime.ts'
 import { byCodeUnit } from '../../core/canonical.ts'
 import type { TiaObservation } from '../../engine/core.ts'
 import { inheritedEnvironment } from '../../engine/process.ts'
@@ -31,13 +36,7 @@ export function childEnvironment(
 
 /** The failed observation that stands for a test file that did not load or run. */
 export function moduleFailureObservation(file: string): TiaObservation {
-  return {
-    file,
-    files: [file],
-    fullName: `${file} (module failure)`,
-    id: `module:${file}`,
-    state: 'failed',
-  }
+  return { ...moduleFailureResult(file), files: [file] }
 }
 
 /**
@@ -53,13 +52,13 @@ export function fullyExecutedFiles(
 ): string[] {
   const files = new Set(initial)
   for (const observation of observations) {
-    if (observation.id === `module:${observation.file}`) {
+    if (observation.id === moduleFailureId(observation.file)) {
       files.add(observation.file)
     }
   }
   if (plan.mode === 'replay' && plan.graph !== null) {
     for (const id of plan.affectedTestIds) {
-      if (!id.startsWith('module:')) continue
+      if (!isModuleFailureId(id)) continue
       const result = plan.graph.results[id]
       if (result !== undefined) files.add(result.file)
     }

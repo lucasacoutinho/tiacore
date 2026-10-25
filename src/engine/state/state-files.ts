@@ -13,11 +13,11 @@ import * as FileSystem from 'effect/FileSystem'
 import * as Option from 'effect/Option'
 
 import type { StoredGraph } from '../ports.ts'
-import { TiaIo } from '../../wire/errors.ts'
+import { ioError } from '../../wire/errors.ts'
+import { hashBytes } from '../baseline/fingerprint.ts'
 import { parseRuntimeGraph } from '../../wire/runtime-graph.ts'
 import {
   assembleGraph,
-  digest,
   MAX_MANIFEST_BYTES,
   manifestBody,
   parseManifest,
@@ -46,10 +46,6 @@ export const statePath = (cacheDir: string): string =>
   join(cacheDir, 'state.json')
 export const objectsPath = (cacheDir: string): string =>
   join(cacheDir, 'objects')
-
-export function ioError(error: { readonly message: string }): TiaIo {
-  return new TiaIo({ cause: error, message: error.message })
-}
 
 function utf8(bytes: Uint8Array): string {
   return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString(
@@ -90,7 +86,7 @@ function storeObjectSync(cacheDir: string, segment: SerializedSegment): void {
     const current = readFileSync(path)
     if (
       current.byteLength === segment.reference.bytes &&
-      digest(current) === segment.reference.sha256
+      hashBytes(current) === segment.reference.sha256
     ) {
       const now = new Date()
       try {
@@ -114,11 +110,7 @@ function storeObjectSync(cacheDir: string, segment: SerializedSegment): void {
 
 const storeObject = (cacheDir: string, segment: SerializedSegment) =>
   Effect.try({
-    catch: (error) =>
-      new TiaIo({
-        cause: error,
-        message: error instanceof Error ? error.message : String(error),
-      }),
+    catch: ioError,
     try: () => storeObjectSync(cacheDir, segment),
   })
 
@@ -126,11 +118,7 @@ const nextSegment = (
   generator: Generator<SerializedSegment, RuntimeStateManifest, undefined>,
 ) =>
   Effect.try({
-    catch: (error) =>
-      new TiaIo({
-        cause: error,
-        message: error instanceof Error ? error.message : String(error),
-      }),
+    catch: ioError,
     try: () => generator.next(),
   })
 
@@ -246,11 +234,7 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
     }
     const manifest = step.value
     const body = yield* Effect.try({
-      catch: (error) =>
-        new TiaIo({
-          cause: error,
-          message: error instanceof Error ? error.message : String(error),
-        }),
+      catch: ioError,
       try: () => manifestBody(manifest),
     })
     yield* atomicWrite(statePath(cacheDir), body).pipe(Effect.mapError(ioError))

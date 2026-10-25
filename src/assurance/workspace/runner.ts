@@ -11,7 +11,7 @@ import type {
   TiaWorkspaceResult,
 } from '../../core/workspace.ts'
 import { runPromise } from '../../host/runtime.ts'
-import { TiaFailed, type TiaError } from '../../wire/errors.ts'
+import { errorMessage, TiaFailed, type TiaError } from '../../wire/errors.ts'
 import { inheritedEnvironment, runProcess } from '../../engine/process.ts'
 import { decodeWorkspaceOptions } from './options.ts'
 import { normalizedConcurrency } from '../../engine/scheduling.ts'
@@ -59,9 +59,6 @@ function laneSucceeded(result: unknown): boolean {
   if ('success' in result && result.success === false) return false
   return !('status' in result && result.status !== 0)
 }
-
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 const executeLane = Effect.fnUntraced(function* (
   lane: TiaWorkspaceLane,

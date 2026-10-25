@@ -15,6 +15,24 @@ export function sortByKey<T>(
     .map(([, value]) => value)
 }
 
+function sortedDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortedDeep)
+  if (value === null || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => byCodeUnit(left, right))
+      .map(([key, item]) => [key, sortedDeep(item)]),
+  )
+}
+
+/**
+ * The compact JSON of plain data with object keys sorted at every depth in
+ * UTF-16 code-unit order and arrays in their given order.
+ */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(sortedDeep(value))
+}
+
 export const invalidatorKey = (invalidator: {
   readonly pattern: string
   readonly reason: string

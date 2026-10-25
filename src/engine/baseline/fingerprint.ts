@@ -7,7 +7,7 @@ import * as FileSystem from 'effect/FileSystem'
 import { byCodeUnit } from '../../core/canonical.ts'
 import type { FingerprintOptions } from './options.ts'
 import { VERSION } from '../../core/version.ts'
-import { TiaIo } from '../../wire/errors.ts'
+import { ioError } from '../../wire/errors.ts'
 
 export const DELETED_HASH = '<deleted>'
 export const UNAVAILABLE_HASH = '<unavailable>'
@@ -19,6 +19,7 @@ export const MAX_HASHED_BYTES = 2 ** 31
 export const STRUCTURAL_FILE_PATTERN =
   /^(?:package\.json|(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)|(?:tsconfig|jsconfig)(?:\.[^.]+)?\.json|(?:vite|vitest)(?:\.[^.]+)?\.config\.[cm]?[jt]s)$/u
 
+/** The lowercase hex SHA-256 digest of `value`. */
 export function hashBytes(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')
 }
@@ -56,13 +57,7 @@ export const projectFingerprint = Effect.fn('tia.baseline.fingerprint')(
     extraFiles: readonly string[] = [],
   ) {
     const fs = yield* FileSystem.FileSystem
-    const entries = yield* fs
-      .readDirectory(root)
-      .pipe(
-        Effect.mapError(
-          (error) => new TiaIo({ cause: error, message: error.message }),
-        ),
-      )
+    const entries = yield* fs.readDirectory(root).pipe(Effect.mapError(ioError))
     const matching = entries.filter((name) =>
       STRUCTURAL_FILE_PATTERN.test(name),
     )

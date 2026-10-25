@@ -1,10 +1,11 @@
 import { byCodeUnit } from '../../core/canonical.ts'
-import type {
-  CachedTestResult,
-  RunPlanBaseline,
-  RuntimePlanOptions,
-  TiaRuntimeGraph,
-  TiaTestEdge,
+import {
+  isModuleFailureId,
+  type CachedTestResult,
+  type RunPlanBaseline,
+  type RuntimePlanOptions,
+  type TiaRuntimeGraph,
+  type TiaTestEdge,
 } from '../../core/runtime.ts'
 import type {
   TiaVerificationSelection,
@@ -28,7 +29,7 @@ const STRICT: RuntimePlanOptions = {
 }
 
 function isRunnable(result: CachedTestResult): boolean {
-  return result.state !== 'skipped' && !result.id.startsWith('module:')
+  return result.state !== 'skipped' && !isModuleFailureId(result.id)
 }
 
 function union(left: readonly string[], right: readonly string[]): string[] {

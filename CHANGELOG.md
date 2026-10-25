@@ -80,6 +80,9 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 - `TIA_FRESH` accepts `1`, `true`, `yes` and `on` in any case in every runner
   and in the Go and Python SDKs. Before, only the Vitest plugin did. Playwright,
   the shared engine and Go accepted only `1`.
+- `TIACORE_NODE_DEBUG` accepts `1`, `true`, `yes` and `on` in any case, like
+  every other flag. Before, only `1` turned on the Node execution child's
+  diagnostics.
 - `@types/istanbul-lib-instrument` is a development dependency. No public
   declaration references it.
 - Sorting uses UTF-16 code unit order everywhere, so results no longer depend on

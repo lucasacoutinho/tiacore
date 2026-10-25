@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 
 import * as Clock from 'effect/Clock'
@@ -21,7 +20,8 @@ import {
   type TiaArtifactPublisherOptions,
   type TiaArtifactSigningOptions,
 } from '../../core/artifacts.ts'
-import { TiaInvalid } from '../../wire/errors.ts'
+import { errorMessage, TiaInvalid } from '../../wire/errors.ts'
+import { hashBytes } from '../baseline/fingerprint.ts'
 import { GraphStore } from '../ports.ts'
 import { writeArtifactArchive } from './archive.ts'
 import { portableGraphBytes } from './portable-graph.ts'
@@ -30,10 +30,6 @@ import { createArtifactAttestation } from './trust.ts'
 
 const DEFAULT_EXPIRY_SECONDS = 7 * 24 * 60 * 60
 const MAX_EXPIRY_SECONDS = 365 * 24 * 60 * 60
-
-function digest(value: Uint8Array): string {
-  return createHash('sha256').update(value).digest('hex')
-}
 
 function artifactKey(sha256: string): string {
   return `tiacore-${sha256.slice(0, 24)}.zip`
@@ -149,8 +145,7 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
   }
 
   const graphBytes = yield* Effect.try({
-    catch: (error) =>
-      invalid(error instanceof Error ? error.message : String(error)),
+    catch: (error) => invalid(errorMessage(error)),
     try: () => portableGraphBytes(graph, MAX_ARTIFACT_GRAPH_BYTES),
   })
   const issuedMillis = yield* Clock.currentTimeMillis
@@ -172,15 +167,14 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
   const claim: TiaArtifactClaimV1 = {
     expiresAt: new Date(issuedMillis + expiresInSeconds * 1_000).toISOString(),
     fingerprint: graph.fingerprint,
-    graphSha256: digest(graphBytes),
+    graphSha256: hashBytes(graphBytes),
     issuedAt: producedAt,
     lineage,
     promoted,
     ...(options.runner === undefined ? {} : { runner: options.runner }),
   }
   const attestation = yield* Effect.try({
-    catch: (error) =>
-      invalid(error instanceof Error ? error.message : String(error)),
+    catch: (error) => invalid(errorMessage(error)),
     try: () =>
       createArtifactAttestation(claim, {
         keyId: options.signing.keyId,
@@ -207,7 +201,7 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
     )
   }
 
-  const sha256 = digest(archive)
+  const sha256 = hashBytes(archive)
   const put = (input: Parameters<typeof putToSink>[1]) =>
     options.sink === undefined
       ? putToDirectory(
@@ -255,7 +249,7 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
     body: manifestBytes,
     contentType: 'application/json',
     key: 'manifest.json',
-    sha256: digest(manifestBytes),
+    sha256: hashBytes(manifestBytes),
   })
 
   const receipt: TiaArtifactPublishReceipt = {

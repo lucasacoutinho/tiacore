@@ -5,7 +5,7 @@ import * as Option from 'effect/Option'
 import * as Predicate from 'effect/Predicate'
 
 import { loadWorkspace } from '../assurance/workspace/config.ts'
-import { TiaFailed, TiaInvalid } from '../wire/errors.ts'
+import { errorMessage, TiaFailed, TiaInvalid } from '../wire/errors.ts'
 import { emitJson } from './io.ts'
 
 export const runCommand = Command.make(
@@ -23,10 +23,7 @@ export const runCommand = Command.make(
   Effect.fn('tia.cli.run')(function* (options) {
     const workspace = yield* loadWorkspace(options.config)
     const result = yield* Effect.tryPromise({
-      catch: (error) =>
-        new TiaInvalid({
-          message: error instanceof Error ? error.message : String(error),
-        }),
+      catch: (error) => new TiaInvalid({ message: errorMessage(error) }),
       try: () => workspace.run(),
     })
     yield* emitJson(result, Option.getOrUndefined(options.output))

@@ -1,4 +1,8 @@
+import * as Cause from 'effect/Cause'
+import * as Exit from 'effect/Exit'
 import * as Match from 'effect/Match'
+import * as Option from 'effect/Option'
+import type * as Schema from 'effect/Schema'
 import * as SchemaIssue from 'effect/SchemaIssue'
 
 const formatLeaf = SchemaIssue.makeFormatterDefault()
@@ -46,4 +50,18 @@ export function describeIssue(
   return location === ''
     ? `${subject} ${message}`
     : `${subject} ${location} ${message}`
+}
+
+/**
+ * The decoded value, or a thrown `Error` that names `subject` and the first
+ * failure. A defect in the decoder itself is rethrown as it is.
+ */
+export function valueOrThrow<A>(
+  subject: string,
+  exit: Exit.Exit<A, Schema.SchemaError>,
+): A {
+  if (Exit.isSuccess(exit)) return exit.value
+  const error = Cause.findErrorOption(exit.cause)
+  if (Option.isNone(error)) throw Cause.squash(exit.cause)
+  throw new Error(describeIssue(subject, error.value.issue))
 }

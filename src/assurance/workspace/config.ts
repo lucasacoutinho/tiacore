@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import * as Effect from 'effect/Effect'
 import * as Predicate from 'effect/Predicate'
 
-import { TiaInvalid } from '../../wire/errors.ts'
+import { errorMessage, TiaInvalid } from '../../wire/errors.ts'
 import { decodeWorkspaceOptions } from './options.ts'
 import { TiaWorkspaceRunner } from './runner.ts'
 
@@ -21,10 +21,7 @@ export interface LoadedWorkspace {
 export const loadWorkspace = Effect.fnUntraced(function* (config: string) {
   const location = pathToFileURL(resolve(config)).href
   const loaded = yield* Effect.tryPromise({
-    catch: (error) =>
-      new TiaInvalid({
-        message: error instanceof Error ? error.message : String(error),
-      }),
+    catch: (error) => new TiaInvalid({ message: errorMessage(error) }),
     try: (): Promise<unknown> => import(location),
   })
   const configured = Predicate.isObject(loaded)
@@ -47,10 +44,7 @@ export const loadWorkspace = Effect.fnUntraced(function* (config: string) {
     return runnable
   }
   return yield* Effect.try({
-    catch: (error) =>
-      new TiaInvalid({
-        message: error instanceof Error ? error.message : String(error),
-      }),
+    catch: (error) => new TiaInvalid({ message: errorMessage(error) }),
     try: () => new TiaWorkspaceRunner(decodeWorkspaceOptions(configured)),
   })
 })

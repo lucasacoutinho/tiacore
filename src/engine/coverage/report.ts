@@ -9,7 +9,7 @@ import * as Effect from 'effect/Effect'
 import type { ReportBase } from 'istanbul-lib-report'
 
 import type { TiaCoverageHits, TiaRuntimeGraph } from '../../core/runtime.ts'
-import { TiaIo } from '../../wire/errors.ts'
+import { ioError } from '../../wire/errors.ts'
 import { selectedCoverage } from './files.ts'
 import { coverageRecords, expandCoverageHits } from '../state/coverage.ts'
 import {
@@ -139,11 +139,7 @@ export const writeCoverageReports = Effect.fn('tia.coverage.report')(function* (
   options: TiaCoverageRuntime,
 ) {
   return yield* Effect.try({
-    catch: (error) =>
-      new TiaIo({
-        cause: error,
-        message: error instanceof Error ? error.message : String(error),
-      }),
+    catch: ioError,
     try: () => renderCoverageReports(graph, root, options),
   })
 })

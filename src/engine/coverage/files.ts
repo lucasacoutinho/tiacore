@@ -6,6 +6,7 @@ import { createInstrumenter } from 'istanbul-lib-instrument'
 import picomatch from 'picomatch'
 import { globSync } from 'tinyglobby'
 
+import { errorMessage } from '../../wire/errors.ts'
 import { slash } from '../host-path.ts'
 import type { TiaCoverageMap, TiaCoverageRuntime } from './types.ts'
 
@@ -89,9 +90,7 @@ export function selectedCoverage(
       selected.addFileCoverage(zeroCoverage(absolute))
     } catch (error) {
       warnings.push(
-        `TIA coverage could not include ${slash(absolute)}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `TIA coverage could not include ${slash(absolute)}: ${errorMessage(error)}`,
       )
     }
   }

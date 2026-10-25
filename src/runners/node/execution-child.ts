@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { run as runNodeTests } from 'node:test'
 
-import { isObject } from '../shared/json.ts'
-
 import { byCodeUnit } from '../../core/canonical.ts'
+import { isRecord } from '../../core/record.ts'
+import { envFlag } from '../../core/env.ts'
 import { isInside, slash } from '../../engine/host-path.ts'
 import { readNodeV8CoverageFiles } from './coverage.ts'
 import { nodeTestId, type NodeCase, type NodeExecution } from './discovery.ts'
@@ -24,7 +24,7 @@ interface NodeExecutionRequest {
 
 function parseRequest(source: string): NodeExecutionRequest {
   const value: unknown = JSON.parse(source)
-  if (!isObject(value)) throw new Error('Invalid Node execution request')
+  if (!isRecord(value)) throw new Error('Invalid Node execution request')
   const { coverage, coverageDirectory, files, pattern, root } = value
   if (
     typeof coverage !== 'boolean' ||
@@ -38,7 +38,7 @@ function parseRequest(source: string): NodeExecutionRequest {
     coverage,
     ...(typeof coverageDirectory === 'string' ? { coverageDirectory } : {}),
     files,
-    ...(isObject(pattern) &&
+    ...(isRecord(pattern) &&
     typeof pattern['source'] === 'string' &&
     typeof pattern['flags'] === 'string'
       ? { pattern: { flags: pattern['flags'], source: pattern['source'] } }
@@ -68,7 +68,7 @@ async function execute(request: NodeExecutionRequest): Promise<NodeExecution> {
   for await (const event of stream) {
     if (
       event.type === 'test:fail' &&
-      process.env['TIACORE_NODE_DEBUG'] === '1'
+      envFlag(process.env, 'TIACORE_NODE_DEBUG')
     ) {
       console.error(JSON.stringify(event.data))
     }
@@ -156,7 +156,7 @@ const request = parseRequest(readFileSync(requestFile, 'utf8'))
 try {
   writeFileSync(outputFile, JSON.stringify(await execute(request)))
 } catch (error) {
-  if (process.env['TIACORE_NODE_DEBUG'] === '1') console.error(error)
+  if (envFlag(process.env, 'TIACORE_NODE_DEBUG')) console.error(error)
   const failure: NodeExecution = {
     cases: [],
     coverageFiles: [],

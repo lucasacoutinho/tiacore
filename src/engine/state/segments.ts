@@ -1,8 +1,9 @@
-import { createHash, hash } from 'node:crypto'
+import { hash } from 'node:crypto'
 
 import { byCodeUnit } from '../../core/canonical.ts'
 import { isRecord } from '../../core/record.ts'
 import { RECORD_FAMILIES, type TiaRuntimeGraph } from '../../core/runtime.ts'
+import { hashBytes } from '../baseline/fingerprint.ts'
 import { referencedCoverageMaps } from './coverage.ts'
 
 // The segmented runtime-state layout. A graph is a small manifest plus
@@ -51,10 +52,6 @@ export interface SerializedSegment {
   readonly reference: SegmentReference
 }
 
-export function digest(value: string | Uint8Array): string {
-  return createHash('sha256').update(value).digest('hex')
-}
-
 export function bucketFor(key: string): number {
   return hash('sha256', key, 'buffer')[0]! % TIA_RUNTIME_STORE_BUCKETS
 }
@@ -81,7 +78,7 @@ function generationOf(
   metadata: Metadata,
   segments: RuntimeStateManifest['segments'],
 ): string {
-  return digest(JSON.stringify({ metadata, segments }))
+  return hashBytes(JSON.stringify({ metadata, segments }))
 }
 
 /**
@@ -139,7 +136,7 @@ export function parseSegment(
 ): Record<string, unknown> | null {
   if (
     Buffer.byteLength(source) !== reference.bytes ||
-    digest(source) !== reference.sha256
+    hashBytes(source) !== reference.sha256
   ) {
     return null
   }
@@ -252,7 +249,12 @@ function serializeSegment(
   return {
     body,
     domain,
-    reference: { bucket, bytes, entries: entries.length, sha256: digest(body) },
+    reference: {
+      bucket,
+      bytes,
+      entries: entries.length,
+      sha256: hashBytes(body),
+    },
   }
 }
 

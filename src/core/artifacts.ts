@@ -3,7 +3,7 @@
 // provider contract users implement. Plain interfaces and Promise methods; the
 // engine lifts them into Effect.
 
-import { byCodeUnit } from './canonical.ts'
+import { canonicalJson } from './canonical.ts'
 
 export const TIA_ARTIFACT_ATTESTATION_VERSION = 1 as const
 export const TIA_ARTIFACT_MANIFEST_VERSION = 1 as const
@@ -243,16 +243,6 @@ export function isSafeRunner(value: string): boolean {
   return isSafeRelativePath(value) && !value.includes('..')
 }
 
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical)
-  if (value === null || typeof value !== 'object') return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => byCodeUnit(left, right))
-      .map(([key, item]) => [key, canonical(item)]),
-  )
-}
-
 /**
  * The bytes an attestation signature covers: the compact JSON of the
  * attestation without `signature`, object keys sorted at every depth in
@@ -261,7 +251,7 @@ function canonical(value: unknown): unknown {
 export function attestationPayload(
   attestation: Omit<TiaArtifactAttestationV1, 'signature'>,
 ): string {
-  return JSON.stringify(canonical(attestation))
+  return canonicalJson(attestation)
 }
 
 export interface RestoreArtifactsInput {

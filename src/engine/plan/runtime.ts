@@ -1,13 +1,14 @@
 import * as Match from 'effect/Match'
 
 import { byCodeUnit } from '../../core/canonical.ts'
-import type {
-  CachedTestResult,
-  RunPlan,
-  RunPlanBaseline,
-  RunPlanDecision,
-  RuntimePlanOptions,
-  TiaRuntimeGraph,
+import {
+  isModuleFailureId,
+  type CachedTestResult,
+  type RunPlan,
+  type RunPlanBaseline,
+  type RunPlanDecision,
+  type RuntimePlanOptions,
+  type TiaRuntimeGraph,
 } from '../../core/runtime.ts'
 import {
   select,
@@ -92,7 +93,7 @@ export function runtimePlanCandidates(
 function exactFiles(graph: TiaRuntimeGraph): Map<string, boolean> {
   const exact = new Map<string, boolean>()
   for (const result of Object.values(graph.results)) {
-    if (result.state === 'skipped' || result.id.startsWith('module:')) continue
+    if (result.state === 'skipped' || isModuleFailureId(result.id)) continue
     if (graph.testEdges[result.id] === undefined) exact.set(result.file, false)
     else if (!exact.has(result.file)) exact.set(result.file, true)
   }
@@ -127,7 +128,7 @@ export function planRuntimeChanges(
   const groupFailures = new Map<string, CachedTestResult[]>()
   const caseFailures = new Map<string, CachedTestResult>()
   for (const result of failed) {
-    if (result.id.startsWith('module:') || exact.get(result.file) === false) {
+    if (isModuleFailureId(result.id) || exact.get(result.file) === false) {
       const failures = groupFailures.get(result.file)
       if (failures === undefined) groupFailures.set(result.file, [result])
       else failures.push(result)
