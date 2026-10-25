@@ -7,6 +7,7 @@ import * as Exit from 'effect/Exit'
 import * as Option from 'effect/Option'
 
 import { VERSION } from '../core/version.ts'
+import { artifactsCommand } from './artifacts.ts'
 import { certifyCommand } from './certify.ts'
 import { gradleCommand } from './gradle.ts'
 import { k6Command } from './k6.ts'
@@ -19,9 +20,13 @@ const root = Command.make('tiacore').pipe(
   Command.withSubcommands([
     ...protocolCommands,
     certifyCommand,
+  Command.withSubcommands([
+    ...protocolCommands,
+    artifactsCommand,
     gradleCommand,
     k6Command,
     maestroCommand,
+  ]),
     runCommand,
   ]),
 )
