@@ -13,7 +13,6 @@
   "./artifacts tia",
   "./artifacts verifyArtifactAttestation",
   "./bun tia",
-  "./core TiaCore",
   "./gradle TiaGradleRunner",
   "./gradle createGradleGraph",
   "./gradle discoverGradleSuites",

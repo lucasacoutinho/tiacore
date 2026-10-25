@@ -11,3 +11,8 @@ export type {
 } from '../core/runtime.ts'
 export { createImpactPlan, mergeImpactGraphs } from '../engine/plan/protocol.ts'
 export * from './protocol.ts'
+export {
+  TiaCore,
+  type TiaCoreOptions,
+  type TiaObservation,
+} from '../engine/core.ts'
