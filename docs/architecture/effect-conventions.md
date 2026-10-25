@@ -1,0 +1,90 @@
+# Effect conventions for tiacore 2.0
+
+These rules apply to every module under `src/`. ADR 0004 explains why; this file
+says how. When a rule and the 1.x behaviour conflict, keep the 1.x behaviour
+unless ADR 0004's behaviour-decision table says otherwise, and add a row there
+for any new deviation.
+
+## Layout and layering
+
+| Directory       | Holds                                                         | May import                                  |
+| --------------- | ------------------------------------------------------------- | ------------------------------------------- |
+| `src/core`      | Pure decisions and plain public types. No Effect, no `node:`. | nothing in `src/`                           |
+| `src/probe`     | Worker-side coverage ledger. No Effect, no `node:`.           | `core`                                      |
+| `src/evidence`  | The evidence SDK leaf. No Effect.                             | nothing in `src/`                           |
+| `src/wire`      | Effect Schemas, tagged errors, decoders.                      | `core`                                      |
+| `src/host`      | The Promise bridge, observability layers.                     | `core`, `wire`                              |
+| `src/engine`    | The Effect shell: store, baseline, planning, artifacts, ...   | `core`, `wire`, `host`, `probe`             |
+| `src/runners`   | One directory per runner.                                     | the layers above                            |
+| `src/assurance` | verify, certify, workspace.                                   | `core`, `wire`, `host`, `engine`, `runners` |
+| `src/cli`       | The CLI.                                                      | everything except `entries`                 |
+| `src/entries`   | One thin file per `package.json` export. Re-exports only.     | everything                                  |
+
+`archer.config.ts` enforces the table, and `test/package/purity.test.ts` keeps
+Effect and `node:` out of `core` and `probe`. Keep files under 800 lines.
+
+## Public seams
+
+- Public functions take and return plain values, Promises and plain interfaces.
+  Effect never appears in a public signature or a public declaration file
+  (`test/package/bundle.test.ts` follows every entry's declarations).
+- Public types are hand-written interfaces in `src/core`. A Schema that decodes
+  into one must be typed so the compiler checks the result against the interface
+  (see `src/wire/decode.ts`). Never cast a decoded value.
+- A public effectful function calls `runPromise` from `src/host/runtime.ts`.
+  Tagged failures become an `Error` with the 1.x message.
+- Files whose declarations would export a Schema value are internal. Put the
+  public decode function in a separate module (`wire/decode.ts`).
+
+## Effect style
+
+- `Effect.fn('tia.<area>.<operation>')` only at stage granularity (plan, record,
+  commit, restore, publish, verify). Use `Effect.fnUntraced` for other reusable
+  effects. Never put Effect, spans or metrics on a per-test, per-counter or
+  per-file hot loop; those stay plain TypeScript.
+- Services are `Context.Service` classes. The engine's seams are declared in
+  `src/engine/ports.ts`; add a seam only when it has two real adapters (a live
+  one and an in-memory one counts). Use Effect's built-in `FileSystem`, `Path`
+  and `ChildProcessSpawner` instead of wrapping them.
+- Errors are the four tagged classes in `src/wire/errors.ts`. Keep the message
+  text 1.x printed; tests and the CLI contract depend on it.
+- Resources (locks, sockets, child processes, watchers) are acquired with
+  `Effect.acquireRelease` inside a Scope that the caller's program owns. The
+  process-wide runtime holds only stateless services.
+- Use `Match` for classification over tagged unions at file, edge or error
+  granularity; plain `switch` inside hot loops.
+
+## Data rules
+
+- Validate with Schema built-ins first (`NonEmptyString`, `Int`, `Finite`,
+  `isMaxLength`, `Literals`, `isBetween`, ...). Use `makeFilter` for rules no
+  built-in expresses. A regex is the last resort, always with the `u` flag
+  (without it `isPattern` drops the constraint from JSON Schema).
+- Decode with Schema only where data crosses a trust boundary: user input,
+  artifacts, interchange files, configuration. tiacore's own cache uses
+  `parseRuntimeGraph` (a type guard, no copy) after reading.
+- Order every collection with `byCodeUnit` / `sortByKey` from
+  `src/core/canonical.ts`. Never use `localeCompare`.
+- Normalize paths with `normalizePath` (`src/core/path.ts`). Match globs with
+  `globMatcher` (`src/engine/glob.ts`), the single glob dialect.
+
+## Tests
+
+- Port each 1.x test by copying it from `.legacy/test` and changing only its
+  imports. If it must change, the change follows a row in ADR 0004's decision
+  table. Then update `test/package/legacy-tests.json`: the test maps to its 2.0
+  file, or to `replaced: <reason>` when a different test now covers it.
+- When you implement a 1.x export, remove it from
+  `test/package/pending-exports.json`.
+- Use `test/support/legacy.ts` for differential tests against the built 1.x
+  package (`npm run build:legacy`), and `@effect/vitest` (`it.effect`,
+  `it.prop`) for Effect code and properties.
+- Every long-lived resource and every past leak gets a test with `assertNoLeak`
+  from `test/support/leak.ts`.
+- Pure decisions in `src/core` get a Lean model in `proofs/` and vectors in
+  `conformance/`; `npm run check:proofs` audits the axioms.
+
+## Before every commit
+
+Run `npm run gate` and read its exit code; do not pipe it. Commit subjects
+follow Conventional Commits and end with the co-author line.

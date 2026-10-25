@@ -133,9 +133,11 @@
     "check:legacy": "cd .legacy && npm test",
     "release:check": "npm run check && npm run check:architecture && npm run check:package && npm run check:proofs && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
     "prepare": "effect-tsgo patch --typescript --no-oxlint",
-    "build:legacy": "cd .legacy && npm run build"
+    "build:legacy": "cd .legacy && npm run build",
+    "gate": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm run check:architecture"
   },
   "dependencies": {
+    "@types/istanbul-lib-coverage": "^2.0.6",
     "picomatch": "^4.0.7",
     "tinyglobby": "^0.2.17"
   },
