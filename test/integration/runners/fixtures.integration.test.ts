@@ -186,6 +186,34 @@ describe('node:test fixture project', () => {
   )
 })
 
+// NODE-CERT-01, BUN-CERT-01: the fixtures' own certification suites.
+describe('runner certification suites', () => {
+  test('the node-runner fixture certifies record-once and replay', () => {
+    const root = createFixtureProject('node-runner')
+    const result = runCommand(
+      root,
+      process.execPath,
+      ['--test', 'certification/adapter.test.mjs'],
+      60_000,
+    )
+    expect(result.status, result.output).toBe(0)
+  })
+
+  test.skipIf(!hasBun)(
+    'the bun-runner fixture certifies record-once and replay',
+    () => {
+      const root = createFixtureProject('bun-runner')
+      const result = runCommand(
+        root,
+        'bun',
+        ['test', 'certification/adapter.test.ts'],
+        60_000,
+      )
+      expect(result.status, result.output).toBe(0)
+    },
+  )
+})
+
 describe('custom adapter fixture project', () => {
   test('uses the public adapter entry point for full, replay, and changed runs', () => {
     const root = createFixtureProject('custom-adapter')

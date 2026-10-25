@@ -4,12 +4,7 @@ import { resolve } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-const { readGraph } = await import(
-  new URL(
-    '../node_modules/@lucasacoutinho/tiacore/dist/engine/state/store.js',
-    import.meta.url,
-  )
-)
+import { tia } from '@lucasacoutinho/tiacore/node'
 
 function run() {
   const environment = { ...process.env }
@@ -22,7 +17,7 @@ function run() {
   })
 }
 
-test('the installed Node adapter records once and replays from cache', () => {
+test('the installed Node adapter records once and replays from cache', async () => {
   const root = resolve(import.meta.dirname, '..')
   rmSync(resolve(root, '.tia'), { force: true, recursive: true })
   rmSync(resolve(root, 'executions.log'), { force: true })
@@ -41,7 +36,13 @@ test('the installed Node adapter records once and replays from cache', () => {
     ['node-a', 'node-b'],
   )
 
-  const graph = readGraph(resolve(root, '.tia/node'))
+  // A third run replays from cache and hands back the stored graph in its plan.
+  const inspected = await tia({
+    files: ['test/**/*.test.mjs'],
+    log: false,
+    root,
+  }).run()
+  const graph = inspected.plan.graph
   assert.ok(graph)
   const resultA = Object.values(graph.results).find(
     (result) => result.fullName === 'node case a',
