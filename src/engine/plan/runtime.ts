@@ -17,7 +17,7 @@ import {
   type SelectionGroup,
   type SelectionItem,
 } from '../../core/select.ts'
-import { STRUCTURAL_FILE_PATTERN } from '../baseline/fingerprint.ts'
+import { isStructuralFile } from '../baseline/fingerprint.ts'
 import { globMatcher } from '../glob.ts'
 
 export const TEST_FILE_PATTERN =
@@ -168,7 +168,7 @@ export function planRuntimeChanges(
 
   const structural = new Map<string, string>()
   for (const file of changes) {
-    if (STRUCTURAL_FILE_PATTERN.test(file)) {
+    if (isStructuralFile(file)) {
       structural.set(file, 'structural file changed')
     }
   }

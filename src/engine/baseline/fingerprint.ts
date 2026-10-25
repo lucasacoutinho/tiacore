@@ -15,9 +15,18 @@ export const UNAVAILABLE_HASH = '<unavailable>'
 /** Files of this size or larger are not hashed (Node cannot read them whole). */
 export const MAX_HASHED_BYTES = 2 ** 31
 
-/** Files in the project root whose change invalidates every recorded graph. */
 export const STRUCTURAL_FILE_PATTERN =
   /^(?:package\.json|(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)|(?:tsconfig|jsconfig)(?:\.[^.]+)?\.json|(?:vite|vitest)(?:\.[^.]+)?\.config\.[cm]?[jt]s)$/u
+
+export function isStructuralFile(file: string): boolean {
+  const parts = file.split('/')
+  const name = parts.at(-1) ?? ''
+  if (!STRUCTURAL_FILE_PATTERN.test(name)) return false
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    if (parts[index] !== '..') return false
+  }
+  return true
+}
 
 /** The lowercase hex SHA-256 digest of `value`. */
 export function hashBytes(value: string | Uint8Array): string {

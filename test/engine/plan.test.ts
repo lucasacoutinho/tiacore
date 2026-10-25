@@ -224,6 +224,83 @@ describe('run planning', () => {
     expect(result.affectedTestIds).toEqual(['a'])
   })
 
+  test('treats a repository-root lockfile as structural from a nested project', async () => {
+    const repository = scratch('tiacore-monorepo-')
+    const root = join(repository, 'packages/a')
+    put(root, 'src/a.ts', 'export const a = 1\n')
+    put(root, 'test/a.test.ts', 'test("a", () => {})\n')
+    put(root, 'package.json', '{"type":"module"}\n')
+    put(repository, 'package.json', '{"private":true}\n')
+    put(repository, 'bun.lock', '{"lockfileVersion":1}\n')
+    init(repository)
+    commit(repository, 'baseline')
+
+    const baseline = await capture(root)
+    if (baseline === null) throw new Error('expected nested Git baseline')
+    const cached = await graph(root)
+    cached.baseline = baseline
+    cached.results.b!.state = 'passed'
+    writeFileSync(
+      join(repository, 'bun.lock'),
+      '{"lockfileVersion":1,"changed":true}\n',
+    )
+
+    const result = await plan(root, cached, {
+      options: { ...options, onUnknownChange: 'ignore' },
+    })
+
+    expect({
+      changedFiles: result.changedFiles,
+      mode: result.mode,
+      reason: result.reason,
+    }).toEqual({
+      changedFiles: ['../../bun.lock'],
+      mode: 'record',
+      reason: 'structural file changed: ../../bun.lock',
+    })
+
+    writeFileSync(join(repository, 'bun.lock'), '{"lockfileVersion":1}\n')
+    writeFileSync(
+      join(repository, 'package.json'),
+      '{"private":true,"name":"root"}\n',
+    )
+    const manifest = await plan(root, cached, {
+      options: { ...options, onUnknownChange: 'ignore' },
+    })
+    expect(manifest.mode).toBe('record')
+    expect(manifest.reason).toBe('structural file changed: ../../package.json')
+    expect(manifest.changedFiles).toEqual(['../../package.json'])
+  })
+
+  test('does not treat a nested manifest or an ancestor note as structural', async () => {
+    const repository = scratch('tiacore-monorepo-')
+    const root = join(repository, 'packages/a')
+    put(root, 'src/a.ts', 'export const a = 1\n')
+    put(root, 'test/a.test.ts', 'test("a", () => {})\n')
+    put(root, 'package.json', '{"type":"module"}\n')
+    put(repository, 'package.json', '{"private":true}\n')
+    put(repository, 'notes.md', '# Notes\n')
+    init(repository)
+    commit(repository, 'baseline')
+
+    const baseline = await capture(root)
+    if (baseline === null) throw new Error('expected nested Git baseline')
+    const cached = await graph(root)
+    cached.baseline = baseline
+    cached.results.b!.state = 'passed'
+    const ignoreUnknown = { ...options, onUnknownChange: 'ignore' as const }
+
+    put(root, 'nested/package.json', '{"name":"nested"}\n')
+    const nested = await plan(root, cached, { options: ignoreUnknown })
+    expect(nested.mode).toBe('replay')
+    expect(nested.reason).toBe('no affected test files')
+
+    writeFileSync(join(repository, 'notes.md'), '# Edited\n')
+    const note = await plan(root, cached, { options: ignoreUnknown })
+    expect(note.mode).toBe('replay')
+    expect(note.reason).toBe('no affected test files')
+  })
+
   test('falls back to the full suite for any unknown file change', async () => {
     const root = fixture()
     const cached = await graph(root)
