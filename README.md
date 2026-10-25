@@ -129,6 +129,7 @@ attestation by default.
 - [Differential verification](docs/guides/verification.md)
 - [TypeScript adapter contract](docs/guides/custom-adapters.md)
 - [Monorepo benchmark baseline](docs/benchmarks/monorepo-baseline.md)
+- [Observability: devtools, doctor, crash reports](docs/observability.md)
 - [Public API](docs/public-api.md)
 - [Target architecture](docs/architecture/target.md)
 - [JavaScript SDK boundary](docs/architecture/javascript-sdk.md)

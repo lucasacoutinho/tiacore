@@ -5,6 +5,37 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Added
+
+- `tiacore devtools` listens for spans and metrics from tiacore processes run
+  with `TIACORE_DEVTOOLS` and prints a live summary: slowest spans, time by span
+  name, failed spans and metrics. It uses Effect's devtools protocol, on
+  `ws://localhost:34437` by default.
+- `tiacore doctor` checks the install (Node.js, git, peers, writable
+  directories). `--perf` also times a cold prepare, a commit and a warm prepare
+  on a throwaway git project and ranks the slowest phases. `--json` prints JSON.
+  `doctor --graph` still validates a graph.
+- Three run metrics (`tia_runs_total`, `tia_run_duration_ms`,
+  `tia_heap_used_bytes`) and more stage spans.
+- `docs/observability.md` documents `TIACORE_DEVTOOLS`, `TIACORE_OTLP_URL`,
+  `TIACORE_TRACE_FILE`, `TIACORE_METRICS_FILE` and `TIACORE_CRASH_DIR`.
+- `ws` is now a runtime dependency; the devtools server needs it.
+
+### Changed
+
+- A CLI crash writes a crash report, as a library call already did. A report
+  directory keeps the 20 newest reports.
+- Exporters flush when the process ends or half a second after the last library
+  run. Before, a process with `TIACORE_DEVTOOLS` or an OTLP URL did not end on
+  its own, and the trace and metrics files were written only on dispose.
+
+### Fixed
+
+- The Vitest plugin kept the coverage templates of every file version it had
+  transformed in the same process.
+- A refused or oversized artifact response, or Playwright source-map response,
+  kept its connection open.
+
 ## 1.2.1 - 2026-10-25
 
 ### Added
