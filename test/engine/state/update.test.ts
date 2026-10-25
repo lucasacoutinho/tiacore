@@ -64,6 +64,68 @@ const projectWith = (...files: string[]) =>
     return root
   })
 
+// proofs/Tia/Update.lean: full_replaces, partial_keeps_collection,
+// partial_keeps_observed, partial_covered, partial_replayed_keeps.
+const layered = (): TiaRuntimeGraph =>
+  baseGraph({
+    collectionFiles: { 'test/a.test.ts': ['src/inner-build.ts'] },
+    edges: {
+      'test/a.test.ts': [
+        'src/inner-build.ts',
+        'src/inner.ts',
+        'src/outer.ts',
+        'test/a.test.ts',
+      ],
+    },
+    results: {
+      inner: {
+        file: 'test/a.test.ts',
+        fullName: 'inner',
+        id: 'inner',
+        state: 'passed',
+      },
+      outer: {
+        file: 'test/a.test.ts',
+        fullName: 'outer',
+        id: 'outer',
+        state: 'passed',
+      },
+    },
+    testEdges: {
+      inner: {
+        file: 'test/a.test.ts',
+        files: ['src/inner-build.ts', 'src/inner.ts', 'test/a.test.ts'],
+      },
+      outer: {
+        file: 'test/a.test.ts',
+        files: ['src/inner-build.ts', 'src/outer.ts', 'test/a.test.ts'],
+      },
+    },
+  })
+const outerOnly = {
+  executedFiles: ['test/a.test.ts'],
+  results: new Map([
+    [
+      'outer',
+      {
+        file: 'test/a.test.ts',
+        fullName: 'outer',
+        id: 'outer',
+        state: 'passed' as const,
+      },
+    ],
+  ]),
+  testEdges: new Map([
+    [
+      'outer',
+      {
+        file: 'test/a.test.ts',
+        files: ['src/outer.ts', 'src/setup.ts', 'test/a.test.ts'],
+      },
+    ],
+  ]),
+}
+
 layer(EngineLive, { excludeTestServices: true })(
   'shared graph updates',
   (it) => {
@@ -108,6 +170,132 @@ layer(EngineLive, { excludeTestServices: true })(
         expect(updated.collectionCoverage).toEqual({ 'test/a.test.ts': {} })
         expect(previous).toEqual(snapshot)
       }),
+    )
+
+    it.effect(
+      'keeps the collection of a partially run file and gives it to every test',
+      () =>
+        Effect.gen(function* () {
+          const root = yield* projectWith('test/a.test.ts')
+          const updated = yield* updateGraph({
+            ...outerOnly,
+            collectionFiles: new Map([['test/a.test.ts', ['src/setup.ts']]]),
+            fullyExecutedFiles: [],
+            previous: layered(),
+            root,
+          })
+          expect(updated.collectionFiles).toEqual({
+            'test/a.test.ts': ['src/inner-build.ts', 'src/setup.ts'],
+          })
+          expect(updated.testEdges.outer?.files).toEqual([
+            'src/inner-build.ts',
+            'src/outer.ts',
+            'src/setup.ts',
+            'test/a.test.ts',
+          ])
+          expect(updated.testEdges.inner?.files).toEqual([
+            'src/inner-build.ts',
+            'src/inner.ts',
+            'src/setup.ts',
+            'test/a.test.ts',
+          ])
+        }),
+    )
+
+    it.effect('replaces the collection of a fully run file', () =>
+      Effect.gen(function* () {
+        const root = yield* projectWith('test/a.test.ts')
+        const updated = yield* updateGraph({
+          ...outerOnly,
+          collectionFiles: new Map([['test/a.test.ts', ['src/setup.ts']]]),
+          fullyExecutedFiles: ['test/a.test.ts'],
+          previous: layered(),
+          root,
+        })
+        expect(updated.collectionFiles).toEqual({
+          'test/a.test.ts': ['src/setup.ts'],
+        })
+        expect(Object.keys(updated.testEdges)).toEqual(['outer'])
+        expect(updated.testEdges.outer?.files).toEqual([
+          'src/outer.ts',
+          'src/setup.ts',
+          'test/a.test.ts',
+        ])
+      }),
+    )
+
+    it.effect(
+      'leaves collection evidence alone for runners that do not report it',
+      () =>
+        Effect.gen(function* () {
+          const root = yield* projectWith('test/a.test.ts')
+          const updated = yield* updateGraph({
+            ...outerOnly,
+            fullyExecutedFiles: [],
+            previous: layered(),
+            root,
+          })
+          expect(updated.collectionFiles).toEqual(layered().collectionFiles)
+          expect(updated.testEdges.outer?.files).toEqual([
+            'src/outer.ts',
+            'src/setup.ts',
+            'test/a.test.ts',
+          ])
+        }),
+    )
+
+    it.effect(
+      'merges the collection coverage of a partial run counter by counter',
+      () =>
+        Effect.gen(function* () {
+          const root = yield* projectWith('test/a.test.ts')
+          const previous = baseGraph({
+            collectionCoverage: {
+              'test/a.test.ts': {
+                'src/build.ts': {
+                  b: { 0: [1, 0] },
+                  f: { 0: 1 },
+                  map: 'm',
+                  s: { 0: 2 },
+                },
+                'src/kept.ts': { b: {}, f: {}, map: 'k', s: { 0: 1 } },
+                'src/changed.ts': { b: {}, f: {}, map: 'old', s: { 0: 1 } },
+              },
+            },
+          })
+          const updated = yield* updateGraph({
+            collectionCoverage: new Map([
+              [
+                'test/a.test.ts',
+                {
+                  'src/build.ts': {
+                    b: { 0: [0, 3] },
+                    f: { 0: 0 },
+                    map: 'm',
+                    s: { 0: 0, 1: 1 },
+                  },
+                  'src/changed.ts': { b: {}, f: {}, map: 'new', s: { 0: 0 } },
+                },
+              ],
+            ]),
+            executedFiles: ['test/a.test.ts'],
+            fullyExecutedFiles: [],
+            previous,
+            results: new Map(),
+            root,
+            testEdges: new Map(),
+          })
+          expect(updated.collectionCoverage['test/a.test.ts']).toEqual({
+            'src/build.ts': {
+              b: { 0: [1, 3] },
+              f: { 0: 1 },
+              map: 'm',
+              s: { 0: 2, 1: 1 },
+            },
+            'src/changed.ts': { b: {}, f: {}, map: 'new', s: { 0: 0 } },
+            'src/kept.ts': { b: {}, f: {}, map: 'k', s: { 0: 1 } },
+          })
+        }),
     )
 
     it.effect(
@@ -308,13 +496,14 @@ test('emptyGraph is the record-mode starting point (STATE-UPD-01)', () => {
   expect(emptyGraph()).toEqual({
     baseline: { sha: '', workingTree: {} },
     collectionCoverage: {},
+    collectionFiles: {},
     complete: false,
     coverageComplete: false,
     coverageMaps: {},
     edges: {},
     fingerprint: '',
     results: {},
-    schema: 5,
+    schema: 6,
     testCoverage: {},
     testEdges: {},
     updatedAt: '',

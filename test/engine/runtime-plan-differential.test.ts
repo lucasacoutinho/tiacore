@@ -144,6 +144,7 @@ describe('runtime planning', () => {
       const graph: TiaRuntimeGraph = {
         baseline,
         collectionCoverage: {},
+        collectionFiles: {},
         complete: true,
         coverageComplete: true,
         coverageMaps: {},

@@ -142,6 +142,7 @@ const report = (overrides: Partial<PlaywrightRunReport> = {}) => ({
 const graph = (results: ReturnType<typeof result>[]): TiaRuntimeGraph => ({
   baseline: { sha: '', workingTree: {} },
   collectionCoverage: {},
+  collectionFiles: {},
   complete: true,
   coverageComplete: false,
   coverageMaps: {},

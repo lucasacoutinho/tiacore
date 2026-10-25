@@ -130,6 +130,8 @@ export function isStoredGraph(value: unknown): value is TiaRuntimeGraph {
     !isString(value.updatedAt) ||
     !isBaseline(value.baseline) ||
     ('partition' in value && !isPartition(value.partition)) ||
+    !isRecord(value.collectionFiles) ||
+    !everyValue(value.collectionFiles, isStringList) ||
     !isRecord(value.edges) ||
     !everyValue(value.edges, isStringList) ||
     !isRecord(value.results) ||

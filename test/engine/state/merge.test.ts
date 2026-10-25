@@ -35,7 +35,7 @@ describe('partial graph merging', () => {
       coverageComplete: true,
       coverageMaps: {},
       fingerprint: 'same',
-      schema: 5,
+      schema: 6,
       updatedAt: '2026-07-22T00:00:00.000Z',
     })
     expect(merged?.partition).toBeUndefined()

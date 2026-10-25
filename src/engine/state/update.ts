@@ -16,6 +16,11 @@ import { cloneGraph, pruneCoverageMaps } from './coverage.ts'
 
 export interface GraphUpdateInput {
   readonly collectionCoverage?: ReadonlyMap<string, TiaCoverageRecord>
+  /**
+   * Per executed test file, the files its module load and hooks touched.
+   * Runners that cannot separate them from test bodies leave this out.
+   */
+  readonly collectionFiles?: ReadonlyMap<string, readonly string[]>
   readonly coverageMaps?: Readonly<Record<string, TiaCoverageTemplate>>
   readonly executedFiles: Iterable<string>
   readonly fallbackEdges?: ReadonlyMap<string, readonly string[]>
@@ -31,6 +36,7 @@ export function emptyGraph(): TiaRuntimeGraph {
   return {
     baseline: { sha: '', workingTree: {} },
     collectionCoverage: {},
+    collectionFiles: {},
     complete: false,
     coverageComplete: false,
     coverageMaps: {},
@@ -61,6 +67,91 @@ function deleteFileRecords(graph: TiaRuntimeGraph, file: string): void {
   }
 }
 
+function union(...lists: ReadonlyArray<readonly string[]>): string[] {
+  return [...new Set(lists.flat())].sort(byCodeUnit)
+}
+
+function maxCounters(
+  left: Readonly<Record<string, number>>,
+  right: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const merged = { ...left }
+  for (const [id, count] of Object.entries(right)) {
+    merged[id] = Math.max(merged[id] ?? 0, count)
+  }
+  return merged
+}
+
+/**
+ * The collection coverage a partial run leaves: per source file, the counters
+ * either run advanced when both used the same static map, the new record when
+ * the file's map changed, and the old record when this run did not reach it.
+ */
+function mergeCollectionCoverage(
+  previous: TiaCoverageRecord,
+  observed: TiaCoverageRecord,
+): TiaCoverageRecord {
+  const merged: TiaCoverageRecord = { ...previous }
+  for (const [path, hits] of Object.entries(observed)) {
+    const old = merged[path]
+    if (old === undefined || old.map !== hits.map) {
+      merged[path] = hits
+      continue
+    }
+    const b: Record<string, number[]> = { ...old.b }
+    for (const [id, counts] of Object.entries(hits.b)) {
+      const before = b[id] ?? []
+      b[id] = counts.map((count, index) => Math.max(count, before[index] ?? 0))
+    }
+    merged[path] = {
+      b,
+      f: maxCounters(old.f, hits.f),
+      map: hits.map,
+      s: maxCounters(old.s, hits.s),
+    }
+  }
+  return merged
+}
+
+/**
+ * Updates a test file's collection evidence (proofs/Tia/Update.lean). A file
+ * whose every test ran replaces it with what the run observed. A file with
+ * replayed tests keeps the previous evidence and adds the new: a change to any
+ * collection file selects every test of the file (each test edge contains the
+ * collection), so a replayed test means none of them changed. Collection that
+ * a partial run does not reach, such as a layer built only by replayed tests,
+ * is therefore still valid. Every test edge of the file gets the collection.
+ */
+function updateCollection(
+  graph: TiaRuntimeGraph,
+  input: GraphUpdateInput,
+  file: string,
+  full: boolean,
+): void {
+  const observedCoverage = input.collectionCoverage?.get(file) ?? {}
+  if (input.collectionCoverage !== undefined) {
+    graph.collectionCoverage[file] = full
+      ? observedCoverage
+      : mergeCollectionCoverage(
+          graph.collectionCoverage[file] ?? {},
+          observedCoverage,
+        )
+  }
+  if (input.collectionFiles === undefined) return
+  const observed = input.collectionFiles.get(file) ?? []
+  const collection = full
+    ? union(observed)
+    : union(graph.collectionFiles[file] ?? [], observed)
+  if (collection.length === 0) {
+    delete graph.collectionFiles[file]
+    return
+  }
+  graph.collectionFiles[file] = collection
+  for (const edge of Object.values(graph.testEdges)) {
+    if (edge.file === file) edge.files = union(edge.files, collection)
+  }
+}
+
 function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
   const graph =
     input.previous === null ? emptyGraph() : cloneGraph(input.previous)
@@ -80,10 +171,9 @@ function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
     graph.testCoverage[id] = coverage
   }
 
+  const fully = new Set(input.fullyExecutedFiles)
   for (const file of new Set(input.executedFiles)) {
-    if (input.collectionCoverage !== undefined) {
-      graph.collectionCoverage[file] = input.collectionCoverage.get(file) ?? {}
-    }
+    updateCollection(graph, input, file, fully.has(file))
     const dependencies = Object.values(graph.testEdges)
       .filter((edge) => edge.file === file)
       .flatMap((edge) => edge.files)
@@ -120,6 +210,7 @@ export const updateGraph = Effect.fnUntraced(function* (
     if (present[index] === true) continue
     delete graph.edges[file]
     delete graph.collectionCoverage[file]
+    delete graph.collectionFiles[file]
     deleteFileRecords(graph, file)
   }
   pruneCoverageMaps(graph)

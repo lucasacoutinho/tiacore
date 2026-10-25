@@ -72,20 +72,13 @@ to the whole file: a layer's construction and finalizers, and a fiber that
 finishes between tests. A `layer(L, { concurrent: true })` block selects its
 whole file.
 
-Selection stays safe for every shape, but `tiacore verify` reports different
-evidence between its selective and full phases for two of them:
-
-- A detached fiber (`Effect.forkDetach`) that finishes while a later test runs.
-  Its coverage belongs to the later test. If the forking test is replayed, the
-  fiber does not exist and the module it touches becomes unknown to the graph,
-  so the next edit to that module runs the full suite. Finish or interrupt
-  fibers before the test body ends.
-- An unnamed layer block, `layer(L)((it) => ...)`, in a file where every test of
-  the block is replayed and another test runs. The block builds its layer in a
-  `beforeEach` hook of its first test, so the layer is not built and the file's
-  shared evidence shrinks until the next full run. The named form,
-  `layer(L)("name", (it) => ...)`, builds in a `beforeAll` hook that also runs
-  when its tests are replayed.
+Selection stays safe for every shape. One shape makes `tiacore verify` report
+different evidence between its selective and full phases: a detached fiber
+(`Effect.forkDetach`) that finishes while a later test runs. Its coverage
+belongs to the later test. If the forking test is replayed, the fiber does not
+exist, and the module it touches becomes unknown to the graph. The next edit to
+that module then runs the full suite. To avoid this, finish or interrupt fibers
+before the test body ends.
 
 ## Playwright
 

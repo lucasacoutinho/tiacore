@@ -58,6 +58,7 @@ function compatibleCommit(
 
 const EMPTY_RECORDS = {
   collectionCoverage: {},
+  collectionFiles: {},
   edges: {},
   results: {},
   testCoverage: {},
@@ -82,6 +83,12 @@ export function mergeConcurrentGraphs(
       before.collectionCoverage,
       merged.collectionCoverage,
       proposed.collectionCoverage,
+      same,
+    ) ||
+    !mergeChangedRecord(
+      before.collectionFiles,
+      merged.collectionFiles,
+      proposed.collectionFiles,
       same,
     ) ||
     !mergeChangedRecord(before.edges, merged.edges, proposed.edges, same) ||

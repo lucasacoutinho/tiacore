@@ -67,6 +67,7 @@ export function mergePartitionedGraphs(
   const merged: TiaRuntimeGraph = {
     baseline: structuredClone(first.baseline),
     collectionCoverage: {},
+    collectionFiles: {},
     complete: true,
     coverageComplete: true,
     coverageMaps: {},
@@ -87,6 +88,7 @@ export function mergePartitionedGraphs(
       !mergeRecord(merged.results, fragment.results) ||
       !mergeRecord(merged.testEdges, fragment.testEdges) ||
       !mergeRecord(merged.collectionCoverage, fragment.collectionCoverage) ||
+      !mergeRecord(merged.collectionFiles, fragment.collectionFiles) ||
       !mergeRecord(merged.testCoverage, fragment.testCoverage)
     ) {
       return null

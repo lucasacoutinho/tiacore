@@ -11,6 +11,7 @@ function graph(overrides: Partial<TiaRuntimeGraph> = {}): TiaRuntimeGraph {
   return {
     baseline: { sha: 'abc', source: 'git', workingTree: {} },
     collectionCoverage: {},
+    collectionFiles: {},
     complete: true,
     coverageComplete: true,
     coverageMaps: {},

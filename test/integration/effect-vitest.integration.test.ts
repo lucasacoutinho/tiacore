@@ -496,21 +496,18 @@ describe('tiacore verify', () => {
     },
   )
 
-  // Known limitation. The unnamed nested layer builds in a beforeEach hook of
-  // the inner test, before the body window opens, so its construction is
-  // collection coverage shared by the whole file. When that test is replayed
-  // the layer is not built, the file's collection evidence shrinks, and the
-  // selective graph differs from the full one. Selection stays exact: the
-  // verifier reports the evidence, not a missed test.
-  test('flags the evidence that a replayed unnamed layer block no longer builds', () => {
+  // The unnamed nested layer builds in a beforeEach hook of the inner test,
+  // before the body window opens, so its construction is collection evidence
+  // of the file. A run that replays the inner test does not build it; the
+  // graph update keeps the file's previous collection evidence for partially
+  // run files (proofs/Tia/Update.lean), so the selective graph still matches
+  // the full one.
+  test('verifies a run that replays an unnamed layer block', () => {
     const { receipt, status } = verifyAfterEditing(['src/method-outer.ts'])
 
-    expect(status).toBe(1)
-    expect(receipt.verified).toBe(false)
-    expect(receipt.issues.map((issue) => issue.code).sort()).toEqual([
-      'coverage-mismatch',
-      'dependency-mismatch',
-    ])
+    expect(receipt.issues).toEqual([])
+    expect(status).toBe(0)
+    expect(receipt.verified).toBe(true)
     expect(receipt.accuracy).toMatchObject({
       executedTests: 1,
       expectedTests: 1,

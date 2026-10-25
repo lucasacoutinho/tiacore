@@ -435,6 +435,7 @@ function recordGraph(
   return {
     baseline: { sha: '', workingTree: {} },
     collectionCoverage: {},
+    collectionFiles: {},
     complete: true,
     coverageComplete: true,
     coverageMaps: templates.maps(Object.values(testCoverage)),

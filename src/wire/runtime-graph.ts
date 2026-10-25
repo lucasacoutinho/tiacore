@@ -81,6 +81,10 @@ export const RuntimeGraph = Schema.Struct({
     workingTree: Schema.Record(Schema.String, Schema.String),
   }),
   collectionCoverage: Schema.Record(Schema.String, CoverageRecord),
+  collectionFiles: Schema.Record(
+    Schema.String,
+    Schema.mutable(Schema.Array(Schema.String)),
+  ),
   complete: Schema.Boolean,
   coverageComplete: Schema.Boolean,
   coverageMaps: Schema.Record(Schema.String, CoverageTemplate),

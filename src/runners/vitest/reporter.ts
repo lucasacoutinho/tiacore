@@ -81,6 +81,10 @@ export class TiaReporter implements Reporter {
   private readonly collectionCoverage = new Map<string, TiaCoverageRecord>()
   private readonly edges = new Map<string, string[]>()
   private readonly executedFiles = new Set<string>()
+  /** Test files with at least one result replayed from the cache this run. */
+  private readonly replayedFiles = new Set<string>()
+  /** Per test file, what its module load and hooks touched outside test bodies. */
+  private readonly collectionFiles = new Map<string, string[]>()
   private readonly results = new Map<string, CachedTestResult>()
   private readonly testEdges = new Map<string, TiaTestEdge>()
   private readonly testCoverage = new Map<string, TiaCoverageRecord>()
@@ -194,6 +198,12 @@ export class TiaReporter implements Reporter {
       }
     }
 
+    if (!value.concurrent) {
+      this.collectionFiles.set(
+        testFile,
+        [...shared].filter((file) => file !== testFile).sort(),
+      )
+    }
     this.modules.set(testFile, {
       concurrent: value.concurrent,
       graph: module.viteEnvironment?.moduleGraph,
@@ -209,9 +219,12 @@ export class TiaReporter implements Reporter {
     const taskMeta = testCase.meta()
     const meta: TiaTestMeta | undefined = taskMeta[TIA_TEST_META_KEY]
     delete taskMeta[TIA_TEST_META_KEY]
-    if (taskMeta[TIA_REPLAY_META_KEY] === true) return
     const file = projectRelative(this.runtime.root, testCase.module.moduleId)
     if (file === null || file === '') return
+    if (taskMeta[TIA_REPLAY_META_KEY] === true) {
+      this.replayedFiles.add(file)
+      return
+    }
 
     const diagnostic = testCase.diagnostic()
     this.results.set(testCase.id, {
@@ -404,17 +417,20 @@ export class TiaReporter implements Reporter {
 
       const graph = yield* updateGraph({
         collectionCoverage: this.collectionCoverage,
+        collectionFiles: this.collectionFiles,
         coverageMaps: runtime.coverageTemplates.maps([
           ...this.collectionCoverage.values(),
           ...this.testCoverage.values(),
         ]),
         executedFiles: this.executedFiles,
         fallbackEdges: this.edges,
+        // A file is fully executed when none of its tests was replayed; the
+        // update then replaces its evidence instead of extending it.
         fullyExecutedFiles:
           plan.mode === 'record'
             ? this.executedFiles
-            : [...this.executedFiles].filter((file) =>
-                plan.wholeTestFiles.includes(file),
+            : [...this.executedFiles].filter(
+                (file) => !this.replayedFiles.has(file),
               ),
         previous: plan.mode === 'record' ? null : plan.graph,
         results: this.results,

@@ -10,3 +10,4 @@ import Tia.Replay
 import Tia.Artifact
 import Tia.Verdict
 import Tia.Path
+import Tia.Update

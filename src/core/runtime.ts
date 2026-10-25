@@ -3,7 +3,7 @@
 import type { FileCoverageData } from 'istanbul-lib-coverage'
 
 /** Bumped from 4 in 2.0: hook-marker attribution and code-unit ordering. */
-export const GRAPH_SCHEMA_VERSION = 5
+export const GRAPH_SCHEMA_VERSION = 6
 
 export type CachedTestState = 'passed' | 'failed' | 'skipped'
 
@@ -54,6 +54,11 @@ export interface TiaTestEdge {
 export interface TiaRuntimeGraph {
   baseline: Baseline
   collectionCoverage: Record<string, TiaCoverageRecord>
+  /**
+   * Per test file, the files its module load and hooks touched outside every
+   * test body. Every test edge of the file contains them.
+   */
+  collectionFiles: Record<string, string[]>
   complete: boolean
   coverageComplete: boolean
   /** Static Istanbul maps keyed by the digest that coverage records name. */

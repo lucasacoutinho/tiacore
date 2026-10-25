@@ -142,7 +142,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'lays out metadata, six-plus-one domains and sorted buckets (STATE-LAYOUT-02..05)',
+      'lays out metadata, seven-plus-one domains and sorted buckets (STATE-LAYOUT-02..05)',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -164,6 +164,7 @@ layer(EngineLive, { excludeTestServices: true })(
           const manifest = yield* manifestOf(cacheDir)
           expect(Object.keys(manifest.segments)).toEqual([
             'collectionCoverage',
+            'collectionFiles',
             'coverageMaps',
             'edges',
             'results',
@@ -545,7 +546,7 @@ layer(EngineLive, { excludeTestServices: true })(
           const graph = coverageGraph(3)
           yield* write(cacheDir, graph)
           yield* rewriteManifest(cacheDir, (manifest) => {
-            manifest.version = 2
+            manifest.version = 3
           })
           expect(yield* readGraph(cacheDir)).toBeNull()
           const store = yield* GraphStore
@@ -558,7 +559,7 @@ layer(EngineLive, { excludeTestServices: true })(
           expect((yield* readGraph(cacheDir))?.testCoverage).toEqual(
             graph.testCoverage,
           )
-          expect(TIA_RUNTIME_STORE_VERSION).toBe(3)
+          expect(TIA_RUNTIME_STORE_VERSION).toBe(4)
         }),
     )
 

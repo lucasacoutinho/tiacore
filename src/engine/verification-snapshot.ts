@@ -18,6 +18,7 @@ export const TIA_VERIFICATION_PHASE_ENV = 'TIA_VERIFICATION_PHASE'
 
 const RECORD_DOMAINS = new Set([
   'collectionCoverage',
+  'collectionFiles',
   'coverageMaps',
   'edges',
   'results',

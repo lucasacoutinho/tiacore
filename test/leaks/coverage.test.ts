@@ -65,6 +65,7 @@ function graph(): TiaRuntimeGraph {
   return {
     baseline: { sha: '', workingTree: {} },
     collectionCoverage: {},
+    collectionFiles: {},
     complete: true,
     coverageComplete: true,
     coverageMaps: { [map]: template },

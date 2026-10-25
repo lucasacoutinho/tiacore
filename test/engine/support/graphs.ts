@@ -10,6 +10,7 @@ export function baseGraph(
   return {
     baseline: { sha: 'old', workingTree: {} },
     collectionCoverage: {},
+    collectionFiles: {},
     complete: true,
     coverageComplete: false,
     coverageMaps: {},

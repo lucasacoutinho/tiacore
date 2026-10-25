@@ -14,7 +14,7 @@ import { referencedCoverageMaps } from './coverage.ts'
 // is a segment domain of its own, so a large dirty tree no longer counts
 // against the manifest's size limit (ADR 0004 row STATE-LIMIT-02).
 
-export const TIA_RUNTIME_STORE_VERSION = 3 as const
+export const TIA_RUNTIME_STORE_VERSION = 4 as const
 export const TIA_RUNTIME_STORE_BUCKETS = 64
 export const MAX_MANIFEST_BYTES = 1024 * 1024
 export const MAX_SEGMENT_BYTES = 20 * 1024 * 1024
@@ -23,6 +23,7 @@ const STORE_FORMAT = 'tiacore-runtime-state'
 
 export const SEGMENT_DOMAINS = [
   'collectionCoverage',
+  'collectionFiles',
   'coverageMaps',
   'edges',
   'results',
@@ -220,6 +221,7 @@ function stateRecords(
   const {
     baseline,
     collectionCoverage,
+    collectionFiles,
     coverageMaps,
     edges,
     results,
@@ -240,6 +242,7 @@ function stateRecords(
     metadata,
     {
       collectionCoverage,
+      collectionFiles,
       coverageMaps: Object.fromEntries(
         Object.entries(coverageMaps).filter(([id]) => referenced.has(id)),
       ),

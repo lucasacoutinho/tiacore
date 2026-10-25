@@ -14,6 +14,7 @@ function graph(overrides: Partial<TiaRuntimeGraph> = {}): TiaRuntimeGraph {
         'src/a.ts': { b: {}, f: {}, map: 'm1', s: { 0: 1 } },
       },
     },
+    collectionFiles: { 'test/a.test.ts': ['src/setup.ts'] },
     complete: true,
     coverageComplete: true,
     coverageMaps: {
