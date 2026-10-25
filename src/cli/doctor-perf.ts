@@ -5,8 +5,9 @@ import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 import { ChildProcess, ChildProcessSpawner } from 'effect/process'
 
-import { TiaCore, type TiaObservation } from '../engine/core.ts'
-import { recordSpans } from '../host/runtime.ts'
+import type { TiaObservation } from '../engine/core.ts'
+import { CoreRun } from '../engine/core-run.ts'
+import { recordSpans, runPromise } from '../host/runtime.ts'
 import type { FinishedSpan } from '../host/observe.ts'
 import { TiaIo } from '../wire/errors.ts'
 
@@ -123,13 +124,6 @@ function observations(): TiaObservation[] {
   }))
 }
 
-/** The environment variables that would make a commit write outside the throwaway project. */
-const ESCAPING_VARIABLES = [
-  'TIA_FRESH',
-  'TIA_VERIFICATION_DIRECTORY',
-  'TIA_VERIFICATION_PHASE',
-] as const
-
 async function timed(
   phases: PerfPhase[],
   name: string,
@@ -177,10 +171,6 @@ export const measurePerformance = Effect.fnUntraced(function* () {
     runner: 'doctor',
     testFiles,
   }
-  const saved = ESCAPING_VARIABLES.map(
-    (name) => [name, process.env[name]] as const,
-  )
-  for (const name of ESCAPING_VARIABLES) delete process.env[name]
   const phases: PerfPhase[] = []
   const { spans } = yield* Effect.tryPromise({
     catch: (error) =>
@@ -190,32 +180,25 @@ export const measurePerformance = Effect.fnUntraced(function* () {
       }),
     try: () =>
       recordSpans(async () => {
-        const cold = new TiaCore(options)
+        // An empty environment keeps a verification run's variables out of
+        // the throwaway project.
+        const cold = new CoreRun(options, {})
         await timed(phases, 'prepare (cold, no stored graph)', () =>
-          cold.prepare(),
+          runPromise(cold.prepare()),
         )
         await timed(phases, `commit (${PERF_TEST_FILES} tests)`, () =>
-          cold.commit(observations(), testFiles),
+          runPromise(cold.commit(observations(), testFiles)),
         )
         await writeFile(
           join(root, 'src', 'm0.mjs'),
           'export const value = -1\n',
         )
-        const warm = new TiaCore(options)
+        const warm = new CoreRun(options, {})
         await timed(phases, 'prepare (warm, one source file changed)', () =>
-          warm.prepare(),
+          runPromise(warm.prepare()),
         )
       }),
-  }).pipe(
-    Effect.ensuring(
-      Effect.sync(() => {
-        for (const [name, value] of saved) {
-          if (value === undefined) delete process.env[name]
-          else process.env[name] = value
-        }
-      }),
-    ),
-  )
+  })
   phases.unshift({
     milliseconds: setupMilliseconds,
     name: 'project setup (git init and commit)',
