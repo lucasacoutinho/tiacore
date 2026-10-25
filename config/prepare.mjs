@@ -1,19 +1,28 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, rmSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve, sep } from 'node:path'
 
 // Runs on `npm install` in a checkout and when a package manager installs
 // tiacore from a Git URL. A Git install needs dist/, which is not committed,
 // so it builds. A checkout only patches the TypeScript language service:
-// `npm test` builds before it tests. The package manager sets INIT_CWD to the
-// directory it was run in; for a dependency that is the consumer's project,
-// not this one. Without INIT_CWD, build: it is never wrong, only slower.
-// Bun does not install a Git dependency's devDependencies, so a Bun install
-// provisions them for the build and removes them afterwards.
+// `npm test` builds before it tests.
+//
+// The package manager sets INIT_CWD to the directory it was run in; for a
+// dependency that is the consumer's project, not this one. Without INIT_CWD,
+// build: it is never wrong, only slower.
+//
+// npm builds a Git dependency in a cache directory with its devDependencies
+// installed, so it builds in place. Bun builds it inside the consumer's
+// node_modules without them. TypeScript will not write declarations for
+// sources inside node_modules (it cannot name `effect` from there), so that
+// case copies the sources to a temporary directory, installs the pinned
+// toolchain there, builds, and copies dist/ back.
 
+const root = process.cwd()
 const initCwd = process.env.INIT_CWD
 const dependencyInstall =
-  initCwd === undefined || resolve(initCwd) !== resolve(process.cwd())
+  initCwd === undefined || resolve(initCwd) !== resolve(root)
 
 const requiredBuildFiles = [
   'node_modules/@effect/platform-node/package.json',
@@ -23,8 +32,8 @@ const requiredBuildFiles = [
   'node_modules/typescript/bin/tsc',
 ]
 
-function run(command, arguments_) {
-  const result = spawnSync(command, arguments_, { stdio: 'inherit' })
+function run(command, arguments_, cwd = root) {
+  const result = spawnSync(command, arguments_, { cwd, stdio: 'inherit' })
   if (result.error) throw result.error
   if (result.status !== 0) {
     throw new Error(
@@ -33,32 +42,35 @@ function run(command, arguments_) {
   }
 }
 
-function hasBuildToolchain() {
-  return requiredBuildFiles.every((path) =>
-    existsSync(join(process.cwd(), path)),
-  )
-}
+const hasBuildToolchain = (directory) =>
+  requiredBuildFiles.every((path) => existsSync(join(directory, path)))
 
-function provisionToolchain() {
-  if (hasBuildToolchain()) return false
-  const userAgent = process.env.npm_config_user_agent ?? ''
-  if (!userAgent.startsWith('bun/')) {
-    throw new Error(
-      'tiacore prepare is missing its build toolchain; install from a package tarball or with a package manager that installs Git dependency devDependencies',
-    )
-  }
+const insideNodeModules = (directory) =>
+  realpathSync(directory).split(sep).includes('node_modules')
+
+function buildIsolated() {
   process.stdout.write(
-    'tiacore: installing the pinned build toolchain for a Bun Git install\n',
+    'tiacore: building in a temporary directory with the pinned toolchain\n',
   )
-  run('npm', ['ci', '--include=dev', '--ignore-scripts'])
-  if (!hasBuildToolchain()) {
-    throw new Error('tiacore prepare could not install its build toolchain')
+  const workspace = mkdtempSync(join(tmpdir(), 'tiacore-build-'))
+  try {
+    cpSync(root, workspace, {
+      filter: (source) => {
+        const top = source.slice(root.length + 1).split(sep)[0]
+        return top !== 'node_modules' && top !== '.git'
+      },
+      recursive: true,
+    })
+    run('npm', ['ci', '--include=dev', '--ignore-scripts'], workspace)
+    run(process.execPath, ['config/build.mjs'], workspace)
+    rmSync(join(root, 'dist'), { force: true, recursive: true })
+    cpSync(join(workspace, 'dist'), join(root, 'dist'), { recursive: true })
+  } finally {
+    rmSync(workspace, { force: true, recursive: true })
   }
-  return true
 }
 
-const provisioned = dependencyInstall && provisionToolchain()
-try {
+if (!dependencyInstall) {
   // The Effect language service patch serves development type checks only.
   if (existsSync('node_modules/@effect/tsgo/package.json')) {
     run(process.execPath, [
@@ -68,12 +80,8 @@ try {
       '--no-oxlint',
     ])
   }
-  if (dependencyInstall) run(process.execPath, ['config/build.mjs'])
-} finally {
-  if (provisioned) {
-    rmSync(join(process.cwd(), 'node_modules'), {
-      force: true,
-      recursive: true,
-    })
-  }
+} else if (hasBuildToolchain(root) && !insideNodeModules(root)) {
+  run(process.execPath, ['config/build.mjs'])
+} else {
+  buildIsolated()
 }
