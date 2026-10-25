@@ -26,23 +26,16 @@ function everyValue(value: Json, test: (entry: unknown) => boolean): boolean {
 const isString = (value: unknown): value is string => typeof value === 'string'
 
 function isCounters(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  for (const key in value) {
-    if (!Number.isSafeInteger(value[key])) return false
-  }
-  return true
+  return isRecord(value) && Object.values(value).every(Number.isSafeInteger)
 }
 
 function isBranchCounters(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  for (const key in value) {
-    const counts = value[key]
-    if (!Array.isArray(counts)) return false
-    for (let index = 0; index < counts.length; index += 1) {
-      if (!Number.isSafeInteger(counts[index])) return false
-    }
-  }
-  return true
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (counts) => Array.isArray(counts) && counts.every(Number.isSafeInteger),
+    )
+  )
 }
 
 function isStringList(value: unknown): boolean {

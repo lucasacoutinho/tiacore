@@ -1,4 +1,4 @@
-import { hash } from 'node:crypto'
+import { createHash, hash } from 'node:crypto'
 
 import { byCodeUnit } from '../../core/canonical.ts'
 import type { TiaRuntimeGraph } from '../../core/runtime.ts'
@@ -59,7 +59,7 @@ export interface SerializedSegment {
 }
 
 export function digest(value: string | Uint8Array): string {
-  return hash('sha256', value, 'hex')
+  return createHash('sha256').update(value).digest('hex')
 }
 
 export function bucketFor(key: string): number {
@@ -144,23 +144,19 @@ export function parseManifest(source: string): RuntimeStateManifest | null {
  * JSON shape, and that every key hashes to the bucket. Returns its records.
  */
 export function parseSegment(
-  bytes: Uint8Array,
+  source: string,
   domain: SegmentDomain,
   reference: SegmentReference,
 ): Record<string, unknown> | null {
   if (
-    bytes.byteLength !== reference.bytes ||
-    digest(bytes) !== reference.sha256
+    Buffer.byteLength(source) !== reference.bytes ||
+    digest(source) !== reference.sha256
   ) {
     return null
   }
   let value: unknown
   try {
-    value = JSON.parse(
-      Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString(
-        'utf8',
-      ),
-    )
+    value = JSON.parse(source)
   } catch {
     return null
   }

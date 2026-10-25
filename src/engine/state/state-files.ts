@@ -68,7 +68,7 @@ function readSegmentSync(
     // The manifest bounds `reference.bytes`; parseSegment rejects any object
     // whose length differs, so no stat is needed before the read.
     return parseSegment(
-      readFileSync(objectPath(cacheDir, reference.sha256)),
+      readFileSync(objectPath(cacheDir, reference.sha256), 'utf8'),
       domain,
       reference,
     )

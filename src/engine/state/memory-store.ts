@@ -2,7 +2,7 @@ import * as Effect from 'effect/Effect'
 import * as Layer from 'effect/Layer'
 
 import type { TiaRuntimeGraph } from '../../core/runtime.ts'
-import { parseRuntimeGraph } from '../../wire/runtime-graph.ts'
+import { isStoredGraph } from './graph-guard.ts'
 import { GraphStore, type StoredGraph } from '../ports.ts'
 import { commitProtocol } from './commit.ts'
 import { cloneGraph } from './coverage.ts'
@@ -26,7 +26,7 @@ export const GraphStoreMemory = Layer.sync(GraphStore, () => {
     Effect.sync(() => {
       const entry = held.get(cacheDir)
       // Like the live store, a stored graph of another schema reads as none.
-      return entry === undefined || parseRuntimeGraph(entry.graph) === null
+      return entry === undefined || !isStoredGraph(entry.graph)
         ? { digest: null, graph: null }
         : { digest: entry.digest, graph: cloneGraph(entry.graph) }
     })
