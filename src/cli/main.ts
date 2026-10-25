@@ -14,6 +14,7 @@ import { k6Command } from './k6.ts'
 import { maestroCommand } from './maestro.ts'
 import { protocolCommands } from './protocol.ts'
 import { runCommand } from './run.ts'
+import { verifyCommand } from './verify.ts'
 
 const root = Command.make('tiacore').pipe(
   Command.withDescription('Test impact analysis for heterogeneous test suites'),
@@ -25,6 +26,7 @@ const root = Command.make('tiacore').pipe(
     k6Command,
     maestroCommand,
     runCommand,
+    verifyCommand,
   ]),
 )
 
