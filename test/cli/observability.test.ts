@@ -124,8 +124,13 @@ describe('tiacore doctor', () => {
         'tia.store.commit',
       ]),
     )
-    // The throwaway project is gone.
-    expect(readdirSync(temporaryRoot)).toEqual([])
+    // The throwaway project is gone. Node's compile cache, which the bin
+    // enables, stays in the temp directory by design.
+    expect(
+      readdirSync(temporaryRoot).filter(
+        (entry) => entry !== 'node-compile-cache',
+      ),
+    ).toEqual([])
   })
 
   test('prints the slowest phases as text with --perf', () => {

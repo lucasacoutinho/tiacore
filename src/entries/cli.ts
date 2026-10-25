@@ -1,4 +1,5 @@
 import { realpathSync } from 'node:fs'
+import { enableCompileCache } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
 import { VERSION } from '../core/version.ts'
@@ -14,6 +15,11 @@ async function main(argv: readonly string[]): Promise<void> {
     process.stdout.write(`${VERSION}\n`)
     return
   }
+  // Caches V8's compiled code for this process's modules on disk, so later
+  // runs skip most of the bundle's compile time. Only the bin does this: a
+  // library import must not change how the host process compiles modules.
+  // NODE_DISABLE_COMPILE_CACHE=1 turns it off.
+  enableCompileCache()
   const { execute } = await import('../cli/main.ts')
   const { disposeHost } = await import('../host/runtime.ts')
   try {
