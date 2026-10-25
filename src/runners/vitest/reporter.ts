@@ -2,6 +2,7 @@ import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
+import * as Match from 'effect/Match'
 import type {
   Reporter,
   TestCase,
@@ -11,7 +12,6 @@ import type {
 } from 'vitest/node'
 
 import type {
-  Baseline,
   CachedTestResult,
   TiaCoverageRecord,
   TiaTestEdge,
@@ -24,15 +24,9 @@ import { resolveFrameworkEdges } from '../../engine/edges/resolve.ts'
 import { formatRunPlanDetails } from '../../engine/explain.ts'
 import { projectRelative } from '../../engine/host-path.ts'
 import { EngineLive } from '../../engine/layers.ts'
-import { snapshotProject } from '../../engine/lifecycle.ts'
-import { GraphStore } from '../../engine/ports.ts'
-import {
-  notifyReplayAdapters,
-  replayedResults,
-  replayRunEvent,
-} from '../../engine/replay.ts'
+import { commitRun, type CommitSkipped } from '../../engine/lifecycle.ts'
+import { notifyRunComplete, notifyRunStart } from '../../engine/replay.ts'
 import { aggregateLocalPartitions } from '../../engine/state/partitions.ts'
-import { updateGraph } from '../../engine/state/update.ts'
 import { writeVerificationSnapshot } from '../../engine/verification-snapshot.ts'
 import { cachedTestCase } from './cached-test.ts'
 import {
@@ -49,15 +43,22 @@ import {
 } from './protocol.ts'
 import type { TiaRuntime } from './state.ts'
 
-function baselineDifferences(before: Baseline, after: Baseline): string[] {
-  return [
-    ...new Set([
-      ...Object.keys(before.workingTree),
-      ...Object.keys(after.workingTree),
-    ]),
-  ]
-    .filter((file) => before.workingTree[file] !== after.workingTree[file])
-    .sort()
+/** The warning for a commit that left the stored graph untouched. */
+function skippedCommitWarning(skipped: CommitSkipped): string {
+  return Match.valueTags(skipped, {
+    BaselineUnavailable: () =>
+      'TIA graph was not updated because the Git baseline is unavailable.',
+    Conflict: () =>
+      'TIA graph was not updated because another process committed a conflicting graph.',
+    FilesChanged: ({ changed }) =>
+      `TIA graph was not updated because project files changed during the run.${
+        changed.length === 0
+          ? ''
+          : ` Changed: ${changed.slice(0, 10).join(', ')}${changed.length > 10 ? ', …' : ''}.`
+      }`,
+    FingerprintChanged: () =>
+      'TIA graph was not updated because project structure changed during the run.',
+  })
 }
 
 function plural(count: number, noun: string): string {
@@ -101,8 +102,8 @@ export class TiaReporter implements Reporter {
   }
 
   async onTestRunStart(): Promise<void> {
-    const plan = this.runtime.plan
-    if (plan === null) return
+    const plan = this.runtime.run?.plan
+    if (plan === undefined) return
     if (this.runtime.coverage.enabled && this.runtime.coverage.clean) {
       rmSync(this.runtime.coverage.reportsDirectory, {
         force: true,
@@ -117,25 +118,12 @@ export class TiaReporter implements Reporter {
       )
       for (const line of formatRunPlanDetails(plan)) this.log(line)
     }
-    const adapters = this.runtime.options.replayAdapters
-    const warn = (message: string) => this.warn(message)
-    const start = replayRunEvent(plan)
-    await notifyReplayAdapters(
-      adapters,
-      'onRunStart',
-      (adapter) => adapter.onRunStart?.(start),
-      warn,
+    await notifyRunStart(
+      this.runtime.options.replayAdapters,
+      plan,
+      (message) => this.warn(message),
+      (result) => this.notifyReplayReporters(result),
     )
-    for (const result of replayedResults(plan)) {
-      const event = { result: structuredClone(result) }
-      await notifyReplayAdapters(
-        adapters,
-        'onTestReplayed',
-        (adapter) => adapter.onTestReplayed?.(event),
-        warn,
-      )
-      await this.notifyReplayReporters(result)
-    }
   }
 
   onTestModuleEnd(module: TestModule): void {
@@ -321,8 +309,8 @@ export class TiaReporter implements Reporter {
     unhandledErrors: ReadonlyArray<unknown>,
     reason: TestRunEndReason,
   ): Promise<void> {
-    const plan = this.runtime.plan
-    if (plan === null) return
+    const plan = this.runtime.run?.plan
+    if (plan === undefined) return
     if (reason === 'interrupted') {
       this.warn('TIA graph was not updated because the run was interrupted.')
       return
@@ -354,17 +342,15 @@ export class TiaReporter implements Reporter {
     )
     if (shouldReportCoverage === undefined) return
 
-    const complete = {
-      ...replayRunEvent(plan),
-      coverageReportDirectory: shouldReportCoverage
-        ? this.runtime.coverage.reportsDirectory
-        : null,
-      executedTestFiles: [...this.executedFiles].sort(),
-    }
-    await notifyReplayAdapters(
+    await notifyRunComplete(
       this.runtime.options.replayAdapters,
-      'onRunComplete',
-      (adapter) => adapter.onRunComplete?.(complete),
+      plan,
+      {
+        coverageReportDirectory: shouldReportCoverage
+          ? this.runtime.coverage.reportsDirectory
+          : null,
+        executedTestFiles: this.executedFiles,
+      },
       (message) => this.warn(message),
     )
   }
@@ -373,99 +359,58 @@ export class TiaReporter implements Reporter {
   private commit(recordComplete: boolean, failedRun: boolean) {
     return Effect.gen({ self: this }, function* () {
       const runtime = this.runtime
-      const plan = runtime.plan
-      if (plan === null) return undefined
-      const fingerprint = yield* projectFingerprint(
-        runtime.root,
-        runtime.options,
-        runtime.structuralFiles,
-      )
-      if (fingerprint !== runtime.fingerprintAtStart) {
-        this.warn(
-          'TIA graph was not updated because project structure changed during the run.',
-        )
-        return undefined
-      }
-      const { baseline } = yield* snapshotProject(
-        runtime.root,
-        runtime.ignoredPrefixes,
-        fingerprint,
-      )
-      if (baseline === null) {
-        this.warn(
-          'TIA graph was not updated because the Git baseline is unavailable.',
-        )
-        return undefined
-      }
-      if (
-        runtime.baselineAtStart === null ||
-        JSON.stringify(baseline) !== JSON.stringify(runtime.baselineAtStart)
-      ) {
-        const changed =
-          runtime.baselineAtStart === null
-            ? []
-            : baselineDifferences(runtime.baselineAtStart, baseline)
-        this.warn(
-          `TIA graph was not updated because project files changed during the run.${
-            changed.length === 0
-              ? ''
-              : ` Changed: ${changed.slice(0, 10).join(', ')}${changed.length > 10 ? ', …' : ''}.`
-          }`,
-        )
-        return undefined
-      }
-
-      const graph = yield* updateGraph({
-        collectionCoverage: this.collectionCoverage,
-        collectionFiles: this.collectionFiles,
-        coverageMaps: runtime.coverageTemplates.maps([
-          ...this.collectionCoverage.values(),
-          ...this.testCoverage.values(),
-        ]),
-        executedFiles: this.executedFiles,
-        fallbackEdges: this.edges,
-        // A file is fully executed when none of its tests was replayed; the
-        // update then replaces its evidence instead of extending it.
-        fullyExecutedFiles:
-          plan.mode === 'record'
-            ? this.executedFiles
-            : [...this.executedFiles].filter(
-                (file) => !this.replayedFiles.has(file),
-              ),
-        previous: plan.mode === 'record' ? null : plan.graph,
-        results: this.results,
-        root: runtime.root,
-        testCoverage: this.testCoverage,
-        testEdges: this.testEdges,
+      const run = runtime.run
+      if (run === null) return undefined
+      const plan = run.plan
+      const outcome = yield* commitRun({
+        fingerprint: yield* projectFingerprint(
+          runtime.root,
+          runtime.options,
+          runtime.structuralFiles,
+        ),
+        run,
+        stamp: {
+          complete: runtime.partition === null && recordComplete,
+          // A replay keeps the evidence of the graph it extends.
+          coverageComplete:
+            plan.mode === 'record'
+              ? recordComplete
+              : (plan.graph?.coverageComplete ?? false),
+          partition: runtime.partition,
+        },
+        update: {
+          collectionCoverage: this.collectionCoverage,
+          collectionFiles: this.collectionFiles,
+          coverageMaps: runtime.coverageTemplates.maps([
+            ...this.collectionCoverage.values(),
+            ...this.testCoverage.values(),
+          ]),
+          executedFiles: this.executedFiles,
+          fallbackEdges: this.edges,
+          // A file is fully executed when none of its tests was replayed; the
+          // update then replaces its evidence instead of extending it.
+          fullyExecutedFiles:
+            plan.mode === 'record'
+              ? this.executedFiles
+              : [...this.executedFiles].filter(
+                  (file) => !this.replayedFiles.has(file),
+                ),
+          results: this.results,
+          testCoverage: this.testCoverage,
+          testEdges: this.testEdges,
+        },
       })
-      graph.baseline = baseline
-      graph.complete = runtime.partition === null && recordComplete
-      graph.coverageComplete =
-        plan.mode === 'record' ? recordComplete : graph.coverageComplete
-      graph.fingerprint = fingerprint
-      if (runtime.partition === null) delete graph.partition
-      else graph.partition = structuredClone(runtime.partition)
-      graph.updatedAt = new Date().toISOString()
-
-      const store = yield* GraphStore
-      const committed = yield* store.commit(runtime.writeCacheDir, {
-        expected: runtime.graphAtStart,
-        expectedDigest: runtime.graphDigestAtStart,
-        graph,
-      })
-      if (committed.status === 'conflict' || committed.graph === null) {
-        this.warn(
-          'TIA graph was not updated because another process committed a conflicting graph.',
-        )
+      if (outcome._tag !== 'Committed') {
+        this.warn(skippedCommitWarning(outcome))
         return undefined
       }
       const saved =
         runtime.partition === null
-          ? committed.graph
+          ? outcome.graph
           : ((yield* aggregateLocalPartitions(
               runtime.options.cacheDir,
               runtime.partition,
-            )) ?? committed.graph)
+            )) ?? outcome.graph)
       if (!recordComplete) {
         this.warn(
           'TIA saved an incomplete graph because Vitest did not execute every configured test file.',
@@ -523,12 +468,12 @@ export class TiaReporter implements Reporter {
         )
       }
       yield* writeVerificationSnapshot({
-        env: process.env,
         executedTestIds: this.results.keys(),
         graph: saved,
         plan,
         runner: `vitest:${projectRelative(runtime.root, runtime.options.cacheDir) ?? runtime.options.cacheDir}`,
         success: !failedRun,
+        target: runtime.verification,
       })
       return shouldReportCoverage
     })

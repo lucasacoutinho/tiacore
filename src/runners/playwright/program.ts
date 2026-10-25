@@ -10,7 +10,7 @@ import {
   TIA_EVIDENCE_DIRECTORY_ENV,
   TIA_EVIDENCE_HEADER_ENV,
 } from '../../evidence/index.ts'
-import { TiaCore } from '../../engine/core.ts'
+import { CoreRun } from '../../engine/core-run.ts'
 import {
   frameworkAdapters,
   frameworkFingerprint,
@@ -109,18 +109,6 @@ export function planFilters(plan: RunPlan, root: string): PlaywrightFilters {
     filters: [],
     note: `the ${plural(filters.length, 'affected spec path')} exceed ${MAX_FILTER_CHARACTERS} characters, so Playwright runs every spec`,
   }
-}
-
-/** The failure text of a rejected TiaCore call, with the message 1.x printed. */
-function engineFailure(error: unknown): TiaIo {
-  return new TiaIo({
-    cause: error,
-    message: error instanceof Error ? error.message : String(error),
-  })
-}
-
-function enginePromise<A>(call: () => Promise<A>) {
-  return Effect.tryPromise({ catch: engineFailure, try: call })
 }
 
 function runnerFingerprint(
@@ -234,7 +222,7 @@ export const run = Effect.fn('tia.playwright.run')(function* (
   const configFingerprint = yield* Effect.promise(() =>
     importedFilesFingerprint(config, root),
   )
-  const core = new TiaCore({
+  const core = new CoreRun({
     ...(options.artifacts === undefined
       ? {}
       : { artifacts: options.artifacts }),
@@ -260,12 +248,12 @@ export const run = Effect.fn('tia.playwright.run')(function* (
     root,
     runner,
   })
-  const plan = yield* enginePromise(() => core.prepare())
+  const plan = yield* core.prepare()
   if (settings.log) logPlan(plan)
   const notes: string[] = []
 
   if (plan.mode === 'replay' && plan.affectedTests.length === 0) {
-    yield* enginePromise(() => core.commit([], []))
+    yield* core.commit([], [])
     return {
       notes,
       plan,
@@ -287,13 +275,16 @@ export const run = Effect.fn('tia.playwright.run')(function* (
   }
 
   return yield* Effect.gen(function* () {
-    yield* Effect.try({
-      catch: engineFailure,
-      try: () => mkdirSync(runtimeDirectory, { recursive: true }),
-    })
     const cliPath = yield* Effect.try({
-      catch: engineFailure,
-      try: () => playwrightCli(cwd),
+      catch: (error) =>
+        new TiaIo({
+          cause: error,
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      try: () => {
+        mkdirSync(runtimeDirectory, { recursive: true })
+        return playwrightCli(cwd)
+      },
     })
     const status = yield* spawnStatus({
       arguments: [
@@ -353,11 +344,9 @@ export const run = Effect.fn('tia.playwright.run')(function* (
         'TIA graph was not updated because a Playwright framework edge adapter failed.',
       )
     }
-    yield* enginePromise(() =>
-      core.commit(edges.observations, [
-        ...new Set(edges.observations.map((entry) => entry.file)),
-      ]),
-    )
+    yield* core.commit(edges.observations, [
+      ...new Set(edges.observations.map((entry) => entry.file)),
+    ])
     return { notes, plan, status, success: status === 0 }
   }).pipe(
     Effect.ensuring(

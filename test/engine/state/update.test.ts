@@ -6,11 +6,24 @@ import { expect, layer, test } from '@effect/vitest'
 
 import type { TiaRuntimeGraph } from '../../../src/core/runtime.ts'
 import { GRAPH_SCHEMA_VERSION } from '../../../src/core/runtime.ts'
-import { emptyGraph, updateGraph } from '../../../src/engine/state/update.ts'
+import {
+  emptyGraph,
+  updateGraph,
+  type GraphHeader,
+} from '../../../src/engine/state/update.ts'
 import { baseGraph, TEMPLATE } from '../support/graphs.ts'
 import { EngineLive, tempDirectory } from '../support/layers.ts'
 
 // Port of 1.x test/unit/engine/update.test.ts plus the STATE-UPD rows.
+
+const header: GraphHeader = {
+  baseline: { sha: 'next', workingTree: {} },
+  complete: true,
+  coverageComplete: false,
+  fingerprint: 'next-fingerprint',
+  partition: null,
+  updatedAt: '2026-01-02T03:04:05.000Z',
+}
 
 function graph(): TiaRuntimeGraph {
   return baseGraph({
@@ -136,6 +149,7 @@ layer(EngineLive, { excludeTestServices: true })(
         const snapshot = structuredClone(previous)
 
         const updated = yield* updateGraph({
+          header,
           collectionCoverage: new Map([['test/a.test.ts', {}]]),
           executedFiles: ['test/a.test.ts'],
           fullyExecutedFiles: ['test/a.test.ts'],
@@ -178,6 +192,7 @@ layer(EngineLive, { excludeTestServices: true })(
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
           const updated = yield* updateGraph({
+            header,
             ...outerOnly,
             collectionFiles: new Map([['test/a.test.ts', ['src/setup.ts']]]),
             fullyExecutedFiles: [],
@@ -206,6 +221,7 @@ layer(EngineLive, { excludeTestServices: true })(
       Effect.gen(function* () {
         const root = yield* projectWith('test/a.test.ts')
         const updated = yield* updateGraph({
+          header,
           ...outerOnly,
           collectionFiles: new Map([['test/a.test.ts', ['src/setup.ts']]]),
           fullyExecutedFiles: ['test/a.test.ts'],
@@ -230,6 +246,7 @@ layer(EngineLive, { excludeTestServices: true })(
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
           const updated = yield* updateGraph({
+            header,
             ...outerOnly,
             fullyExecutedFiles: [],
             previous: layered(),
@@ -264,6 +281,7 @@ layer(EngineLive, { excludeTestServices: true })(
             },
           })
           const updated = yield* updateGraph({
+            header,
             collectionCoverage: new Map([
               [
                 'test/a.test.ts',
@@ -307,6 +325,7 @@ layer(EngineLive, { excludeTestServices: true })(
             'test/deleted.test.ts',
           )
           const updated = yield* updateGraph({
+            header,
             executedFiles: ['test/a.test.ts'],
             fullyExecutedFiles: [],
             previous: graph(),
@@ -347,6 +366,7 @@ layer(EngineLive, { excludeTestServices: true })(
             'test/deleted.test.ts',
           )
           const fallback = yield* updateGraph({
+            header,
             executedFiles: [
               'test/a.test.ts',
               'test/b.test.ts',
@@ -383,6 +403,7 @@ layer(EngineLive, { excludeTestServices: true })(
           )
           const record = { 'src/a.ts': { b: {}, f: {}, map: 'm', s: { 0: 1 } } }
           const withTemplate = {
+            header,
             coverageMaps: { m: TEMPLATE },
             executedFiles: ['test/a.test.ts'],
             fullyExecutedFiles: [],
@@ -418,6 +439,7 @@ layer(EngineLive, { excludeTestServices: true })(
             'src/x.ts': { b: {}, f: {}, map: 'gone', s: {} },
           }
           const updated = yield* updateGraph({
+            header,
             executedFiles: [],
             fullyExecutedFiles: [],
             previous,
@@ -434,33 +456,45 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'sets only the schema; the caller owns baseline and flags (STATE-UPD-09)',
+      'stamps the schema and every header field, whatever the previous graph held (STATE-UPD-09)',
       () =>
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
           const previous = graph()
           previous.schema = 4
-          const updated = yield* updateGraph({
+          previous.partition = { group: 'old', index: 0, total: 2 }
+          const input = {
             executedFiles: [],
             fullyExecutedFiles: [],
+            results: new Map(),
+            root,
+            testEdges: new Map(),
+          }
+          const stamped = {
+            baseline: header.baseline,
+            complete: header.complete,
+            coverageComplete: header.coverageComplete,
+            fingerprint: header.fingerprint,
+            schema: GRAPH_SCHEMA_VERSION,
+            updatedAt: header.updatedAt,
+          }
+
+          const updated = yield* updateGraph({ ...input, header, previous })
+          expect(updated).toMatchObject(stamped)
+          expect(previous.coverageComplete).toBe(true)
+          expect(updated).not.toHaveProperty('partition')
+
+          const shard = { group: 'g', index: 1, total: 3 }
+          const partitioned = yield* updateGraph({
+            ...input,
+            header: { ...header, partition: shard },
             previous,
-            results: new Map(),
-            root,
-            testEdges: new Map(),
           })
-          expect(updated.schema).toBe(GRAPH_SCHEMA_VERSION)
-          expect(updated.baseline).toEqual(previous.baseline)
-          expect(updated.complete).toBe(previous.complete)
-          expect(updated.updatedAt).toBe(previous.updatedAt)
-          const fresh = yield* updateGraph({
-            executedFiles: [],
-            fullyExecutedFiles: [],
-            previous: null,
-            results: new Map(),
-            root,
-            testEdges: new Map(),
-          })
-          expect(fresh).toEqual(emptyGraph())
+          expect(partitioned.partition).toEqual(shard)
+          expect(partitioned.partition).not.toBe(shard)
+
+          const fresh = yield* updateGraph({ ...input, header, previous: null })
+          expect(fresh).toEqual({ ...emptyGraph(), ...stamped })
         }),
     )
 
@@ -476,6 +510,7 @@ layer(EngineLive, { excludeTestServices: true })(
           }
           const record = { 'src/a.ts': { b: {}, f: {}, map: 'm', s: { 0: 1 } } }
           const updated = yield* updateGraph({
+            header,
             executedFiles: [],
             fullyExecutedFiles: [],
             previous,

@@ -135,6 +135,22 @@ test('mutates a tracked source', () => {
     expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 
+  test('fails before any test when the verification target is misconfigured', () => {
+    const root = createProject()
+
+    const result = runVitest(root, ['run'], 20_000, {
+      TIA_VERIFICATION_DIRECTORY: join(root, 'verification'),
+      TIA_VERIFICATION_PHASE: 'sideways',
+    })
+
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.output).toContain(
+      'TIA_VERIFICATION_PHASE must be selective or full',
+    )
+    expect(executions(root)).toEqual([])
+    expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
+  })
+
   test('composes with an existing setup file and custom reporter', async () => {
     const root = createProject({
       extraFiles: {

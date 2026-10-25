@@ -19,11 +19,14 @@ import type {
   TiaReplayedTestEvent,
 } from '../../src/core/replay.ts'
 import { TiaCore, type TiaObservation } from '../../src/entries/core.ts'
+import { CoreRun } from '../../src/engine/core-run.ts'
 import {
-  notifyReplayAdapters,
+  notifyRunComplete,
+  notifyRunStart,
   replayedResults,
   replayRunEvent,
 } from '../../src/engine/replay.ts'
+import { runPromise } from '../../src/host/runtime.ts'
 import { beginRun } from '../../src/engine/lifecycle.ts'
 import { initRepository } from '../support/runner-project.ts'
 import { EngineLive } from './support/layers.ts'
@@ -178,17 +181,64 @@ describe('replay adapter notification', () => {
       },
     ]
     const warnings: string[] = []
-    await notifyReplayAdapters(
-      adapters,
-      'onRunStart',
-      (adapter) => adapter.onRunStart?.(replayRunEvent(plan())),
-      (message) => warnings.push(message),
-    )
+    await notifyRunStart(adapters, plan(), (message) => warnings.push(message))
     expect(calls).toEqual(['first', 'third', 'fourth'])
     expect(warnings).toEqual([
       'TIA replay adapter onRunStart failed: sync boom',
       'TIA replay adapter onRunStart failed: async boom',
     ])
+  })
+
+  test('announces each cached result after the start, then lets the host follow', async () => {
+    const events: string[] = []
+    const adapter: TiaReplayAdapter = {
+      onRunStart: () => void events.push('start'),
+      onTestReplayed: (event) => void events.push(`adapter:${event.result.id}`),
+    }
+    await notifyRunStart(
+      [adapter],
+      plan({
+        graph: baseGraph(),
+        wholeTestFiles: [],
+      }),
+      () => {},
+      async (result) => {
+        events.push(`host:${result.id}`)
+      },
+    )
+    expect(events).toEqual([
+      'start',
+      'adapter:a',
+      'host:a',
+      'adapter:b',
+      'host:b',
+    ])
+  })
+
+  test('completion sorts the executed files and warns about a failing adapter', async () => {
+    const seen: TiaReplayCompleteEvent[] = []
+    const warnings: string[] = []
+    await notifyRunComplete(
+      [
+        { onRunComplete: (event) => void seen.push(event) },
+        {
+          onRunComplete: () => {
+            throw new Error('late')
+          },
+        },
+      ],
+      plan(),
+      {
+        coverageReportDirectory: 'coverage',
+        executedTestFiles: new Set(['test/b.test.ts', 'test/a.test.ts']),
+      },
+      (message) => warnings.push(message),
+    )
+    expect(seen[0]).toMatchObject({
+      coverageReportDirectory: 'coverage',
+      executedTestFiles: ['test/a.test.ts', 'test/b.test.ts'],
+    })
+    expect(warnings).toEqual(['TIA replay adapter onRunComplete failed: late'])
   })
 })
 
@@ -440,21 +490,64 @@ describe('TiaCore options and lifecycle', () => {
   test('writes a verification snapshot only when both variables are set', async () => {
     const root = project()
     const directory = join(root, 'verification')
-    const core = new TiaCore({ ...OPTIONS, root })
-    await core.prepare()
     vi.stubEnv('TIA_VERIFICATION_DIRECTORY', directory)
     vi.stubEnv('TIA_VERIFICATION_PHASE', undefined)
+    await expect(new TiaCore({ ...OPTIONS, root }).prepare()).rejects.toThrow(
+      'must be set together',
+    )
+
+    vi.stubEnv('TIA_VERIFICATION_PHASE', 'full')
+    const core = new TiaCore({ ...OPTIONS, root })
+    await core.prepare()
+    expect(
+      await core.commit([observation('a')], ['test/a.test.ts']),
+    ).not.toBeNull()
+    expect(readdirSync(directory)).toEqual(['full'])
+    expect(readdirSync(join(directory, 'full'))).toHaveLength(1)
+  })
+
+  test('a bad verification phase fails the run at prepare and saves no graph', async () => {
+    const root = project()
+    const directory = join(root, 'verification')
+    vi.stubEnv('TIA_VERIFICATION_DIRECTORY', directory)
+    vi.stubEnv('TIA_VERIFICATION_PHASE', 'sideways')
+    const core = new TiaCore({ ...OPTIONS, root })
+    await expect(core.prepare()).rejects.toThrow(
+      'TIA_VERIFICATION_PHASE must be selective or full',
+    )
     await expect(
       core.commit([observation('a')], ['test/a.test.ts']),
-    ).rejects.toThrow('must be set together')
+    ).rejects.toThrow('TIA core has not been prepared')
+    expect(existsSync(join(root, '.tia/rows/state.json'))).toBe(false)
+    expect(existsSync(directory)).toBe(false)
+  })
 
-    const again = new TiaCore({ ...OPTIONS, root })
-    await again.prepare()
-    vi.stubEnv('TIA_VERIFICATION_PHASE', 'full')
+  test('a commit writes to the verification target that prepare read', async () => {
+    const root = project()
+    const directory = join(root, 'verification')
+    vi.stubEnv('TIA_VERIFICATION_DIRECTORY', directory)
+    vi.stubEnv('TIA_VERIFICATION_PHASE', 'selective')
+    const core = new TiaCore({ ...OPTIONS, root })
+    await core.prepare()
+    vi.stubEnv('TIA_VERIFICATION_PHASE', 'sideways')
+    vi.stubEnv('TIA_VERIFICATION_DIRECTORY', join(root, 'elsewhere'))
     expect(
-      await again.commit([observation('a')], ['test/a.test.ts']),
+      await core.commit([observation('a')], ['test/a.test.ts']),
     ).not.toBeNull()
-    expect(readdirSync(directory)).toHaveLength(1)
+    expect(readdirSync(directory)).toEqual(['selective'])
+    expect(existsSync(join(root, 'elsewhere'))).toBe(false)
+  })
+
+  test('a run given its own environment ignores the process environment', async () => {
+    const root = project()
+    vi.stubEnv('TIA_VERIFICATION_DIRECTORY', join(root, 'verification'))
+    vi.stubEnv('TIA_VERIFICATION_PHASE', 'sideways')
+    const core = new CoreRun({ ...OPTIONS, root }, {})
+    await runPromise(core.prepare())
+    expect(
+      await runPromise(core.commit([observation('a')], ['test/a.test.ts'])),
+    ).not.toBeNull()
+    expect(existsSync(join(root, 'verification'))).toBe(false)
   })
 })
 
@@ -472,11 +565,11 @@ describe('beginRun for a partitioned run', () => {
     const begun = await live.runPromise(
       beginRun({
         cacheDir: recording.cacheDir,
-        fingerprint: 'partition',
         ignoredPrefixes: ['.tia'],
         options: recording.options,
         partitioned: true,
         root,
+        snapshot: { baseline: null, fingerprint: 'partition' },
       }),
     )
     expect(begun.plan.mode).toBe('record')

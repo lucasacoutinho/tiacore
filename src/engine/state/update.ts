@@ -6,13 +6,30 @@ import * as FileSystem from 'effect/FileSystem'
 import { byCodeUnit } from '../../core/canonical.ts'
 import {
   GRAPH_SCHEMA_VERSION,
+  type Baseline,
   type CachedTestResult,
   type TiaCoverageRecord,
   type TiaCoverageTemplate,
   type TiaRuntimeGraph,
+  type TiaRuntimeGraphPartition,
   type TiaTestEdge,
 } from '../../core/runtime.ts'
 import { cloneGraph, pruneCoverageMaps } from './coverage.ts'
+
+/**
+ * What a run states about the graph it leaves. Every field is required and
+ * `updateGraph` applies all of them, so no field keeps the value of an earlier
+ * run by accident.
+ */
+export interface GraphHeader {
+  readonly baseline: Baseline
+  readonly complete: boolean
+  readonly coverageComplete: boolean
+  readonly fingerprint: string
+  /** Null for a run that is not one shard of a partitioned run. */
+  readonly partition: TiaRuntimeGraphPartition | null
+  readonly updatedAt: string
+}
 
 export interface GraphUpdateInput {
   readonly collectionCoverage?: ReadonlyMap<string, TiaCoverageRecord>
@@ -25,6 +42,7 @@ export interface GraphUpdateInput {
   readonly executedFiles: Iterable<string>
   readonly fallbackEdges?: ReadonlyMap<string, readonly string[]>
   readonly fullyExecutedFiles: Iterable<string>
+  readonly header: GraphHeader
   readonly previous: TiaRuntimeGraph | null
   readonly results: ReadonlyMap<string, CachedTestResult>
   readonly root: string
@@ -189,7 +207,7 @@ function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
  * Folds one run's observations into the graph. Files that were fully executed
  * lose their old results first, tests that were not rerun keep theirs, and any
  * test file that no longer exists under `root` is pruned with its records.
- * Sets the schema; the caller sets baseline, flags, fingerprint and time.
+ * Stamps the graph with the schema and the input's header.
  * The previous graph is never mutated.
  */
 export const updateGraph = Effect.fnUntraced(function* (
@@ -214,6 +232,14 @@ export const updateGraph = Effect.fnUntraced(function* (
     deleteFileRecords(graph, file)
   }
   pruneCoverageMaps(graph)
+  const { header } = input
+  graph.baseline = header.baseline
+  graph.complete = header.complete
+  graph.coverageComplete = header.coverageComplete
+  graph.fingerprint = header.fingerprint
+  if (header.partition === null) delete graph.partition
+  else graph.partition = structuredClone(header.partition)
   graph.schema = GRAPH_SCHEMA_VERSION
+  graph.updatedAt = header.updatedAt
   return graph
 })

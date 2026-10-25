@@ -128,10 +128,10 @@ function plan(
         ...(request.coverageRequested === undefined
           ? {}
           : { coverageRequested: request.coverageRequested }),
-        fingerprint: cached.fingerprint,
         ignoredPrefixes: [CACHE_PREFIX],
         options: request.options ?? options,
         root,
+        snapshot: { baseline: null, fingerprint: cached.fingerprint },
       })
       return begun.plan
     }),
@@ -496,10 +496,10 @@ describe('run planning over in-memory adapters', () => {
         })
         const begun = yield* beginRun<never>({
           cacheDir,
-          fingerprint: cached.fingerprint,
           ignoredPrefixes: [CACHE_PREFIX],
           options: request.options ?? options,
           root,
+          snapshot: { baseline: null, fingerprint: cached.fingerprint },
         })
         return begun.plan
       }).pipe(Effect.provide(layer)),

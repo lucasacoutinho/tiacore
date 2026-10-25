@@ -33,11 +33,10 @@ export function replayRunEvent(plan: RunPlan): TiaReplayRunEvent {
 }
 
 /**
- * Calls one adapter method on every adapter in order, for example
- * `(adapter) => adapter.onRunStart?.(event)`. A failing adapter becomes a
- * warning and does not stop the others.
+ * Calls one adapter method on every adapter in order. A failing adapter
+ * becomes a warning and does not stop the others.
  */
-export async function notifyReplayAdapters(
+async function notifyAdapters(
   adapters: readonly TiaReplayAdapter[],
   method: keyof TiaReplayAdapter,
   call: (adapter: TiaReplayAdapter) => Promise<void> | void,
@@ -54,4 +53,57 @@ export async function notifyReplayAdapters(
       )
     }
   }
+}
+
+/**
+ * Tells the adapters a run is starting (`onRunStart`), then about each cached
+ * result the plan replays (`onTestReplayed`). `afterReplayed` runs once the
+ * adapters have heard about a result, for hosts that also announce it elsewhere.
+ */
+export async function notifyRunStart(
+  adapters: readonly TiaReplayAdapter[],
+  plan: RunPlan,
+  warn: (message: string) => void,
+  afterReplayed?: (result: CachedTestResult) => Promise<void>,
+): Promise<void> {
+  const start = replayRunEvent(plan)
+  await notifyAdapters(
+    adapters,
+    'onRunStart',
+    (adapter) => adapter.onRunStart?.(start),
+    warn,
+  )
+  for (const result of replayedResults(plan)) {
+    const event = { result: structuredClone(result) }
+    await notifyAdapters(
+      adapters,
+      'onTestReplayed',
+      (adapter) => adapter.onTestReplayed?.(event),
+      warn,
+    )
+    await afterReplayed?.(result)
+  }
+}
+
+/** Tells the adapters a committed run is complete. */
+export async function notifyRunComplete(
+  adapters: readonly TiaReplayAdapter[],
+  plan: RunPlan,
+  run: {
+    readonly coverageReportDirectory: string | null
+    readonly executedTestFiles: Iterable<string>
+  },
+  warn: (message: string) => void,
+): Promise<void> {
+  const complete = {
+    ...replayRunEvent(plan),
+    coverageReportDirectory: run.coverageReportDirectory,
+    executedTestFiles: [...run.executedTestFiles].sort(),
+  }
+  await notifyAdapters(
+    adapters,
+    'onRunComplete',
+    (adapter) => adapter.onRunComplete?.(complete),
+    warn,
+  )
 }

@@ -26,13 +26,20 @@ const RECORD_DOMAINS = new Set([
   'testEdges',
 ])
 
+/** Where `tiacore verify` collects this run's snapshot, and for which phase. */
+export interface VerificationTarget {
+  readonly directory: string
+  readonly phase: TiaVerificationPhase
+}
+
 export interface VerificationSnapshotInput {
-  readonly env: Readonly<Record<string, string | undefined>>
   readonly executedTestIds: Iterable<string>
   readonly graph: TiaRuntimeGraph
   readonly plan: RunPlan
   readonly runner: string
   readonly success: boolean
+  /** Undefined when no `tiacore verify` drives this process: nothing is written. */
+  readonly target: VerificationTarget | undefined
 }
 
 function snapshotName(runner: string, fingerprint: string): string {
@@ -72,28 +79,40 @@ const asIo = (error: { readonly message: string }) =>
   new TiaIo({ cause: error, message: error.message })
 
 /**
- * Writes the run's verification snapshot when `tiacore verify` drives this
- * process (TIA_VERIFICATION_DIRECTORY and TIA_VERIFICATION_PHASE); does
- * nothing otherwise. The file is written beside its target and renamed into
- * place, so a reader never sees a partial snapshot.
+ * The verification target `tiacore verify` sets up through
+ * TIA_VERIFICATION_DIRECTORY and TIA_VERIFICATION_PHASE, or undefined when
+ * neither is set. A run reads it before it starts, so a misconfiguration fails
+ * the run instead of leaving a saved graph behind a rejected commit.
  */
-export const writeVerificationSnapshot = Effect.fnUntraced(function* (
-  input: VerificationSnapshotInput,
+export const verificationTarget = Effect.fnUntraced(function* (
+  env: Readonly<Record<string, string | undefined>>,
 ) {
-  const directory = input.env[TIA_VERIFICATION_DIRECTORY_ENV]
-  const phaseValue = input.env[TIA_VERIFICATION_PHASE_ENV]
-  if (directory === undefined && phaseValue === undefined) return
-  if (directory === undefined || phaseValue === undefined) {
+  const directory = env[TIA_VERIFICATION_DIRECTORY_ENV]
+  const phase = env[TIA_VERIFICATION_PHASE_ENV]
+  if (directory === undefined && phase === undefined) return undefined
+  if (directory === undefined || phase === undefined) {
     return yield* new TiaInvalid({
       message: `${TIA_VERIFICATION_DIRECTORY_ENV} and ${TIA_VERIFICATION_PHASE_ENV} must be set together`,
     })
   }
-  if (phaseValue !== 'selective' && phaseValue !== 'full') {
+  if (phase !== 'selective' && phase !== 'full') {
     return yield* new TiaInvalid({
       message: `${TIA_VERIFICATION_PHASE_ENV} must be selective or full`,
     })
   }
-  const phase: TiaVerificationPhase = phaseValue
+  return { directory, phase } satisfies VerificationTarget
+})
+
+/**
+ * Writes the run's verification snapshot to `target`, if there is one. The
+ * file is written beside its destination and renamed into place, so a reader
+ * never sees a partial snapshot.
+ */
+export const writeVerificationSnapshot = Effect.fnUntraced(function* (
+  input: VerificationSnapshotInput,
+) {
+  if (input.target === undefined) return
+  const { directory, phase } = input.target
   const fs = yield* FileSystem.FileSystem
   const path = yield* Path.Path
   const phaseDirectory = path.resolve(directory, phase)

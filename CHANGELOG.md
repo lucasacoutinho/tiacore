@@ -145,6 +145,11 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 - Exporters flush when the process ends or half a second after the last library
   run. Before, a process with `TIACORE_DEVTOOLS` or an OTLP URL did not end on
   its own, and the trace and metrics files were written only on dispose.
+- A bad `TIA_VERIFICATION_DIRECTORY` or `TIA_VERIFICATION_PHASE` fails a run
+  when it starts (`prepare`, or the Vitest plugin at run start). Before, the run
+  executed its tests and saved its graph, and the commit then rejected. A commit
+  writes only to the target read at the start, whatever the process environment
+  holds by then.
 
 ### Fixed
 

@@ -1,14 +1,19 @@
-import { describe, expect, test } from 'vitest'
+import * as Cause from 'effect/Cause'
+import * as Exit from 'effect/Exit'
+import * as Option from 'effect/Option'
+import { describe, expect, test, vi } from 'vitest'
 
 import type { RunPlan, TiaRuntimeGraph } from '../../src/core/runtime.ts'
 import {
   configuredRunnerName,
   runnerName,
 } from '../../src/runners/playwright/names.ts'
+import { runExit } from '../../src/host/runtime.ts'
 import {
   MAX_FILTER_CHARACTERS,
   cachedTestCount,
   planFilters,
+  run,
 } from '../../src/runners/playwright/program.ts'
 import {
   evidenceProblems,
@@ -256,6 +261,32 @@ describe('session report', () => {
       )
       expect(readReport(path)).toBeNull()
     } finally {
+      rmSync(directory, { force: true, recursive: true })
+    }
+  })
+})
+
+describe('engine failures', () => {
+  test('reach the caller with their tag, before anything runs', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'tiacore-playwright-run-'))
+    try {
+      writeFileSync(
+        join(directory, 'playwright.config.ts'),
+        'export default {}',
+      )
+      vi.stubEnv('TIA_VERIFICATION_DIRECTORY', join(directory, 'verification'))
+      vi.stubEnv('TIA_VERIFICATION_PHASE', 'sideways')
+
+      const exit = await runExit(run({ log: false, root: directory }, []))
+
+      if (!Exit.isFailure(exit)) throw new Error('expected the run to fail')
+      const failure = Cause.findErrorOption(exit.cause)
+      expect(Option.getOrUndefined(failure)).toMatchObject({
+        _tag: 'TiaInvalid',
+        message: 'TIA_VERIFICATION_PHASE must be selective or full',
+      })
+    } finally {
+      vi.unstubAllEnvs()
       rmSync(directory, { force: true, recursive: true })
     }
   })

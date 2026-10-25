@@ -26,6 +26,7 @@ import {
   partitionCacheDir,
   partitionGroup,
 } from '../../engine/state/partitions.ts'
+import { verificationTarget } from '../../engine/verification-snapshot.ts'
 import {
   coverageRuntime,
   hasNativeSelection,
@@ -251,7 +252,7 @@ export function tia(options: TiaOptions = {}): Plugin {
 
         const cachePrefix =
           projectRelative(current.root, current.options.cacheDir) ?? ''
-        current.ignoredPrefixes = [
+        const ignoredPrefixes = [
           cachePrefix,
           projectRelative(current.root, current.coverage.reportsDirectory),
           ...candidates.map((candidate) =>
@@ -272,8 +273,9 @@ export function tia(options: TiaOptions = {}): Plugin {
         ]
 
         const shard = vitest.config.shard
-        const begun = await runPromise(
+        current.run = await runPromise(
           Effect.gen(function* () {
+            current.verification = yield* verificationTarget(process.env)
             const fingerprint = yield* projectFingerprint(
               current.root,
               current.options,
@@ -281,11 +283,9 @@ export function tia(options: TiaOptions = {}): Plugin {
             )
             const snapshot = yield* snapshotProject(
               current.root,
-              current.ignoredPrefixes,
+              ignoredPrefixes,
               fingerprint,
             )
-            current.fingerprintAtStart = fingerprint
-            current.baselineAtStart = snapshot.baseline
             current.partition =
               shard === undefined
                 ? null
@@ -299,7 +299,7 @@ export function tia(options: TiaOptions = {}): Plugin {
                     index: shard.index,
                     total: shard.count,
                   }
-            current.writeCacheDir =
+            const writeCacheDir =
               current.partition === null
                 ? current.options.cacheDir
                 : partitionCacheDir(current.options.cacheDir, current.partition)
@@ -312,18 +312,15 @@ export function tia(options: TiaOptions = {}): Plugin {
               cacheDir: current.options.cacheDir,
               ...(restore === undefined ? {} : { restore }),
               coverageRequested: current.coverage.enabled,
-              fingerprint,
-              ignoredPrefixes: current.ignoredPrefixes,
+              ignoredPrefixes,
               options: current.options,
               partitioned: current.partition !== null,
               root: current.root,
-              writeCacheDir: current.writeCacheDir,
+              snapshot,
+              writeCacheDir,
             })
           }).pipe(Effect.provide(EngineLive)),
         )
-        current.graphAtStart = begun.graph
-        current.graphDigestAtStart = begun.graphDigest
-        current.plan = begun.plan
         current.active = true
         shared.initialized = true
 
@@ -337,8 +334,8 @@ export function tia(options: TiaOptions = {}): Plugin {
         shared.excludeMatcher = excludeMatcher
       }
 
-      const plan = runtime.plan
-      if (plan === null) return
+      const plan = runtime.run?.plan
+      if (plan === undefined) return
       if (plan.mode === 'record') {
         for (const candidate of candidates)
           candidate.provide(TIA_SELECTION_KEY, selectAll)
