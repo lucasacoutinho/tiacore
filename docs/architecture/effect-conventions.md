@@ -1,9 +1,9 @@
-# Effect conventions for tiacore 2.0
+# Effect conventions
 
-These rules apply to every module under `src/`. ADR 0004 explains why; this file
-says how. When a rule and the 1.x behaviour conflict, keep the 1.x behaviour
-unless ADR 0004's behaviour-decision table says otherwise, and add a row there
-for any new deviation.
+These rules apply to every module under `src/`. The
+[architecture overview](overview.md) describes what the layers do. A change to
+public behavior needs a CHANGELOG entry, and a breaking one also needs the
+migration guide.
 
 ## Layout and layering
 
@@ -46,8 +46,8 @@ Effect and `node:` out of `core` and `probe`. Keep files under 800 lines.
   `src/engine/ports.ts`; add a seam only when it has two real adapters (a live
   one and an in-memory one counts). Use Effect's built-in `FileSystem`, `Path`
   and `ChildProcessSpawner` instead of wrapping them.
-- Errors are the four tagged classes in `src/wire/errors.ts`. Keep the message
-  text 1.x printed; tests and the CLI contract depend on it.
+- Errors are the four tagged classes in `src/wire/errors.ts`. Their messages are
+  part of the CLI contract; tests pin them.
 - Resources (locks, sockets, child processes, watchers) are acquired with
   `Effect.acquireRelease` inside a Scope that the caller's program owns. The
   process-wide runtime holds only stateless services.
@@ -74,15 +74,10 @@ Effect and `node:` out of `core` and `probe`. Keep files under 800 lines.
 
 ## Tests
 
-- Port each 1.x test by copying it from `.legacy/test` and changing only its
-  imports. If it must change, the change follows a row in ADR 0004's decision
-  table. Then update `test/package/legacy-tests.json`: the test maps to its 2.0
-  file, or to `replaced: <reason>` when a different test now covers it.
-- When you implement a 1.x export, remove it from
-  `test/package/pending-exports.json`.
-- Use `test/support/legacy.ts` for differential tests against the built 1.x
-  package (`npm run build:legacy`), and `@effect/vitest` (`it.effect`,
+- Test behavior through the public seams. Use `@effect/vitest` (`it.effect`,
   `it.prop`) for Effect code and properties.
+- Where 2.0 must behave like 1.x, compare with the published 1.2.1 through
+  `test/support/legacy.ts` (the `tiacore-v1` development dependency).
 - Every long-lived resource and every past leak gets a test with `assertNoLeak`
   from `test/support/leak.ts`.
 - Pure decisions in `src/core` get a Lean model in `proofs/` and vectors in

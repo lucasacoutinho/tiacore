@@ -246,5 +246,7 @@ tiacore keeps the 20 newest reports in the directory and removes older ones.
 ## Memory
 
 Every long-lived resource in tiacore has a test that runs it many times and
-checks that heap, open handles and file descriptors stop growing. The list is in
-[the leak sweep](architecture/leak-sweep.md).
+checks that heap, open handles and file descriptors stop growing (`assertNoLeak`
+in `test/support/leak.ts`). Caches are bounded, per-run state is released when
+the run ends, and child processes are killed with their process group when a run
+is interrupted.

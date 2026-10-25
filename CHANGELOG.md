@@ -221,7 +221,7 @@ Effect package and write no Effect code, and no public type mentions Effect. The
   advanced counters. Stored state for a 96-test synthetic project drops from
   229.5 MB to 0.8 MB with identical edges, results, and reconstructed coverage.
   Existing caches are not read; the first run after upgrading records a full
-  baseline. See ADR 0003.
+  baseline.
 - Graph digests now come from the segmented store's manifest generation, and
   artifact publication and verification snapshots write graphs piece by piece,
   so no step serializes a whole graph into one string. Artifact `graph.json`

@@ -116,8 +116,8 @@ The runtime graph is an in-memory contract. Its on-disk representation is a
 segmented, content-addressed state store and is not a public file-layout API.
 Since graph schema 4, `testCoverage` and `collectionCoverage` hold only the
 counters each test advanced. Each file entry names its static Istanbul maps in
-`coverageMaps`, which stores every map once. See
-[ADR 0003](architecture/decisions/0003-deduplicated-coverage-state.md).
+`coverageMaps`, which stores every map once. See the
+[architecture overview](architecture/overview.md).
 
 It also exports the runner-neutral `createImpactPlan()` and
 `mergeImpactGraphs()` functions plus protocol types.
