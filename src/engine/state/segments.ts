@@ -1,7 +1,8 @@
 import { createHash, hash } from 'node:crypto'
 
 import { byCodeUnit } from '../../core/canonical.ts'
-import type { TiaRuntimeGraph } from '../../core/runtime.ts'
+import { isRecord } from '../../core/record.ts'
+import { RECORD_FAMILIES, type TiaRuntimeGraph } from '../../core/runtime.ts'
 import { referencedCoverageMaps } from './coverage.ts'
 
 // The segmented runtime-state layout. A graph is a small manifest plus
@@ -21,16 +22,7 @@ export const MAX_SEGMENT_BYTES = 20 * 1024 * 1024
 
 const STORE_FORMAT = 'tiacore-runtime-state'
 
-export const SEGMENT_DOMAINS = [
-  'collectionCoverage',
-  'collectionFiles',
-  'coverageMaps',
-  'edges',
-  'results',
-  'testCoverage',
-  'testEdges',
-  'workingTree',
-] as const
+export const SEGMENT_DOMAINS = [...RECORD_FAMILIES, 'workingTree'] as const
 
 export type SegmentDomain = (typeof SEGMENT_DOMAINS)[number]
 
@@ -65,10 +57,6 @@ export function digest(value: string | Uint8Array): string {
 
 export function bucketFor(key: string): number {
   return hash('sha256', key, 'buffer')[0]! % TIA_RUNTIME_STORE_BUCKETS
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 const SHA256 = /^[a-f0-9]{64}$/u
@@ -214,45 +202,33 @@ function sortedObject(value: Record<string, unknown>): Record<string, unknown> {
   )
 }
 
-/** Splits a graph into manifest metadata and the records of each domain. */
+const FAMILY_KEYS: ReadonlySet<string> = new Set(RECORD_FAMILIES)
+
+/**
+ * Splits a graph into manifest metadata and the records of each domain. Every
+ * field that is not a record family or the baseline lands in the metadata.
+ */
 function stateRecords(
   graph: TiaRuntimeGraph,
 ): [Metadata, Record<SegmentDomain, object>] {
-  const {
-    baseline,
-    collectionCoverage,
-    collectionFiles,
-    coverageMaps,
-    edges,
-    results,
-    testCoverage,
-    testEdges,
-    ...rest
-  } = graph
-  const { workingTree, ...baselineRest } = baseline
+  const { workingTree, ...baselineRest } = graph.baseline
+  const header = Object.entries(graph).filter(
+    ([key]) => key !== 'baseline' && !FAMILY_KEYS.has(key),
+  )
   const metadata: Metadata = sortedObject({
-    ...rest,
+    ...Object.fromEntries(header),
     baseline: sortedObject(baselineRest),
-    ...(rest.partition === undefined
+    ...(graph.partition === undefined
       ? {}
-      : { partition: sortedObject({ ...rest.partition }) }),
+      : { partition: sortedObject({ ...graph.partition }) }),
   })
   const referenced = referencedCoverageMaps(graph)
-  return [
-    metadata,
-    {
-      collectionCoverage,
-      collectionFiles,
-      coverageMaps: Object.fromEntries(
-        Object.entries(coverageMaps).filter(([id]) => referenced.has(id)),
-      ),
-      edges,
-      results,
-      testCoverage,
-      testEdges,
-      workingTree,
-    },
-  ]
+  const records = { workingTree } as Record<SegmentDomain, object>
+  for (const family of RECORD_FAMILIES) records[family] = graph[family]
+  records.coverageMaps = Object.fromEntries(
+    Object.entries(graph.coverageMaps).filter(([id]) => referenced.has(id)),
+  )
+  return [metadata, records]
 }
 
 function serializeSegment(

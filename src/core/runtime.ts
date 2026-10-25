@@ -73,6 +73,52 @@ export interface TiaRuntimeGraph {
   updatedAt: string
 }
 
+/** The graph's header fields: everything that is not a keyed record table. */
+type GraphHeader =
+  | 'baseline'
+  | 'complete'
+  | 'coverageComplete'
+  | 'fingerprint'
+  | 'partition'
+  | 'schema'
+  | 'updatedAt'
+
+/** The keys of the graph's record tables. */
+export type RecordFamily = Exclude<keyof TiaRuntimeGraph, GraphHeader>
+
+const FAMILIES = [
+  'collectionCoverage',
+  'collectionFiles',
+  'coverageMaps',
+  'edges',
+  'results',
+  'testCoverage',
+  'testEdges',
+] as const satisfies readonly RecordFamily[]
+
+/**
+ * Every record table of a graph, in the order the store writes them. A field
+ * added to `TiaRuntimeGraph` is a record family unless `GraphHeader` names it,
+ * and a family missing from this list fails to compile here.
+ */
+export const RECORD_FAMILIES: [
+  Exclude<RecordFamily, (typeof FAMILIES)[number]>,
+] extends [never]
+  ? typeof FAMILIES
+  : { unlistedFamily: Exclude<RecordFamily, (typeof FAMILIES)[number]> } =
+  FAMILIES
+
+/** The record families whose values are coverage records. */
+export const COVERAGE_FAMILIES = [
+  'collectionCoverage',
+  'testCoverage',
+] as const satisfies readonly RecordFamily[]
+
+export type CoverageFamily = (typeof COVERAGE_FAMILIES)[number]
+
+export const isCoverageFamily = (key: string): key is CoverageFamily =>
+  COVERAGE_FAMILIES.some((family) => family === key)
+
 export type RunMode = 'record' | 'replay'
 
 export interface RunPlanBaseline {

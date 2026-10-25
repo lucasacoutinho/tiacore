@@ -4,7 +4,11 @@ import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 import * as Path from 'effect/Path'
 
-import type { RunPlan, TiaRuntimeGraph } from '../core/runtime.ts'
+import {
+  RECORD_FAMILIES,
+  type RunPlan,
+  type TiaRuntimeGraph,
+} from '../core/runtime.ts'
 import {
   TIA_VERIFICATION_SNAPSHOT_VERSION,
   type TiaVerificationPhase,
@@ -16,15 +20,7 @@ import { replayRunEvent } from './replay.ts'
 export const TIA_VERIFICATION_DIRECTORY_ENV = 'TIA_VERIFICATION_DIRECTORY'
 export const TIA_VERIFICATION_PHASE_ENV = 'TIA_VERIFICATION_PHASE'
 
-const RECORD_DOMAINS = new Set([
-  'collectionCoverage',
-  'collectionFiles',
-  'coverageMaps',
-  'edges',
-  'results',
-  'testCoverage',
-  'testEdges',
-])
+const RECORD_DOMAINS = new Set<string>(RECORD_FAMILIES)
 
 /** Where `tiacore verify` collects this run's snapshot, and for which phase. */
 export interface VerificationTarget {

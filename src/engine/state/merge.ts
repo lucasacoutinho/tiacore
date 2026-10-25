@@ -1,6 +1,11 @@
-import type { TiaRuntimeGraph } from '../../core/runtime.ts'
+import {
+  RECORD_FAMILIES,
+  type RecordFamily,
+  type TiaRuntimeGraph,
+} from '../../core/runtime.ts'
 import { pruneCoverageMaps } from './coverage.ts'
 import { graphGeneration } from './segments.ts'
+import { emptyGraph } from './update.ts'
 
 // Partition merge. proofs/Tia/Merge.lean models it: `mergeAll_spec`,
 // `mergeAll_conflict`, `merge_complete` and `merge_missing`. A fragment joins
@@ -8,20 +13,63 @@ import { graphGeneration } from './segments.ts'
 // fingerprint and baseline, is itself partial, and has an index in 1..total.
 // The merge succeeds only when every index is present exactly once (equal
 // generations may repeat) and no record key carries two different values.
+// `mergeFamilies` also serves the commit reconciliation (reconcile.ts): the
+// partition merge is its three-way merge from an empty base.
 
-const same = (left: unknown, right: unknown): boolean =>
+export type Equivalent = (left: unknown, right: unknown) => boolean
+
+export const same: Equivalent = (left, right) =>
   JSON.stringify(left) === JSON.stringify(right)
 
-function mergeRecord<T>(
-  target: Record<string, T>,
-  source: Readonly<Record<string, T>>,
+/**
+ * Content-addressed maps never conflict: each side's maps are added and the
+ * unreferenced ones pruned afterwards. Every other family merges key by key.
+ */
+const KEYED_FAMILIES = RECORD_FAMILIES.filter(
+  (family): family is Exclude<RecordFamily, 'coverageMaps'> =>
+    family !== 'coverageMaps',
+)
+
+function mergeChangedRecord(
+  expected: Readonly<Record<string, unknown>>,
+  current: Record<string, unknown>,
+  proposed: Readonly<Record<string, unknown>>,
+  equivalent: Equivalent,
 ): boolean {
-  for (const [key, value] of Object.entries(source)) {
-    const current = target[key]
-    if (current !== undefined && !same(current, value)) return false
-    target[key] = structuredClone(value)
+  // A key none of the three changed, or only `current` holds, stays as it is.
+  const keys = new Set([...Object.keys(expected), ...Object.keys(proposed)])
+  for (const key of keys) {
+    const before = expected[key]
+    const ours = proposed[key]
+    const theirs = current[key]
+    if (equivalent(ours, before)) continue
+    if (!equivalent(theirs, before) && !equivalent(ours, theirs)) return false
+    if (ours === undefined) delete current[key]
+    else current[key] = structuredClone(ours)
   }
   return true
+}
+
+/**
+ * Applies `proposed`'s changes since `expected` (nothing, when null) to every
+ * keyed record of `current`, in place. False when both sides changed a key to
+ * different values; `current` is then partly merged. Values compare by their
+ * JSON unless `equivalent` names a family's own rule.
+ */
+export function mergeFamilies(
+  expected: TiaRuntimeGraph | null,
+  current: TiaRuntimeGraph,
+  proposed: TiaRuntimeGraph,
+  equivalent: Partial<Record<RecordFamily, Equivalent>> = {},
+): boolean {
+  return KEYED_FAMILIES.every((family) =>
+    mergeChangedRecord(
+      expected?.[family] ?? {},
+      current[family],
+      proposed[family],
+      equivalent[family] ?? same,
+    ),
+  )
 }
 
 export function mergePartitionedGraphs(
@@ -65,32 +113,17 @@ export function mergePartitionedGraphs(
   if (partitions.size !== total) return null
 
   const merged: TiaRuntimeGraph = {
+    ...emptyGraph(),
     baseline: structuredClone(first.baseline),
-    collectionCoverage: {},
-    collectionFiles: {},
     complete: true,
     coverageComplete: true,
-    coverageMaps: {},
-    edges: {},
     fingerprint,
-    results: {},
     schema: first.schema,
-    testCoverage: {},
-    testEdges: {},
-    updatedAt: '',
   }
 
   for (let index = 1; index <= total; index += 1) {
     const fragment = partitions.get(index)
-    if (fragment === undefined) return null
-    if (
-      !mergeRecord(merged.edges, fragment.edges) ||
-      !mergeRecord(merged.results, fragment.results) ||
-      !mergeRecord(merged.testEdges, fragment.testEdges) ||
-      !mergeRecord(merged.collectionCoverage, fragment.collectionCoverage) ||
-      !mergeRecord(merged.collectionFiles, fragment.collectionFiles) ||
-      !mergeRecord(merged.testCoverage, fragment.testCoverage)
-    ) {
+    if (fragment === undefined || !mergeFamilies(null, merged, fragment)) {
       return null
     }
     Object.assign(merged.coverageMaps, fragment.coverageMaps)

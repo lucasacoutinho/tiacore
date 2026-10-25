@@ -1,7 +1,10 @@
 import type { FileCoverageData } from 'istanbul-lib-coverage'
 
+import { isRecord } from '../../core/record.ts'
 import {
+  COVERAGE_FAMILIES,
   GRAPH_SCHEMA_VERSION,
+  isCoverageFamily,
   type TiaCoverageRecord,
   type TiaCoverageTemplate,
   type TiaRuntimeGraph,
@@ -19,12 +22,6 @@ import {
 // and per counter, so they stay plain.
 
 export const PORTABLE_GRAPH_SCHEMA_VERSION = 3
-
-type Json = Record<string, unknown>
-
-function isRecord(value: unknown): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function isCounter(count: unknown): boolean {
   return Number.isSafeInteger(count)
@@ -86,20 +83,19 @@ export function parseArtifactGraph(source: unknown): TiaRuntimeGraph | null {
   }
 
   const coverageMaps: Record<string, TiaCoverageTemplate> = {}
-  const collectionCoverage = compactRecords(
-    value['collectionCoverage'],
-    coverageMaps,
-  )
-  const testCoverage = compactRecords(value['testCoverage'], coverageMaps)
-  if (collectionCoverage === null || testCoverage === null) return null
+  const compacted: Record<string, Record<string, TiaCoverageRecord>> = {}
+  for (const family of COVERAGE_FAMILIES) {
+    const records = compactRecords(value[family], coverageMaps)
+    if (records === null) return null
+    compacted[family] = records
+  }
   return parseRuntimeGraph({
     // A 1.x graph records no collection files; none is what it means.
     collectionFiles: {},
     ...value,
-    collectionCoverage,
+    ...compacted,
     coverageMaps,
     schema: GRAPH_SCHEMA_VERSION,
-    testCoverage,
   })
 }
 
@@ -131,7 +127,7 @@ export function portableGraphBytes(
   append('{')
   entries.forEach(([key, value], index) => {
     append(`${index === 0 ? '' : ','}${JSON.stringify(key)}:`)
-    if (key !== 'collectionCoverage' && key !== 'testCoverage') {
+    if (!isCoverageFamily(key)) {
       append(JSON.stringify(value))
       return
     }

@@ -2,20 +2,19 @@ import { createHash } from 'node:crypto'
 
 import type { FileCoverageData } from 'istanbul-lib-coverage'
 
-import type {
-  TiaCoverageHits,
-  TiaCoverageRecord,
-  TiaCoverageTemplate,
-  TiaRuntimeGraph,
+import {
+  COVERAGE_FAMILIES,
+  type CoverageFamily,
+  type TiaCoverageHits,
+  type TiaCoverageRecord,
+  type TiaCoverageTemplate,
+  type TiaRuntimeGraph,
 } from '../../core/runtime.ts'
 
 // Graph-side coverage: content-addressed static maps plus the counters each
 // test advanced. These loops run per file and per counter, so they stay plain.
 
-type CoverageRecords = Pick<
-  TiaRuntimeGraph,
-  'collectionCoverage' | 'testCoverage'
->
+type CoverageRecords = Pick<TiaRuntimeGraph, CoverageFamily>
 
 function zeros(counters: Record<string, number>): Record<string, number> {
   const zeroed: Record<string, number> = {}
@@ -84,10 +83,7 @@ export function compactFileCoverage(file: FileCoverageData): {
 }
 
 export function coverageRecords(graph: CoverageRecords): TiaCoverageRecord[] {
-  return [
-    ...Object.values(graph.collectionCoverage),
-    ...Object.values(graph.testCoverage),
-  ]
+  return COVERAGE_FAMILIES.flatMap((family) => Object.values(graph[family]))
 }
 
 /** The map digests that the graph's coverage records name. */
