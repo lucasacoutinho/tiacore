@@ -39,5 +39,5 @@ jobs:
       - run: npm ci && npm run build
         working-directory: .legacy
       - run: npx playwright install --with-deps chromium
-      - run: TIA_FRESH=1 npm run release:check
+      - run: npm run release:check
       - run: npm publish

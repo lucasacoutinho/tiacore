@@ -29,7 +29,7 @@ Before publishing a release:
 
    ```sh
    npm ci
-   TIA_FRESH=1 npm run release:check
+   npm run release:check
    ```
 
    The gate needs the built 1.x oracle (`npm ci && npm run build` in `.legacy`),
@@ -54,10 +54,10 @@ tiacore publishes to the public npm registry as `@lucasacoutinho/tiacore`.
 `publishConfig.access` is `public`.
 
 Releases publish from the `Publish package` workflow
-(`.github/workflows/publish.yml`). It runs `TIA_FRESH=1 npm run release:check`
-and then `npm publish` with npm trusted publishing: the workflow exchanges a
-GitHub Actions OIDC token for a short-lived publish credential, so no npm token
-is stored in the repository, and npm attaches provenance automatically. Trusted
+(`.github/workflows/publish.yml`). It runs `npm run release:check` and then
+`npm publish` with npm trusted publishing: the workflow exchanges a GitHub
+Actions OIDC token for a short-lived publish credential, so no npm token is
+stored in the repository, and npm attaches provenance automatically. Trusted
 publishing requires npm 11.5.1 or newer; the workflow installs a current npm 11.
 
 npm can only attach a trusted publisher to a package that already exists. The
@@ -66,7 +66,7 @@ authentication, from a clean checkout of the candidate commit:
 
 ```sh
 npm ci
-TIA_FRESH=1 npm run release:check
+npm run release:check
 npm publish
 ```
 
