@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 
+import * as Match from 'effect/Match'
 import * as Effect from 'effect/Effect'
 import * as Layer from 'effect/Layer'
 import * as Predicate from 'effect/Predicate'
@@ -66,16 +67,14 @@ export function artifactProviders(
 
   return (Array.isArray(sources) ? sources : [sources]).map((source) => {
     if (isProvider(source)) return source
-    switch (source.provider) {
-      case 'filesystem':
-        return createFilesystemArtifactProvider(source)
-      case 'github-actions':
-        return createGitHubActionsArtifactProvider(source)
-      case 'gitlab-ci':
-        return createGitLabCiArtifactProvider(source)
-      case 'http-manifest':
-        return createHttpManifestArtifactProvider(source)
-    }
+    return Match.value(source).pipe(
+      Match.discriminatorsExhaustive('provider')({
+        filesystem: createFilesystemArtifactProvider,
+        'github-actions': createGitHubActionsArtifactProvider,
+        'gitlab-ci': createGitLabCiArtifactProvider,
+        'http-manifest': createHttpManifestArtifactProvider,
+      }),
+    )
   })
 }
 

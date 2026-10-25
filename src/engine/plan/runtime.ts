@@ -1,3 +1,5 @@
+import * as Match from 'effect/Match'
+
 import { byCodeUnit } from '../../core/canonical.ts'
 import type {
   CachedTestResult,
@@ -286,34 +288,28 @@ function groupReasonText(
   reason: GroupReason,
   failures: readonly CachedTestResult[],
 ): string[] {
-  switch (reason._tag) {
-    case 'Rerun':
-      return failures.map(
-        (result) => `previous test failed: ${result.fullName}`,
-      )
-    case 'File':
-      return [`test file changed: ${reason.path}`]
-    case 'Residue':
-      return [
-        `observed dependency changed: ${reason.path}`,
-        `test-level dependency metadata is incomplete for change: ${reason.path}`,
-      ]
-  }
+  return Match.valueTags(reason, {
+    File: ({ path }) => [`test file changed: ${path}`],
+    Rerun: () =>
+      failures.map((result) => `previous test failed: ${result.fullName}`),
+    Residue: ({ path }) => [
+      `observed dependency changed: ${path}`,
+      `test-level dependency metadata is incomplete for change: ${path}`,
+    ],
+  })
 }
 
 function itemReasonText(
   reason: ItemReason,
   failure: CachedTestResult | undefined,
 ): string | undefined {
-  switch (reason._tag) {
-    case 'Rerun':
-      return failure === undefined
+  return Match.valueTags(reason, {
+    Dependency: ({ path }) => `observed dependency changed: ${path}`,
+    Group: () => undefined,
+    NeededBy: () => undefined,
+    Rerun: () =>
+      failure === undefined
         ? undefined
-        : `previous test failed: ${failure.fullName}`
-    case 'Dependency':
-      return `observed dependency changed: ${reason.path}`
-    case 'Group':
-    case 'NeededBy':
-      return undefined
-  }
+        : `previous test failed: ${failure.fullName}`,
+  })
 }

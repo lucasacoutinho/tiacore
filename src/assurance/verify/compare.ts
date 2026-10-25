@@ -1,3 +1,5 @@
+import * as Match from 'effect/Match'
+
 import { createHash } from 'node:crypto'
 
 import { byCodeUnit } from '../../core/canonical.ts'
@@ -90,25 +92,26 @@ function coverageDigest(graph: TiaRuntimeGraph): string {
 }
 
 function describe(issue: VerdictIssue): string {
-  switch (issue.code) {
-    case 'selection-miss': {
-      const count = issue.missed.length
-      const remainder = count - 3
-      return `selective phase missed ${count} required test${
-        count === 1 ? '' : 's'
-      }: ${issue.missed.slice(0, 3).join(', ')}${
-        remainder > 0 ? ` and ${remainder} more` : ''
-      }`
-    }
-    case 'incomplete-graph':
-      return `${issue.phase} phase produced an incomplete graph`
-    case 'outcome-mismatch':
-      return 'selective and full phases produced different test outcomes'
-    case 'dependency-mismatch':
-      return 'selective and full phases produced different dependency evidence'
-    case 'coverage-mismatch':
-      return 'selective and full phases produced different reconstructed coverage evidence'
-  }
+  return Match.value(issue).pipe(
+    Match.discriminatorsExhaustive('code')({
+      'coverage-mismatch': () =>
+        'selective and full phases produced different reconstructed coverage evidence',
+      'dependency-mismatch': () =>
+        'selective and full phases produced different dependency evidence',
+      'incomplete-graph': ({ phase }) =>
+        `${phase} phase produced an incomplete graph`,
+      'outcome-mismatch': () =>
+        'selective and full phases produced different test outcomes',
+      'selection-miss': ({ missed }) => {
+        const remainder = missed.length - 3
+        return `selective phase missed ${missed.length} required test${
+          missed.length === 1 ? '' : 's'
+        }: ${missed.slice(0, 3).join(', ')}${
+          remainder > 0 ? ` and ${remainder} more` : ''
+        }`
+      },
+    }),
+  )
 }
 
 export function compareVerificationSnapshots(

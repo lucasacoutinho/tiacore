@@ -166,7 +166,7 @@ export const executeSuites = Effect.fn('tia.scheduling.execute')(function* <
         const [suite, exit] = yield* Queue.take(finished)
         running -= 1
         for (const lock of suite.resourceLocks ?? []) activeLocks.delete(lock)
-        if (exit._tag === 'Failure') return yield* Effect.failCause(exit.cause)
+        if (Exit.isFailure(exit)) return yield* Effect.failCause(exit.cause)
         executions.push({ status: exit.value, suiteId: suite.id })
       }
       return executions.sort((left, right) =>

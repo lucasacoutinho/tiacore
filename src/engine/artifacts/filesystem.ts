@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
+import * as Option from 'effect/Option'
 
 import {
   MAX_ARTIFACT_ARCHIVE_BYTES,
@@ -28,7 +29,7 @@ const artifactFiles = Effect.fnUntraced(function* (
   if (files.length >= MAX_FILES) return
 
   const info = yield* fs.lstat(path).pipe(Effect.option)
-  if (info._tag === 'None') return
+  if (Option.isNone(info)) return
   if (info.value.type === 'File') {
     if (
       (path.endsWith('state.json') || path.endsWith('.zip')) &&

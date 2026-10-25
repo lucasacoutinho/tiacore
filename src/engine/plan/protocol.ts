@@ -1,3 +1,5 @@
+import * as Match from 'effect/Match'
+
 import {
   byCodeUnit,
   invalidatorKey,
@@ -84,18 +86,17 @@ function planAll(
 }
 
 function describe(reason: ItemReason): string {
-  switch (reason._tag) {
-    case 'Dependency':
-      return `observed dependency changed: ${reason.path}`
-    case 'NeededBy':
-      return `dependency of ${reason.id}`
-    case 'Group':
-      return reason.reason._tag === 'File'
-        ? `suite file changed: ${reason.reason.path}`
-        : 'previous run failed'
-    case 'Rerun':
-      return 'previous run failed'
-  }
+  return Match.valueTags(reason, {
+    Dependency: ({ path }) => `observed dependency changed: ${path}`,
+    Group: ({ reason: group }) =>
+      Match.valueTags(group, {
+        File: ({ path }) => `suite file changed: ${path}`,
+        Rerun: () => 'previous run failed',
+        Residue: () => 'previous run failed',
+      }),
+    NeededBy: ({ id }) => `dependency of ${id}`,
+    Rerun: () => 'previous run failed',
+  })
 }
 
 function plural(count: number, noun: string): string {

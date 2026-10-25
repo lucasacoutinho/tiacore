@@ -10,6 +10,7 @@ import { join } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
+import * as Option from 'effect/Option'
 
 import type { StoredGraph } from '../ports.ts'
 import { TiaIo } from '../../wire/errors.ts'
@@ -212,8 +213,7 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
           const path = join(directory, entry)
           return fs.stat(path).pipe(
             Effect.flatMap((info) =>
-              info.mtime._tag === 'Some' &&
-              info.mtime.value.getTime() < staleBefore
+              Option.exists(info.mtime, (time) => time.getTime() < staleBefore)
                 ? fs.remove(path, { force: true })
                 : Effect.void,
             ),

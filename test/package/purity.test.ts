@@ -56,4 +56,26 @@ describe('module purity', () => {
   test('src/evidence imports no Effect', () => {
     expect(forbiddenImports('src/evidence', isEffect)).toEqual([])
   })
+
+  // effect-conventions.md: classification over tagged unions uses Match
+  // outside the Effect-free core and probe, and Option/Exit use their guards.
+  test('Effect layers classify with Match, not switch or raw Option/Exit tags', () => {
+    const effectFree = ['src/core/', 'src/probe/']
+    const offenders = sourceFiles('src').flatMap((file) => {
+      const path = relative(root, file).replaceAll('\\', '/')
+      const text = readFileSync(file, 'utf8')
+      const hits: string[] = []
+      if (
+        !effectFree.some((prefix) => path.startsWith(prefix)) &&
+        /\bswitch\s*\(/u.test(text)
+      ) {
+        hits.push(`${path}: switch`)
+      }
+      if (/\._tag\s*===\s*'(?:None|Some|Failure|Success)'/u.test(text)) {
+        hits.push(`${path}: raw Option/Exit tag`)
+      }
+      return hits
+    })
+    expect(offenders).toEqual([])
+  })
 })
