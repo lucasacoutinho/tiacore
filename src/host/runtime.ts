@@ -51,10 +51,17 @@ function isExporting(): boolean {
   return exporting
 }
 
-/** Runs `program` on the runtime and closes the runtime after a quiet spell if it exports. */
-async function execute<A>(
-  program: Effect.Effect<A, TiaError, HostServices>,
-): Promise<Exit.Exit<A, TiaError>> {
+/**
+ * Runs `program` on the process-wide runtime and returns how it ended, so the
+ * caller decides how failures are reported; the runtime closes after a quiet
+ * spell if it exports. The CLI runs on this runtime, which is how a `tiacore`
+ * command and the engine runs it starts share one set of exporters: one
+ * devtools connection, one OTLP stack, one trace file. A run in progress
+ * counts as busy, so the runtime stays open for as long as the command does.
+ */
+export async function runExit<A, E>(
+  program: Effect.Effect<A, E, HostServices>,
+): Promise<Exit.Exit<A, E>> {
   clearTimeout(idle)
   running += 1
   try {
@@ -93,7 +100,7 @@ export async function runPromise<A>(
         )
       })
     : program
-  const exit = await execute(
+  const exit = await runExit(
     sink === undefined
       ? measured
       : Effect.flatMap(Effect.tracer, (inner) =>

@@ -1,17 +1,14 @@
-import * as NodeServices from '@effect/platform-node/NodeServices'
 import * as CliError from 'effect/cli/CliError'
 import * as Command from 'effect/cli/Command'
 import * as Cause from 'effect/Cause'
-import * as Effect from 'effect/Effect'
 import * as Exit from 'effect/Exit'
-import * as Layer from 'effect/Layer'
 import * as Option from 'effect/Option'
 
 import { join } from 'node:path'
 
 import { VERSION } from '../core/version.ts'
 import { writeCrashReport } from '../host/crash.ts'
-import { observeConfig, observeLayer } from '../host/observe.ts'
+import { runExit } from '../host/runtime.ts'
 import { artifactsCommand } from './artifacts.ts'
 import { certifyCommand } from './certify.ts'
 import { devtoolsCommand } from './devtools.ts'
@@ -52,18 +49,13 @@ export interface CliOutcome {
   readonly silent?: boolean
 }
 
-/** Runs the CLI without printing failures; the caller decides where they go. */
+/**
+ * Runs the CLI without printing failures; the caller decides where they go.
+ * The command runs on the process-wide host runtime, the one the engine's own
+ * `runPromise` calls use, so both report through the same exporters.
+ */
 export async function execute(argv: readonly string[]): Promise<CliOutcome> {
-  const exit = await Effect.runPromiseExit(
-    cli(argv).pipe(
-      Effect.provide(
-        Layer.merge(
-          NodeServices.layer,
-          observeLayer(observeConfig(process.env)),
-        ),
-      ),
-    ),
-  )
+  const exit = await runExit(cli(argv))
   if (Exit.isSuccess(exit)) return { code: 0 }
   const failure = Cause.findErrorOption(exit.cause)
   if (Option.isNone(failure)) {

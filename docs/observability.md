@@ -35,6 +35,9 @@ TIACORE_TRACE_FILE=trace.json TIACORE_METRICS_FILE=metrics.prom npx vitest run
   far.
 - OTLP export waits at most three seconds at exit. If the collector fails,
   tiacore stops sending for 60 seconds and drops what it held.
+- A process builds its exporters once. A `tiacore` command and the engine runs
+  it starts use one runtime, so there is one devtools connection, one OTLP
+  exporter stack and one trace file per process.
 - The devtools client needs a server that is already listening. If none answers,
   tiacore prints one line to stderr and sends nothing. Start `tiacore devtools`
   first.
@@ -126,13 +129,15 @@ end are dropped when their process disconnects.
 Press Ctrl-C to stop. The server prints a final summary and exits with code 0.
 If the port is taken, it exits with code 1 and says so.
 
-One server can serve many processes. Each connection gets a number in the
-summary. A `tiacore` command makes two connections: one for the command itself
-(`tia.cli.*` spans) and one for the engine runs it starts. A runtime that sits
-idle for half a second closes, so a long-lived process can appear under a new
-number after a pause. Metrics reach the server when it asks for them, which it
-does every two seconds and after spans end. A very short run can end before it
-answers.
+One server can serve many processes. Each process makes one connection and gets
+a number in the summary. A `tiacore` command and the engine runs it starts share
+that connection: the command runs on the same runtime as the engine, so its
+`tia.cli.*` spans and the engine's `tia.prepare` spans arrive under one number.
+A runtime that sits idle for half a second closes, so a library process, such as
+a Vitest run, can appear under a new number after a pause. A command never does,
+because the runtime stays busy until the command ends. Metrics reach the server
+when it asks for them, which it does every two seconds and after spans end. A
+very short run can end before it answers.
 
 ## `tiacore doctor`
 
