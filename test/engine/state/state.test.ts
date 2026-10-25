@@ -3,6 +3,7 @@ import { hostname } from 'node:os'
 import { join } from 'node:path'
 
 import * as Effect from 'effect/Effect'
+import * as Fiber from 'effect/Fiber'
 import * as FileSystem from 'effect/FileSystem'
 import * as Layer from 'effect/Layer'
 import type { PlatformError } from 'effect/PlatformError'
@@ -532,6 +533,49 @@ layer(EngineLive, { excludeTestServices: true })(
           }
           expect(yield* fs.exists(join(cacheDir, 'state.lock'))).toBe(false)
         }),
+    )
+
+    it.effect('stops waiting for a held lock when interrupted', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-state-')
+        const expected = baseGraph()
+        yield* seed(cacheDir, expected)
+        // A live holder: this process, created now, so it is never stale.
+        const owner = `${JSON.stringify({
+          createdAt: Date.now(),
+          hostname: hostname(),
+          pid: process.pid,
+          token: 'live-holder',
+        })}\n`
+        yield* fs.makeDirectory(join(cacheDir, 'state.lock'))
+        yield* fs.writeFileString(
+          join(cacheDir, 'state.lock/owner.json'),
+          owner,
+        )
+        const waiter = yield* Effect.forkChild(
+          commitFrom(
+            cacheDir,
+            expected,
+            propose(expected, () => {}, 1),
+            {
+              lockTimeoutMs: 30_000,
+            },
+          ),
+        )
+        yield* Effect.sleep(200)
+        const started = Date.now()
+        yield* Fiber.interrupt(waiter)
+        expect(Date.now() - started).toBeLessThan(1_000)
+        expect(
+          yield* fs.readFileString(join(cacheDir, 'state.lock/owner.json')),
+        ).toBe(owner)
+        expect(
+          (yield* fs.readDirectory(cacheDir)).filter((entry) =>
+            entry.startsWith('state.lock.'),
+          ),
+        ).toEqual([])
+      }),
     )
 
     it.effect(

@@ -165,29 +165,32 @@ export function makeLock(fs: FileSystem.FileSystem) {
       // The owner is written before the lock appears: a lock directory never
       // exists without owner.json, so a waiter reclaiming a stale lock cannot
       // move a new lock away before its owner is known.
+      // Publishing is uninterruptible, so an interrupt cannot land between a
+      // successful rename and the caller registering the release.
       const draft = `${path}.new.${owner.token}`
-      yield* fs.makeDirectory(draft).pipe(Effect.mapError(ioError))
-      const published = yield* fs
-        .writeFileString(
-          join(draft, 'owner.json'),
-          `${JSON.stringify(owner)}\n`,
-        )
-        .pipe(
-          Effect.mapError(ioError),
-          // The rename fails while another writer holds the lock; the loop
-          // then waits or reclaims and tries again.
-          Effect.andThen(
-            fs.rename(draft, path).pipe(
-              Effect.as(true),
-              Effect.orElseSucceed(() => false),
-            ),
+      const published = yield* fs.makeDirectory(draft).pipe(
+        Effect.andThen(
+          fs.writeFileString(
+            join(draft, 'owner.json'),
+            `${JSON.stringify(owner)}\n`,
           ),
-          Effect.ensuring(
-            fs
-              .remove(draft, { force: true, recursive: true })
-              .pipe(Effect.ignore),
+        ),
+        Effect.mapError(ioError),
+        // The rename fails while another writer holds the lock; the loop
+        // then waits or reclaims and tries again.
+        Effect.andThen(
+          fs.rename(draft, path).pipe(
+            Effect.as(true),
+            Effect.orElseSucceed(() => false),
           ),
-        )
+        ),
+        Effect.ensuring(
+          fs
+            .remove(draft, { force: true, recursive: true })
+            .pipe(Effect.ignore),
+        ),
+        Effect.uninterruptible,
+      )
       if (published) return Option.some(owner)
       const stale = yield* judgeStale(path, staleAfter)
       if (Option.isSome(stale)) {
@@ -211,6 +214,7 @@ export function makeLock(fs: FileSystem.FileSystem) {
   /**
    * Runs `body` holding the lock. The lock is released when the body ends,
    * fails or is interrupted. None when the lock could not be taken in time.
+   * Waiting for the lock can be interrupted.
    */
   const locked = <A, E, R>(
     cacheDir: string,
@@ -229,6 +233,7 @@ export function makeLock(fs: FileSystem.FileSystem) {
             Option.isSome(acquired)
               ? release(cacheDir, acquired.value)
               : Effect.void,
+          { interruptible: true },
         )
         if (Option.isNone(owner)) return Option.none<A>()
         return Option.some(yield* body)
