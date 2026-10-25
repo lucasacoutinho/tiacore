@@ -174,7 +174,7 @@ export const beginRun = Effect.fn('tia.prepare')(function* <R>(
 })
 
 /** The baseline and fingerprint a run starts from. */
-export const snapshotProject = Effect.fnUntraced(function* (
+export const snapshotProject = Effect.fn('tia.baseline.snapshot')(function* (
   root: string,
   ignoredPrefixes: readonly string[],
   fingerprint: string,

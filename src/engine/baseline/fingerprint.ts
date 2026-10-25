@@ -49,50 +49,54 @@ export const hashFile = (fs: FileSystem.FileSystem, path: string) =>
  * structural files (package manifests, lock files, tsconfig, vite config) plus
  * `extraFiles`. A cache or artifact from another structure is never reused.
  */
-export const projectFingerprint = Effect.fnUntraced(function* (
-  root: string,
-  options: FingerprintOptions,
-  extraFiles: readonly string[] = [],
-) {
-  const fs = yield* FileSystem.FileSystem
-  const entries = yield* fs
-    .readDirectory(root)
-    .pipe(
-      Effect.mapError(
-        (error) => new TiaIo({ cause: error, message: error.message }),
+export const projectFingerprint = Effect.fn('tia.baseline.fingerprint')(
+  function* (
+    root: string,
+    options: FingerprintOptions,
+    extraFiles: readonly string[] = [],
+  ) {
+    const fs = yield* FileSystem.FileSystem
+    const entries = yield* fs
+      .readDirectory(root)
+      .pipe(
+        Effect.mapError(
+          (error) => new TiaIo({ cause: error, message: error.message }),
+        ),
+      )
+    const matching = entries.filter((name) =>
+      STRUCTURAL_FILE_PATTERN.test(name),
+    )
+    const plain = yield* Effect.forEach(matching, (name) =>
+      fs.lstat(join(root, name)).pipe(
+        Effect.map((info) => info.type === 'File'),
+        Effect.orElseSucceed(() => false),
       ),
     )
-  const matching = entries.filter((name) => STRUCTURAL_FILE_PATTERN.test(name))
-  const plain = yield* Effect.forEach(matching, (name) =>
-    fs.lstat(join(root, name)).pipe(
-      Effect.map((info) => info.type === 'File'),
-      Effect.orElseSucceed(() => false),
-    ),
-  )
-  const names = new Set(matching.filter((_, index) => plain[index] === true))
-  for (const file of extraFiles) {
-    if (file !== '') names.add(file)
-  }
-  const structural = yield* Effect.forEach(
-    [...names].sort(byCodeUnit),
-    (name) =>
-      hashFile(fs, join(root, name)).pipe(
-        Effect.map((hash): [string, string] => [name, hash]),
-      ),
-  )
+    const names = new Set(matching.filter((_, index) => plain[index] === true))
+    for (const file of extraFiles) {
+      if (file !== '') names.add(file)
+    }
+    const structural = yield* Effect.forEach(
+      [...names].sort(byCodeUnit),
+      (name) =>
+        hashFile(fs, join(root, name)).pipe(
+          Effect.map((hash): [string, string] => [name, hash]),
+        ),
+    )
 
-  return hashBytes(
-    JSON.stringify({
-      arch: process.arch,
-      exclude: options.exclude,
-      frameworks: options.frameworkFingerprint,
-      ignoreChanges: options.ignoreChanges,
-      include: options.include,
-      node: process.versions.node.split('.')[0],
-      onUnknownChange: options.onUnknownChange,
-      platform: process.platform,
-      plugin: VERSION,
-      structural,
-    }),
-  )
-})
+    return hashBytes(
+      JSON.stringify({
+        arch: process.arch,
+        exclude: options.exclude,
+        frameworks: options.frameworkFingerprint,
+        ignoreChanges: options.ignoreChanges,
+        include: options.include,
+        node: process.versions.node.split('.')[0],
+        onUnknownChange: options.onUnknownChange,
+        platform: process.platform,
+        plugin: VERSION,
+        structural,
+      }),
+    )
+  },
+)

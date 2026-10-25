@@ -61,17 +61,17 @@ const decodeCatalog = (value: unknown) =>
         new TiaInvalid({ message: 'TIA suite catalog must be an array' }),
       )
 
-const graphAt = Effect.fnUntraced(function* (path: string) {
+export const graphAt = Effect.fnUntraced(function* (path: string) {
   const value = yield* readJson(path)
   return yield* attempt(() => parseImpactGraph(value))
 })
 
-const output = Flag.String('output').pipe(
+export const output = Flag.String('output').pipe(
   Flag.withDescription('write JSON to a file or -'),
   Flag.optional,
 )
 
-const outputPath = (value: Option.Option<string>) =>
+export const outputPath = (value: Option.Option<string>) =>
   Option.getOrUndefined(value)
 
 const plan = Command.make(
@@ -169,20 +169,5 @@ const inspect = Command.make(
   }),
 ).pipe(Command.withDescription('Summarize a runner-neutral graph'))
 
-const doctor = Command.make(
-  'doctor',
-  { graph: graphFlag, output },
-  Effect.fn('tia.cli.doctor')(function* (options) {
-    const graph = yield* graphAt(options.graph)
-    yield* emitJson(
-      {
-        ok: true,
-        protocolVersion: graph.protocolVersion,
-        suites: graph.suites.length,
-      },
-      outputPath(options.output),
-    )
-  }),
-).pipe(Command.withDescription('Validate a runner-neutral graph'))
-
-export const protocolCommands = [plan, merge, inspect, doctor] as const
+/** `doctor` lives in doctor.ts: it validates a graph with --graph and checks the install without it. */
+export const protocolCommands = [plan, merge, inspect] as const

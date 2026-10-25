@@ -4,11 +4,18 @@ import * as Command from 'effect/cli/Command'
 import * as Cause from 'effect/Cause'
 import * as Effect from 'effect/Effect'
 import * as Exit from 'effect/Exit'
+import * as Layer from 'effect/Layer'
 import * as Option from 'effect/Option'
 
+import { join } from 'node:path'
+
 import { VERSION } from '../core/version.ts'
+import { writeCrashReport } from '../host/crash.ts'
+import { observeConfig, observeLayer } from '../host/observe.ts'
 import { artifactsCommand } from './artifacts.ts'
 import { certifyCommand } from './certify.ts'
+import { devtoolsCommand } from './devtools.ts'
+import { doctorCommand } from './doctor.ts'
 import { gradleCommand } from './gradle.ts'
 import { k6Command } from './k6.ts'
 import { maestroCommand } from './maestro.ts'
@@ -22,6 +29,8 @@ const root = Command.make('tiacore').pipe(
     ...protocolCommands,
     artifactsCommand,
     certifyCommand,
+    devtoolsCommand,
+    doctorCommand,
     gradleCommand,
     k6Command,
     maestroCommand,
@@ -46,11 +55,30 @@ export interface CliOutcome {
 /** Runs the CLI without printing failures; the caller decides where they go. */
 export async function execute(argv: readonly string[]): Promise<CliOutcome> {
   const exit = await Effect.runPromiseExit(
-    cli(argv).pipe(Effect.provide(NodeServices.layer)),
+    cli(argv).pipe(
+      Effect.provide(
+        Layer.merge(
+          NodeServices.layer,
+          observeLayer(observeConfig(process.env)),
+        ),
+      ),
+    ),
   )
   if (Exit.isSuccess(exit)) return { code: 0 }
   const failure = Cause.findErrorOption(exit.cause)
   if (Option.isNone(failure)) {
+    if (Cause.hasDies(exit.cause)) {
+      const report = writeCrashReport(exit.cause, {
+        argv,
+        directory:
+          process.env['TIACORE_CRASH_DIR'] ??
+          join(process.cwd(), '.tia', 'crashes'),
+        now: new Date(),
+      })
+      const where =
+        report === undefined ? '' : `\nTIA crash report written to ${report}`
+      return { code: 1, message: `${Cause.pretty(exit.cause)}${where}` }
+    }
     return { code: 1, message: Cause.pretty(exit.cause) }
   }
   const error = failure.value

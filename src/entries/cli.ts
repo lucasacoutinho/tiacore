@@ -15,10 +15,16 @@ async function main(argv: readonly string[]): Promise<void> {
     return
   }
   const { execute } = await import('../cli/main.ts')
-  const outcome = await execute(argv)
-  if (outcome.message !== undefined)
-    process.stderr.write(`${outcome.message}\n`)
-  process.exitCode = outcome.code
+  const { disposeHost } = await import('../host/runtime.ts')
+  try {
+    const outcome = await execute(argv)
+    if (outcome.message !== undefined)
+      process.stderr.write(`${outcome.message}\n`)
+    process.exitCode = outcome.code
+  } finally {
+    // Flushes the exporters TIACORE_* enabled and lets the process exit.
+    await disposeHost()
+  }
 }
 
 const invokedPath = process.argv[1]
