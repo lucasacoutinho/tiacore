@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import * as NodeServices from '@effect/platform-node/NodeServices'
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
-import { strToU8, zipSync } from 'fflate'
+import { strToU8, unzipSync, zipSync } from 'fflate'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import {
@@ -505,6 +505,19 @@ describe('promoted archives under retention', () => {
     )
     const latest = await publish(1, { retention: { keep: 1 } })
     expect(archivesIn(output)).toEqual([latest])
+  })
+
+  test('finds a promoted attestation stored under .tia/', async () => {
+    const { output, publish } = await publisherProject()
+    const nested = zipSync({
+      '.tia/attestation.json': unzipSync(attested({ promoted: true }))[
+        'attestation.json'
+      ]!,
+    })
+    plant(output, nameOf(1), 3 * DAY, nested)
+    plant(output, nameOf(2), 2 * DAY)
+    const latest = await publish(1, { retention: { keep: 1 } })
+    expect(archivesIn(output)).toEqual([latest, nameOf(1)].sort())
   })
 
   test('keeps the newest promoted archive of at most 32 fingerprints', async () => {

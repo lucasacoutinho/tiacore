@@ -188,10 +188,16 @@ export function readArtifactArchive(
   return readArchive(archive, runner, 0, { expanded: 0, nested: 0 })
 }
 
+const PUBLISHER_ATTESTATION_PATHS = [
+  'attestation.json',
+  '.tia/attestation.json',
+]
+
 /**
- * The attestation at the top level of a publisher's archive, or null when the
- * archive is oversized, corrupt, breaks a limit or holds no valid attestation.
- * Unlike `readArtifactArchive` it inflates nothing else, not even the graph.
+ * The attestation at the top level of a publisher's archive (or under `.tia/`,
+ * where `readArtifactArchive` also looks), or null when the archive is
+ * oversized, corrupt, breaks a limit or holds no valid attestation. Unlike
+ * `readArtifactArchive` it inflates nothing else, not even the graph.
  */
 export function readArchiveAttestation(
   archive: Uint8Array,
@@ -199,17 +205,21 @@ export function readArchiveAttestation(
   if (archive.byteLength > MAX_ARTIFACT_ARCHIVE_BYTES) return null
   const entries = extract(
     archive,
-    (name) => name === 'attestation.json',
+    (name) => PUBLISHER_ATTESTATION_PATHS.includes(name),
     false,
     { expanded: 0, nested: 0 },
   )
-  const bytes = entries?.['attestation.json']
-  if (bytes === undefined) return null
-  try {
-    return parseArtifactAttestation(JSON.parse(strFromU8(bytes)))
-  } catch {
-    return null
+  for (const path of PUBLISHER_ATTESTATION_PATHS) {
+    const bytes = entries?.[path]
+    if (bytes === undefined) continue
+    try {
+      const parsed = parseArtifactAttestation(JSON.parse(strFromU8(bytes)))
+      if (parsed !== null) return parsed
+    } catch {
+      // A malformed attestation is handled by the trust policy.
+    }
   }
+  return null
 }
 
 /** Zips `entries` in the order given with fixed timestamps: the output is deterministic. */
