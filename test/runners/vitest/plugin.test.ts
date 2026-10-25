@@ -47,6 +47,7 @@ interface TestPluginContext {
       testNamePattern?: RegExp
       watch: boolean
     }
+    logger: { log: (message: string) => void }
     projects: TestPluginContext['project'][]
   }
 }
@@ -158,18 +159,28 @@ describe('plugin composition and bypasses', () => {
   })
 
   test.each([
-    { browser: false, coverage: false, name: 'watch mode', watch: true },
+    {
+      browser: false,
+      coverage: false,
+      name: 'watch mode',
+      notice: 'tiacore: bypassed, watch mode in use; graph not updated',
+      watch: true,
+    },
     {
       browser: false,
       coverage: false,
       filters: ['test/example.test.ts'],
       name: 'explicit file filters',
+      notice:
+        'tiacore: bypassed, native selection (file filters) in use; graph not updated',
       watch: false,
     },
     {
       browser: false,
       coverage: false,
       name: 'test name filters',
+      notice:
+        'tiacore: bypassed, native selection (-t) in use; graph not updated',
       testNamePattern: /example/,
       watch: false,
     },
@@ -178,12 +189,16 @@ describe('plugin composition and bypasses', () => {
       changed: true,
       coverage: false,
       name: 'the changed filter',
+      notice:
+        'tiacore: bypassed, native selection (--changed) in use; graph not updated',
       watch: false,
     },
     {
       browser: false,
       coverage: false,
       name: 'the related filter',
+      notice:
+        'tiacore: bypassed, native selection (--related) in use; graph not updated',
       related: ['src/a.ts'],
       watch: false,
     },
@@ -191,6 +206,8 @@ describe('plugin composition and bypasses', () => {
       browser: false,
       coverage: false,
       name: 'a project filter',
+      notice:
+        'tiacore: bypassed, native selection (--project) in use; graph not updated',
       project: ['unit'],
       watch: false,
     },
@@ -198,6 +215,8 @@ describe('plugin composition and bypasses', () => {
       browser: false,
       coverage: false,
       name: 'a tag filter',
+      notice:
+        'tiacore: bypassed, native selection (--tagsFilter) in use; graph not updated',
       tagsFilter: ['slow'],
       watch: false,
     },
@@ -206,9 +225,21 @@ describe('plugin composition and bypasses', () => {
       cliExclude: ['test/slow.test.ts'],
       coverage: false,
       name: 'a CLI exclude',
+      notice:
+        'tiacore: bypassed, native selection (--exclude) in use; graph not updated',
       watch: false,
     },
+    {
+      browser: false,
+      cliExclude: ['test/slow.test.ts'],
+      coverage: false,
+      name: 'watch mode with a CLI exclude',
+      notice:
+        'tiacore: bypassed, watch mode and native selection (--exclude) in use; graph not updated',
+      watch: true,
+    },
   ])('does not inject selection or reporters in $name', (mode) => {
+    const lines: string[] = []
     const instance = plugin()
     const include = ['test/**/*.test.ts']
     const reporters: unknown[] = []
@@ -238,6 +269,53 @@ describe('plugin composition and bypasses', () => {
             : {}),
           watch: mode.watch,
         },
+        logger: {
+          log: (message) => {
+            lines.push(message)
+          },
+        },
+        projects: [project],
+      },
+    }
+
+    instance.configureVitest?.(context)
+    instance.configureVitest?.(context)
+
+    expect(context.project.config.include).toBe(include)
+    expect(reporters).toEqual([])
+    expect(lines).toEqual([`\n ${mode.notice}`])
+  })
+
+  test('stays quiet when log is off', () => {
+    const lines: string[] = []
+    const instance = tia({
+      enabled: true,
+      log: false,
+    }) as unknown as CallablePlugin
+    const include = ['test/**/*.test.ts']
+    const project: TestPluginContext['project'] = {
+      config: {
+        browser: { enabled: false },
+        coverage: { enabled: false },
+        include,
+        root: process.cwd(),
+      },
+      provide: () => {},
+    }
+    const context: TestPluginContext = {
+      project,
+      vitest: {
+        config: {
+          cliExclude: ['test/slow.test.ts'],
+          reporters: [],
+          sequence: { hooks: 'stack' },
+          watch: false,
+        },
+        logger: {
+          log: (message) => {
+            lines.push(message)
+          },
+        },
         projects: [project],
       },
     }
@@ -245,7 +323,7 @@ describe('plugin composition and bypasses', () => {
     instance.configureVitest?.(context)
 
     expect(context.project.config.include).toBe(include)
-    expect(reporters).toEqual([])
+    expect(lines).toEqual([])
   })
 })
 

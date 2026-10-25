@@ -755,7 +755,58 @@ test('persistently failing case', () => {
     expect(watch.output).toContain('Waiting for file changes')
 
     expect(executions(root).sort()).toEqual(['a', 'b'])
+    expect(watch.output).toContain(
+      'tiacore: bypassed, watch mode in use; graph not updated',
+    )
     expect(watch.output).not.toContain('TIA recording')
     expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
+  })
+
+  test('names a native --exclude bypass and leaves the stored graph untouched', () => {
+    const root = createProject()
+    const baseline = runVitest(root)
+    expect(baseline.status, baseline.output).toBe(0)
+    expect(baseline.output).toContain('TIA recording full-suite baseline')
+    const state = join(root, '.tia/state.json')
+    const before = readFileSync(state)
+
+    const excluded = runVitest(root, ['run', '--exclude', 'test/b.test.ts'])
+    expect(excluded.status, excluded.output).toBe(0)
+    expect(excluded.output).toContain(
+      'tiacore: bypassed, native selection (--exclude) in use; graph not updated',
+    )
+    expect(excluded.output).not.toContain('TIA recording')
+    expect(excluded.output).not.toContain('TIA replay')
+    expect(readFileSync(state)).toEqual(before)
+  })
+
+  test('names a positional file filter bypass and leaves the stored graph untouched', () => {
+    const root = createProject()
+    const baseline = runVitest(root)
+    expect(baseline.status, baseline.output).toBe(0)
+    const state = join(root, '.tia/state.json')
+    const before = readFileSync(state)
+
+    const filtered = runVitest(root, ['run', 'test/a.test.ts'])
+    expect(filtered.status, filtered.output).toBe(0)
+    expect(filtered.output).toContain(
+      'tiacore: bypassed, native selection (file filters) in use; graph not updated',
+    )
+    expect(filtered.output).not.toContain('TIA replay')
+    expect(readFileSync(state)).toEqual(before)
+  })
+
+  test('hides the bypass notice when log is off', () => {
+    const root = createProject({ pluginOptions: '{ log: false }' })
+    const baseline = runVitest(root)
+    expect(baseline.status, baseline.output).toBe(0)
+    const state = join(root, '.tia/state.json')
+    const before = readFileSync(state)
+
+    const excluded = runVitest(root, ['run', '--exclude', 'test/b.test.ts'])
+    expect(excluded.status, excluded.output).toBe(0)
+    expect(excluded.output).not.toContain('tiacore: bypassed')
+    expect(excluded.output).not.toContain('TIA recording')
+    expect(readFileSync(state)).toEqual(before)
   })
 })
