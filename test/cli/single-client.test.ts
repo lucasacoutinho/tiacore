@@ -136,9 +136,9 @@ describe('one client per process', () => {
         { TIACORE_OTLP_URL: `http://127.0.0.1:${address.port}` },
       )
       expect(finished.code, finished.stderr).toBe(0)
-      // Every exporter stack sends what it holds once when it closes, and the
-      // run is shorter than the export interval, so one stack is one request
-      // per signal.
+      // Every exporter stack sends what it holds once when it closes. Effect
+      // also sends on an interval (5 s for traces, 10 s for metrics), and the
+      // run ends well inside it, so one stack is one request per signal.
       expect(requests.filter((url) => url.endsWith('/v1/traces'))).toHaveLength(
         1,
       )
