@@ -28,3 +28,14 @@ export type {
   TiaReplayReporter,
   TiaReplayRunEvent,
 } from '../core/replay.ts'
+export type {
+  TiaArtifactCandidate,
+  TiaArtifactProvider,
+  TiaArtifactProviderContext,
+  TiaArtifactSource,
+  TiaArtifactTrustPolicy,
+  TiaFilesystemArtifactOptions,
+  TiaGitHubActionsOptions,
+  TiaGitLabCiOptions,
+  TiaHttpManifestOptions,
+} from '../core/artifacts.ts'

@@ -1,7 +1,13 @@
 import type { TiaFrameworkOptions } from '../../engine/edges/types.ts'
 import type { RunPlan } from '../../core/runtime.ts'
+import type {
+  TiaArtifactSource,
+  TiaArtifactTrustPolicy,
+} from '../../core/artifacts.ts'
 
 export interface TiaPlaywrightOptions {
+  artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  artifactTrust?: TiaArtifactTrustPolicy
   cacheDir?: string
   config?: string
   cwd?: string

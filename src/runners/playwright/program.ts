@@ -235,6 +235,12 @@ export const run = Effect.fn('tia.playwright.run')(function* (
     importedFilesFingerprint(config, root),
   )
   const core = new TiaCore({
+    ...(options.artifacts === undefined
+      ? {}
+      : { artifacts: options.artifacts }),
+    ...(options.artifactTrust === undefined
+      ? {}
+      : { artifactTrust: options.artifactTrust }),
     cacheDir,
     files: [slash(relative(root, config)), ...runArguments],
     fingerprint: runnerFingerprint(

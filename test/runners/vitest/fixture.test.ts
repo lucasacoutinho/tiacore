@@ -1,4 +1,5 @@
 import {
+  cpSync,
   appendFileSync,
   existsSync,
   mkdirSync,
@@ -461,4 +462,39 @@ describe('runnable fixture projects', async () => {
       ).toBe(true)
     },
   )
+
+  test('restores CI-downloaded shard directories without a platform API', async () => {
+    const root = createFixtureProject('sharded-vitest')
+    const results = await Promise.all([
+      runVitestAsync(root, ['run', '--shard=1/2'], 20_000, {
+        TIA_FRESH: '1',
+        TIA_SHARD_GROUP: 'portable-ci-run',
+      }),
+      runVitestAsync(root, ['run', '--shard=2/2'], 20_000, {
+        TIA_FRESH: '1',
+        TIA_SHARD_GROUP: 'portable-ci-run',
+      }),
+    ])
+    expect(results.every((result) => result.status === 0)).toBe(true)
+
+    const group = readdirSync(join(root, '.tia/fragments'))[0]!
+    for (const partition of ['1-of-2', '2-of-2']) {
+      const destination = join(root, '.tia-artifacts', partition)
+      mkdirSync(destination, { recursive: true })
+      cpSync(join(root, '.tia/fragments', group, partition), destination, {
+        recursive: true,
+      })
+    }
+    rmSync(join(root, '.tia'), { force: true, recursive: true })
+    resetExecutions(root)
+
+    const restored = runVitest(root, ['run'], 20_000, {
+      TIA_FILESYSTEM_ARTIFACTS: '1',
+    })
+    expect(restored.status, restored.output).toBe(0)
+    expect(restored.output).toContain('TIA restored artifact')
+    expect(restored.output).toContain('from filesystem artifacts')
+    expect(executions(root)).toEqual([])
+    expect((await readGraph(root)).complete).toBe(true)
+  })
 })

@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { TiaCore } from '../../src/entries/core.ts'
+import { readGraphAt } from '../support/integration-project.ts'
 
 const race = vi.hoisted(() => ({
   contents: '',
@@ -165,5 +166,51 @@ describe('runner-neutral TIA core', () => {
     expect(plan.affectedTests).toEqual([])
     expect(plan.wholeTestFiles).toEqual([])
     expect(plan.replayedTests).toBe(1)
+  })
+
+  test('reports the provider and artifact that supplied a baseline', async () => {
+    const root = fixture()
+    const options = {
+      files: ['test/**/*.test.ts'],
+      fresh: false,
+      root,
+      runner: 'custom',
+    }
+    const initial = new TiaCore(options)
+    await initial.prepare()
+    await initial.commit(
+      [
+        {
+          file: 'test/a.test.ts',
+          files: ['src/a.ts', 'test/a.test.ts'],
+          fullName: 'a',
+          id: 'custom:a',
+          state: 'passed',
+        },
+      ],
+      ['test/a.test.ts'],
+    )
+    const graph = await readGraphAt(join(root, '.tia/custom'))
+    if (graph === null) throw new Error('expected custom graph')
+    rmSync(join(root, '.tia'), { force: true, recursive: true })
+
+    const replay = new TiaCore({
+      ...options,
+      artifactTrust: { allowUnsigned: true },
+      artifacts: {
+        load: () => ({ graph, id: 'artifact-42' }),
+        name: 'fixture registry',
+      },
+    })
+    const plan = await replay.prepare()
+
+    expect(plan.mode).toBe('replay')
+    expect(plan.baseline).toMatchObject({
+      artifactId: 'artifact-42',
+      origin: 'artifact',
+      provider: 'fixture registry',
+      reason: 'compatible artifact restored',
+      source: 'git',
+    })
   })
 })

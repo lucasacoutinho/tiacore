@@ -8,6 +8,11 @@ import {
   DEFAULT_INCLUDE,
 } from '../core/defaults.ts'
 import { freshRequested } from '../core/env.ts'
+import type {
+  TiaArtifactProvider,
+  TiaArtifactSource,
+  TiaArtifactTrustPolicy,
+} from '../core/artifacts.ts'
 import type { TiaReplayAdapter } from '../core/replay.ts'
 import type {
   CachedTestResult,
@@ -28,7 +33,9 @@ import {
   projectUnchanged,
   snapshotProject,
   type ProjectSnapshot,
+  type RestoreRequest,
 } from './lifecycle.ts'
+import { artifactProviders, restoreGraph } from './artifacts/restore.ts'
 import { EngineLive } from './layers.ts'
 import { GraphStore } from './ports.ts'
 import {
@@ -40,6 +47,10 @@ import { updateGraph } from './state/update.ts'
 import { writeVerificationSnapshot } from './verification-snapshot.ts'
 
 export interface TiaCoreOptions {
+  /** Where to restore a baseline graph from when no compatible local one exists. */
+  artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  /** Which restored artifacts to trust; unsigned ones are rejected unless allowed. */
+  artifactTrust?: TiaArtifactTrustPolicy
   cacheDir?: string
   exclude?: string[]
   files: string[]
@@ -66,6 +77,8 @@ export interface TiaObservation {
 
 export interface TiaCoreEngineOptions
   extends FingerprintOptions, RuntimePlanOptions {
+  readonly artifactProviders: readonly TiaArtifactProvider[]
+  readonly artifactTrust: TiaArtifactTrustPolicy
   readonly cacheDir: string
   readonly log: boolean
   readonly replayAdapters: readonly TiaReplayAdapter[]
@@ -76,6 +89,8 @@ function normalizedOptions(
   options: TiaCoreOptions,
 ): TiaCoreEngineOptions {
   return {
+    artifactProviders: artifactProviders(options.artifacts),
+    artifactTrust: options.artifactTrust ?? {},
     cacheDir: resolveCacheDir(root, options.cacheDir ?? DEFAULT_CACHE_DIR),
     exclude: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
     frameworkFingerprint: '',
@@ -141,8 +156,20 @@ export class TiaCore {
         ignoredPrefixes,
         fingerprint,
       )
-      const begun = yield* beginRun<never>({
+      const providers = this.options.artifactProviders
+      const begun = yield* beginRun({
         cacheDir: this.cacheDir,
+        ...(providers.length === 0
+          ? {}
+          : {
+              restore: (request: RestoreRequest) =>
+                restoreGraph({
+                  ...request,
+                  log: this.options.log,
+                  providers: [...providers],
+                  trust: this.options.artifactTrust,
+                }),
+            }),
         fingerprint,
         ignoredPrefixes,
         options: this.options,

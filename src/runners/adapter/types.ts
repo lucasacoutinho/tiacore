@@ -1,6 +1,10 @@
 import type { TiaReplayAdapter } from '../../core/replay.ts'
 import type { RunPlan, TiaRuntimeGraph } from '../../core/runtime.ts'
 import type { TiaObservation } from '../../engine/core.ts'
+import type {
+  TiaArtifactSource,
+  TiaArtifactTrustPolicy,
+} from '../../core/artifacts.ts'
 
 export const TIA_TYPESCRIPT_ADAPTER_VERSION = 1 as const
 
@@ -60,6 +64,8 @@ export interface TiaAdapterExecution {
 }
 
 export interface TiaAdapterOptions {
+  artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  artifactTrust?: TiaArtifactTrustPolicy
   cacheDir?: string
   exclude?: string[]
   fresh?: boolean

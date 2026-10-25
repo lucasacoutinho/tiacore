@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     exclude: ['test/fixtures/**'],
     include: ['test/**/*.test.ts'],
-    testTimeout: 30_000,
+    // Integration tests spawn real Vitest, Node, Bun and Playwright processes.
+    testTimeout: 120_000,
   },
 })

@@ -234,6 +234,12 @@ export class TiaAdapter<Metadata = unknown> {
       catalog.tests.map((test) => test.file),
     )
     const core = new TiaCore({
+      ...(options.artifacts === undefined
+        ? {}
+        : { artifacts: options.artifacts }),
+      ...(options.artifactTrust === undefined
+        ? {}
+        : { artifactTrust: options.artifactTrust }),
       ...(options.cacheDir === undefined ? {} : { cacheDir: options.cacheDir }),
       ...(options.exclude === undefined ? {} : { exclude: options.exclude }),
       files: normalizeProtocolPaths([...catalog.files, ...testFiles]),

@@ -1,6 +1,11 @@
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
+import type {
+  TiaArtifactProvider,
+  TiaArtifactSource,
+  TiaArtifactTrustPolicy,
+} from '../../core/artifacts.ts'
 import {
   DEFAULT_CACHE_DIR,
   DEFAULT_EXCLUDE,
@@ -16,6 +21,7 @@ import type {
   TiaCoverageRuntime,
   TiaCoverageThresholds,
 } from '../../engine/coverage/types.ts'
+import { artifactProviders } from '../../engine/artifacts/restore.ts'
 import {
   frameworkAdapters,
   frameworkFingerprint,
@@ -28,6 +34,8 @@ import { slash } from '../../engine/host-path.ts'
 import { TEST_FILE_PATTERN } from '../../engine/plan/runtime.ts'
 
 export interface TiaOptions {
+  artifacts?: TiaArtifactSource | TiaArtifactSource[]
+  artifactTrust?: TiaArtifactTrustPolicy
   enabled?: boolean
   cacheDir?: string
   shardGroup?: string
@@ -44,6 +52,8 @@ export interface TiaOptions {
 }
 
 export interface NormalizedOptions {
+  artifactProviders: TiaArtifactProvider[]
+  artifactTrust: TiaArtifactTrustPolicy
   cacheDir: string
   coverage: false | NormalizedCoverageOptions
   enabled: boolean
@@ -91,6 +101,8 @@ export function normalizeOptions(
     options.shardGroup ??
     (env['TIA_SHARD_GROUP']?.trim() === '' ? undefined : env['TIA_SHARD_GROUP'])
   return {
+    artifactProviders: artifactProviders(options.artifacts),
+    artifactTrust: options.artifactTrust ?? {},
     cacheDir: options.cacheDir ?? DEFAULT_CACHE_DIR,
     coverage:
       requested === null
