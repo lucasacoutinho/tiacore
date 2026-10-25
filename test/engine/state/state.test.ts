@@ -17,8 +17,7 @@ import { graphDigest } from '../../../src/engine/state/segments.ts'
 import { baseGraph } from '../support/graphs.ts'
 import { EngineLive, tempDirectory } from '../support/layers.ts'
 
-// Port of 1.x test/unit/engine/state.test.ts (STATE-TXN-*, STATE-VER-03,
-// STATE-READ-09), run against the live store and the in-memory store alike.
+// Runs against the live store and the in-memory store alike.
 
 const seed = (cacheDir: string, graph: TiaRuntimeGraph) =>
   Effect.gen(function* () {
@@ -127,26 +126,24 @@ function contract(
         }),
     )
 
-    it.effect(
-      'agrees on a result that differs only in duration (STATE-TXN-13)',
-      () =>
-        Effect.gen(function* () {
-          const cacheDir = yield* directory()
-          const expected = baseGraph()
-          yield* seed(cacheDir, expected)
-          yield* commitFrom(
-            cacheDir,
-            expected,
-            propose(expected, (g) => (g.results.a!.duration = 5), 1),
-          )
-          const second = yield* commitFrom(
-            cacheDir,
-            expected,
-            propose(expected, (g) => (g.results.a!.duration = 9), 2),
-          )
-          expect(second.status).toBe('merged')
-          expect(second.graph?.results.a?.duration).toBe(5)
-        }),
+    it.effect('agrees on a result that differs only in duration', () =>
+      Effect.gen(function* () {
+        const cacheDir = yield* directory()
+        const expected = baseGraph()
+        yield* seed(cacheDir, expected)
+        yield* commitFrom(
+          cacheDir,
+          expected,
+          propose(expected, (g) => (g.results.a!.duration = 5), 1),
+        )
+        const second = yield* commitFrom(
+          cacheDir,
+          expected,
+          propose(expected, (g) => (g.results.a!.duration = 9), 2),
+        )
+        expect(second.status).toBe('merged')
+        expect(second.graph?.results.a?.duration).toBe(5)
+      }),
     )
 
     it.effect('applies a deletion the other writer did not touch', () =>
@@ -169,36 +166,34 @@ function contract(
       }),
     )
 
-    it.effect(
-      'refuses to merge writers that disagree on identity (STATE-TXN-11)',
-      () =>
-        Effect.gen(function* () {
-          const cacheDir = yield* directory()
-          const expected = baseGraph()
-          yield* seed(cacheDir, expected)
-          yield* commitFrom(
-            cacheDir,
-            expected,
-            propose(expected, () => {}, 1),
-          )
-          const other = propose(
-            expected,
-            (g) => {
-              g.fingerprint = 'other'
-              g.results.b!.state = 'failed'
-            },
-            2,
-          )
-          const result = yield* commitFrom(cacheDir, expected, other)
-          expect(result.status).toBe('conflict')
-          expect(
-            (yield* (yield* GraphStore).read(cacheDir)).graph?.fingerprint,
-          ).toBe('fingerprint')
-        }),
+    it.effect('refuses to merge writers that disagree on identity', () =>
+      Effect.gen(function* () {
+        const cacheDir = yield* directory()
+        const expected = baseGraph()
+        yield* seed(cacheDir, expected)
+        yield* commitFrom(
+          cacheDir,
+          expected,
+          propose(expected, () => {}, 1),
+        )
+        const other = propose(
+          expected,
+          (g) => {
+            g.fingerprint = 'other'
+            g.results.b!.state = 'failed'
+          },
+          2,
+        )
+        const result = yield* commitFrom(cacheDir, expected, other)
+        expect(result.status).toBe('conflict')
+        expect(
+          (yield* (yield* GraphStore).read(cacheDir)).graph?.fingerprint,
+        ).toBe('fingerprint')
+      }),
     )
 
     it.effect(
-      'reports a conflict without locking when the expected digest is wrong (STATE-TXN-01)',
+      'reports a conflict without locking when the expected digest is wrong',
       () =>
         Effect.gen(function* () {
           const cacheDir = yield* directory()
@@ -216,7 +211,7 @@ function contract(
     )
 
     it.effect(
-      'conflicts with no graph when one existed at plan time and vanished (STATE-TXN-10)',
+      'conflicts with no graph when one existed at plan time and vanished',
       () =>
         Effect.gen(function* () {
           const cacheDir = yield* directory()
@@ -249,7 +244,7 @@ function contract(
       }),
     )
 
-    it.effect('reads a schema-4 graph as no graph (STATE-VER-03)', () =>
+    it.effect('reads a schema-4 graph as no graph', () =>
       Effect.gen(function* () {
         const cacheDir = yield* directory()
         yield* seed(cacheDir, baseGraph({ schema: 4 }))
@@ -271,7 +266,7 @@ function contract(
     )
 
     it.effect(
-      'serializes concurrent in-process commits and keeps every disjoint edit (STATE-TXN-18)',
+      'serializes concurrent in-process commits and keeps every disjoint edit',
       () =>
         Effect.gen(function* () {
           const cacheDir = yield* directory()
@@ -330,54 +325,50 @@ contract(
 layer(EngineLive, { excludeTestServices: true })(
   'graph state, live store files',
   (it) => {
-    it.effect(
-      'rejects unsupported schemas and rebuilds safely (STATE-READ-09)',
-      () =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem
-          const cacheDir = yield* tempDirectory('tia-state-')
-          for (const schema of [99, '3', 4, 5]) {
-            yield* fs.writeFileString(
-              join(cacheDir, 'state.json'),
-              `${JSON.stringify({ ...baseGraph(), schema })}\n`,
-            )
-            expect((yield* (yield* GraphStore).read(cacheDir)).graph).toBeNull()
-          }
-        }),
-    )
-
-    it.effect(
-      'recovers a lock left by a dead local writer (STATE-TXN-04)',
-      () =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem
-          const cacheDir = yield* tempDirectory('tia-state-')
-          const expected = baseGraph()
-          yield* seed(cacheDir, expected)
-          yield* fs.makeDirectory(join(cacheDir, 'state.lock'))
+    it.effect('rejects unsupported schemas and rebuilds safely', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-state-')
+        for (const schema of [99, '3', 4, 5]) {
           yield* fs.writeFileString(
-            join(cacheDir, 'state.lock/owner.json'),
-            `${JSON.stringify({
-              createdAt: Date.now(),
-              hostname: hostname(),
-              pid: 2_147_483_647,
-              token: 'dead-writer',
-            })}\n`,
+            join(cacheDir, 'state.json'),
+            `${JSON.stringify({ ...baseGraph(), schema })}\n`,
           )
-          const proposed = propose(expected, () => {}, 1)
-          const result = yield* commitFrom(cacheDir, expected, proposed, {
-            lockTimeoutMs: 1_000,
-          })
-          expect(result.status).toBe('committed')
-          expect(yield* fs.exists(join(cacheDir, 'state.lock'))).toBe(false)
-          expect(
-            (yield* (yield* GraphStore).read(cacheDir)).graph?.updatedAt,
-          ).toBe(proposed.updatedAt)
-        }),
+          expect((yield* (yield* GraphStore).read(cacheDir)).graph).toBeNull()
+        }
+      }),
+    )
+
+    it.effect('recovers a lock left by a dead local writer', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-state-')
+        const expected = baseGraph()
+        yield* seed(cacheDir, expected)
+        yield* fs.makeDirectory(join(cacheDir, 'state.lock'))
+        yield* fs.writeFileString(
+          join(cacheDir, 'state.lock/owner.json'),
+          `${JSON.stringify({
+            createdAt: Date.now(),
+            hostname: hostname(),
+            pid: 2_147_483_647,
+            token: 'dead-writer',
+          })}\n`,
+        )
+        const proposed = propose(expected, () => {}, 1)
+        const result = yield* commitFrom(cacheDir, expected, proposed, {
+          lockTimeoutMs: 1_000,
+        })
+        expect(result.status).toBe('committed')
+        expect(yield* fs.exists(join(cacheDir, 'state.lock'))).toBe(false)
+        expect(
+          (yield* (yield* GraphStore).read(cacheDir)).graph?.updatedAt,
+        ).toBe(proposed.updatedAt)
+      }),
     )
 
     it.effect(
-      'releases its lock and preserves the graph when serialization fails (STATE-WRITE-05)',
+      'releases its lock and preserves the graph when serialization fails',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -407,7 +398,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'times out on a young lock from another host and reports a conflict (STATE-TXN-03, -05)',
+      'times out on a young lock from another host and reports a conflict',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -479,7 +470,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'keeps mutual exclusion when several waiters find the same lock stale (STATE-TXN-06)',
+      'keeps mutual exclusion when several waiters find the same lock stale',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem

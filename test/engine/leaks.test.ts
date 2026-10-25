@@ -14,7 +14,7 @@ import { baseGraph, coverageGraph } from './support/graphs.ts'
 import { EngineLive } from './support/layers.ts'
 import { cleanupScratch, put, repository } from './support/repos.ts'
 
-// NF-MEM: the store and the baselines hold nothing across operations. Each
+// The store and the baselines hold nothing across operations. Each
 // loop runs on one shared runtime, as production does, and must not retain
 // heap per operation.
 

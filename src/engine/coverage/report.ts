@@ -21,7 +21,7 @@ import type { TiaCoverageRuntime } from './types.ts'
 const reportRegistry: object = reports
 
 // istanbul-reports resolves a reporter by name when it runs and throws for an
-// unknown one (COV-RPT-05); its typed signature only admits the built-ins.
+// unknown one; its typed signature only admits the built-ins.
 const createReporter: (
   name: string,
   options: Record<string, unknown>,

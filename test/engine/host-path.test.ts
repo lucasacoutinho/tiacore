@@ -9,9 +9,8 @@ import {
 } from '../../src/engine/host-path.ts'
 import { legacy } from '../support/legacy.ts'
 
-// Port of the host path parts of 1.x test/unit/protocol/paths.test.ts. Its
-// last test (Windows Istanbul coverage through CoverageTemplates) belongs to
-// the integrations port.
+// Host path handling, compared with 1.x. The Istanbul path cases are in
+// test/engine/coverage/windows-paths.test.ts.
 
 const oracle = await legacy<{
   isInside: typeof isInside

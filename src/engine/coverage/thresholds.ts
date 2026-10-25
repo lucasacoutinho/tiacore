@@ -15,7 +15,7 @@ type ResolvedValues = Partial<Record<CoverageMetric, number>>
 
 interface ThresholdSet {
   coverageMap: CoverageMap
-  /** True for a glob set that matched no file; 1.x let it pass (COV-THR-06). */
+  /** True for a glob set that matched no file; 1.x let it pass. */
   matchesNothing: boolean
   name: string
   values: ResolvedValues

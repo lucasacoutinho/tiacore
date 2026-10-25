@@ -28,7 +28,6 @@ const JUNIT = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 describe('bun:test JUnit report', () => {
-  // BUN-REPORT-01, 02, 03, 04
   test('reads cases with root-relative ids, states and durations', () => {
     const cases = parseBunJunit(ROOT, JUNIT)
     expect(cases.map((item) => [item.id, item.state, item.fullName])).toEqual([
@@ -60,7 +59,6 @@ describe('bun:test JUnit report', () => {
 })
 
 describe('bun:test lcov report', () => {
-  // BUN-REPORT-05
   test('keeps only project files with an executed line, sorted and unique', () => {
     const lcov = [
       'TN:',

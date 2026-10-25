@@ -17,13 +17,11 @@ import {
 } from '../../src/core/verification.ts'
 import { TIA_TYPESCRIPT_ADAPTER_VERSION } from '../../src/runners/adapter/types.ts'
 
-// Port of 1.x test/unit/package/stable-release.test.ts. What changed, and why:
-// - the 1.x version literal and `@types/istanbul-lib-instrument` dependency
-//   (ADR 0004: no public declaration references that package any more);
-// - the exports are the 2.0 ESM-only `dist/entries/*` layout (ADR 0004,
-//   "Versioning and compatibility"), so the 1.x dual CJS/ESM shape has no
-//   counterpart: the test pins the ESM-only shape instead;
-// - the toolchain is pinned exactly in 2.0 (ADR 0004, migration slice 1).
+// The release contract of the manifest:
+// - `@types/istanbul-lib-instrument` is a development dependency only, because
+//   no public declaration references that package;
+// - the exports are the ESM-only `dist/entries/*` layout;
+// - the toolchain is pinned exactly.
 
 interface PackageManifest {
   bin: Record<string, string>

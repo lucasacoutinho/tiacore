@@ -21,10 +21,9 @@ afterEach(cleanupProjects)
 
 // The divergence test needs both Vitest processes to have read the shared
 // graph before either commits. Without a barrier that overlap is a race on
-// process start-up (1.x lost it in 1 of 35 runs, 2.0 in 2 of 11), so each
-// test body announces itself in TIA_BARRIER_DIR and waits, for at most four
-// seconds, until the other process has done the same. Without the variable
-// the tests run unchanged.
+// process start-up, so each test body announces itself in TIA_BARRIER_DIR and
+// waits, for at most four seconds, until the other process has done the same.
+// Without the variable the tests run unchanged.
 const barrierTest = (name: string, source: string): string => `
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

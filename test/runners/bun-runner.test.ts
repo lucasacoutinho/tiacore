@@ -48,7 +48,6 @@ describe('bun runner options', () => {
     )
   })
 
-  // BUN-OPT-01
   test('an unspawnable binary turns every file into a module failure and still saves the graph', async () => {
     const root = project({
       'src/a.ts': 'export const a = 1\n',
@@ -72,7 +71,6 @@ describe('bun runner options', () => {
 })
 
 describe.skipIf(!hasBun)('bun runner with bun installed', () => {
-  // BUN-FAIL-01
   test('records a genuinely failing test as a failed case with its coverage', async () => {
     const root = project({
       'src/a.ts': 'export const a = () => 1\n',
@@ -92,7 +90,7 @@ test('fails', () => {
     expect(failed?.files).toEqual(['src/a.ts', 'test/a.test.ts'])
   })
 
-  // BUN-FAIL-04: documented limitation, kept fail-closed.
+  // A documented limitation, kept fail-closed.
   test('cases inside describe, and skip or todo cases, stay file-level module failures', async () => {
     const root = project({
       'src/a.ts': 'export const a = () => 1\n',

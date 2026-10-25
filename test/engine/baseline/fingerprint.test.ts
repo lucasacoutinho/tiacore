@@ -56,7 +56,7 @@ const fingerprint = (root: string, extra: string[] = [], opts = options) =>
 afterEach(cleanupScratch)
 
 describe('hashing', () => {
-  test('hashBytes is sha256 hex of strings and bytes (BASE-FP-04)', () => {
+  test('hashBytes is sha256 hex of strings and bytes', () => {
     expect(hashBytes('abc')).toBe(oracle.hashBytes('abc'))
     expect(hashBytes(Buffer.from('abc'))).toBe(oracle.hashBytes('abc'))
     expect(hashBytes(new Uint8Array([97, 98, 99]))).toBe(
@@ -64,7 +64,7 @@ describe('hashing', () => {
     )
   })
 
-  test('hashFile agrees with 1.x and uses the sentinels (BASE-CAP-10)', async () => {
+  test('hashFile agrees with 1.x and uses the sentinels', async () => {
     const root = scratch()
     put(root, 'a.ts', 'content')
     symlinkSync(join(root, 'missing'), join(root, 'broken'))
@@ -91,7 +91,7 @@ describe('hashing', () => {
 })
 
 describe('project fingerprint', () => {
-  test('keeps the structural file pattern of 1.x (PATH-CONST-10)', () => {
+  test('keeps the structural file pattern of 1.x', () => {
     expect(STRUCTURAL_FILE_PATTERN.source).toBe(
       constants.STRUCTURAL_FILE_PATTERN.source,
     )
@@ -120,7 +120,7 @@ describe('project fingerprint', () => {
     expect(STRUCTURAL_FILE_PATTERN.test('xpackage.json')).toBe(false)
   })
 
-  test('binds to structure, options, platform, Node major and version (BASE-FP-01..03)', async () => {
+  test('binds to structure, options, platform, Node major and version', async () => {
     const root = scratch()
     put(root, 'package.json', '{}\n')
     put(root, 'src/a.ts')
@@ -155,7 +155,7 @@ describe('project fingerprint', () => {
     }
   })
 
-  test('hashes structural files of the root only, and not through symlinks (BASE-FP-02)', async () => {
+  test('hashes structural files of the root only, and not through symlinks', async () => {
     const root = scratch()
     put(root, 'package.json', '{}\n')
     const base = await fingerprint(root)

@@ -63,7 +63,6 @@ function project(): string {
 }
 
 describe.skipIf(!hooks)('node:test discovery shim', () => {
-  // NODE-SHIM-01, NODE-SHIM-03, NODE-SHIM-04, NODE-SHIM-06
   test('records ESM tests without running their bodies, with real skip and todo', () => {
     const root = project()
     const file = join(root, 'esm.test.mjs')
@@ -124,7 +123,6 @@ console.log(typeof skip, typeof todo)
     })
   })
 
-  // NODE-SHIM-01 (CommonJS), NODE-SHIM-07
   test('redirects require("node:test") to a callable shim', () => {
     const root = project()
     const file = join(root, 'cjs.test.cjs')

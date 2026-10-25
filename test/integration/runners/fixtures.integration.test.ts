@@ -13,8 +13,7 @@ import {
   runCommand,
 } from '../../support/runner-project.ts'
 
-// Ports of the node:test, bun:test and custom adapter cases of 1.x
-// test/integration/vitest/fixture.integration.test.ts, run against the built
+// The node:test, bun:test and custom adapter cases, run against the built
 // package through real fixture projects.
 
 afterEach(cleanupProjects)
@@ -148,8 +147,8 @@ describe('node:test fixture project', () => {
     )
   })
 
-  // NODE-AGG-02, end to end: the aggregate pass cannot vouch for a project
-  // whose module failed to load, so the run fails and nothing is saved.
+  // End to end: the aggregate pass cannot vouch for a project whose module
+  // failed to load, so the run fails and nothing is saved.
   test('the aggregate path fails closed on a module-load failure', async () => {
     const root = createFixtureProject('node-module-failure')
     const result = runCommand(root, process.execPath, ['run-tia.mjs'], 30_000, {
@@ -186,7 +185,7 @@ describe('node:test fixture project', () => {
   )
 })
 
-// NODE-CERT-01, BUN-CERT-01: the fixtures' own certification suites.
+// The fixtures' own certification suites.
 describe('runner certification suites', () => {
   test('the node-runner fixture certifies record-once and replay', () => {
     const root = createFixtureProject('node-runner')

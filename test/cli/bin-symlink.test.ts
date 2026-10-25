@@ -11,12 +11,9 @@ import { join, relative, resolve } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
-// Port of "runs through a package-manager style executable symlink" from 1.x
-// test/integration/cli/cli.integration.test.ts. Help text is outside the 2.0
-// contract (ADR 0004, CLI-WIRE-11): the assertions keep what the test proved,
-// that the packaged binary starts through a symlink and lists its commands and
-// adapter groups, and match the 2.0 help layout instead of commander's
-// `plan [options]` line.
+// The packaged binary starts through a symlink and lists its commands and
+// adapter groups. Help text is outside the public contract, so the assertions
+// read only the command names under the SUBCOMMANDS heading.
 
 const temporaryDirectories: string[] = []
 const cli = resolve('dist/entries/cli.js')

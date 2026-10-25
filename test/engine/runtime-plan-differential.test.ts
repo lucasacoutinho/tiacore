@@ -90,8 +90,8 @@ function project(existing: readonly string[]): string {
 }
 
 // 1.x listed linked test files that no longer exist as whole-file fallbacks and
-// replayed results of unlinked deleted files. 2.0 drops results of missing files
-// (ADR 0004 row REPLAY-DELETED), so both plans are compared on existing files.
+// replayed results of unlinked deleted files. 2.0 drops results of missing
+// files, so both plans are compared on existing files.
 function selection(
   plan: RunPlan,
   graph: TiaRuntimeGraph,

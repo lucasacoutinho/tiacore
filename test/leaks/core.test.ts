@@ -16,7 +16,7 @@ import { TiaCore, type TiaObservation } from '../../src/engine/core.ts'
 import { disposeHost } from '../../src/host/runtime.ts'
 import { assertNoLeak } from '../support/leak.ts'
 
-// NF-MEM: one TiaCore per run, as every runner makes it, with the live store,
+// One TiaCore per run, as every runner makes it, with the live store,
 // git baselines and the verification snapshot writer (a scoped file handle).
 // A watch loop or a CI agent makes thousands of these in one process.
 

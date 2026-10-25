@@ -14,8 +14,6 @@ import {
 import { baseGraph, TEMPLATE } from '../support/graphs.ts'
 import { EngineLive, tempDirectory } from '../support/layers.ts'
 
-// Port of 1.x test/unit/engine/update.test.ts plus the STATE-UPD rows.
-
 const header: GraphHeader = {
   baseline: { sha: 'next', workingTree: {} },
   complete: true,
@@ -316,120 +314,110 @@ layer(EngineLive, { excludeTestServices: true })(
         }),
     )
 
-    it.effect(
-      'keeps the results of tests that were not rerun (STATE-UPD-08)',
-      () =>
-        Effect.gen(function* () {
-          const root = yield* projectWith(
-            'test/a.test.ts',
-            'test/deleted.test.ts',
-          )
-          const updated = yield* updateGraph({
-            header,
-            executedFiles: ['test/a.test.ts'],
-            fullyExecutedFiles: [],
-            previous: graph(),
-            results: new Map([['new', newCase]]),
-            root,
-            testEdges: new Map([
-              [
-                'new',
-                {
-                  file: 'test/a.test.ts',
-                  files: ['test/a.test.ts', 'src/z.ts'],
-                },
-              ],
-            ]),
-          })
-          expect(Object.keys(updated.results).sort()).toEqual([
-            'new',
-            'old',
-            'removed',
-          ])
-          expect(updated.edges['test/a.test.ts']).toEqual([
-            'src/old.ts',
-            'src/z.ts',
-            'test/a.test.ts',
-          ])
-          expect(updated.collectionCoverage).toEqual(graph().collectionCoverage)
-        }),
-    )
-
-    it.effect(
-      'falls back for edges when no test edge names the file (STATE-UPD-06)',
-      () =>
-        Effect.gen(function* () {
-          const root = yield* projectWith(
-            'test/a.test.ts',
-            'test/b.test.ts',
-            'test/c.test.ts',
-            'test/deleted.test.ts',
-          )
-          const fallback = yield* updateGraph({
-            header,
-            executedFiles: [
-              'test/a.test.ts',
-              'test/b.test.ts',
-              'test/c.test.ts',
+    it.effect('keeps the results of tests that were not rerun', () =>
+      Effect.gen(function* () {
+        const root = yield* projectWith(
+          'test/a.test.ts',
+          'test/deleted.test.ts',
+        )
+        const updated = yield* updateGraph({
+          header,
+          executedFiles: ['test/a.test.ts'],
+          fullyExecutedFiles: [],
+          previous: graph(),
+          results: new Map([['new', newCase]]),
+          root,
+          testEdges: new Map([
+            [
+              'new',
+              {
+                file: 'test/a.test.ts',
+                files: ['test/a.test.ts', 'src/z.ts'],
+              },
             ],
-            fallbackEdges: new Map([
-              ['test/b.test.ts', ['x.ts', 'test/b.test.ts']],
-            ]),
-            fullyExecutedFiles: ['test/a.test.ts'],
-            previous: graph(),
-            results: new Map(),
-            root,
-            testEdges: new Map(),
-          })
-          expect(fallback.edges['test/a.test.ts']).toEqual([
-            'src/old.ts',
-            'test/a.test.ts',
-          ])
-          expect(fallback.edges['test/b.test.ts']).toEqual([
-            'x.ts',
-            'test/b.test.ts',
-          ])
-          expect(fallback.edges['test/c.test.ts']).toEqual(['test/c.test.ts'])
-        }),
+          ]),
+        })
+        expect(Object.keys(updated.results).sort()).toEqual([
+          'new',
+          'old',
+          'removed',
+        ])
+        expect(updated.edges['test/a.test.ts']).toEqual([
+          'src/old.ts',
+          'src/z.ts',
+          'test/a.test.ts',
+        ])
+        expect(updated.collectionCoverage).toEqual(graph().collectionCoverage)
+      }),
+    )
+
+    it.effect('falls back for edges when no test edge names the file', () =>
+      Effect.gen(function* () {
+        const root = yield* projectWith(
+          'test/a.test.ts',
+          'test/b.test.ts',
+          'test/c.test.ts',
+          'test/deleted.test.ts',
+        )
+        const fallback = yield* updateGraph({
+          header,
+          executedFiles: ['test/a.test.ts', 'test/b.test.ts', 'test/c.test.ts'],
+          fallbackEdges: new Map([
+            ['test/b.test.ts', ['x.ts', 'test/b.test.ts']],
+          ]),
+          fullyExecutedFiles: ['test/a.test.ts'],
+          previous: graph(),
+          results: new Map(),
+          root,
+          testEdges: new Map(),
+        })
+        expect(fallback.edges['test/a.test.ts']).toEqual([
+          'src/old.ts',
+          'test/a.test.ts',
+        ])
+        expect(fallback.edges['test/b.test.ts']).toEqual([
+          'x.ts',
+          'test/b.test.ts',
+        ])
+        expect(fallback.edges['test/c.test.ts']).toEqual(['test/c.test.ts'])
+      }),
+    )
+
+    it.effect('replaces or leaves collection coverage as supplied', () =>
+      Effect.gen(function* () {
+        const root = yield* projectWith(
+          'test/a.test.ts',
+          'test/deleted.test.ts',
+        )
+        const record = { 'src/a.ts': { b: {}, f: {}, map: 'm', s: { 0: 1 } } }
+        const withTemplate = {
+          header,
+          coverageMaps: { m: TEMPLATE },
+          executedFiles: ['test/a.test.ts'],
+          fullyExecutedFiles: [],
+          previous: graph(),
+          results: new Map(),
+          root,
+          testEdges: new Map(),
+        }
+        const kept = yield* updateGraph(withTemplate)
+        expect(kept.collectionCoverage).toEqual(graph().collectionCoverage)
+        const replaced = yield* updateGraph({
+          ...withTemplate,
+          collectionCoverage: new Map([['test/a.test.ts', record]]),
+        })
+        expect(replaced.collectionCoverage['test/a.test.ts']).toEqual(record)
+        expect(replaced.coverageMaps).toEqual({ m: TEMPLATE })
+        const absent = yield* updateGraph({
+          ...withTemplate,
+          collectionCoverage: new Map(),
+        })
+        expect(absent.collectionCoverage['test/a.test.ts']).toEqual({})
+      }),
     )
 
     it.effect(
-      'replaces or leaves collection coverage as supplied (STATE-UPD-05)',
-      () =>
-        Effect.gen(function* () {
-          const root = yield* projectWith(
-            'test/a.test.ts',
-            'test/deleted.test.ts',
-          )
-          const record = { 'src/a.ts': { b: {}, f: {}, map: 'm', s: { 0: 1 } } }
-          const withTemplate = {
-            header,
-            coverageMaps: { m: TEMPLATE },
-            executedFiles: ['test/a.test.ts'],
-            fullyExecutedFiles: [],
-            previous: graph(),
-            results: new Map(),
-            root,
-            testEdges: new Map(),
-          }
-          const kept = yield* updateGraph(withTemplate)
-          expect(kept.collectionCoverage).toEqual(graph().collectionCoverage)
-          const replaced = yield* updateGraph({
-            ...withTemplate,
-            collectionCoverage: new Map([['test/a.test.ts', record]]),
-          })
-          expect(replaced.collectionCoverage['test/a.test.ts']).toEqual(record)
-          expect(replaced.coverageMaps).toEqual({ m: TEMPLATE })
-          const absent = yield* updateGraph({
-            ...withTemplate,
-            collectionCoverage: new Map(),
-          })
-          expect(absent.collectionCoverage['test/a.test.ts']).toEqual({})
-        }),
-    )
-
-    it.effect(
-      'prunes a missing test file with its records, and unreferenced maps (STATE-UPD-07)',
+      'prunes a missing test file with its records, and unreferenced maps',
       () =>
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
@@ -456,7 +444,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'stamps the schema and every header field, whatever the previous graph held (STATE-UPD-09)',
+      'stamps the schema and every header field, whatever the previous graph held',
       () =>
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
@@ -499,7 +487,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'shares coverage records with the caller and templates with the previous graph (STATE-UPD-04, STATE-COV-06)',
+      'shares coverage records with the caller and templates with the previous graph',
       () =>
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
@@ -527,7 +515,7 @@ layer(EngineLive, { excludeTestServices: true })(
   },
 )
 
-test('emptyGraph is the record-mode starting point (STATE-UPD-01)', () => {
+test('emptyGraph is the record-mode starting point', () => {
   expect(emptyGraph()).toEqual({
     baseline: { sha: '', workingTree: {} },
     collectionCoverage: {},

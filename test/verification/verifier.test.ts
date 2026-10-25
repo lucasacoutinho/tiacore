@@ -130,7 +130,7 @@ describe('TiaVerifier', () => {
     })
   })
 
-  test('VERIFY-RUN-04: an inherited TIA_FRESH does not reach the selective phase', async () => {
+  test('an inherited TIA_FRESH does not reach the selective phase', async () => {
     const { full, selective } = pair()
     await phases(selective, full)
     process.env['TIA_FRESH'] = '1'

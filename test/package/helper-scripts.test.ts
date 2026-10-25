@@ -6,8 +6,8 @@ import { describe, expect, test } from 'vitest'
 
 import { NODE_HELPER_SCRIPTS } from '../../src/runners/node/assets.ts'
 
-// 1.x's CJS build lost the scripts its runners spawn (NODE-EXEC-06). Every
-// helper must be a real ESM file in dist, built as its own entry point.
+// The runners spawn these helper scripts, so every helper must be a real ESM
+// file in dist, built as its own entry point.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const dist = join(root, 'dist/entries')

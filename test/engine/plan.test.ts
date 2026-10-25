@@ -30,11 +30,9 @@ import { commit, init, put, scratch, cleanupScratch } from './support/repos.ts'
 import { baseGraph } from './support/graphs.ts'
 import { EngineLive } from './support/layers.ts'
 
-// Port of 1.x test/unit/engine/plan.test.ts. 1.x handed `createRunPlan` a graph
-// directly; 2.0 plans through `beginRun`, which reads the stored graph and asks
-// `Baselines` what changed, so each scenario stores its graph first. The only
-// assertion that differs is the plan's baseline reason (the graph now comes
-// from the local store).
+// Planning goes through `beginRun`, which reads the stored graph and asks
+// `Baselines` what changed, so each scenario stores its graph first. The plan's
+// baseline reason names the local store as the source of the graph.
 
 const live = ManagedRuntime.make(EngineLive)
 afterAll(() => live.dispose())

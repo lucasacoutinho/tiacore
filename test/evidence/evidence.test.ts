@@ -48,7 +48,7 @@ afterEach(() => {
 })
 
 describe('evidence configuration', () => {
-  test('defaults to <root>/.tia/evidence and the correlation header (EVID-CFG-01)', () => {
+  test('defaults to <root>/.tia/evidence and the correlation header', () => {
     const root = project()
     const evidence = tia({ root })
     expect(evidence.directory).toBe(resolve(root, '.tia/evidence'))
@@ -68,7 +68,7 @@ describe('evidence configuration', () => {
     )
   })
 
-  test('treats an empty directory as the root itself (1.x quirk, EVID-CFG-01)', () => {
+  test('treats an empty directory as the root itself (1.x quirk)', () => {
     const root = project()
     expect(tia({ directory: '', root }).directory).toBe(root)
     process.env[TIA_EVIDENCE_DIRECTORY_ENV] = ''
@@ -96,7 +96,7 @@ describe('correlation ids', () => {
     expect(evidence.correlationId()).toMatch(/^[0-9a-f-]{36}$/u)
   })
 
-  test('shares one process-wide store between instances (EVID-ID-02/03)', async () => {
+  test('shares one process-wide store between instances', async () => {
     const other = new TiaEvidence({ root: tmpdir() })
     expect(evidence.currentCorrelationId()).toBeNull()
     await evidence.run('shared', async () => {
@@ -119,7 +119,7 @@ describe('correlation ids', () => {
     expect(result.bytesPerOperation).toBeLessThan(32)
   })
 
-  test('keeps an id under the evidence directory by hashing it (EVID-ID-04)', async () => {
+  test('keeps an id under the evidence directory by hashing it', async () => {
     const root = project()
     const writer = new TiaEvidence({ root })
     await writer.record(['src/a.ts'], 'a.b:c-d')
@@ -132,7 +132,7 @@ describe('correlation ids', () => {
 describe('headers', () => {
   const evidence = new TiaEvidence({ header: 'X-Trace', root: tmpdir() })
 
-  test('reads Fetch headers and plain objects, case-insensitively (EVID-HDR-01)', () => {
+  test('reads Fetch headers and plain objects, case-insensitively', () => {
     expect(evidence.fromHeaders(new Headers({ 'x-trace': 'one' }))).toBe('one')
     expect(evidence.fromHeaders({ 'X-TRACE': 'two' })).toBe('two')
     expect(evidence.fromHeaders({ 'x-trace': ['three', 'four'] })).toBe('three')
@@ -145,14 +145,14 @@ describe('headers', () => {
     expect(evidence.fromHeaders(new Headers({ 'x-trace': 'a, b' }))).toBeNull()
   })
 
-  test('builds the outgoing header and refuses an invalid id (EVID-HDR-02)', () => {
+  test('builds the outgoing header and refuses an invalid id', () => {
     expect(evidence.headers('abc')).toEqual({ 'x-trace': 'abc' })
     expect(() => evidence.headers('a b')).toThrow('correlation id is invalid')
   })
 })
 
 describe('recording', () => {
-  test('writes nothing without a correlation id (EVID-REC-01)', async () => {
+  test('writes nothing without a correlation id', async () => {
     const root = project()
     const evidence = new TiaEvidence({ root })
     await evidence.record(['src/a.ts'])
@@ -162,7 +162,7 @@ describe('recording', () => {
     )
   })
 
-  test('normalizes, de-duplicates and sorts project files (EVID-REC-02)', async () => {
+  test('normalizes, de-duplicates and sorts project files', async () => {
     const root = project()
     const evidence = new TiaEvidence({ root })
     await evidence.record(
@@ -184,7 +184,7 @@ describe('recording', () => {
     expect(readdirSync(evidence.directory)).toHaveLength(1)
   })
 
-  test('refuses an event with more than 1000 files (EVID-REC-03)', async () => {
+  test('refuses an event with more than 1000 files', async () => {
     const evidence = new TiaEvidence({ root: project() })
     const many = Array.from({ length: 1001 }, (_, index) => `src/f${index}.ts`)
     await expect(evidence.record(many, 'many')).rejects.toThrow(
@@ -195,7 +195,7 @@ describe('recording', () => {
     ).resolves.toBeUndefined()
   })
 
-  test('writes one event file per record in the documented shape (EVID-REC-04)', async () => {
+  test('writes one event file per record in the documented shape', async () => {
     const root = project()
     const evidence = new TiaEvidence({ producer: 'api', root })
     await evidence.record(['src/a.ts'], 'shape')
@@ -257,7 +257,7 @@ const valid = (id: string, files: unknown) =>
   })
 
 describe('collecting', () => {
-  test('returns [] for a missing, non-directory or symlinked directory (EVID-COL-01)', async () => {
+  test('returns [] for a missing, non-directory or symlinked directory', async () => {
     const root = project()
     const evidence = new TiaEvidence({ root })
     await expect(evidence.collect('none')).resolves.toEqual([])
@@ -274,7 +274,7 @@ describe('collecting', () => {
     )
   })
 
-  test('skips hostile and partial events silently (EVID-COL-03)', async () => {
+  test('skips hostile and partial events silently', async () => {
     const evidence = new TiaEvidence({ root: project() })
     const id = 'hostile'
     seed(evidence, id, '1.json', valid(id, ['good.ts']))
@@ -373,7 +373,7 @@ describe('collecting', () => {
     expect((await evidence.collectChecked(id)).complete).toBe(false)
   })
 
-  test('reads at most 10000 events, oldest names first (EVID-COL-02)', async () => {
+  test('reads at most 10000 events, oldest names first', async () => {
     const evidence = new TiaEvidence({ root: project() })
     const id = 'capped'
     const directory = hashed(evidence.directory, id)
@@ -388,7 +388,7 @@ describe('collecting', () => {
     expect(files).toContain('f9999.ts')
   })
 
-  test('returns stored file strings without containment checks (EVID-COL-06)', async () => {
+  test('returns stored file strings without containment checks', async () => {
     const evidence = new TiaEvidence({ root: project() })
     seed(
       evidence,
@@ -402,7 +402,7 @@ describe('collecting', () => {
     ])
   })
 
-  test('removes the directory when asked (EVID-COL-05)', async () => {
+  test('removes the directory when asked', async () => {
     const evidence = new TiaEvidence({ root: project() })
     await evidence.record(['src/a.ts'], 'gone')
     await expect(evidence.collect('gone', { remove: true })).resolves.toEqual([

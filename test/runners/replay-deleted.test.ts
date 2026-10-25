@@ -25,8 +25,8 @@ function observation(name: string): TiaObservation {
   }
 }
 
-// REPLAY-DELETED: 1.x replayed (and counted) cached results of test files that
-// no longer exist; 2.0 neither replays nor counts them.
+// Cached results of test files that no longer exist are neither replayed nor
+// counted.
 describe('results of deleted test files', () => {
   test('are neither replayed nor counted', async () => {
     const root = mkdtempSync(join(tmpdir(), 'tiacore-deleted-'))

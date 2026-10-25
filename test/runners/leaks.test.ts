@@ -11,7 +11,7 @@ import { tia as nodeTia } from '../../src/entries/node.ts'
 import { assertNoLeak } from '../support/leak.ts'
 import { initRepository } from '../support/runner-project.ts'
 
-// NF-MEM: a long-lived process that runs a runner over and over (watch mode,
+// A long-lived process that runs a runner over and over (watch mode,
 // a CI agent, a workspace lane loop) retains nothing per run.
 
 const directories: string[] = []

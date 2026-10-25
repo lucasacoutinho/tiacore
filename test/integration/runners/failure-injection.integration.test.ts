@@ -13,8 +13,7 @@ import {
   runCommand,
 } from '../../support/runner-project.ts'
 
-// Ports of the runner cases of 1.x test/integration/storage/failure-injection:
-// a killed or crashing child must never drop healthy files or corrupt state.
+// A killed or crashing child must never drop healthy files or corrupt state.
 
 const temporaryDirectories: string[] = []
 const hasBun = runCommand(process.cwd(), 'bun', ['--version']).status === 0

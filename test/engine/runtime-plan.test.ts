@@ -61,7 +61,8 @@ const everyFile = () => true
 
 describe('runtime planning', () => {
   test('selects the dependents of a changed helper under __tests__', () => {
-    // 1.x stopped at the test-file pattern and selected nothing here.
+    // The test-file pattern does not stop the walk: the helper's dependents
+    // are still selected.
     const plan = planRuntimeChanges(
       input(),
       ['test/__tests__/helper.ts'],

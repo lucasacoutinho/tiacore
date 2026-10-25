@@ -8,9 +8,8 @@ import { afterEach, describe, expect, test } from 'vitest'
 
 import { TiaEvidence } from '../../src/evidence/index.ts'
 
-// Ported from test/integration/evidence/cross-process.integration.test.ts. The
-// 1.x test linked the package into a fixture project; this one runs the service
-// against the built `./evidence` entry, which is what a consumer imports.
+// Runs the service against the built `./evidence` entry, which is what a
+// consumer imports.
 
 const entry = pathToFileURL(
   fileURLToPath(new URL('../../dist/entries/evidence.js', import.meta.url)),

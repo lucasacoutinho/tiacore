@@ -140,7 +140,7 @@ describe('resolveFrameworkEdges', () => {
   const root = '/project'
   const at = { files: [], root, testFile: 'test/a.test.ts' }
 
-  it('normalizes, de-duplicates and sorts across adapters (EDGE-RES-01)', () => {
+  it('normalizes, de-duplicates and sorts across adapters', () => {
     expect(
       resolveFrameworkEdges(
         [
@@ -155,7 +155,7 @@ describe('resolveFrameworkEdges', () => {
     ).toEqual({ complete: true, files: ['a.ts', 'b.ts'] })
   })
 
-  it('discards earlier results and stops at the first failing adapter (EDGE-RES-02)', () => {
+  it('discards earlier results and stops at the first failing adapter', () => {
     let later = 0
     const after: TiaFrameworkEdgeAdapter = {
       name: 'after',
@@ -209,7 +209,7 @@ const adapterNames = (options: TiaFrameworkOptions | undefined) =>
   frameworkAdapters(options).map((adapter) => adapter.name)
 
 describe('frameworkAdapters', () => {
-  it('orders views, database, subprocess, then custom adapters (EDGE-IDX-01)', () => {
+  it('orders views, database, subprocess, then custom adapters', () => {
     const custom: TiaFrameworkEdgeAdapter = { name: 'mine', resolve: () => [] }
     const other: TiaFrameworkEdgeAdapter = { name: 'other', resolve: () => [] }
 
@@ -228,7 +228,7 @@ describe('frameworkAdapters', () => {
     expect(frameworkAdapters({ adapters: custom })[0]).toBe(custom)
   })
 
-  it('fingerprints names and fingerprints in adapter order (EDGE-IDX-02)', () => {
+  it('fingerprints names and fingerprints in adapter order', () => {
     const adapters = frameworkAdapters({
       adapters: [{ name: 'mine', resolve: () => [] }],
       database: true,
@@ -270,7 +270,7 @@ describe('frameworkAdapters', () => {
 })
 
 describe('matchingFiles', () => {
-  it('skips build output, git and symlinks, and returns sorted paths (EDGE-FILE-01)', () => {
+  it('skips build output, git and symlinks, and returns sorted paths', () => {
     const root = project({
       '.hidden/x.sql': '',
       'a/b/c.sql': '',
@@ -305,7 +305,7 @@ describe('database edges', () => {
     'src/util.ts': 'export const noop = 1',
   }
 
-  it('depends on schemas and the migrations of the tables in use (EDGE-DB-04/05)', () => {
+  it('depends on schemas and the migrations of the tables in use', () => {
     const root = project(files)
     const adapter = databaseEdges(true)
     expect(adapter.name).toBe('database')
@@ -330,7 +330,7 @@ describe('database edges', () => {
     }
   })
 
-  it('scans migrations once per root for the life of the adapter (EDGE-DB-06)', () => {
+  it('scans migrations once per root for the life of the adapter', () => {
     const root = project(files)
     const adapter = databaseEdges(true)
     const used = context(root, ['src/user.ts'])
@@ -366,7 +366,7 @@ describe('database edges', () => {
     })
   })
 
-  it('ignores meta tables and keeps qualified names verbatim (EDGE-DB-03)', () => {
+  it('ignores meta tables and keeps qualified names verbatim', () => {
     expect(
       tablesFromSql(
         'from information_schema from migrations from pg_catalog from sqlite_sequence from public.users from Users',
@@ -436,7 +436,7 @@ describe('view edges', () => {
     'views/home.pug': '',
   }
 
-  it('finds literal and call-pattern view names from dependency files (EDGE-VIEW-02/03)', () => {
+  it('finds literal and call-pattern view names from dependency files', () => {
     const root = project(files)
     const adapter = viewEdges(true)
     expect(adapter.name).toBe('views')
@@ -452,7 +452,7 @@ describe('view edges', () => {
     ])
   })
 
-  it('normalizes configured extensions into the fingerprint (EDGE-VIEW-01/04)', () => {
+  it('normalizes configured extensions into the fingerprint', () => {
     const adapter = viewEdges({ extensions: ['md', '.mdx'], roots: ['docs'] })
     expect(JSON.parse(adapter.fingerprint ?? '')).toEqual({
       extensions: ['.md', '.mdx'],
@@ -491,7 +491,7 @@ describe('subprocess edges', () => {
     ],
   }
 
-  it('maps matching tests to files and nothing else (EDGE-SUB-01/04)', () => {
+  it('maps matching tests to files and nothing else', () => {
     const root = project(files)
     const adapter = subprocessEdges(options)
     expect(adapter.name).toBe('subprocess')
@@ -505,7 +505,7 @@ describe('subprocess edges', () => {
     expect(adapter.resolve(context(root, [], 'lib/x.ts'))).toEqual([])
   })
 
-  it('does not match dotfile tests with a star pattern (1.x quirk, EDGE-SUB-01)', () => {
+  it('does not match dotfile tests with a star pattern (1.x quirk)', () => {
     const root = project(files)
     expect(
       subprocessEdges(options).resolve(
@@ -514,7 +514,7 @@ describe('subprocess edges', () => {
     ).toEqual([])
   })
 
-  it('fingerprints sorted mappings without a version (EDGE-SUB-02)', () => {
+  it('fingerprints sorted mappings without a version', () => {
     const left = subprocessEdges({
       mappings: [{ files: ['b', 'a'], tests: ['y', 'x'] }],
     })

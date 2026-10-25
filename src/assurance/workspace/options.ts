@@ -33,8 +33,7 @@ const Lane = Schema.Struct({
 
 /**
  * The workspace configuration. `concurrency` must be a finite number: NaN and
- * Infinity are rejected here instead of silently lifting the bound (ADR 0004,
- * NODE-PAR-03 / WS-SCHED-01).
+ * Infinity are rejected here instead of silently lifting the bound.
  */
 export const WorkspaceOptions = Schema.Struct({
   concurrency: Schema.optionalKey(Schema.Finite),

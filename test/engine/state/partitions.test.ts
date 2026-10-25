@@ -24,8 +24,6 @@ import { legacy } from '../../support/legacy.ts'
 import { baseGraph } from '../support/graphs.ts'
 import { EngineLive, tempDirectory } from '../support/layers.ts'
 
-// Port of 1.x test/unit/engine/partitions.test.ts, plus STATE-PART-01..05.
-
 const oracle = await legacy<{
   partitionCacheDir: (
     cacheDir: string,
@@ -97,7 +95,7 @@ describe('partition naming', () => {
     }
   })
 
-  test('local groups differ when the dirty tree differs (STATE-PART-02)', () => {
+  test('local groups differ when the dirty tree differs', () => {
     const a: Baseline = { sha: 'abc', source: 'git', workingTree: {} }
     const b: Baseline = {
       sha: 'abc',
@@ -153,29 +151,27 @@ function aggregation(
         }),
     )
 
-    it.effect(
-      'never combines shards of another group or total (STATE-PART-05)',
-      () =>
-        Effect.gen(function* () {
-          const cacheDir = yield* directory()
-          const one: TiaRuntimeGraphPartition = {
-            group: 'one',
-            index: 1,
-            total: 2,
-          }
-          const other: TiaRuntimeGraphPartition = {
-            group: 'two',
-            index: 2,
-            total: 2,
-          }
-          yield* save(partitionCacheDir(cacheDir, one), fragment(one))
-          yield* save(
-            partitionCacheDir(cacheDir, { ...one, index: 2 }),
-            fragment(other),
-          )
-          expect(yield* aggregateLocalPartitions(cacheDir, one)).toBeNull()
-          expect(yield* readMain(cacheDir)).toBeNull()
-        }),
+    it.effect('never combines shards of another group or total', () =>
+      Effect.gen(function* () {
+        const cacheDir = yield* directory()
+        const one: TiaRuntimeGraphPartition = {
+          group: 'one',
+          index: 1,
+          total: 2,
+        }
+        const other: TiaRuntimeGraphPartition = {
+          group: 'two',
+          index: 2,
+          total: 2,
+        }
+        yield* save(partitionCacheDir(cacheDir, one), fragment(one))
+        yield* save(
+          partitionCacheDir(cacheDir, { ...one, index: 2 }),
+          fragment(other),
+        )
+        expect(yield* aggregateLocalPartitions(cacheDir, one)).toBeNull()
+        expect(yield* readMain(cacheDir)).toBeNull()
+      }),
     )
   })
 }

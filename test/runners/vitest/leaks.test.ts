@@ -17,7 +17,7 @@ import type { TiaRuntime } from '../../../src/runners/vitest/state.ts'
 import { disposeHost } from '../../../src/host/runtime.ts'
 import { assertNoLeak } from '../../support/leak.ts'
 
-// NF-MEM: the Vitest plugin and reporter keep per-run state in a runtime that
+// The Vitest plugin and reporter keep per-run state in a runtime that
 // outlives one Vitest instance (browser-mode servers share it), so a process
 // that starts Vitest again and again must not keep one run's state for the next.
 

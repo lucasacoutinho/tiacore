@@ -13,10 +13,6 @@ const legacyNames = [
   ['vitest', '-tia'].join(''),
 ]
 
-// The ledger of ported 1.x tests quotes their titles, and the titles of the
-// tests below name these strings. It is the one file allowed to.
-const LEDGER = 'test/package/legacy-tests.json'
-
 // The layers of docs/architecture/effect-conventions.md, plus the entry points.
 const SOURCE_DIRECTORIES = [
   'assurance',
@@ -32,8 +28,8 @@ const SOURCE_DIRECTORIES = [
 ]
 
 describe('tiacore naming contract', () => {
-  // 1.x kept a single src/index.ts. 2.0 puts every package entry point under
-  // src/entries and every module under one layer directory (ADR 0004).
+  // Every package entry point lives under src/entries and every other module
+  // under one layer directory.
   test('keeps the source root to layer directories', () => {
     const entries = readdirSync(`${repository}src/`, { withFileTypes: true })
 
@@ -48,15 +44,7 @@ describe('tiacore naming contract', () => {
   test.each(legacyNames)('does not retain the legacy name %s', (legacyName) => {
     const result = spawnSync(
       'git',
-      [
-        'grep',
-        '--line-number',
-        '--ignore-case',
-        legacyName,
-        '--',
-        '.',
-        `:(exclude)${LEDGER}`,
-      ],
+      ['grep', '--line-number', '--ignore-case', legacyName, '--', '.'],
       { cwd: repository, encoding: 'utf8' },
     )
 

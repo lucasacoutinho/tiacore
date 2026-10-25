@@ -32,8 +32,8 @@ import { initRepository } from '../support/runner-project.ts'
 import { EngineLive } from './support/layers.ts'
 import { baseGraph } from './support/graphs.ts'
 
-// Inventory rows for the runner-neutral core that no earlier test pinned:
-// RUN-OPT-*, RUN-FP-*, RUN-LIFE-*, RUN-COMMIT-*, REPLAY-*, LIFE-BEGIN-*.
+// The runner-neutral core: options, fingerprints, run lifecycle, commit,
+// replay and the start of a run.
 
 const temporaryDirectories: string[] = []
 
@@ -90,13 +90,11 @@ function plan(overrides: Partial<RunPlan> = {}): RunPlan {
 }
 
 describe('replayedResults', () => {
-  // REPLAY-RESULT-01
   test('is empty unless the plan replays a graph', () => {
     expect(replayedResults(plan({ mode: 'record' }))).toEqual([])
     expect(replayedResults(plan({ graph: null }))).toEqual([])
   })
 
-  // REPLAY-RESULT-02, REPLAY-RESULT-03
   test('keeps unaffected, unfailed results, skipped ones included, in id order', () => {
     const graph = baseGraph({
       results: {
@@ -135,11 +133,10 @@ describe('replayedResults', () => {
         wholeTestFiles: ['test/w.test.ts'],
       }),
     )
-    // UTF-16 code-unit order (ADR 0004): uppercase sorts before lowercase.
+    // UTF-16 code-unit order: uppercase sorts before lowercase.
     expect(replayed.map((result) => result.id)).toEqual(['Upper', 'a', 'z'])
   })
 
-  // REPLAY-EVENT-01
   test('the run event copies the plan and leaves the graph out', () => {
     const source = plan({ affectedTestIds: ['a'], wholeTestFiles: ['w'] })
     const event = replayRunEvent(source)
@@ -156,7 +153,6 @@ describe('replayedResults', () => {
 })
 
 describe('replay adapter notification', () => {
-  // REPLAY-EVENT-02, REPLAY-EVENT-03
   test('calls adapters in order, skips missing methods, and survives failures', async () => {
     const calls: string[] = []
     const adapters: TiaReplayAdapter[] = [
@@ -243,7 +239,6 @@ describe('replay adapter notification', () => {
 })
 
 describe('TiaCore adapter events', () => {
-  // REPLAY-EVENT-04, REPLAY-EVENT-05, REPLAY-EVENT-06, RUN-LIFE-03, RUN-COMMIT-09
   test('emits start, one event per cached result, then completion after a commit', async () => {
     const root = project()
     const events: string[] = []
@@ -315,7 +310,7 @@ describe('TiaCore adapter events', () => {
     )
   })
 
-  // RUN-COMMIT-09: no completion event when the commit is skipped.
+  // No completion event when the commit is skipped.
   test('does not fire onRunComplete when the commit returns null', async () => {
     const root = project()
     const completions: string[] = []
@@ -332,7 +327,6 @@ describe('TiaCore adapter events', () => {
 })
 
 describe('TiaCore options and lifecycle', () => {
-  // RUN-LIFE-01
   test('reading the plan or committing before prepare throws', async () => {
     const core = new TiaCore({ ...OPTIONS, root: project() })
     expect(() => core.plan).toThrow('TIA core has not been prepared')
@@ -341,7 +335,6 @@ describe('TiaCore options and lifecycle', () => {
     )
   })
 
-  // RUN-OPT-01, RUN-OPT-02, RUN-OPT-04
   test('applies the documented defaults and appends user excludes', () => {
     const root = project()
     const core = new TiaCore({
@@ -370,7 +363,6 @@ describe('TiaCore options and lifecycle', () => {
     ).toEqual([{}])
   })
 
-  // RUN-OPT-05, RUN-FP-01, RUN-FP-02
   test('files, fingerprint, testFiles and the runner name decide compatibility', async () => {
     const root = project()
     const recording = new TiaCore({ ...OPTIONS, root, testFiles: ['test/**'] })
@@ -414,7 +406,6 @@ describe('TiaCore options and lifecycle', () => {
     })
   })
 
-  // RUN-COMMIT-04, RUN-COMMIT-06, RUN-COMMIT-07
   test('stamps the saved graph, stores failures, and re-stamps an empty commit', async () => {
     const root = project()
     const recording = new TiaCore({ ...OPTIONS, root })
@@ -451,7 +442,6 @@ describe('TiaCore options and lifecycle', () => {
     )
   })
 
-  // RUN-COMMIT-05
   test('returns null without logging when another writer committed an incompatible graph', async () => {
     const root = project()
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -468,7 +458,6 @@ describe('TiaCore options and lifecycle', () => {
     expect(log).not.toHaveBeenCalled()
   })
 
-  // LIFE-BEGIN-01, LIFE-BEGIN-03 (fresh purges at plan time)
   test('a fresh run purges the stored state when it plans', async () => {
     const root = project()
     const recording = new TiaCore({ ...OPTIONS, root })
@@ -486,7 +475,6 @@ describe('TiaCore options and lifecycle', () => {
     expect(existsSync(join(root, '.tia/rows/state.json'))).toBe(false)
   })
 
-  // RUN-COMMIT-08
   test('writes a verification snapshot only when both variables are set', async () => {
     const root = project()
     const directory = join(root, 'verification')
@@ -555,7 +543,6 @@ describe('beginRun for a partitioned run', () => {
   const live = ManagedRuntime.make(EngineLive)
   afterAll(() => live.dispose())
 
-  // LIFE-BEGIN-03, LIFE-BASE-01
   test('ignores the stored graph and plans an isolated record', async () => {
     const root = project()
     const recording = new TiaCore({ ...OPTIONS, root })

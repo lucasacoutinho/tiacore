@@ -26,7 +26,6 @@ function plan(overrides: Partial<RunPlan>): RunPlan {
 }
 
 describe('module failure observations', () => {
-  // LIFE-OBS-01
   test('stand for a file that did not load', () => {
     expect(moduleFailureObservation('test/a.test.ts')).toEqual({
       file: 'test/a.test.ts',
@@ -37,7 +36,6 @@ describe('module failure observations', () => {
     })
   })
 
-  // LIFE-OBS-02
   test('a retried module failure clears even when it now yields other case ids', () => {
     const graph = baseGraph({
       results: {

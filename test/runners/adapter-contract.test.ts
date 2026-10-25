@@ -148,7 +148,6 @@ describe('TypeScript adapter contract', () => {
 })
 
 describe('adapter construction', () => {
-  // ADAPT-API-02, ADAPT-VALID-01..04
   test('validates the definition eagerly with the 1.x messages', () => {
     const base = definition([])
     const make = (change: object) => () => tia({ ...base, ...change })
@@ -183,7 +182,6 @@ describe('adapter construction', () => {
 })
 
 describe('adapter discovery', () => {
-  // ADAPT-DISC-01
   test('a failing discover rejects and leaves the cache untouched', async () => {
     const root = project()
     const adapter = definition([])
@@ -196,7 +194,6 @@ describe('adapter discovery', () => {
     expect(existsSync(join(root, '.tia'))).toBe(false)
   })
 
-  // ADAPT-DISC-02, ADAPT-DISC-04
   test.each([
     [
       'a non-array catalog',
@@ -274,7 +271,6 @@ const observation = (extra: object = {}) => ({
 })
 
 describe('adapter execution contract', () => {
-  // ADAPT-EXEC-02, ADAPT-EXEC-03, ADAPT-EXEC-04
   test.each([
     [
       'a missing completeness flag',
@@ -319,7 +315,6 @@ describe('adapter execution contract', () => {
     )
   })
 
-  // ADAPT-COMMIT-04, ADAPT-RES-02
   test('commits failed observations, which then rerun on the next plan', async () => {
     const root = project()
     const result = await run(
@@ -346,7 +341,7 @@ describe('adapter execution contract', () => {
     expect(next.success).toBe(true)
   })
 
-  // ADAPT-COMMIT-02: no cross-check of ids against the catalog.
+  // No cross-check of ids against the catalog.
   test('accepts and commits observations for tests that were not selected', async () => {
     const result = await run(() => ({
       complete: true,
@@ -366,7 +361,6 @@ describe('adapter execution contract', () => {
     ])
   })
 
-  // ADAPT-EXEC-01, ADAPT-COMMIT-03, ADAPT-RES-02
   test('passes only the selection and reruns just what changed', async () => {
     const root = project()
     const contexts: Array<{
@@ -408,7 +402,6 @@ describe('adapter execution contract', () => {
     expect(edited.plan.wholeTestFiles).toEqual(['test/value.test.ts'])
   })
 
-  // ADAPT-PLAN-03
   test('selects an affected test missing from the catalog from the stored graph', async () => {
     const root = project()
     let catalogIds = ['custom:value']
@@ -442,7 +435,6 @@ describe('adapter execution contract', () => {
     expect(seen[1]).toContain('custom:value:baseline')
   })
 
-  // ADAPT-FEAT-01
   test('a changed feature list invalidates the stored graph', async () => {
     const root = project()
     await tia(definition([]), { ...OPTIONS, root }).run()
@@ -456,7 +448,6 @@ describe('adapter execution contract', () => {
     })
   })
 
-  // ADAPT-COMMIT-05
   test('an empty selection on a complete run still commits', async () => {
     const root = project()
     await tia(definition([]), { ...OPTIONS, root }).run()
@@ -469,7 +460,6 @@ describe('adapter execution contract', () => {
     })
   })
 
-  // ADAPT-OPT-02
   test('prints one summary line unless log is false', async () => {
     const root = project()
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})

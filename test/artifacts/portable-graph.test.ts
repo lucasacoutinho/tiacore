@@ -14,8 +14,7 @@ import {
 } from '../../src/engine/state/coverage.ts'
 import { baseGraph } from '../engine/support/graphs.ts'
 
-// Port of 1.x test/unit/artifacts/portable-graph.test.ts; the runtime schema is
-// 5 in 2.0 where 1.x restored into 4.
+// Portable artifacts use schema 3 and restore into the current runtime schema.
 
 function location(line: number) {
   return { end: { column: 9, line }, start: { column: 0, line } }

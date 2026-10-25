@@ -216,7 +216,7 @@ describe('coverage templates', () => {
     ).toEqual(['/project/src/a.js'])
   })
 
-  test('read the first instrumentation hash and ignore code without one (COV-INST-02)', () => {
+  test('read the first instrumentation hash and ignore code without one', () => {
     expect(instrumentationHash('var hash = "ab12"; var hash = "ff"')).toBe(
       'ab12',
     )
@@ -224,7 +224,7 @@ describe('coverage templates', () => {
     expect(instrumentationHash('')).toBeNull()
   })
 
-  test('register once per hash and drop unknown or outside-root counters (COV-INST-03/06/07)', () => {
+  test('register once per hash and drop unknown or outside-root counters', () => {
     const templates = load('/project/src/a.js', 1)
     const window = testWindow()
     const first = templates.record('/project', window.coverage)
@@ -290,7 +290,7 @@ describe('coverage thresholds', () => {
     '/project/src/b.ts': fileCoverage('/project/src/b.ts', [1, 1]),
   })
 
-  test('fails a glob threshold that matches no files (COV-THR-06)', () => {
+  test('fails a glob threshold that matches no files', () => {
     expect(
       coverageThresholdFailures(two, '/project', {
         'src/typo/**': { lines: 10 },
@@ -307,7 +307,7 @@ describe('coverage thresholds', () => {
     ).toHaveLength(1)
   })
 
-  test('ignores a glob set with no metrics and reserved keys (COV-THR-05)', () => {
+  test('ignores a glob set with no metrics and reserved keys', () => {
     expect(
       coverageThresholdFailures(two, '/project', {
         'nothing/*': {},
@@ -317,7 +317,7 @@ describe('coverage thresholds', () => {
     expect(coverageThresholdFailures(two, '/project', null)).toEqual([])
   })
 
-  test('lets 100 override explicit metrics and skips non-finite values (COV-THR-03)', () => {
+  test('lets 100 override explicit metrics and skips non-finite values', () => {
     expect(
       coverageThresholdFailures(two, '/project', {
         100: true,
@@ -332,12 +332,12 @@ describe('coverage thresholds', () => {
     ).toEqual([])
   })
 
-  test('matches glob sets with picomatch defaults: a star skips dot directories (COV-THR-05)', () => {
+  test('matches glob sets with picomatch defaults: a star skips dot directories', () => {
     const hidden = coverageLibrary.createCoverageMap({
       '/project/.hidden/h.ts': fileCoverage('/project/.hidden/h.ts', [0, 0]),
     })
     // With dot matching the glob would find h.ts and fail the 90% bar; as in
-    // 1.x it finds nothing, which COV-THR-06 now reports.
+    // 1.x it finds nothing, which now fails as a glob set matching no file.
     expect(
       coverageThresholdFailures(hidden, '/project', {
         '*/*.ts': { lines: 90 },
@@ -458,7 +458,7 @@ const options = (root: string) =>
 describe('coverage reports', () => {
   const files = { 'src/a.js': SOURCE, 'src/zero.js': 'export const z = 1\n' }
 
-  test('sums records per file and map before expanding the shared template (COV-RPT-01)', () => {
+  test('sums records per file and map before expanding the shared template', () => {
     const root = project(files)
     const graph = recordGraph(root, { one: [1], two: [1, -1], three: [0] })
     const merged = mergedGraphCoverage(graph, root).fileCoverageFor(
@@ -473,7 +473,7 @@ describe('coverage reports', () => {
     )
   })
 
-  test('writes reports identical to 1.x for the same graph (COV-RPT-04/06, differential)', () => {
+  test('writes reports identical to 1.x for the same graph (differential)', () => {
     const rootA = project(files)
     const rootB = project(files)
     const graphA = recordGraph(rootA, { one: [1], two: [1, -1] })
@@ -493,7 +493,7 @@ describe('coverage reports', () => {
     }
   })
 
-  test('throws for an unknown reporter, and the stage reports it as TiaIo (COV-RPT-05)', async () => {
+  test('throws for an unknown reporter, and the stage reports it as TiaIo', async () => {
     const root = project(files)
     const graph = recordGraph(root, { one: [1] })
     const broken = runtime(root, {
@@ -533,7 +533,7 @@ describe('coverage file selection', () => {
     'test/a.test.js': 'export const t = 1\n',
   }
 
-  test('without include keeps existing instrumented files only (COV-OPT-02, COV-SEL-02)', () => {
+  test('without include keeps existing instrumented files only', () => {
     const root = project(files)
     const result = selectedCoverage(
       mapOf(root, ['src/a.js', 'src/gone.js']),
@@ -544,7 +544,7 @@ describe('coverage file selection', () => {
     expect(result.warnings).toEqual([])
   })
 
-  test('with include filters, excludes and adds unexecuted files as zero-hit (COV-SEL-01/03/04/05)', () => {
+  test('with include filters, excludes and adds unexecuted files as zero-hit', () => {
     const root = project(files)
     const result = selectedCoverage(
       mapOf(root, ['src/a.js', 'test/a.test.js']),
@@ -576,7 +576,7 @@ describe('coverage file selection', () => {
     ).toBe(0)
   })
 
-  test('matches include patterns anywhere in the path and dotfiles (COV-SEL-01)', () => {
+  test('matches include patterns anywhere in the path and dotfiles', () => {
     const root = project({
       '.hidden/x.js': 'export const x = 1\n',
       'src/a.js': 'export const a = 1\n',
@@ -593,7 +593,7 @@ describe('coverage file selection', () => {
 })
 
 describe('coverage map ids', () => {
-  test('hash the canonical zeroed template (NF-MEM-06)', () => {
+  test('hash the canonical zeroed template', () => {
     const template = coverageTemplate(fileCoverage('/p/a.ts', [3, 4]))
     expect(template.s).toEqual({ 0: 0, 1: 0 })
     expect(template.b).toEqual({ 0: [0, 0] })

@@ -22,9 +22,6 @@ import {
   sha256,
 } from './support.ts'
 
-// Port of 1.x test/unit/artifacts/trust.test.ts, plus the ART-ATT, ART-TRUST
-// and SCHEMA-ATTEST rows 1.x left untested.
-
 const secondKeys = generateKeyPairSync('ed25519')
 const secondPublicKey = secondKeys.publicKey
   .export({ format: 'pem', type: 'spki' })

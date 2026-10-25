@@ -30,7 +30,7 @@ interface CoverageRange {
 /**
  * A memo of pending lookups that forgets the least recently used entry past
  * its limit. 1.x memoized for the life of the process, which grew with every
- * distinct script URL a long-lived Playwright worker saw (PW-MAP-02/15).
+ * distinct script URL a long-lived Playwright worker saw.
  */
 class BoundedMemo<V> {
   private readonly entries = new Map<string, V>()
@@ -169,7 +169,7 @@ function inDependencies(relative: string): boolean {
 /**
  * The project-relative path a source name stands for, or null. A file under
  * `node_modules` is never attributed: the baseline ignores that directory, so
- * an edge to it could never select anything (PW-MAP-11).
+ * an edge to it could never select anything.
  */
 function sourcePath(
   root: string,

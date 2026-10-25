@@ -7,7 +7,7 @@ import type { TiaArtifactPublishReceipt } from '../../src/core/artifacts.ts'
 import { execute } from '../../src/cli/main.ts'
 import { graph, privateKeyPem, temporaryRoot, writeStored } from './support.ts'
 
-// ART-CLI-01..05 and CLI-ART-01..17: `tiacore artifacts publish|promote`.
+// `tiacore artifacts publish|promote`.
 
 afterEach(() => {
   vi.unstubAllEnvs()

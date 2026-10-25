@@ -27,9 +27,6 @@ import {
   writeStored,
 } from './support.ts'
 
-// Port of 1.x test/unit/artifacts/provider-artifacts.test.ts plus the ART-HTTP,
-// ART-GL, ART-GH and ART-FS rows 1.x left untested.
-
 const servers: Server[] = []
 const unsigned = { allowUnsigned: true }
 

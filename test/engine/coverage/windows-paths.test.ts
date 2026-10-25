@@ -7,8 +7,8 @@ import {
 } from '../../../src/engine/coverage/templates.ts'
 import { legacy } from '../../support/legacy.ts'
 
-// The Istanbul half of 1.x test/unit/protocol/paths.test.ts. Its other tests
-// cover host path handling and live in test/engine/host-path.test.ts.
+// Windows Istanbul coverage paths through CoverageTemplates, compared with 1.x.
+// Host path handling is in test/engine/host-path.test.ts.
 
 const old = await legacy<{
   CoverageTemplates: typeof CoverageTemplates

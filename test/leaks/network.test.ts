@@ -11,7 +11,7 @@ import {
 } from '../../src/runners/playwright/source-maps.ts'
 import { activeHandles, assertNoLeak, waitForHandles } from '../support/leak.ts'
 
-// NF-MEM: artifact providers fetch listings and archives from CI APIs. Every
+// Artifact providers fetch listings and archives from CI APIs. Every
 // response body is read to the limit and cancelled, or dropped, so a request
 // that is refused, too large or cut off leaves no socket or stream behind.
 

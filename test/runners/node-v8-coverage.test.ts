@@ -48,7 +48,6 @@ describe('node:test V8 coverage fallback', () => {
     expect(readNodeV8CoverageFiles(directory, root)).toEqual(['src/value.mjs'])
   })
 
-  // NODE-COV-01 (missing directory), NODE-COV-02, NODE-COV-03
   test('filters only a root-level node_modules and skips unreadable files', () => {
     const root = mkdtempSync(join(tmpdir(), 'tiacore-node-v8-'))
     temporaryDirectories.push(root)

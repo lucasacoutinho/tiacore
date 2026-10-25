@@ -61,7 +61,7 @@ export function readReport(path: string): PlaywrightRunReport | null {
 /**
  * Why a run's report cannot update the graph; empty when it can. A graph
  * built from a partial run would let an unobserved spec be treated as cached,
- * so each of these blocks the commit (PW-RUN-17..20), and each says why.
+ * so each of these blocks the commit, and each says why.
  */
 export function evidenceProblems(
   report: PlaywrightRunReport | null,

@@ -11,10 +11,9 @@ import { referencedCoverageMaps } from './coverage.ts'
 // as one string. Everything here is synchronous and pure; the stores add the
 // file system on top.
 //
-// Store version 3 (graph schema 5) differs from 1.x's version 2 in two ways:
-// bucket records are ordered by UTF-16 code unit, and `baseline.workingTree`
-// is a segment domain of its own, so a large dirty tree no longer counts
-// against the manifest's size limit (ADR 0004 row STATE-LIMIT-02).
+// Bucket records are ordered by UTF-16 code unit, and `baseline.workingTree`
+// is a segment domain of its own, so a large dirty tree does not count against
+// the manifest's size limit.
 
 export const TIA_RUNTIME_STORE_VERSION = 4 as const
 export const TIA_RUNTIME_STORE_BUCKETS = 64

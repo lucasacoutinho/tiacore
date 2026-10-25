@@ -20,7 +20,7 @@ import {
 } from '../../src/engine/state/coverage.ts'
 import { assertNoLeak } from '../support/leak.ts'
 
-// NF-MEM: a run with coverage enabled rebuilds Istanbul coverage from the
+// A run with coverage enabled rebuilds Istanbul coverage from the
 // graph and writes the reports on every complete run.
 
 let root = ''

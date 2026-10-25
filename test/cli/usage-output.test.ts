@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 
 import { describe, expect, test } from 'vitest'
 
-// 1.x printed a usage error and the command's help on stderr and nothing on
-// stdout, so a script that captures stdout never reads help as output.
-// Requested help, versions and completions go to stdout.
+// A usage error prints the command's help on stderr and nothing on stdout, so
+// a script that captures stdout never reads help as output. Requested help,
+// versions and completions go to stdout.
 
 const cli = resolve('dist/entries/cli.js')
 

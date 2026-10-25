@@ -13,7 +13,7 @@ import { GraphStoreMemory } from '../../src/engine/state/memory-store.ts'
 import { assertNoLeak } from '../support/leak.ts'
 import { coverageGraph } from '../engine/support/graphs.ts'
 
-// NF-MEM: artifact restore and the archive codec hold nothing across runs.
+// Artifact restore and the archive codec hold nothing across runs.
 
 const runtime = ManagedRuntime.make(
   Layer.mergeAll(

@@ -10,7 +10,7 @@ import {
 } from '../../src/engine/artifacts/archive.ts'
 import { graph, sha256 } from './support.ts'
 
-// ART-ZIP-01..15: the exact-name allowlist, the size limits and the nesting rule.
+// The exact-name allowlist, the size limits and the nesting rule.
 
 const json = (value: unknown) => strToU8(JSON.stringify(value))
 const NESTED = 'tiacore-0123456789abcdef01234567.zip'

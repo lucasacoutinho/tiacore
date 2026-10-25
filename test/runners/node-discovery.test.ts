@@ -74,7 +74,6 @@ describe('node:test discovery paths', () => {
     ])
   })
 
-  // NODE-DISC-04, NODE-DISC-05, NODE-PLAT-03
   test('builds ids from the root-relative path, position and full name', () => {
     const root = scratch()
     mkdirSync(join(root, 'test'))
@@ -102,7 +101,6 @@ describe('node:test discovery paths', () => {
 })
 
 describe('node version gates', () => {
-  // NODE-VER-01, NODE-VER-02
   test('programmatic coverage needs 22.10 and discovery hooks need 22.15', () => {
     expect(nodeVersionSupported('22.9.0')).toBe(false)
     expect(nodeVersionSupported('22.10.0')).toBe(true)

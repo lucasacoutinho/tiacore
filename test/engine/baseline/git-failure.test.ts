@@ -8,8 +8,8 @@ import { Baselines } from '../../../src/engine/ports.ts'
 import { EngineLive } from '../support/layers.ts'
 import { cleanupScratch, put, repository, scratch } from '../support/repos.ts'
 
-// BASE-GIT-01: any git failure (non-zero exit, git missing, output over
-// 20 MiB) yields null, never an error.
+// Any git failure (non-zero exit, git missing, output over 20 MiB) yields
+// null, never an error.
 
 const run = <A>(program: Effect.Effect<A, never, Baselines>): Promise<A> =>
   Effect.runPromise(program.pipe(Effect.provide(EngineLive)))

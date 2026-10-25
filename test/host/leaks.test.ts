@@ -21,7 +21,7 @@ import { disposeHost, recordSpans, runPromise } from '../../src/host/runtime.ts'
 import { TiaInvalid } from '../../src/wire/errors.ts'
 import { activeHandles, assertNoLeak, waitForHandles } from '../support/leak.ts'
 
-// NF-MEM: everything the host layer keeps alive between runs is released or
+// Everything the host layer keeps alive between runs is released or
 // bounded. The resources are the process-wide runtime, the span recorder, the
 // metric registry, the exporters (trace file, metrics file, OTLP) and the crash
 // report directory. The devtools client and server are in devtools-server.test.ts.

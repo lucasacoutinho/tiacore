@@ -16,9 +16,6 @@ import {
 import { baseGraph, coverageGraph, largeGraph } from '../support/graphs.ts'
 import { EngineLive, tempDirectory } from '../support/layers.ts'
 
-// Port of 1.x segmented-state.test.ts plus the STATE-LAYOUT/ADDR/GEN/DET/
-// LIMIT/READ/GC rows 1.x left untested.
-
 type Domain =
   | 'collectionCoverage'
   | 'coverageMaps'
@@ -117,7 +114,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'keeps a huge dirty working tree out of the manifest (STATE-LIMIT-02)',
+      'keeps a huge dirty working tree out of the manifest',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -142,7 +139,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'lays out metadata, seven-plus-one domains and sorted buckets (STATE-LAYOUT-02..05)',
+      'lays out metadata, seven-plus-one domains and sorted buckets',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -207,17 +204,15 @@ layer(EngineLive, { excludeTestServices: true })(
         }),
     )
 
-    it.effect(
-      'assigns buckets by sha256 of the key modulo 64 (STATE-BUCKET-01)',
-      () =>
-        Effect.sync(() => {
-          expect(TIA_RUNTIME_STORE_BUCKETS).toBe(64)
-          for (const key of ['a', 'case-000001', 'test/a.test.ts', 'é', '']) {
-            expect(bucketFor(key)).toBe(
-              createHash('sha256').update(key).digest()[0]! % 64,
-            )
-          }
-        }),
+    it.effect('assigns buckets by sha256 of the key modulo 64', () =>
+      Effect.sync(() => {
+        expect(TIA_RUNTIME_STORE_BUCKETS).toBe(64)
+        for (const key of ['a', 'case-000001', 'test/a.test.ts', 'é', '']) {
+          expect(bucketFor(key)).toBe(
+            createHash('sha256').update(key).digest()[0]! % 64,
+          )
+        }
+      }),
     )
 
     it.effect('reuses unchanged content-addressed buckets across commits', () =>
@@ -272,23 +267,21 @@ layer(EngineLive, { excludeTestServices: true })(
       }),
     )
 
-    it.effect(
-      'replaces a corrupt object of the same name (STATE-ADDR-02)',
-      () =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem
-          const cacheDir = yield* tempDirectory('tia-seg-')
-          const graph = largeGraph(20)
-          yield* write(cacheDir, graph)
-          const reference = (yield* manifestOf(cacheDir)).segments.results[0]!
-          const object = join(cacheDir, 'objects', `${reference.sha256}.json`)
-          const original = yield* fs.readFileString(object)
-          yield* fs.writeFileString(object, 'x'.repeat(original.length))
-          expect(yield* readGraph(cacheDir)).toBeNull()
-          yield* write(cacheDir, graph)
-          expect(yield* fs.readFileString(object)).toBe(original)
-          expect(yield* readGraph(cacheDir)).toEqual(graph)
-        }),
+    it.effect('replaces a corrupt object of the same name', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        const graph = largeGraph(20)
+        yield* write(cacheDir, graph)
+        const reference = (yield* manifestOf(cacheDir)).segments.results[0]!
+        const object = join(cacheDir, 'objects', `${reference.sha256}.json`)
+        const original = yield* fs.readFileString(object)
+        yield* fs.writeFileString(object, 'x'.repeat(original.length))
+        expect(yield* readGraph(cacheDir)).toBeNull()
+        yield* write(cacheDir, graph)
+        expect(yield* fs.readFileString(object)).toBe(original)
+        expect(yield* readGraph(cacheDir)).toEqual(graph)
+      }),
     )
 
     it.effect('fails closed when a referenced object is corrupted', () =>
@@ -308,7 +301,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'fails closed when an object is missing, truncated or mismatched (STATE-READ-03)',
+      'fails closed when an object is missing, truncated or mismatched',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -339,7 +332,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'rejects a record that hashes to another bucket or repeats across buckets (STATE-READ-03)',
+      'rejects a record that hashes to another bucket or repeats across buckets',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -380,87 +373,83 @@ layer(EngineLive, { excludeTestServices: true })(
         }),
     )
 
-    it.effect(
-      'rejects tampered, retyped and malformed manifests (STATE-READ-02, STATE-LIMIT-03)',
-      () =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem
-          const graph = largeGraph(30)
-          const damage: Array<(manifest: Manifest) => void> = [
-            (m) => {
-              m.version = 2
-            },
-            (m) => {
-              m.format = 'other'
-            },
-            (m) => {
-              m.segments.edges[0]!.bucket = 64
-            },
-            (m) => {
-              m.segments.edges[0]!.bucket = -1
-            },
-            (m) => {
-              m.segments.edges[0]!.bytes = 0
-            },
-            (m) => {
-              m.segments.edges[0]!.bytes = 20 * 1024 * 1024 + 1
-            },
-            (m) => {
-              m.segments.edges[0]!.entries = 0
-            },
-            (m) => {
-              m.segments.edges[0]!.sha256 = 'ABC'
-            },
-            (m) => {
-              m.segments.edges.push({ ...m.segments.edges[0]! })
-            },
-            (m) => {
-              delete (m.segments as Record<string, unknown>).workingTree
-            },
-            (m) => {
-              m.segments.results = {} as never
-            },
-          ]
-          for (const edit of damage) {
-            const cacheDir = yield* tempDirectory('tia-seg-')
-            yield* write(cacheDir, graph)
-            yield* rewriteManifest(cacheDir, edit)
-            expect(yield* readGraph(cacheDir)).toBeNull()
-          }
-          // A hand edit that leaves the generation stale is rejected too.
+    it.effect('rejects tampered, retyped and malformed manifests', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const graph = largeGraph(30)
+        const damage: Array<(manifest: Manifest) => void> = [
+          (m) => {
+            m.version = 2
+          },
+          (m) => {
+            m.format = 'other'
+          },
+          (m) => {
+            m.segments.edges[0]!.bucket = 64
+          },
+          (m) => {
+            m.segments.edges[0]!.bucket = -1
+          },
+          (m) => {
+            m.segments.edges[0]!.bytes = 0
+          },
+          (m) => {
+            m.segments.edges[0]!.bytes = 20 * 1024 * 1024 + 1
+          },
+          (m) => {
+            m.segments.edges[0]!.entries = 0
+          },
+          (m) => {
+            m.segments.edges[0]!.sha256 = 'ABC'
+          },
+          (m) => {
+            m.segments.edges.push({ ...m.segments.edges[0]! })
+          },
+          (m) => {
+            delete (m.segments as Record<string, unknown>).workingTree
+          },
+          (m) => {
+            m.segments.results = {} as never
+          },
+        ]
+        for (const edit of damage) {
           const cacheDir = yield* tempDirectory('tia-seg-')
           yield* write(cacheDir, graph)
-          const manifest = yield* manifestOf(cacheDir)
-          manifest.metadata.fingerprint = 'tampered'
-          yield* fs.writeFileString(
-            join(cacheDir, 'state.json'),
-            JSON.stringify(manifest),
-          )
+          yield* rewriteManifest(cacheDir, edit)
           expect(yield* readGraph(cacheDir)).toBeNull()
-        }),
+        }
+        // A hand edit that leaves the generation stale is rejected too.
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        yield* write(cacheDir, graph)
+        const manifest = yield* manifestOf(cacheDir)
+        manifest.metadata.fingerprint = 'tampered'
+        yield* fs.writeFileString(
+          join(cacheDir, 'state.json'),
+          JSON.stringify(manifest),
+        )
+        expect(yield* readGraph(cacheDir)).toBeNull()
+      }),
     )
 
-    it.effect(
-      'reads damaged state.json as no graph, never an error (STATE-READ-01)',
-      () =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem
-          const cacheDir = yield* tempDirectory('tia-seg-')
+    it.effect('reads damaged state.json as no graph, never an error', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        expect(yield* readGraph(cacheDir)).toBeNull()
+        for (const body of [
+          '',
+          '{"schema":3',
+          '[]',
+          'null',
+          'x'.repeat(1024 * 1024 + 1),
+        ]) {
+          yield* fs.writeFileString(join(cacheDir, 'state.json'), body)
           expect(yield* readGraph(cacheDir)).toBeNull()
-          for (const body of [
-            '',
-            '{"schema":3',
-            '[]',
-            'null',
-            'x'.repeat(1024 * 1024 + 1),
-          ]) {
-            yield* fs.writeFileString(join(cacheDir, 'state.json'), body)
-            expect(yield* readGraph(cacheDir)).toBeNull()
-          }
-          yield* fs.remove(join(cacheDir, 'state.json'))
-          yield* fs.makeDirectory(join(cacheDir, 'state.json'))
-          expect(yield* readGraph(cacheDir)).toBeNull()
-        }),
+        }
+        yield* fs.remove(join(cacheDir, 'state.json'))
+        yield* fs.makeDirectory(join(cacheDir, 'state.json'))
+        expect(yield* readGraph(cacheDir)).toBeNull()
+      }),
     )
 
     it.effect(
@@ -482,7 +471,7 @@ layer(EngineLive, { excludeTestServices: true })(
         }),
     )
 
-    it.effect('rejects coverage that names a missing map (STATE-READ-06)', () =>
+    it.effect('rejects coverage that names a missing map', () =>
       Effect.gen(function* () {
         const cacheDir = yield* tempDirectory('tia-seg-')
         const graph = coverageGraph(3)
@@ -492,54 +481,52 @@ layer(EngineLive, { excludeTestServices: true })(
       }),
     )
 
-    it.effect(
-      'rejects malformed counters, maps and partitions (STATE-READ-05, -07)',
-      () =>
-        Effect.gen(function* () {
-          const bad: Array<(graph: TiaRuntimeGraph) => void> = [
-            (g) => {
-              g.testCoverage['case-000000']!['src/shared.ts']!.s = { 1: 1.5 }
-            },
-            (g) => {
-              g.coverageMaps.shared!.s = { 0: Number.MAX_SAFE_INTEGER + 2 }
-            },
-            (g) => {
-              g.results['case-000000']!.state = 'weird' as never
-            },
-            (g) => {
-              g.partition = { index: 0, total: 2 }
-            },
-            (g) => {
-              g.partition = { index: 3, total: 2 }
-            },
-            (g) => {
-              g.partition = { index: 1.5, total: 2 }
-            },
-            (g) => {
-              g.baseline.source = 'svn' as never
-            },
-            (g) => {
-              g.edges['x'] = [1 as never]
-            },
-          ]
-          for (const damage of bad) {
-            const cacheDir = yield* tempDirectory('tia-seg-')
-            const graph = coverageGraph(3)
-            damage(graph)
-            yield* write(cacheDir, graph)
-            expect(yield* readGraph(cacheDir)).toBeNull()
-          }
+    it.effect('rejects malformed counters, maps and partitions', () =>
+      Effect.gen(function* () {
+        const bad: Array<(graph: TiaRuntimeGraph) => void> = [
+          (g) => {
+            g.testCoverage['case-000000']!['src/shared.ts']!.s = { 1: 1.5 }
+          },
+          (g) => {
+            g.coverageMaps.shared!.s = { 0: Number.MAX_SAFE_INTEGER + 2 }
+          },
+          (g) => {
+            g.results['case-000000']!.state = 'weird' as never
+          },
+          (g) => {
+            g.partition = { index: 0, total: 2 }
+          },
+          (g) => {
+            g.partition = { index: 3, total: 2 }
+          },
+          (g) => {
+            g.partition = { index: 1.5, total: 2 }
+          },
+          (g) => {
+            g.baseline.source = 'svn' as never
+          },
+          (g) => {
+            g.edges['x'] = [1 as never]
+          },
+        ]
+        for (const damage of bad) {
           const cacheDir = yield* tempDirectory('tia-seg-')
-          const good = coverageGraph(3)
-          good.partition = { group: 'g', index: 2, total: 2 }
-          delete good.coverageMaps.unused
-          yield* write(cacheDir, good)
-          expect(yield* readGraph(cacheDir)).toEqual(good)
-        }),
+          const graph = coverageGraph(3)
+          damage(graph)
+          yield* write(cacheDir, graph)
+          expect(yield* readGraph(cacheDir)).toBeNull()
+        }
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        const good = coverageGraph(3)
+        good.partition = { group: 'g', index: 2, total: 2 }
+        delete good.coverageMaps.unused
+        yield* write(cacheDir, good)
+        expect(yield* readGraph(cacheDir)).toEqual(good)
+      }),
     )
 
     it.effect(
-      'rebuilds instead of reading a store written by an older version (STATE-VER-01, -02)',
+      'rebuilds instead of reading a store written by an older version',
       () =>
         Effect.gen(function* () {
           const cacheDir = yield* tempDirectory('tia-seg-')
@@ -564,7 +551,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'orders records by code unit whatever their insertion order (STATE-DET-01, -02)',
+      'orders records by code unit whatever their insertion order',
       () =>
         Effect.gen(function* () {
           const keys = ['a', 'B', '_', 'é', 'Z', '-', 'a0', 'ä', 'a b', 'A']
@@ -603,7 +590,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'refuses a segment over the storage limit and keeps the previous state (STATE-LIMIT-01)',
+      'refuses a segment over the storage limit and keeps the previous state',
       () =>
         Effect.gen(function* () {
           const cacheDir = yield* tempDirectory('tia-seg-')
@@ -628,46 +615,42 @@ layer(EngineLive, { excludeTestServices: true })(
       60_000,
     )
 
-    it.effect(
-      'refuses a manifest over 1 MiB before the rename (STATE-LIMIT-02)',
-      () =>
-        Effect.gen(function* () {
-          const cacheDir = yield* tempDirectory('tia-seg-')
-          const graph = baseGraph()
-          yield* write(cacheDir, graph)
-          const bloated: TiaRuntimeGraph & { notes?: string } =
-            structuredClone(graph)
-          bloated.notes = 'n'.repeat(1024 * 1024)
-          const store = yield* GraphStore
-          const stored = yield* store.read(cacheDir)
-          const failure = yield* Effect.flip(
-            store.commit(cacheDir, {
-              expected: stored.graph,
-              expectedDigest: stored.digest,
-              graph: bloated,
-            }),
-          )
-          expect(failure.message).toBe(
-            'TIA runtime state manifest exceeds the storage limit',
-          )
-          expect(yield* readGraph(cacheDir)).toEqual(graph)
-        }),
+    it.effect('refuses a manifest over 1 MiB before the rename', () =>
+      Effect.gen(function* () {
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        const graph = baseGraph()
+        yield* write(cacheDir, graph)
+        const bloated: TiaRuntimeGraph & { notes?: string } =
+          structuredClone(graph)
+        bloated.notes = 'n'.repeat(1024 * 1024)
+        const store = yield* GraphStore
+        const stored = yield* store.read(cacheDir)
+        const failure = yield* Effect.flip(
+          store.commit(cacheDir, {
+            expected: stored.graph,
+            expectedDigest: stored.digest,
+            graph: bloated,
+          }),
+        )
+        expect(failure.message).toBe(
+          'TIA runtime state manifest exceeds the storage limit',
+        )
+        expect(yield* readGraph(cacheDir)).toEqual(graph)
+      }),
+    )
+
+    it.effect('writes only the maps coverage records name', () =>
+      Effect.gen(function* () {
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        yield* write(cacheDir, coverageGraph(5))
+        expect(
+          Object.keys((yield* readGraph(cacheDir))?.coverageMaps ?? {}),
+        ).toEqual(['shared'])
+      }),
     )
 
     it.effect(
-      'writes only the maps coverage records name (STATE-WRITE-03)',
-      () =>
-        Effect.gen(function* () {
-          const cacheDir = yield* tempDirectory('tia-seg-')
-          yield* write(cacheDir, coverageGraph(5))
-          expect(
-            Object.keys((yield* readGraph(cacheDir))?.coverageMaps ?? {}),
-          ).toEqual(['shared'])
-        }),
-    )
-
-    it.effect(
-      'collects unreferenced objects older than 24 h only (STATE-GC-01, -02)',
+      'collects unreferenced objects older than 24 h only',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -723,7 +706,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'removes abandoned temporary files at the start of a commit (STATE-WRITE-07)',
+      'removes abandoned temporary files at the start of a commit',
       () =>
         Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem
@@ -757,7 +740,7 @@ layer(EngineLive, { excludeTestServices: true })(
         }),
     )
 
-    it.effect('purge removes only state.json (STATE-WRITE-06)', () =>
+    it.effect('purge removes only state.json', () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem
         const cacheDir = yield* tempDirectory('tia-seg-')
@@ -773,7 +756,7 @@ layer(EngineLive, { excludeTestServices: true })(
       }),
     )
 
-    it.effect('a copied store directory stays valid (STATE-PART-06)', () =>
+    it.effect('a copied store directory stays valid', () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem
         const cacheDir = yield* tempDirectory('tia-seg-')

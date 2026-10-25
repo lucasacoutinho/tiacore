@@ -11,8 +11,8 @@ import {
   runVitest,
 } from '../../support/integration-project.ts'
 
-// Port of the Vitest case of 1.x test/integration/storage/failure-injection.
-// The other cases of that file are in storage.integration.test.ts and
+// The Vitest case of failure injection. The other cases are in
+// storage.integration.test.ts and
 // test/integration/runners/failure-injection.integration.test.ts.
 
 afterEach(cleanupProjects)

@@ -18,9 +18,7 @@ import {
 import { legacy } from '../../support/legacy.ts'
 import { baseGraph, coverageGraph } from '../support/graphs.ts'
 
-// STATE-COV-01..06: graph-side coverage. The 1.x tests that reach these
-// functions through integrations/coverage (CoverageTemplates) belong to the
-// integrations port; here every function is compared with 1.x directly.
+// Graph-side coverage: every function is compared with 1.x directly.
 
 const oracle = await legacy<{
   compactFileCoverage: typeof compactFileCoverage
@@ -76,7 +74,7 @@ describe('coverage templates', () => {
     expect(template).toEqual(oracle.coverageTemplate(file))
   })
 
-  test('are named by content, not by path (STATE-COV-02)', () => {
+  test('are named by content, not by path', () => {
     const local = coverageTemplate(fileCoverage([1, 0]))
     const ci = coverageTemplate(fileCoverage([5, 5]))
     expect(coverageMapId(local)).toBe(coverageMapId(ci))
@@ -86,7 +84,7 @@ describe('coverage templates', () => {
     expect(coverageMapId(other)).not.toBe(coverageMapId(local))
   })
 
-  test('compact into advanced counters and expand to the exact dense data (STATE-COV-03, -04)', () => {
+  test('compact into advanced counters and expand to the exact dense data', () => {
     const file = fileCoverage([3, 0])
     const { hits, template } = compactFileCoverage(file)
     expect(hits).toEqual({
@@ -120,7 +118,7 @@ describe('coverage templates', () => {
 })
 
 describe('coverage map bookkeeping', () => {
-  test('lists referenced maps and prunes the rest in place (STATE-COV-05)', () => {
+  test('lists referenced maps and prunes the rest in place', () => {
     const graph = coverageGraph(4)
     graph.collectionCoverage['test/a.test.ts'] = {
       'src/b.ts': { b: {}, f: {}, map: 'collection', s: {} },
@@ -140,7 +138,7 @@ describe('coverage map bookkeeping', () => {
     expect(graph.coverageMaps).toBe(table)
   })
 
-  test('cloning deep-copies the records and shares the immutable maps (STATE-COV-06)', () => {
+  test('cloning deep-copies the records and shares the immutable maps', () => {
     const graph = coverageGraph(4)
     const copy = cloneGraph(graph)
     expect(copy).toEqual(graph)

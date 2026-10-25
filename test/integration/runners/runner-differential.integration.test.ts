@@ -32,7 +32,7 @@ function shape(result: TiaRunnerResult): object {
 
 // The same fixture through the 1.x runner and the 2.0 runner must observe the
 // same cases with the same dependency files. (1.x's CommonJS shim turned
-// `test.skip` into a plain test, NODE-SHIM-06; this fixture is ESM, so both
+// `test.skip` into a plain test; this fixture is ESM, so both
 // agree here, and test/runners/node-shim.test.ts pins the CommonJS case.)
 describe('node runner against the 1.x oracle', () => {
   test('record, replay and change observe the same cases and files', async () => {

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { execute } from '../../src/cli/main.ts'
 import { assertNoLeak } from '../support/leak.ts'
 
-// NF-MEM: a process that runs the CLI in-process again and again (a test
+// A process that runs the CLI in-process again and again (a test
 // suite, an editor integration, `runCli` from a script) retains nothing per
 // invocation: not the Effect layers, the observability exporters, the signal
 // listeners or the devtools server socket.

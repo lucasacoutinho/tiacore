@@ -33,9 +33,6 @@ import {
   writeStored,
 } from './support.ts'
 
-// Port of 1.x test/unit/artifacts/publish.test.ts plus the ART-PUB, ART-SINK
-// and ART-ZIP-writer rows 1.x left untested.
-
 const signing = { keyId: 'fixture-key', privateKey: privateKeyPem }
 
 function fixture(overrides: Partial<TiaRuntimeGraph> = {}) {

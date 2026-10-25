@@ -21,10 +21,10 @@ import { graphDigest } from '../../../src/engine/state/segments.ts'
 import { baseGraph } from '../../engine/support/graphs.ts'
 import { EngineLive } from '../../engine/support/layers.ts'
 
-// Ports of 1.x test/integration/storage: the multi-process transaction test
-// and the killed-writer failure injection. The Vitest-driven worktree and
-// worker-exit tests wait for the Vitest integration (wave 2); their store
-// mechanics are covered here and in test/engine.
+// The multi-process transaction test and the killed-writer failure injection.
+// The Vitest-driven worktree and worker-exit cases are in
+// worktrees.integration.test.ts and
+// vitest-failure-injection.integration.test.ts.
 
 const writer = fileURLToPath(
   new URL('../../fixtures/transaction-writer.mjs', import.meta.url),
@@ -193,7 +193,7 @@ describe('failure injection', () => {
     ).toEqual([])
   })
 
-  test('leaves state.json byte-identical when a writer dies before its commit (STATE-TXN-20)', async () => {
+  test('leaves state.json byte-identical when a writer dies before its commit', async () => {
     const root = scratch()
     const cacheDir = join(root, '.tia')
     const expected = baseGraph()

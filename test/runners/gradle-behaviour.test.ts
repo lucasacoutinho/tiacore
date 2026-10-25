@@ -346,7 +346,7 @@ describe('Gradle runner', () => {
     expect(failing.cases.length).toBeGreaterThan(0)
   })
 
-  test('rejects result files left by an earlier run (GRADLE-RUN-09)', async () => {
+  test('rejects result files left by an earlier run', async () => {
     const { directory, root } = await copy()
     const good = await runner(root, directory).run()
     expect(good).toMatchObject({ status: 0, success: true })

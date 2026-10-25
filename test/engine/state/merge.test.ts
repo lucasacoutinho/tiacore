@@ -4,8 +4,6 @@ import type { TiaRuntimeGraph } from '../../../src/core/runtime.ts'
 import { mergePartitionedGraphs } from '../../../src/engine/state/merge.ts'
 import { baseGraph } from '../support/graphs.ts'
 
-// Port of 1.x test/unit/engine/merge.test.ts.
-
 function fragment(index: number, total = 2): TiaRuntimeGraph {
   const id = `case-${index}`
   const file = `test/${index}.test.ts`
@@ -60,14 +58,14 @@ describe('partial graph merging', () => {
     ).toBeNull()
   })
 
-  test('returns null for no fragments or a first fragment without a partition (STATE-MERGE-01)', () => {
+  test('returns null for no fragments or a first fragment without a partition', () => {
     expect(mergePartitionedGraphs([])).toBeNull()
     const whole = fragment(1)
     delete whole.partition
     expect(mergePartitionedGraphs([whole, fragment(1), fragment(2)])).toBeNull()
   })
 
-  test('skips fragments that are complete or differ in group, total or fingerprint (STATE-MERGE-02)', () => {
+  test('skips fragments that are complete or differ in group, total or fingerprint', () => {
     const odd = [
       Object.assign(fragment(2), { complete: true }),
       Object.assign(fragment(2), { fingerprint: 'other' }),
@@ -84,7 +82,7 @@ describe('partial graph merging', () => {
     }
   })
 
-  test('accepts a repeated index with an identical graph (STATE-MERGE-03)', () => {
+  test('accepts a repeated index with an identical graph', () => {
     expect(
       mergePartitionedGraphs([fragment(1), fragment(1), fragment(2)]),
     ).not.toBeNull()
@@ -107,7 +105,7 @@ describe('partial graph merging', () => {
     expect(mergePartitionedGraphs([empty])).toBeNull()
   })
 
-  test('refuses overlapping keys that disagree across indexes (STATE-MERGE-06)', () => {
+  test('refuses overlapping keys that disagree across indexes', () => {
     const first = fragment(1)
     const second = fragment(2)
     second.edges['test/1.test.ts'] = ['src/other.ts']
@@ -116,7 +114,7 @@ describe('partial graph merging', () => {
     expect(mergePartitionedGraphs([first, second])).not.toBeNull()
   })
 
-  test('ands coverageComplete, takes the first fragment identity and prunes maps (STATE-MERGE-05)', () => {
+  test('ands coverageComplete, takes the first fragment identity and prunes maps', () => {
     const first = fragment(1)
     const second = fragment(2)
     second.coverageComplete = false

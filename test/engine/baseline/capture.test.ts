@@ -26,8 +26,8 @@ import {
   vcs,
 } from '../support/repos.ts'
 
-// BASE-CAP-*, BASE-CHG-*, BASE-GIT-*: the live Baselines against the built
-// 1.x capture module on the same scratch projects.
+// The live Baselines against the built 1.x capture module on the same scratch
+// projects.
 
 const oracle = await legacy<{
   captureBaseline: (root: string, ignored: string | string[]) => Baseline | null
@@ -173,7 +173,7 @@ describe('git baselines match 1.x', () => {
     })
   }
 
-  test('records the exact working tree of a dirty checkout (BASE-CAP-01)', async () => {
+  test('records the exact working tree of a dirty checkout', async () => {
     const root = repository(FILES)
     put(root, 'src/a.ts', 'dirty\n')
     unlinkSync(join(root, 'src/b.ts'))
@@ -190,7 +190,7 @@ describe('git baselines match 1.x', () => {
     expect((await capture(repository(FILES)))?.workingTree).toEqual({})
   })
 
-  test('relativizes repository listings to a nested project root (BASE-GIT-03)', async () => {
+  test('relativizes repository listings to a nested project root', async () => {
     const outer = repository({
       'app/src/a.ts': 'a\n',
       'other/x.ts': 'x\n',
@@ -207,7 +207,7 @@ describe('git baselines match 1.x', () => {
     ])
   })
 
-  test('skips untracked files that vanish and reports deletions (BASE-CAP-01)', async () => {
+  test('skips untracked files that vanish and reports deletions', async () => {
     const root = repository(FILES)
     put(root, 'src/new.ts')
     const baseline = await capture(root)
@@ -247,7 +247,7 @@ const tree = (root: string) => {
 }
 
 describe('filesystem baselines match 1.x', () => {
-  test('walks a project outside a repository with the .gitignore rules (BASE-CAP-03..07)', async () => {
+  test('walks a project outside a repository with the .gitignore rules', async () => {
     const root = scratch()
     tree(root)
     const expected = oracle.captureBaseline(root, ['custom-cache'])
@@ -266,7 +266,7 @@ describe('filesystem baselines match 1.x', () => {
     expect(files.some((file) => file.includes('timestamp-'))).toBe(false)
   })
 
-  test('detects edits, additions and deletions (BASE-CHG-01)', async () => {
+  test('detects edits, additions and deletions', async () => {
     const root = scratch()
     tree(root)
     const baseline = (await capture(root))!
@@ -290,7 +290,7 @@ describe('filesystem baselines match 1.x', () => {
   })
 })
 
-describe('fail-safe capture (BASE-CAP-09, ADR row)', () => {
+describe('fail-safe capture', () => {
   test('an untracked symlink to a directory makes the baseline null', async () => {
     const root = repository(FILES)
     mkdirSync(join(root, 'real-dir'))
@@ -379,7 +379,7 @@ describe('fail-safe capture (BASE-CAP-09, ADR row)', () => {
   })
 })
 
-describe('commits and ancestry (BASE-GIT-04, -05, BASE-CHG-02, -03)', () => {
+describe('commits and ancestry', () => {
   test('reads HEAD, and nothing outside a repository or on an unborn HEAD', async () => {
     const root = repository(FILES)
     expect(await currentSha(root)).toBe(vcs(root, 'rev-parse', 'HEAD'))
@@ -431,7 +431,7 @@ describe('commits and ancestry (BASE-GIT-04, -05, BASE-CHG-02, -03)', () => {
     expect(await changedSince(root, ahead)).toBeNull()
   })
 
-  test('is null for a git baseline outside a repository (BASE-CHG-03)', async () => {
+  test('is null for a git baseline outside a repository', async () => {
     const root = scratch()
     expect(
       await changedSince(root, { sha: 'abc', source: 'git', workingTree: {} }),
@@ -439,7 +439,7 @@ describe('commits and ancestry (BASE-GIT-04, -05, BASE-CHG-02, -03)', () => {
     expect(await changedSince(root, { sha: 'abc', workingTree: {} })).toBeNull()
   })
 
-  test('treats a baseline without a source as git (BASE-CHG-02)', async () => {
+  test('treats a baseline without a source as git', async () => {
     const root = repository(FILES)
     const baseline = (await capture(root))!
     const { source: _source, ...bare } = baseline
@@ -447,7 +447,7 @@ describe('commits and ancestry (BASE-GIT-04, -05, BASE-CHG-02, -03)', () => {
     expect(await changedSince(root, bare)).toEqual(['src/a.ts'])
   })
 
-  test('counts a rename as a delete and an add (BASE-GIT-07)', async () => {
+  test('counts a rename as a delete and an add', async () => {
     const root = repository(FILES)
     const baseline = (await capture(root))!
     vcs(root, 'mv', 'src/a.ts', 'src/renamed.ts')

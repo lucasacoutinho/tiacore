@@ -18,7 +18,7 @@ import {
 import type { TiaError } from '../../src/wire/errors.ts'
 import { assertNoLeak } from '../support/leak.ts'
 
-// NF-MEM: every path that ends a child early (interruption, which is what a
+// Every path that ends a child early (interruption, which is what a
 // timeout does, and output overflow) must kill it, and its grandchildren, and
 // release its pipes.
 

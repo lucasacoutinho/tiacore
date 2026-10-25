@@ -5,9 +5,8 @@ import { installProbe } from '../../src/probe/index.ts'
 import type { ProbeCoverageMap } from '../../src/probe/types.ts'
 import { assertNoLeak } from '../support/leak.ts'
 
-// NF-MEM-01/02: the worker sends counters that advanced, never static maps, so
-// a test's payload does not grow with the module count (CHANGELOG 1.1.0, the
-// worker-memory fix; ADR 0003).
+// The worker sends counters that advanced, never static maps, so a test's
+// payload does not grow with the module count.
 
 const VARIABLE = '__tiacore_probe_payload__'
 const globals = globalThis as unknown as Record<string, unknown>

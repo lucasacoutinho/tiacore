@@ -11,7 +11,7 @@ import {
   restore,
 } from './support.ts'
 
-// ART-RESTORE-02/07/08/10/11/13/17/19 and the ancestry selection 2.0 adds.
+// Restore policy and ancestry selection.
 
 const unsigned = { allowUnsigned: true }
 

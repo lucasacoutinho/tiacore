@@ -97,7 +97,6 @@ describe('node runner child processes', () => {
     )
   })
 
-  // NODE-EXEC-02, NODE-EXEC-03
   test('a timed-out child becomes a synthetic failure of every requested file', async () => {
     const root = project({ 'test/hang.test.mjs': HANGING_TEST })
     const execution = await runPromise(
@@ -131,7 +130,7 @@ describe('node runner child processes', () => {
 })
 
 describe('node aggregate mode (Node without discovery hooks)', () => {
-  // NODE-AGG-02: 1.x committed a complete graph after a module failure or timeout.
+  // A module failure or timeout must never commit a complete graph.
   test('a module failure makes the batch incomplete', async () => {
     vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
     const root = project({
@@ -195,7 +194,6 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
 })
 
 describe('node runner options', () => {
-  // NODE-PAR-03
   test('rejects a NaN or infinite concurrency instead of dropping or unbounding work', () => {
     expect(() => tia({ concurrency: Number.NaN })).toThrow(
       'concurrency must be a finite number',
@@ -209,7 +207,6 @@ describe('node runner options', () => {
     expect(() => tia({ concurrency: 0.5, log: false })).not.toThrow()
   })
 
-  // NODE-VER-01
   test('refuses an old Node before reading or writing anything', async () => {
     const root = project({ 'test/good.test.mjs': GOOD_TEST })
     const runner = tia({ log: false, root })
@@ -231,7 +228,6 @@ describe('node runner options', () => {
     expect(existsSync(join(root, '.tia'))).toBe(false)
   })
 
-  // NODE-OPT-04
   test('keeps the cache under the real path of a symlinked root', async () => {
     const root = project({
       'src/value.mjs': 'export const value = 1\n',
@@ -252,7 +248,6 @@ describe('node runner options', () => {
     expect(existsSync(join(root, '.tia/node'))).toBe(true)
   })
 
-  // NODE-FAIL-04
   test('an empty file set still commits an empty baseline', async () => {
     const root = project({ 'README.md': 'nothing to test\n' })
     const result = await tia({

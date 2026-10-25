@@ -13,7 +13,7 @@ import {
   writeStored,
 } from '../artifacts/support.ts'
 
-// NF-MEM: publishing builds a zip, signs it and rewrites a manifest. A CI
+// Publishing builds a zip, signs it and rewrites a manifest. A CI
 // agent that publishes after every run must not grow, in memory or on disk.
 
 afterAll(disposeHost)
