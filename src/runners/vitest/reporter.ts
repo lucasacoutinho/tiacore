@@ -38,6 +38,7 @@ import { cachedTestCase } from './cached-test.ts'
 import {
   directlyImportedAssetFiles,
   importedAssetFiles,
+  type ModuleGraphLike,
 } from './module-graph.ts'
 import {
   TIA_META_KEY,
@@ -63,6 +64,12 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
+interface ModuleEvidence {
+  readonly concurrent: boolean
+  readonly graph: ModuleGraphLike | undefined
+  readonly shared: ReadonlySet<string>
+}
+
 /**
  * Collects what each worker observed and, at the end of a complete run,
  * commits the updated graph, reconstructs coverage and notifies replay
@@ -77,6 +84,8 @@ export class TiaReporter implements Reporter {
   private readonly results = new Map<string, CachedTestResult>()
   private readonly testEdges = new Map<string, TiaTestEdge>()
   private readonly testCoverage = new Map<string, TiaCoverageRecord>()
+  /** What each finished module adds to its tests' edges, applied at run end. */
+  private readonly modules = new Map<string, ModuleEvidence>()
   private incomplete = false
   private uninstrumentedCoverage = false
   private vitest: Vitest | null = null
@@ -183,39 +192,13 @@ export class TiaReporter implements Reporter {
         dependencies.add(asset)
         shared.add(asset)
       }
-      for (const [id, edge] of this.testEdges) {
-        if (edge.file !== testFile) continue
-        const caseAssets = new Set<string>()
-        for (const dependency of edge.files) {
-          if (dependency === testFile) continue
-          for (const asset of importedAssetFiles(
-            graph,
-            resolve(this.runtime.root, dependency),
-            this.runtime.root,
-          )) {
-            caseAssets.add(asset)
-            dependencies.add(asset)
-          }
-        }
-        this.testEdges.set(id, {
-          file: edge.file,
-          files: [...new Set([...edge.files, ...caseAssets])].sort(),
-        })
-      }
     }
 
-    for (const [id, edge] of this.testEdges) {
-      if (edge.file !== testFile) continue
-      if (value.concurrent) {
-        this.testEdges.delete(id)
-        this.testCoverage.delete(id)
-      } else {
-        this.testEdges.set(id, {
-          file: edge.file,
-          files: [...new Set([...edge.files, ...shared])].sort(),
-        })
-      }
-    }
+    this.modules.set(testFile, {
+      concurrent: value.concurrent,
+      graph: module.viteEnvironment?.moduleGraph,
+      shared,
+    })
     this.executedFiles.add(testFile)
     this.edges.set(testFile, [...dependencies].sort())
   }
@@ -259,6 +242,43 @@ export class TiaReporter implements Reporter {
     for (const dependency of frameworkEdges.files) dependencies.add(dependency)
     this.testEdges.set(testCase.id, { file, files: [...dependencies].sort() })
     this.retainCoverage(this.testCoverage, testCase.id, meta.coverage)
+  }
+
+  /**
+   * Gives each test the evidence its module shares: assets its own
+   * dependencies import, and the module's collection files. Tests of a module
+   * recorded in concurrent mode lose their per-test edges and fall back to the
+   * whole file. Done at run end, because Vitest may report a test case after
+   * its module.
+   */
+  private mergeModuleEvidence(): void {
+    for (const [id, edge] of this.testEdges) {
+      const evidence = this.modules.get(edge.file)
+      if (evidence === undefined) continue
+      if (evidence.concurrent) {
+        this.testEdges.delete(id)
+        this.testCoverage.delete(id)
+        continue
+      }
+      const files = new Set([...edge.files, ...evidence.shared])
+      if (evidence.graph !== undefined) {
+        const moduleEdges = new Set(this.edges.get(edge.file))
+        for (const dependency of edge.files) {
+          if (dependency === edge.file) continue
+          for (const asset of importedAssetFiles(
+            evidence.graph,
+            resolve(this.runtime.root, dependency),
+            this.runtime.root,
+          )) {
+            files.add(asset)
+            moduleEdges.add(asset)
+          }
+        }
+        this.edges.set(edge.file, [...moduleEdges].sort())
+      }
+      this.testEdges.set(id, { file: edge.file, files: [...files].sort() })
+    }
+    this.modules.clear()
   }
 
   private retainCoverage(
@@ -306,6 +326,7 @@ export class TiaReporter implements Reporter {
       )
       return
     }
+    this.mergeModuleEvidence()
     this.recordModuleFailures(modules)
     const recordComplete =
       plan.mode !== 'record' ||
