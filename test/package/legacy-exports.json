@@ -1,0 +1,87 @@
+{
+  ".": ["default", "tia"],
+  "./vitest": ["default", "tia"],
+  "./adapter": ["TIA_TYPESCRIPT_ADAPTER_VERSION", "TiaAdapter", "tia"],
+  "./artifacts": [
+    "TIA_ARTIFACT_ATTESTATION_VERSION",
+    "TIA_ARTIFACT_MANIFEST_VERSION",
+    "TiaArtifactPublisher",
+    "createArtifactAttestation",
+    "createFilesystemArtifactSink",
+    "parseArtifactAttestation",
+    "tia",
+    "verifyArtifactAttestation"
+  ],
+  "./core": [
+    "TIA_PROTOCOL_LIMITS",
+    "TIA_PROTOCOL_VERSION",
+    "TiaCore",
+    "createImpactPlan",
+    "formatRunPlanDetails",
+    "mergeImpactGraphs",
+    "normalizeProtocolPath",
+    "normalizeProtocolPaths",
+    "parseArtifactEnvelope",
+    "parseImpactGraph"
+  ],
+  "./evidence": [
+    "DEFAULT_TIA_EVIDENCE_HEADER",
+    "TIA_EVIDENCE_DIRECTORY_ENV",
+    "TIA_EVIDENCE_HEADER_ENV",
+    "TiaEvidence",
+    "tia"
+  ],
+  "./protocol": [
+    "TIA_PROTOCOL_LIMITS",
+    "TIA_PROTOCOL_VERSION",
+    "normalizeProtocolPath",
+    "normalizeProtocolPaths",
+    "parseArtifactEnvelope",
+    "parseImpactGraph"
+  ],
+  "./conformance": [
+    "TIA_ADAPTER_CONFORMANCE_SCENARIOS",
+    "TIA_ADAPTER_CONFORMANCE_VERSION",
+    "certifyAdapterReceipt",
+    "executeAdapterCertification",
+    "parseAdapterCertificationReceipt"
+  ],
+  "./gradle": [
+    "TiaGradleRunner",
+    "createGradleGraph",
+    "discoverGradleSuites",
+    "gradleCatalogFingerprint",
+    "parseJUnitReport",
+    "planGradle",
+    "readJUnitReports",
+    "tia"
+  ],
+  "./maestro": [
+    "TiaMaestroRunner",
+    "createMaestroGraph",
+    "discoverMaestroSuites",
+    "maestroCatalogFingerprint",
+    "planMaestro",
+    "tia"
+  ],
+  "./k6": [
+    "TiaK6Runner",
+    "createK6Graph",
+    "discoverK6Suites",
+    "k6CatalogFingerprint",
+    "planK6",
+    "tia"
+  ],
+  "./bun": ["tia"],
+  "./node": ["tia"],
+  "./playwright": ["tia"],
+  "./playwright/reporter": ["default"],
+  "./workspace": ["TiaWorkspaceRunner", "tia"],
+  "./verification": [
+    "TIA_VERIFICATION_RECEIPT_VERSION",
+    "TIA_VERIFICATION_SNAPSHOT_VERSION",
+    "TiaVerifier",
+    "tia"
+  ],
+  "bin": ["runCli"]
+}

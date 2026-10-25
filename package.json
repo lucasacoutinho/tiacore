@@ -1,0 +1,182 @@
+{
+  "name": "@lucasacoutinho/tiacore",
+  "version": "2.0.0-dev.0",
+  "private": false,
+  "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
+  "keywords": [
+    "bun",
+    "coverage",
+    "node-test",
+    "playwright",
+    "test-impact-analysis",
+    "testing",
+    "tia",
+    "vitest"
+  ],
+  "homepage": "https://github.com/lucasacoutinho/tiacore#readme",
+  "bugs": {
+    "url": "https://github.com/lucasacoutinho/tiacore/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "Lucas Coutinho",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucasacoutinho/tiacore.git"
+  },
+  "bin": {
+    "tiacore": "dist/entries/cli.js"
+  },
+  "files": [
+    "capabilities",
+    "conformance",
+    "dist",
+    "docs",
+    "schemas",
+    "spec",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "SECURITY.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/entries/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/entries/index.d.ts",
+      "default": "./dist/entries/index.js"
+    },
+    "./vitest": {
+      "types": "./dist/entries/vitest.d.ts",
+      "default": "./dist/entries/vitest.js"
+    },
+    "./adapter": {
+      "types": "./dist/entries/adapter.d.ts",
+      "default": "./dist/entries/adapter.js"
+    },
+    "./artifacts": {
+      "types": "./dist/entries/artifacts.d.ts",
+      "default": "./dist/entries/artifacts.js"
+    },
+    "./core": {
+      "types": "./dist/entries/core.d.ts",
+      "default": "./dist/entries/core.js"
+    },
+    "./evidence": {
+      "types": "./dist/entries/evidence.d.ts",
+      "default": "./dist/entries/evidence.js"
+    },
+    "./protocol": {
+      "types": "./dist/entries/protocol.d.ts",
+      "default": "./dist/entries/protocol.js"
+    },
+    "./conformance": {
+      "types": "./dist/entries/conformance.d.ts",
+      "default": "./dist/entries/conformance.js"
+    },
+    "./gradle": {
+      "types": "./dist/entries/gradle.d.ts",
+      "default": "./dist/entries/gradle.js"
+    },
+    "./maestro": {
+      "types": "./dist/entries/maestro.d.ts",
+      "default": "./dist/entries/maestro.js"
+    },
+    "./k6": {
+      "types": "./dist/entries/k6.d.ts",
+      "default": "./dist/entries/k6.js"
+    },
+    "./bun": {
+      "types": "./dist/entries/bun.d.ts",
+      "default": "./dist/entries/bun.js"
+    },
+    "./node": {
+      "types": "./dist/entries/node.d.ts",
+      "default": "./dist/entries/node.js"
+    },
+    "./playwright": {
+      "types": "./dist/entries/playwright.d.ts",
+      "default": "./dist/entries/playwright.js"
+    },
+    "./playwright/reporter": {
+      "types": "./dist/entries/playwright-reporter.d.ts",
+      "default": "./dist/entries/playwright-reporter.js"
+    },
+    "./workspace": {
+      "types": "./dist/entries/workspace.d.ts",
+      "default": "./dist/entries/workspace.js"
+    },
+    "./verification": {
+      "types": "./dist/entries/verification.d.ts",
+      "default": "./dist/entries/verification.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node config/build.mjs",
+    "typecheck": "effect-tsgo patch --typescript --no-oxlint --log-level=error && tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives",
+    "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "test": "npm run build && vitest run",
+    "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
+    "check:architecture": "vitest run --config vitest.archer.config.ts",
+    "check:package": "npm run build && publint && attw --pack . --profile esm-only",
+    "check:proofs": "cd proofs && lake build && lake exe tia-axioms",
+    "check:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
+    "check:go": "cd sdks/go && go test -count=1 ./... && go vet ./...",
+    "check:legacy": "cd .legacy && npm test",
+    "release:check": "npm run check && npm run check:architecture && npm run check:package && npm run check:proofs && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
+    "prepare": "effect-tsgo patch --typescript --no-oxlint"
+  },
+  "dependencies": {
+    "picomatch": "^4.0.7",
+    "tinyglobby": "^0.2.17"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@effect/platform-node": "4.0.6",
+    "@effect/tsgo": "0.56.1",
+    "@effect/vitest": "4.0.6",
+    "@lucasacoutinho/archer": "0.2.1",
+    "@types/node": "24.19.2",
+    "@types/picomatch": "4.0.3",
+    "effect": "4.0.6",
+    "esbuild": "0.28.2",
+    "oxfmt": "0.74.0",
+    "oxlint": "1.89.0",
+    "publint": "0.3.25",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.46.0 <2.0.0",
+    "vite": ">=6.0.0 <9.0.0",
+    "vitest": ">=4.1.0 <6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "overrides": {
+    "@lucasacoutinho/archer": {
+      "vitest": "$vitest"
+    }
+  },
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  }
+}

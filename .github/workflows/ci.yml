@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22.12.0
+          - 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run check:architecture
+      - run: npm run check:package
+
+  proofs:
+    name: Lean proofs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: proofs
+          build-args: --wfail
+      - run: lake exe tia-axioms
+        working-directory: proofs
+
+  sdks:
+    name: Python and Go SDKs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23.x'
+      - run: python -B -m unittest discover -s sdks/python/tests -v
+      - run: go test -count=1 ./... && go vet ./...
+        working-directory: sdks/go
+
+  legacy:
+    name: 1.x oracle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: npm
+          cache-dependency-path: .legacy/package-lock.json
+          node-version: 24
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23.x'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: npm ci
+        working-directory: .legacy
+      - run: npm test
+        working-directory: .legacy

@@ -1,0 +1,14 @@
+name = "tiaproofs"
+defaultTargets = ["Tia", "tia-ref", "tia-axioms"]
+
+[[lean_lib]]
+name = "Tia"
+
+[[lean_exe]]
+name = "tia-ref"
+root = "Main"
+
+[[lean_exe]]
+name = "tia-axioms"
+root = "Axioms"
+supportInterpreter = true

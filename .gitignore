@@ -14,3 +14,5 @@ skills-lock.json
 .legacy/dist/
 .legacy/coverage/
 .legacy/sdks/python/dist/
+.build/
+proofs/.lake/
