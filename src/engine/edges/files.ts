@@ -3,7 +3,7 @@ import { join, relative } from 'node:path'
 
 import picomatch from 'picomatch'
 
-import { slash } from '../project-relative.ts'
+import { slash } from '../host-path.ts'
 
 const EXCLUDED_DIRECTORIES = new Set([
   '.git',

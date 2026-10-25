@@ -16,13 +16,11 @@ import {
   type SelectionGroup,
   type SelectionItem,
 } from '../../core/select.ts'
+import { STRUCTURAL_FILE_PATTERN } from '../baseline/fingerprint.ts'
 import { globMatcher } from '../glob.ts'
 
 export const TEST_FILE_PATTERN =
   /(?:^|\/)(?:__tests__\/.*|[^/]+\.(?:test|spec))\.(?:[cm]?[jt]sx?)$/u
-
-export const STRUCTURAL_FILE_PATTERN =
-  /^(?:package\.json|(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)|(?:tsconfig|jsconfig)(?:\.[^.]+)?\.json|(?:vite|vitest)(?:\.[^.]+)?\.config\.[cm]?[jt]s)$/u
 
 export interface RuntimePlanInput {
   readonly baseline: RunPlanBaseline

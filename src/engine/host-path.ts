@@ -42,6 +42,15 @@ export function projectRelative(root: string, path: string): string | null {
   return candidate
 }
 
+/**
+ * The root-relative path of a file below `root`, with `/` separators. Null for
+ * a path outside `root` and for `root` itself, neither of which names a file.
+ */
+export function projectFile(root: string, path: string): string | null {
+  const relative = projectRelative(root, path)
+  return relative === '' ? null : relative
+}
+
 /** Normalizes an absolute cache directory and resolves a relative one against root. */
 export function resolveCacheDir(root: string, cacheDir: string): string {
   const api = pathApi(root, cacheDir)

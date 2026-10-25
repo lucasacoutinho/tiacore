@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 
-import { projectRelative } from '../project-relative.ts'
+import { projectFile } from '../host-path.ts'
 import type {
   TiaFrameworkEdgeAdapter,
   TiaFrameworkEdgeContext,
@@ -20,13 +20,8 @@ export function resolveFrameworkEdges(
   for (const adapter of adapters) {
     try {
       for (const file of adapter.resolve(context)) {
-        const relative = projectRelative(
-          context.root,
-          resolve(context.root, file),
-        )
-        if (relative !== null && relative !== '') {
-          files.add(relative)
-        }
+        const relative = projectFile(context.root, resolve(context.root, file))
+        if (relative !== null) files.add(relative)
       }
     } catch {
       return { complete: false, files: [] }

@@ -5,7 +5,7 @@ import type {
   TiaCoverageTemplate,
 } from '../../core/runtime.ts'
 import type { ProbeCounterMap } from '../../probe/types.ts'
-import { projectRelative } from '../project-relative.ts'
+import { projectFile } from '../host-path.ts'
 import { coverageMapId, coverageTemplate } from '../state/coverage.ts'
 
 // Istanbul prepends a coverage function that declares the file's hash before
@@ -43,8 +43,7 @@ export class CoverageTemplates {
     return Object.entries(counters)
       .filter(
         ([path, file]) =>
-          !this.byHash.has(file.hash) &&
-          (projectRelative(root, path) ?? '') !== '',
+          !this.byHash.has(file.hash) && projectFile(root, path) !== null,
       )
       .map(([path]) => path)
   }
@@ -55,10 +54,8 @@ export class CoverageTemplates {
 
     for (const [key, file] of Object.entries(counters)) {
       const map = this.byHash.get(file.hash)
-      const path = projectRelative(root, key)
-      if (map === undefined || path === null || path === '') {
-        continue
-      }
+      const path = projectFile(root, key)
+      if (map === undefined || path === null) continue
       record[path] = { b: file.b, f: file.f, map, s: file.s }
     }
 

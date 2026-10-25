@@ -2,6 +2,7 @@ import * as Exit from 'effect/Exit'
 import * as Schema from 'effect/Schema'
 
 import {
+  MAX_ARTIFACT_ARCHIVE_BYTES,
   MAX_ARTIFACT_LIST,
   MAX_ARTIFACT_TEXT,
   TIA_ARTIFACT_ATTESTATION_VERSION,
@@ -19,6 +20,9 @@ import {
 // dates; the schema's `date-time` format is not tightened further, as in 1.x.
 
 const strict = { onExcessProperty: 'error' } as const
+
+/** The characters and length a signing key id may have. */
+export const KEY_ID_PATTERN = /^[A-Za-z0-9._:@/-]{1,512}$/u
 
 const Text = Schema.String.check(
   Schema.isMinLength(1),
@@ -64,7 +68,7 @@ const Attestation = Schema.Struct({
     promoted: Schema.Boolean,
     runner: Schema.optionalKey(Text),
   }),
-  keyId: Schema.String.check(Schema.isPattern(/^[A-Za-z0-9._:@/-]{1,512}$/u)),
+  keyId: Schema.String.check(Schema.isPattern(KEY_ID_PATTERN)),
   signature: Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_-]{86}$/u)),
   version: Schema.Literal(TIA_ARTIFACT_ATTESTATION_VERSION),
 })
@@ -78,7 +82,9 @@ const ManifestEntry = Schema.Struct({
   runner: Schema.optionalKey(Text),
   sha256: Schema.optionalKey(Sha256),
   size: Schema.optionalKey(
-    Schema.Int.check(Schema.isBetween({ maximum: 26_214_400, minimum: 0 })),
+    Schema.Int.check(
+      Schema.isBetween({ maximum: MAX_ARTIFACT_ARCHIVE_BYTES, minimum: 0 }),
+    ),
   ),
   url: Text,
 })

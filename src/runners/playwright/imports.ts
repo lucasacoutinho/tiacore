@@ -9,7 +9,7 @@ import {
   UNAVAILABLE_HASH,
   hashBytes,
 } from '../../engine/baseline/fingerprint.ts'
-import { projectRelative } from '../../engine/host-path.ts'
+import { projectFile } from '../../engine/host-path.ts'
 
 // The 1.x scanner, kept for a file the lexer cannot read. It matches inside
 // comments and strings too, which only adds edges.
@@ -119,8 +119,8 @@ export async function importedProjectFiles(
     if (file === undefined || visited.has(file)) continue
     visited.add(file)
 
-    const relative = projectRelative(root, file)
-    if (relative === null || relative === '') continue
+    const relative = projectFile(root, file)
+    if (relative === null) continue
     files.add(relative)
 
     let imports = memo.get(file)

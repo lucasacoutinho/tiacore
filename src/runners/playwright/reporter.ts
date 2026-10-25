@@ -9,7 +9,7 @@ import type {
   TestResult,
 } from '@playwright/test/reporter'
 
-import { projectRelative } from '../../engine/host-path.ts'
+import { projectFile } from '../../engine/host-path.ts'
 import {
   PLAYWRIGHT_DEPENDENCIES_ATTACHMENT,
   PLAYWRIGHT_ROOT_ENV,
@@ -73,8 +73,8 @@ export default class TiaPlaywrightReporter implements Reporter {
   onTestEnd(test: TestCase, result: TestResult): void {
     const root = process.env[PLAYWRIGHT_ROOT_ENV]
     if (root === undefined) return
-    const file = projectRelative(root, test.location.file)
-    if (file === null || file === '') return
+    const file = projectFile(root, test.location.file)
+    if (file === null) return
 
     const dependencies = attachmentDependencies(result)
     this.observations.set(test.id, {

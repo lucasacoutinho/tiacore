@@ -6,7 +6,7 @@ import { createInstrumenter } from 'istanbul-lib-instrument'
 import picomatch from 'picomatch'
 import { globSync } from 'tinyglobby'
 
-import { slash } from '../project-relative.ts'
+import { slash } from '../host-path.ts'
 import type { TiaCoverageMap, TiaCoverageRuntime } from './types.ts'
 
 interface SelectedCoverage {

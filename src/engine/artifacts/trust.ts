@@ -10,14 +10,9 @@ import {
 } from '../../core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../core/runtime.ts'
 import { parsePrivateKey, parsePublicKey } from './keys.ts'
-import { readAttestation } from './schema.ts'
+import { KEY_ID_PATTERN, readAttestation } from './schema.ts'
 
-const KEY_ID = /^[A-Za-z0-9._:@/-]{1,512}$/u
 const CLOCK_SKEW_MS = 5 * 60_000
-
-export function isKeyId(value: string): boolean {
-  return KEY_ID.test(value)
-}
 
 function timestamp(value: string): number | null {
   const parsed = Date.parse(value)
@@ -39,7 +34,7 @@ export function createArtifactAttestation(
   claim: TiaArtifactClaimV1,
   options: TiaArtifactSigningOptions,
 ): TiaArtifactAttestationV1 {
-  if (!isKeyId(options.keyId)) {
+  if (!KEY_ID_PATTERN.test(options.keyId)) {
     throw new Error('TIA artifact signing key id is invalid')
   }
   const unsigned = {

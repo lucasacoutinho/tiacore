@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   isInside,
+  projectFile,
   projectRelative,
   resolveCacheDir,
   slash,
@@ -56,6 +57,17 @@ describe('portable path handling', () => {
       'D:\\cache\\tiacore',
     )
     expect(resolveCacheDir('/work/repo', '.tia')).toBe('/work/repo/.tia')
+  })
+
+  test('names a file below the root, never the root or an outside path', () => {
+    expect(projectFile('C:\\work\\tiacore', 'c:/work/tiacore/src/a.ts')).toBe(
+      'src/a.ts',
+    )
+    expect(projectFile('C:\\work\\tiacore', 'C:\\work\\tiacore')).toBeNull()
+    expect(projectFile('C:\\work\\tiacore', 'D:\\work\\a.ts')).toBeNull()
+    expect(projectFile('/work/repo', '/work/repo/src/a.ts')).toBe('src/a.ts')
+    expect(projectFile('/work/repo', '/work/repo')).toBeNull()
+    expect(projectFile('/work/repo', '/work/repo/../other/a.ts')).toBeNull()
   })
 
   test('preserves POSIX containment behavior', () => {

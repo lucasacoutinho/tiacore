@@ -4,7 +4,7 @@ import coverageLibrary from 'istanbul-lib-coverage'
 import type { CoverageMap, CoverageSummary } from 'istanbul-lib-coverage'
 import picomatch from 'picomatch'
 
-import { slash } from '../project-relative.ts'
+import { slash } from '../host-path.ts'
 import type { TiaCoverageThresholds } from './types.ts'
 
 const METRICS = ['lines', 'functions', 'statements', 'branches'] as const

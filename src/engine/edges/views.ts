@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, extname, relative, resolve } from 'node:path'
 
-import { slash } from '../project-relative.ts'
+import { slash } from '../host-path.ts'
 import type { TiaFrameworkEdgeAdapter, TiaViewEdgeOptions } from './types.ts'
 
 const DEFAULT_EXTENSIONS = [

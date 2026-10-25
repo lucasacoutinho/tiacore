@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { FlattenMap, eachMapping } from '@jridgewell/trace-mapping'
 
 import { byCodeUnit } from '../../core/canonical.ts'
-import { projectRelative } from '../../engine/host-path.ts'
+import { projectFile } from '../../engine/host-path.ts'
 
 const MAX_SOURCE_MAP_BYTES = 32 * 1024 * 1024
 const SOURCE_MAP_SUFFIX = /(?:\.bundle|\.m?js)$/iu
@@ -213,10 +213,9 @@ function sourcePath(
             ]),
       ]
   for (const absolute of paths) {
-    const relative = projectRelative(root, absolute)
+    const relative = projectFile(root, absolute)
     if (
       relative !== null &&
-      relative !== '' &&
       !inDependencies(relative) &&
       existsSync(absolute)
     ) {
