@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
@@ -52,6 +53,61 @@ function json<T>(path: string): T {
   return JSON.parse(readFileSync(join(root, path), 'utf8'))
 }
 
+const prereleaseSuffix: Record<string, string> = {
+  alpha: 'a',
+  beta: 'b',
+  dev: '.dev',
+  rc: 'rc',
+}
+
+/** The PEP 440 spelling of a semver version: `2.0.0-dev.0` is `2.0.0.dev0`. */
+function pythonVersion(version: string): string {
+  const match = /^(\d+\.\d+\.\d+)(?:-(alpha|beta|dev|rc)\.(\d+))?$/u.exec(
+    version,
+  )
+  if (match === null) throw new Error(`no PEP 440 spelling for ${version}`)
+  const [, release = '', tag, number = ''] = match
+  return tag === undefined
+    ? release
+    : `${release}${prereleaseSuffix[tag] ?? ''}${number}`
+}
+
+/** Files that name a version for a package in some language, other than package.json. */
+const versionManifestNames = new Set([
+  'Cargo.toml',
+  'Gemfile',
+  'build.gradle',
+  'build.gradle.kts',
+  'composer.json',
+  'go.mod',
+  'mix.exs',
+  'pom.xml',
+  'pyproject.toml',
+  'setup.cfg',
+  'setup.py',
+])
+
+/** Tracked manifests of the SDKs and the root, leaving out test fixtures and the 1.x tree. */
+function trackedManifests(): string[] {
+  const listed = spawnSync('git', ['ls-files', '-z'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  if (listed.error !== undefined) throw listed.error
+  return listed.stdout
+    .split('\0')
+    .filter(
+      (path) =>
+        !path.startsWith('.legacy/') &&
+        !path.startsWith('test/fixtures/') &&
+        !path.includes('/testdata/') &&
+        (versionManifestNames.has(path.split('/').at(-1) ?? '') ||
+          path.endsWith('.gemspec')),
+    )
+    .toSorted()
+}
+
 const specifierPattern = /(?:from\s+|import\()\s*['"]([^'"]+)['"]/gu
 
 /** Every bare module specifier the public declaration files of the package reach. */
@@ -104,8 +160,28 @@ describe('stable release contract', () => {
       version: VERSION,
     })
     expect(VERSION).toBe('2.0.0-dev.0')
-    // PEP 440 spelling of 2.0.0-dev.0
-    expect(pythonProject).toMatch(/^version = "2\.0\.0\.dev0"$/m)
+    expect(pythonVersion(packageJson.version)).toBe('2.0.0.dev0')
+    expect(pythonProject).toContain(
+      `\nversion = "${pythonVersion(packageJson.version)}"\n`,
+    )
+  })
+
+  test('keeps the lockfile at the package version', () => {
+    const packageJson = json<PackageManifest>('package.json')
+    const lock = json<{
+      packages: Record<string, { version?: string }>
+      version: string
+    }>('package-lock.json')
+
+    expect(lock.version).toBe(packageJson.version)
+    expect(lock.packages['']?.version).toBe(packageJson.version)
+  })
+
+  // The Go SDK has no version of its own: its `go.mod` names no version, Go
+  // takes module versions from Git tags, and its README installs an exact
+  // commit. A new SDK manifest must be added here with a version check above.
+  test('accounts for every SDK manifest that could carry a version', () => {
+    expect(trackedManifests()).toEqual(['go.mod', 'sdks/python/pyproject.toml'])
   })
 
   test('ships declaration types only for packages a consumer installs', () => {

@@ -18,8 +18,12 @@ Before publishing a release:
 
 ## Candidate checklist
 
-1. Choose the version and move the relevant `Unreleased` changelog entries under
-   a dated version heading.
+1. Choose the version and set it in `package.json`, `package-lock.json` (two
+   places), `src/core/version.ts` and `sdks/python/pyproject.toml`. The Python
+   file uses the PEP 440 spelling, such as `2.0.0` or `2.0.0.dev0`. Update the
+   two version literals in `test/package/stable-release.test.ts`. The Go SDK has
+   no version of its own. Then replace `Unreleased` in the changelog heading
+   with the release date.
 2. Start from a clean checkout of the exact candidate commit.
 3. Run:
 
