@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import * as Effect from 'effect/Effect'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import type {
@@ -208,6 +209,37 @@ describe('executeSuites', () => {
     )
     expect(await readFile(log, 'utf8')).toBe('yes:path')
   })
+})
+
+describe('executeSuites cleanup', () => {
+  test('stops running children when the run is interrupted', async () => {
+    const path = await directory()
+    const pidFile = join(path, 'pid')
+    const sleeper = `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setTimeout(() => {}, 60000)`
+    await runPromise(
+      executeSuites({
+        argumentsFor: () => ['-e', sleeper],
+        command: process.execPath,
+        cwd: path,
+        maxConcurrency: 1,
+        suites: [suite('a')],
+      }).pipe(Effect.timeout('700 millis'), Effect.ignore),
+    )
+    const pid = Number(await readFile(pidFile, 'utf8'))
+    const alive = () => {
+      try {
+        process.kill(pid, 0)
+        return true
+      } catch {
+        return false
+      }
+    }
+    const deadline = Date.now() + 5000
+    while (alive() && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    expect(alive()).toBe(false)
+  }, 20_000)
 })
 
 describe('adapter graph files', () => {

@@ -3,7 +3,6 @@ import * as Flag from 'effect/cli/Flag'
 import * as Effect from 'effect/Effect'
 import * as Option from 'effect/Option'
 
-import { createGraph, discover, planSuites } from '../runners/k6/program.ts'
 import {
   optionalGraph,
   output,
@@ -17,6 +16,9 @@ import {
   rootFlag,
 } from './adapters.ts'
 import { emitJson } from './io.ts'
+
+/** The adapter's programs load on first use so `--help` and other commands stay fast. */
+const programs = () => Effect.promise(() => import('../runners/k6/program.ts'))
 
 const discovery = {
   output,
@@ -43,6 +45,7 @@ const discoverCommand = Command.make(
   'discover',
   discovery,
   Effect.fn('tia.cli.k6.discover')(function* (options) {
+    const { discover } = yield* programs()
     yield* emitJson(yield* discover(where(options)), outputPath(options.output))
   }),
 ).pipe(Command.withDescription('Discover k6 profiles'))
@@ -51,6 +54,7 @@ const record = Command.make(
   'record',
   { ...discovery, ...recordFlags },
   Effect.fn('tia.cli.k6.record')(function* (options) {
+    const { createGraph, discover } = yield* programs()
     const suites = yield* discover(where(options))
     const knowledge = yield* readGraphKnowledge(options.graphOptions)
     const graph = yield* createGraph(options.root, {
@@ -76,6 +80,7 @@ const plan = Command.make(
     ),
   },
   Effect.fn('tia.cli.k6.plan')(function* (options) {
+    const { discover, planSuites } = yield* programs()
     const suites = yield* discover(where(options))
     const result = yield* planSuites(suites, {
       ...where(options),

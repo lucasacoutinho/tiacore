@@ -15,6 +15,7 @@ import {
   readJUnitReports,
   tia,
 } from '../../src/runners/gradle/index.ts'
+import { assertNoLeak } from '../support/leak.ts'
 import { legacy } from '../support/legacy.ts'
 
 const fixture = fileURLToPath(
@@ -376,4 +377,13 @@ describe('Gradle runner', () => {
     const { readdir } = await import('node:fs/promises')
     expect(await readdir(join(root, '.tia/gradle'))).toEqual(['graph.json'])
   })
+
+  test('does not leak across repeated runs', async () => {
+    const { directory, root } = await copy()
+    const { bytesPerOperation } = await assertNoLeak(
+      () => runner(root, directory, { forceFull: true }).run(),
+      { bytesPerOperation: 20_000, iterations: 10 },
+    )
+    expect(bytesPerOperation).toBeLessThan(20_000)
+  }, 60_000)
 })

@@ -2,7 +2,6 @@ import * as Command from 'effect/cli/Command'
 import * as Effect from 'effect/Effect'
 import * as Option from 'effect/Option'
 
-import { discover, planSuites } from '../runners/gradle/program.ts'
 import {
   optionalGraph,
   output,
@@ -14,6 +13,10 @@ import {
   rootFlag,
 } from './adapters.ts'
 import { emitJson } from './io.ts'
+
+/** The adapter's programs load on first use so `--help` and other commands stay fast. */
+const programs = () =>
+  Effect.promise(() => import('../runners/gradle/program.ts'))
 
 const discovery = {
   output,
@@ -42,6 +45,7 @@ const discoverCommand = Command.make(
   'discover',
   discovery,
   Effect.fn('tia.cli.gradle.discover')(function* (options) {
+    const { discover } = yield* programs()
     yield* emitJson(yield* discover(where(options)), outputPath(options.output))
   }),
 ).pipe(Command.withDescription('Discover Gradle JUnit test classes'))
@@ -53,6 +57,7 @@ const plan = Command.make(
     ...planFlags('prior Gradle impact graph', 'force every test class'),
   },
   Effect.fn('tia.cli.gradle.plan')(function* (options) {
+    const { discover, planSuites } = yield* programs()
     const suites = yield* discover(where(options))
     const result = yield* planSuites(suites, {
       ...where(options),

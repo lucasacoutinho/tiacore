@@ -13,6 +13,7 @@ import {
   planMaestro,
   tia,
 } from '../../src/runners/maestro/index.ts'
+import { assertNoLeak } from '../support/leak.ts'
 import { legacy } from '../support/legacy.ts'
 
 const fixture = fileURLToPath(
@@ -341,4 +342,13 @@ describe('Maestro runner', () => {
     const root = await project({ 'e2e/bad.yaml': 'appId: [\n' })
     await expect(runner(root).run()).rejects.toThrow(/invalid Maestro flow/u)
   })
+
+  test('does not leak across repeated runs', async () => {
+    const root = await project({ 'e2e/a.yaml': flow('A') })
+    const { bytesPerOperation } = await assertNoLeak(
+      () => runner(root, { forceFull: true }).run(),
+      { bytesPerOperation: 20_000, iterations: 10 },
+    )
+    expect(bytesPerOperation).toBeLessThan(20_000)
+  }, 60_000)
 })

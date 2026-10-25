@@ -4,11 +4,6 @@ import * as Effect from 'effect/Effect'
 import * as Option from 'effect/Option'
 
 import {
-  createMaestroGraph,
-  discover,
-  planSuites,
-} from '../runners/maestro/program.ts'
-import {
   optionalGraph,
   output,
   outputPath,
@@ -21,6 +16,10 @@ import {
   rootFlag,
 } from './adapters.ts'
 import { emitJson } from './io.ts'
+
+/** The adapter's programs load on first use so `--help` and other commands stay fast. */
+const programs = () =>
+  Effect.promise(() => import('../runners/maestro/program.ts'))
 
 const discovery = {
   excludeTag: repeated('exclude-tag', 'excluded flow tag; repeat as needed'),
@@ -53,6 +52,7 @@ const discoverCommand = Command.make(
   'discover',
   discovery,
   Effect.fn('tia.cli.maestro.discover')(function* (options) {
+    const { discover } = yield* programs()
     yield* emitJson(yield* discover(where(options)), outputPath(options.output))
   }),
 ).pipe(Command.withDescription('Discover Maestro flows'))
@@ -61,6 +61,7 @@ const record = Command.make(
   'record',
   { ...discovery, ...recordFlags },
   Effect.fn('tia.cli.maestro.record')(function* (options) {
+    const { createMaestroGraph, discover } = yield* programs()
     const suites = yield* discover(where(options))
     const knowledge = yield* readGraphKnowledge(options.graphOptions)
     yield* emitJson(
@@ -84,6 +85,7 @@ const plan = Command.make(
     ...planFlags('prior Maestro impact graph', 'force every flow'),
   },
   Effect.fn('tia.cli.maestro.plan')(function* (options) {
+    const { discover, planSuites } = yield* programs()
     const suites = yield* discover(where(options))
     const result = yield* planSuites(suites, {
       ...where(options),
