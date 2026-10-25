@@ -3,6 +3,15 @@
 All notable changes to tiacore will be documented here. Published releases
 follow Semantic Versioning.
 
+## Unreleased
+
+### Fixed
+
+- The Vitest plugin deletes `setup-<version>.mjs` files from earlier tiacore
+  versions in `.tia/runtime` when it writes the current one. After an upgrade,
+  only the current setup file remains. Before, `setup-1.2.1.mjs` stayed next to
+  `setup-2.0.0.mjs`. Other files in that directory are left in place.
+
 ## 2.0.0 - 2026-10-25
 
 tiacore 2.0 is a rewrite on Effect 4 and TypeScript 7. It keeps every 1.x
