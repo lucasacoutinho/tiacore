@@ -1,9 +1,12 @@
 import type {
-  TiaImpactGraph,
   TiaImpactPlan,
   TiaInvalidator,
   TiaSuiteDescriptor,
 } from '../../core/protocol.ts'
+import type {
+  ExternalPlanFields,
+  ExternalRunOptions,
+} from '../../core/external.ts'
 
 export interface GradleSuite extends TiaSuiteDescriptor {
   className: string
@@ -31,22 +34,10 @@ export interface JUnitCase {
   status: 'failed' | 'passed' | 'skipped'
 }
 
-export interface PlanGradleOptions extends DiscoverGradleOptions {
-  changes: string[]
-  currentEnvironmentFingerprint: string
-  currentFingerprint?: string
-  forceFull?: boolean
-  graph: TiaImpactGraph | null
-  ignoreChanges?: string[]
-  onUnknownChange?: 'full' | 'ignore'
-}
+export interface PlanGradleOptions
+  extends DiscoverGradleOptions, ExternalPlanFields {}
 
-export interface TiaGradleOptions extends Omit<PlanGradleOptions, 'graph'> {
-  command?: string
-  commandArguments?: string[]
-  environment?: NodeJS.ProcessEnv
-  graph?: TiaImpactGraph | null
-  graphPath?: string
+export interface TiaGradleOptions extends ExternalRunOptions<PlanGradleOptions> {
   reports?: string[]
   requireReports?: boolean
   task?: string

@@ -1,11 +1,10 @@
-import type { AdapterExecution } from '../../core/execution.ts'
+import type { TiaSuiteDescriptor } from '../../core/protocol.ts'
 import type {
-  TiaDependencyObservation,
-  TiaImpactGraph,
-  TiaImpactPlan,
-  TiaInvalidator,
-  TiaSuiteDescriptor,
-} from '../../core/protocol.ts'
+  ExternalGraphOptions,
+  ExternalPlanFields,
+  ExternalRunOptions,
+  ExternalSuitesResult,
+} from '../../core/external.ts'
 
 export interface K6Suite extends TiaSuiteDescriptor {
   profile: string
@@ -17,38 +16,14 @@ export interface DiscoverK6Options {
   root: string
 }
 
-export interface K6GraphOptions {
-  environmentFingerprint: string
-  fingerprint?: string
-  invalidators?: TiaInvalidator[]
-  knownSources?: string[]
-  observations?: TiaDependencyObservation[]
-  suites: K6Suite[]
-}
+export type K6GraphOptions = ExternalGraphOptions<K6Suite>
 
-export interface PlanK6Options extends DiscoverK6Options {
+export interface PlanK6Options extends DiscoverK6Options, ExternalPlanFields {
   allowedProfiles?: string[]
-  changes: string[]
-  currentEnvironmentFingerprint: string
-  currentFingerprint?: string
-  forceFull?: boolean
-  graph: TiaImpactGraph | null
-  ignoreChanges?: string[]
-  onUnknownChange?: 'full' | 'ignore'
 }
 
-export interface TiaK6Options extends Omit<PlanK6Options, 'graph'> {
-  command?: string
-  commandArguments?: string[]
-  environment?: NodeJS.ProcessEnv
-  graph?: TiaImpactGraph | null
-  graphPath?: string
+export interface TiaK6Options extends ExternalRunOptions<PlanK6Options> {
   maxConcurrency?: number
 }
 
-export interface TiaK6Result {
-  executions: AdapterExecution[]
-  plan: TiaImpactPlan
-  status: number
-  success: boolean
-}
+export type TiaK6Result = ExternalSuitesResult

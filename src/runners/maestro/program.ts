@@ -10,7 +10,6 @@ import type {
   TiaImpactGraph,
 } from '../../core/protocol.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
-import { aggregateStatus, executeSuites } from '../../engine/scheduling.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
 import {
   attempt,
@@ -20,8 +19,7 @@ import {
   ioFailure,
   planExternal,
   protocolSuite,
-  readAdapterGraph,
-  writeAdapterGraph,
+  runExternal,
 } from '../external.ts'
 import type {
   DiscoverMaestroOptions,
@@ -203,55 +201,30 @@ export function createMaestroGraph(
 export const planSuites = (
   suites: MaestroSuite[],
   options: PlanMaestroOptions,
-) =>
-  planExternal('maestro', suites, {
-    changes: options.changes,
-    currentEnvironmentFingerprint: options.currentEnvironmentFingerprint,
-    currentFingerprint: options.currentFingerprint,
-    forceFull: options.forceFull,
-    graph: options.graph,
-    ignoreChanges: options.ignoreChanges,
-    onUnknownChange: options.onUnknownChange,
-  })
+) => planExternal('maestro', suites, options)
 
 export const run = Effect.fn('tia.maestro.run')(function* (
   options: TiaMaestroOptions,
 ) {
-  const root = resolve(options.root)
-  const graphPath = resolve(
-    root,
-    options.graphPath ?? '.tia/maestro/graph.json',
-  )
-  const graph =
-    options.graph === undefined
-      ? yield* readAdapterGraph(graphPath)
-      : options.graph
-  const suites = yield* discover(options)
-  const plan = yield* planSuites(suites, { ...options, graph })
-  const selected = new Set(plan.selected)
-  const executions = yield* executeSuites({
-    argumentsFor: (suite) => [
-      ...(options.commandArguments ?? ['test']),
-      resolve(root, suite.file),
-    ],
-    command: options.command ?? 'maestro',
-    cwd: root,
-    environment: options.environment,
-    maxConcurrency: options.maxConcurrency ?? 1,
-    suites: suites.filter((suite) => selected.has(suite.id)),
-  })
-  const status = aggregateStatus(executions)
-  if (status === 0) {
-    yield* writeAdapterGraph(
-      graphPath,
-      createMaestroGraph({
-        environmentFingerprint: options.currentEnvironmentFingerprint,
-        ...(options.currentFingerprint === undefined
-          ? {}
-          : { fingerprint: options.currentFingerprint }),
+  return yield* runExternal({
+    defaultArguments: ['test'],
+    name: 'maestro',
+    options,
+    prepare: Effect.fnUntraced(function* (graph) {
+      const suites = yield* discover(options)
+      const plan = yield* planSuites(suites, { ...options, graph })
+      return {
+        plan,
+        recordGraph: () =>
+          createMaestroGraph({
+            environmentFingerprint: options.currentEnvironmentFingerprint,
+            ...(options.currentFingerprint === undefined
+              ? {}
+              : { fingerprint: options.currentFingerprint }),
+            suites,
+          }),
         suites,
-      }),
-    )
-  }
-  return { executions, plan, status, success: status === 0 }
+      }
+    }),
+  })
 })

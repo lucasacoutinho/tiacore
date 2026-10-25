@@ -11,7 +11,6 @@ import type {
   TiaImpactPlan,
 } from '../../core/protocol.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
-import { aggregateStatus, executeSuites } from '../../engine/scheduling.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
 import {
   attempt,
@@ -21,8 +20,7 @@ import {
   ioFailure,
   planExternal,
   protocolSuite,
-  readAdapterGraph,
-  writeAdapterGraph,
+  runExternal,
 } from '../external.ts'
 import type {
   DiscoverK6Options,
@@ -262,71 +260,53 @@ export const planSuites = Effect.fnUntraced(function* (
     })
   }
   return yield* planExternal('k6', [...suites], {
+    ...options,
     allowedSuites: allowed,
-    changes: options.changes,
-    currentEnvironmentFingerprint: options.currentEnvironmentFingerprint,
-    currentFingerprint: options.currentFingerprint,
-    forceFull: options.forceFull,
-    graph: options.graph,
-    ignoreChanges: options.ignoreChanges,
-    onUnknownChange: options.onUnknownChange,
   })
 })
 
 export const run = Effect.fn('tia.k6.run')(function* (options: TiaK6Options) {
-  const root = resolve(options.root)
-  const graphPath = resolve(root, options.graphPath ?? '.tia/k6/graph.json')
-  const graph =
-    options.graph === undefined
-      ? yield* readAdapterGraph(graphPath)
-      : options.graph
-  const suites = yield* discover(options)
-  const scans = yield* scanSuites(root, suites)
-  const unlexable = scans.flatMap(({ scan }) =>
-    scan._tag === 'Unlexable' ? [scan] : [],
-  )[0]
-  const planned = yield* planSuites(suites, {
-    ...options,
-    ...(unlexable === undefined ? {} : { forceFull: true }),
-    graph,
+  return yield* runExternal({
+    defaultArguments: ['run'],
+    name: 'k6',
+    options,
+    prepare: Effect.fnUntraced(function* (graph) {
+      const root = resolve(options.root)
+      const suites = yield* discover(options)
+      const scans = yield* scanSuites(root, suites)
+      const unlexable = scans.flatMap(({ scan }) =>
+        scan._tag === 'Unlexable' ? [scan] : [],
+      )[0]
+      const planned = yield* planSuites(suites, {
+        ...options,
+        ...(unlexable === undefined ? {} : { forceFull: true }),
+        graph,
+      })
+      const plan: TiaImpactPlan =
+        unlexable === undefined
+          ? planned
+          : fullPlan(
+              planned,
+              `k6 import analysis failed for ${unlexable.file}: ${unlexable.message}`,
+            )
+      return {
+        plan,
+        recordGraph: () =>
+          graphFromScans(
+            scans,
+            {
+              environmentFingerprint: options.currentEnvironmentFingerprint,
+              ...(options.currentFingerprint === undefined
+                ? {}
+                : { fingerprint: options.currentFingerprint }),
+              suites,
+            },
+            unlexable === undefined,
+          ),
+        suites,
+      }
+    }),
   })
-  const plan: TiaImpactPlan =
-    unlexable === undefined
-      ? planned
-      : fullPlan(
-          planned,
-          `k6 import analysis failed for ${unlexable.file}: ${unlexable.message}`,
-        )
-  const selected = new Set(plan.selected)
-  const executions = yield* executeSuites({
-    argumentsFor: (suite) => [
-      ...(options.commandArguments ?? ['run']),
-      resolve(root, suite.file),
-    ],
-    command: options.command ?? 'k6',
-    cwd: root,
-    environment: options.environment,
-    maxConcurrency: options.maxConcurrency ?? 1,
-    suites: suites.filter((suite) => selected.has(suite.id)),
-  })
-  const status = aggregateStatus(executions)
-  if (status === 0) {
-    yield* writeAdapterGraph(
-      graphPath,
-      graphFromScans(
-        scans,
-        {
-          environmentFingerprint: options.currentEnvironmentFingerprint,
-          ...(options.currentFingerprint === undefined
-            ? {}
-            : { fingerprint: options.currentFingerprint }),
-          suites,
-        },
-        unlexable === undefined,
-      ),
-    )
-  }
-  return { executions, plan, status, success: status === 0 }
 })
 
 function fullPlan(plan: TiaImpactPlan, reason: string): TiaImpactPlan {

@@ -186,15 +186,7 @@ export const createGraph = Effect.fnUntraced(function* (
 })
 
 export const planSuites = (suites: GradleSuite[], options: PlanGradleOptions) =>
-  planExternal('gradle-junit', suites, {
-    changes: options.changes,
-    currentEnvironmentFingerprint: options.currentEnvironmentFingerprint,
-    currentFingerprint: options.currentFingerprint,
-    forceFull: options.forceFull,
-    graph: options.graph,
-    ignoreChanges: options.ignoreChanges,
-    onUnknownChange: options.onUnknownChange,
-  })
+  planExternal('gradle-junit', suites, options)
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
@@ -7,6 +7,10 @@ import type * as PlatformError from 'effect/PlatformError'
 import { glob } from 'tinyglobby'
 
 import { byCodeUnit } from '../core/canonical.ts'
+import type {
+  ExternalPlanFields,
+  ExternalSuitesResult,
+} from '../core/external.ts'
 import type {
   TiaDependencyObservation,
   TiaImpactGraph,
@@ -18,6 +22,7 @@ import type {
 import { TIA_PROTOCOL_VERSION } from '../core/protocol.ts'
 import { createImpactPlan } from '../engine/plan/protocol.ts'
 import { systemMessage } from '../engine/process.ts'
+import { aggregateStatus, executeSuites } from '../engine/scheduling.ts'
 import { parseImpactGraph } from '../wire/decode.ts'
 import { TiaInvalid, TiaIo } from '../wire/errors.ts'
 
@@ -84,22 +89,11 @@ export function externalGraph(parts: ExternalGraphParts): TiaImpactGraph {
   }
 }
 
-export interface ExternalPlanOptions {
-  allowedSuites?: string[] | undefined
-  changes: string[]
-  currentEnvironmentFingerprint: string
-  currentFingerprint?: string | undefined
-  forceFull?: boolean | undefined
-  graph: TiaImpactGraph | null
-  ignoreChanges?: string[] | undefined
-  onUnknownChange?: 'full' | 'ignore' | undefined
-}
-
 /** The planner call every external adapter makes, with its policy defaults. */
 export function planExternal(
   provider: string,
   suites: TiaSuiteDescriptor[],
-  options: ExternalPlanOptions,
+  options: ExternalPlanFields & { allowedSuites?: string[] | undefined },
 ): Effect.Effect<TiaImpactPlan, TiaInvalid> {
   const input: TiaImpactPlanInput = {
     catalog: suites,
@@ -175,4 +169,80 @@ export const writeAdapterGraph = Effect.fnUntraced(function* (
     Effect.tapError(() => Effect.ignore(fs.remove(temporary, { force: true }))),
     Effect.mapError(ioFailure),
   )
+})
+
+/** What an adapter decided before any suite runs. */
+export interface PreparedSuites<Suite extends TiaSuiteDescriptor> {
+  readonly plan: TiaImpactPlan
+  /** The graph to record after a run in which every suite passed. */
+  readonly recordGraph: () => TiaImpactGraph
+  readonly suites: Suite[]
+}
+
+export interface ExternalSuitesRun<
+  Suite extends TiaSuiteDescriptor,
+  Failure,
+  Requirements,
+> {
+  /** The argument list before the suite file when the caller gives none. */
+  readonly defaultArguments: readonly string[]
+  /** Names the command and the default graph path, `.tia/<name>/graph.json`. */
+  readonly name: string
+  readonly options: {
+    readonly command?: string
+    readonly commandArguments?: string[]
+    readonly environment?: NodeJS.ProcessEnv
+    readonly graph?: TiaImpactGraph | null
+    readonly graphPath?: string
+    readonly maxConcurrency?: number
+    readonly root: string
+  }
+  /** Discovers and plans against the graph read (or given) for this run. */
+  readonly prepare: (
+    graph: TiaImpactGraph | null,
+  ) => Effect.Effect<PreparedSuites<Suite>, Failure, Requirements>
+}
+
+/**
+ * The run shared by the adapters that execute suites as commands (k6,
+ * Maestro): read the prior graph, plan, run the selected suites, and record a
+ * new graph only when every suite passed.
+ */
+export const runExternal = Effect.fnUntraced(function* <
+  Suite extends TiaSuiteDescriptor,
+  Failure,
+  Requirements,
+>(run: ExternalSuitesRun<Suite, Failure, Requirements>) {
+  const { options } = run
+  const root = resolve(options.root)
+  const graphPath = resolve(
+    root,
+    options.graphPath ?? `.tia/${run.name}/graph.json`,
+  )
+  const graph =
+    options.graph === undefined
+      ? yield* readAdapterGraph(graphPath)
+      : options.graph
+  const { plan, recordGraph, suites } = yield* run.prepare(graph)
+  const selected = new Set(plan.selected)
+  const executions = yield* executeSuites({
+    argumentsFor: (suite) => [
+      ...(options.commandArguments ?? run.defaultArguments),
+      resolve(root, suite.file),
+    ],
+    command: options.command ?? run.name,
+    cwd: root,
+    environment: options.environment,
+    maxConcurrency: options.maxConcurrency ?? 1,
+    suites: suites.filter((suite) => selected.has(suite.id)),
+  })
+  const status = aggregateStatus(executions)
+  if (status === 0) yield* writeAdapterGraph(graphPath, recordGraph())
+  const result: ExternalSuitesResult = {
+    executions,
+    plan,
+    status,
+    success: status === 0,
+  }
+  return result
 })

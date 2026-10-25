@@ -1,11 +1,10 @@
-import type { AdapterExecution } from '../../core/execution.ts'
+import type { TiaSuiteDescriptor } from '../../core/protocol.ts'
 import type {
-  TiaDependencyObservation,
-  TiaImpactGraph,
-  TiaImpactPlan,
-  TiaInvalidator,
-  TiaSuiteDescriptor,
-} from '../../core/protocol.ts'
+  ExternalGraphOptions,
+  ExternalPlanFields,
+  ExternalRunOptions,
+  ExternalSuitesResult,
+} from '../../core/external.ts'
 
 export interface MaestroSuite extends TiaSuiteDescriptor {
   appId?: string
@@ -20,37 +19,13 @@ export interface DiscoverMaestroOptions {
   root: string
 }
 
-export interface MaestroGraphOptions {
-  environmentFingerprint: string
-  fingerprint?: string
-  invalidators?: TiaInvalidator[]
-  knownSources?: string[]
-  observations?: TiaDependencyObservation[]
-  suites: MaestroSuite[]
-}
+export type MaestroGraphOptions = ExternalGraphOptions<MaestroSuite>
 
-export interface PlanMaestroOptions extends DiscoverMaestroOptions {
-  changes: string[]
-  currentEnvironmentFingerprint: string
-  currentFingerprint?: string
-  forceFull?: boolean
-  graph: TiaImpactGraph | null
-  ignoreChanges?: string[]
-  onUnknownChange?: 'full' | 'ignore'
-}
+export interface PlanMaestroOptions
+  extends DiscoverMaestroOptions, ExternalPlanFields {}
 
-export interface TiaMaestroOptions extends Omit<PlanMaestroOptions, 'graph'> {
-  command?: string
-  commandArguments?: string[]
-  environment?: NodeJS.ProcessEnv
-  graph?: TiaImpactGraph | null
-  graphPath?: string
+export interface TiaMaestroOptions extends ExternalRunOptions<PlanMaestroOptions> {
   maxConcurrency?: number
 }
 
-export interface TiaMaestroResult {
-  executions: AdapterExecution[]
-  plan: TiaImpactPlan
-  status: number
-  success: boolean
-}
+export type TiaMaestroResult = ExternalSuitesResult
