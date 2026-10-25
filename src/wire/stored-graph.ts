@@ -1,16 +1,13 @@
+import { isRecord } from '../core/record.ts'
 import { GRAPH_SCHEMA_VERSION, type TiaRuntimeGraph } from '../core/runtime.ts'
 
 // A hand-written type guard for a graph read back from the store. It accepts
 // exactly what the `RuntimeGraph` Schema (src/wire/runtime-graph.ts) accepts, which
-// test/engine/state/graph-guard.test.ts checks differentially. It exists for
+// test/wire/stored-graph.test.ts checks differentially. It exists for
 // speed: the store validates a 2,000-test graph on every run, and the Schema
 // guard costs about 150 ms there against about 25 ms for this one.
 
 type Json = Record<string, unknown>
-
-function isRecord(value: unknown): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function everyValue(value: Json, test: (entry: unknown) => boolean): boolean {
   // Parsed JSON has no inherited enumerable keys, so for-in visits own keys.
@@ -99,10 +96,10 @@ function isPartition(value: unknown): boolean {
   return (
     (!('group' in value) || isString(value.group)) &&
     typeof index === 'number' &&
-    Number.isInteger(index) &&
+    Number.isSafeInteger(index) &&
     index >= 1 &&
     typeof total === 'number' &&
-    Number.isInteger(total) &&
+    Number.isSafeInteger(total) &&
     total >= index
   )
 }

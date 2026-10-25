@@ -1,160 +1,206 @@
 import { describe, expect, test } from 'vitest'
 
+import {
+  matchesRuntimeGraphSchema,
+  RuntimeGraph,
+} from '../../src/wire/runtime-graph.ts'
 import { isStoredGraph } from '../../src/wire/stored-graph.ts'
-import { matchesRuntimeGraphSchema } from '../../src/wire/runtime-graph.ts'
 import { coverageGraph } from '../engine/support/graphs.ts'
 
 // The store validates with a hand-written guard because the Schema guard is
 // five times slower on a 2,000-test graph. This test pins the two together:
-// every mutation below must be accepted or rejected by both alike.
+// every single-point mutation of a graph that uses every field, over a grid of
+// hostile values, must be accepted or rejected by both alike.
 
 type Mutable = Record<string, any>
+type Path = ReadonlyArray<number | string>
 
-function base(): Mutable {
+/** A valid graph in which every field of the Schema, optional ones included, is present. */
+function rich(): Mutable {
   const graph = coverageGraph(3)
+  graph.baseline.workingTree = { 'src/a.ts': 'hash', 'src/b.ts': '<deleted>' }
   graph.collectionCoverage['test/a.test.ts'] = {
-    'src/shared.ts': { b: {}, f: {}, map: 'shared', s: { 0: 1 } },
+    'src/shared.ts': {
+      b: { 0: [1, 0] },
+      f: { 0: 1 },
+      map: 'shared',
+      s: { 0: 1 },
+    },
   }
+  graph.collectionFiles['test/a.test.ts'] = ['src/shared.ts', 'src/setup.ts']
   graph.results['case-000000']!.duration = 12.5
   graph.partition = { group: 'g', index: 1, total: 2 }
   return graph as unknown as Mutable
 }
 
-const mutations: Array<[string, (graph: Mutable) => void]> = [
-  ['valid', () => {}],
-  ['schema 4', (g) => (g.schema = 4)],
-  ['schema string', (g) => (g.schema = '5')],
-  ['schema missing', (g) => delete g.schema],
-  ['complete string', (g) => (g.complete = 'yes')],
-  ['coverageComplete missing', (g) => delete g.coverageComplete],
-  ['fingerprint number', (g) => (g.fingerprint = 1)],
-  ['updatedAt missing', (g) => delete g.updatedAt],
-  ['baseline missing', (g) => delete g.baseline],
-  ['baseline array', (g) => (g.baseline = [])],
-  ['baseline.sha number', (g) => (g.baseline.sha = 1)],
-  ['source svn', (g) => (g.baseline.source = 'svn')],
-  ['source git', (g) => (g.baseline.source = 'git')],
-  ['source filesystem', (g) => (g.baseline.source = 'filesystem')],
-  ['source undefined', (g) => (g.baseline.source = undefined)],
-  ['workingTree number', (g) => (g.baseline.workingTree = { a: 1 })],
-  ['workingTree array', (g) => (g.baseline.workingTree = [])],
-  ['workingTree ok', (g) => (g.baseline.workingTree = { a: 'h' })],
-  ['partition ok', (g) => (g.partition = { index: 2, total: 2 })],
-  ['partition index 0', (g) => (g.partition = { index: 0, total: 2 })],
-  ['partition index > total', (g) => (g.partition = { index: 3, total: 2 })],
-  ['partition fractional', (g) => (g.partition = { index: 1.5, total: 2 })],
-  [
-    'partition group number',
-    (g) => (g.partition = { group: 1, index: 1, total: 1 }),
-  ],
-  ['partition null', (g) => (g.partition = null)],
-  ['partition undefined', (g) => (g.partition = undefined)],
-  ['partition missing', (g) => delete g.partition],
-  ['edges missing', (g) => delete g.edges],
-  ['edges number list', (g) => (g.edges.x = [1])],
-  ['edges string', (g) => (g.edges.x = 'a')],
-  ['results missing', (g) => delete g.results],
-  ['result state weird', (g) => (g.results['case-000000'].state = 'weird')],
-  ['result state skipped', (g) => (g.results['case-000000'].state = 'skipped')],
-  ['result duration NaN', (g) => (g.results['case-000000'].duration = NaN)],
-  [
-    'result duration Infinity',
-    (g) => (g.results['case-000000'].duration = Infinity),
-  ],
-  ['result duration string', (g) => (g.results['case-000000'].duration = '1')],
-  ['result duration null', (g) => (g.results['case-000000'].duration = null)],
-  [
-    'result duration undefined',
-    (g) => (g.results['case-000000'].duration = undefined),
-  ],
-  ['result duration absent', (g) => delete g.results['case-000000'].duration],
-  ['result id missing', (g) => delete g.results['case-000000'].id],
-  ['result null', (g) => (g.results['case-000000'] = null)],
-  ['testEdges missing', (g) => delete g.testEdges],
-  ['testEdge files number', (g) => (g.testEdges['case-000000'].files = [1])],
-  ['testEdge file missing', (g) => delete g.testEdges['case-000000'].file],
-  ['coverageMaps missing', (g) => delete g.coverageMaps],
-  ['map unreferenced removed', (g) => delete g.coverageMaps.unused],
-  ['map referenced removed', (g) => delete g.coverageMaps.shared],
-  ['template s float', (g) => (g.coverageMaps.shared.s = { 0: 0.5 })],
-  ['template s unsafe', (g) => (g.coverageMaps.shared.s = { 0: 2 ** 60 })],
-  ['template s negative', (g) => (g.coverageMaps.shared.s = { 0: -3 })],
-  [
-    'template s min safe',
-    (g) => (g.coverageMaps.shared.s = { 0: Number.MIN_SAFE_INTEGER }),
-  ],
-  ['template b flat', (g) => (g.coverageMaps.shared.b = { 0: 1 })],
-  ['template b strings', (g) => (g.coverageMaps.shared.b = { 0: ['a'] })],
-  ['template branchMap array', (g) => (g.coverageMaps.shared.branchMap = [])],
-  ['template branchMap null', (g) => (g.coverageMaps.shared.branchMap = null)],
-  [
-    'template statementMap missing',
-    (g) => delete g.coverageMaps.shared.statementMap,
-  ],
-  ['template fnMap string', (g) => (g.coverageMaps.shared.fnMap = 'x')],
-  ['template f missing', (g) => delete g.coverageMaps.shared.f],
-  [
-    'hits map number',
-    (g) => (g.testCoverage['case-000000']['src/shared.ts'].map = 1),
-  ],
-  [
-    'hits map missing',
-    (g) => delete g.testCoverage['case-000000']['src/shared.ts'].map,
-  ],
-  [
-    'hits s float',
-    (g) => (g.testCoverage['case-000000']['src/shared.ts'].s = { 1: 1.5 }),
-  ],
-  [
-    'hits b mixed',
-    (g) => (g.testCoverage['case-000000']['src/shared.ts'].b = { 0: [1, 'x'] }),
-  ],
-  [
-    'hits f missing',
-    (g) => delete g.testCoverage['case-000000']['src/shared.ts'].f,
-  ],
-  ['hits record array', (g) => (g.testCoverage['case-000000'] = [])],
-  [
-    'hits unknown map',
-    (g) => (g.testCoverage['case-000000']['src/shared.ts'].map = 'nope'),
-  ],
-  [
-    'collection unknown map',
-    (g) =>
-      (g.collectionCoverage['test/a.test.ts']['src/shared.ts'].map = 'nope'),
-  ],
-  ['collectionCoverage missing', (g) => delete g.collectionCoverage],
-  ['testCoverage missing', (g) => delete g.testCoverage],
-  ['extra top-level key', (g) => (g.notes = 'x')],
-  ['extra nested key', (g) => (g.results['case-000000'].note = 'x')],
-  [
-    'prototype key',
-    (g) =>
-      Object.defineProperty(g.results, '__proto__', {
-        enumerable: true,
-        value: { file: 'f', fullName: 'n', id: 'i', state: 'passed' },
-      }),
-  ],
-  ['not an object', (g) => Object.keys(g).forEach((key) => delete g[key])],
+/** Values that stand for the ways stored JSON goes wrong, plus tokens the graph accepts. */
+const GRID: ReadonlyArray<readonly [string, () => unknown]> = [
+  ['0', () => 0],
+  ['1', () => 1],
+  ['-1', () => -1],
+  ['1.5', () => 1.5],
+  ['2 ** 53', () => 2 ** 53],
+  ['-(2 ** 53)', () => -(2 ** 53)],
+  ['2 ** 60', () => 2 ** 60],
+  ['MAX_SAFE_INTEGER', () => Number.MAX_SAFE_INTEGER],
+  ['MIN_SAFE_INTEGER', () => Number.MIN_SAFE_INTEGER],
+  ['NaN', () => Number.NaN],
+  ['Infinity', () => Number.POSITIVE_INFINITY],
+  ['-Infinity', () => Number.NEGATIVE_INFINITY],
+  ["''", () => ''],
+  ["'x'", () => 'x'],
+  ["'git'", () => 'git'],
+  ["'filesystem'", () => 'filesystem'],
+  ["'svn'", () => 'svn'],
+  ["'passed'", () => 'passed'],
+  ["'failed'", () => 'failed'],
+  ["'skipped'", () => 'skipped'],
+  ["'weird'", () => 'weird'],
+  ['true', () => true],
+  ['false', () => false],
+  ['[]', () => []],
+  ['{}', () => ({})],
+  ['null', () => null],
+  ['undefined', () => undefined],
 ]
 
-describe('stored-graph guard', () => {
-  for (const [name, mutate] of mutations) {
-    test(`agrees with the RuntimeGraph Schema: ${name}`, () => {
-      const graph = base()
-      mutate(graph)
-      expect(isStoredGraph(graph), name).toBe(matchesRuntimeGraphSchema(graph))
+/** Every node below the root, as the keys that lead to it. */
+function pathsOf(node: unknown, prefix: Path = []): Path[] {
+  if (typeof node !== 'object' || node === null) return []
+  return Object.entries(node).flatMap(([key, child]) => {
+    const path = [...prefix, Array.isArray(node) ? Number(key) : key]
+    return [path, ...pathsOf(child, path)]
+  })
+}
+
+function parentOf(graph: Mutable, path: Path): Mutable {
+  return path.slice(0, -1).reduce<Mutable>((node, key) => node[key], graph)
+}
+
+function describePath(path: Path): string {
+  return path.join('.')
+}
+
+interface Mutation {
+  readonly name: string
+  readonly apply: (graph: Mutable) => void
+}
+
+function mutationsOf(graph: Mutable): Mutation[] {
+  const mutations: Mutation[] = []
+  for (const path of pathsOf(graph)) {
+    const key = path[path.length - 1]!
+    const where = describePath(path)
+    for (const [label, make] of GRID) {
+      mutations.push({
+        apply: (target) => {
+          parentOf(target, path)[key] = make()
+        },
+        name: `${where} = ${label}`,
+      })
+    }
+    mutations.push({
+      apply: (target) => {
+        const parent = parentOf(target, path)
+        if (Array.isArray(parent)) parent.splice(Number(key), 1)
+        else delete parent[key]
+      },
+      name: `${where} deleted`,
     })
   }
+  for (const path of [[], ...pathsOf(graph)]) {
+    const node = path.reduce<unknown>(
+      (current, key) => (current as Mutable)[key],
+      graph,
+    )
+    if (typeof node !== 'object' || node === null || Array.isArray(node))
+      continue
+    mutations.push({
+      apply: (target) => {
+        path.reduce<Mutable>((current, key) => current[key], target)['extra'] =
+          'x'
+      },
+      name: `${describePath(path)} gains an unknown key`,
+    })
+  }
+  return mutations
+}
+
+describe('stored-graph guard', () => {
+  test('accepts the rich graph, as the Schema does', () => {
+    expect(isStoredGraph(rich())).toBe(true)
+    expect(matchesRuntimeGraphSchema(rich())).toBe(true)
+  })
+
+  test('agrees with the RuntimeGraph Schema on every single-point mutation', () => {
+    const mutations = mutationsOf(rich())
+    const disagreements: string[] = []
+    let accepted = 0
+    for (const { apply, name } of mutations) {
+      const graph = rich()
+      apply(graph)
+      const guard = isStoredGraph(graph)
+      const schema = matchesRuntimeGraphSchema(graph)
+      if (guard !== schema)
+        disagreements.push(`${name}: guard ${guard}, Schema ${schema}`)
+      if (schema) accepted += 1
+    }
+    expect(disagreements).toEqual([])
+    // Both outcomes must occur often, or the pin proves nothing.
+    expect(mutations.length).toBeGreaterThan(2_000)
+    expect(accepted).toBeGreaterThan(50)
+    expect(mutations.length - accepted).toBeGreaterThan(1_000)
+  })
+
+  test('puts every field of the Schema in the graph the mutations start from', () => {
+    expect(Object.keys(rich()).sort()).toEqual(
+      Object.keys(RuntimeGraph.fields).sort(),
+    )
+  })
+
+  test('ignores a top-level field it does not know, as the Schema does', () => {
+    const graph = rich()
+    graph['futureField'] = { anything: [1] }
+    expect(isStoredGraph(graph)).toBe(true)
+    expect(matchesRuntimeGraphSchema(graph)).toBe(true)
+  })
+
+  test('refuses a graph that lacks any field of the Schema', () => {
+    for (const field of Object.keys(RuntimeGraph.fields)) {
+      if (field === 'partition') continue
+      const graph = rich()
+      delete graph[field]
+      expect(isStoredGraph(graph), field).toBe(false)
+      expect(matchesRuntimeGraphSchema(graph), field).toBe(false)
+    }
+  })
+
+  test('refuses a partition whose numbers are not safe integers', () => {
+    for (const partition of [
+      { index: 2 ** 60, total: 2 ** 60 },
+      { index: 1, total: 2 ** 53 },
+      { index: 1.5, total: 2 },
+    ]) {
+      const graph = rich()
+      graph['partition'] = partition
+      expect(isStoredGraph(graph)).toBe(false)
+      expect(matchesRuntimeGraphSchema(graph)).toBe(false)
+    }
+  })
+
+  test('treats an enumerable __proto__ key as data, as the Schema does', () => {
+    const graph = rich()
+    Object.defineProperty(graph['results'], '__proto__', {
+      enumerable: true,
+      value: { file: 'f', fullName: 'n', id: 'i', state: 'passed' },
+    })
+    expect(isStoredGraph(graph)).toBe(matchesRuntimeGraphSchema(graph))
+  })
 
   test('rejects everything that is not an object', () => {
     for (const value of [null, undefined, 1, 'graph', [], true]) {
       expect(isStoredGraph(value)).toBe(false)
       expect(matchesRuntimeGraphSchema(value)).toBe(false)
     }
-  })
-
-  test('accepts the valid graph', () => {
-    expect(isStoredGraph(base())).toBe(true)
   })
 })
