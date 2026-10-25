@@ -54,12 +54,12 @@ imports `effect`.
 
 ## Seams (only those with two real adapters)
 
-| Seam               | Adapters                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| `ArtifactStore`    | filesystem, GitHub Actions, GitLab CI, HTTP manifest, user `put()` sink                |
-| `CoverageSource`   | Istanbul `__coverage__`, V8/native (`TIA_COVERAGE_MODE=native`), Playwright CDP ranges |
-| `Runner`           | 7 native runners + `tia(definition)`                                                   |
-| `Baseline` (`Vcs`) | git, filesystem snapshot (legacy `Baseline.source 'filesystem'`, Go/Python SDKs)       |
+| Seam               | Adapters                                                                         |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `ArtifactStore`    | filesystem, GitHub Actions, GitLab CI, HTTP manifest, user `put()` sink          |
+| `CoverageSource`   | Istanbul `__coverage__`, V8 (Node and Bun runners), Playwright CDP ranges        |
+| `Runner`           | 7 native runners + `tia(definition)`                                             |
+| `Baseline` (`Vcs`) | git, filesystem snapshot (legacy `Baseline.source 'filesystem'`, Go/Python SDKs) |
 
 Everything else uses Effect built-ins directly: `FileSystem`, `Path` (through
 `node:path` where Effect's posix-only `Path.layer` would be wrong on Windows),
@@ -111,16 +111,18 @@ Effect-specific ships; an `@effect/vitest` fixture (`it.effect`, `it.live`,
 
 ## Observability, performance, leaks
 
-- `observe(env)` returns `Layer.empty` unless `TIACORE_DEVTOOLS=ws://...`
-  (`effect/devtools`), `TIACORE_OTLP_URL`, or `TIACORE_PROMETHEUS_PORT` is set;
-  exporter chunks load by dynamic import. `stage(name)` is identity when off.
+- `observe(env)` returns `Layer.empty` unless `TIACORE_DEVTOOLS` (an Effect
+  devtools WebSocket), `TIACORE_OTLP_URL`, `TIACORE_TRACE_FILE` or
+  `TIACORE_METRICS_FILE` is set; exporter chunks load by dynamic import. One
+  host runtime per process carries them, so a process has one client.
 - Spans per stage only; metrics per module/run: heap, graph size, window
   duration, RPC payload bytes, plan size, store bytes.
-- `tiacore devtools` hosts `DevToolsServer`; `tiacore doctor --perf` prints the
-  last run's stage timings from a local trace file (`.tia/trace.json`) so a user
-  can report bottlenecks without a devtools UI.
-- Crash capture: unhandled defects write `.tia/crash-<ts>.json` (Cause pretty
-  print + stage + versions) and print its path.
+- `tiacore devtools` hosts `DevToolsServer` and prints a live summary;
+  `tiacore doctor --perf` times a cold prepare and commit on a throwaway project
+  and ranks the phases and spans, so a user can report bottlenecks without a
+  devtools UI.
+- Crash capture: unhandled defects write `.tia/crashes/crash-<ts>.json`
+  (`TIACORE_CRASH_DIR` overrides; newest 20 kept) and print its path.
 - Budgets (CI-enforced, relative to `.legacy` on the same runner): `--version`
   and `plan` startup <= legacy; protocol-scale planning <= legacy; per-test
   worker overhead <= legacy; parallelism benchmark within noise.
@@ -208,7 +210,7 @@ Owner may reverse any line.
 | VITEST-PARTIAL-RUN                                                          | no collection coverage, so a partial run kept the file's evidence stable                                                                                            | the graph stores each test file's collection files (schema 6, store 4). A file whose every test ran replaces its collection evidence; a file with replayed tests keeps the previous collection and coverage and adds what it observed (proofs/Tia/Update.lean: a replayed test proves no collection file changed). An unnamed layer block replayed in full now verifies. A detached fiber that finishes during a later test stays a limit, as in 1.x: carrying per-test evidence forward would make verify fail whenever an import is removed |
 | CLI-DOCTOR-02/03 (bare `doctor`)                                            | `doctor` required `--graph`; running it without was a usage error                                                                                                   | without `--graph` it checks the install and, with `--perf`, times a throwaway project; with `--graph` it behaves as before                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | OBS-DEVTOOLS-DEP                                                            | no WebSocket server                                                                                                                                                 | `ws` is a runtime dependency: Effect's devtools server needs it, and a CommonJS package cannot be bundled into the ESM chunks                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| TOOLING-ARCHER                                                              | Archer 0.2.1 with an `overrides` entry for its Vitest peer; `check:architecture` ran the whole suite under its Vitest plugin                                        | Archer 0.3.0 (no Vitest peer, no plugin); `check:architecture` is `archer check` with the same rules in `archer.config.ts`; it needs Node 22.18, so the Node 22.12 CI job skips it; it counts lines like `wc -l`, where 0.2.1 counted one more                                                        |
+| TOOLING-ARCHER                                                              | Archer 0.2.1 with an `overrides` entry for its Vitest peer; `check:architecture` ran the whole suite under its Vitest plugin                                        | Archer 0.3.0 (no Vitest peer, no plugin); `check:architecture` is `archer check` with the same rules in `archer.config.ts`; it needs Node 22.18, so the Node 22.12 CI job skips it; it counts lines like `wc -l`, where 0.2.1 counted one more                                                                                                                                                                                                                                                                                                |
 | dead code (8.3)                                                             |                                                                                                                                                                     | not ported                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | VERIFY-RUN-04 (extended)                                                    | `environment` could set `TIA_FRESH` for the selective phase                                                                                                         | `TIA_FRESH` is cleared for the selective phase, inherited or passed in `environment`; the full phase always sets it to `1`                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | VERIFY-SEL-01..16                                                           | the selection audit derived the expected selection a third time with its own indexes                                                                                | the audit lowers both graphs through `planRuntimeChanges` and `core/select.ts` with strict options, so verifier and planner cannot drift; a failed test in a file without per-test edges now requires the whole file, as the planner runs it                                                                                                                                                                                                                                                                                                  |

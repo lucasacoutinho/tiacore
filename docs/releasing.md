@@ -32,19 +32,19 @@ Before publishing a release:
    TIA_FRESH=1 npm run release:check
    ```
 
-   This requires `uv`; the gate runs the Python conformance suite and builds the
-   pytest SDK sdist and wheel under `sdks/python/dist`. A fresh runner may
-   resolve the declared Python build backend before producing those artifacts.
+   The gate needs the built 1.x oracle (`npm ci && npm run build` in `.legacy`),
+   Go, Python 3, Bun, a Lean toolchain (elan) for `check:proofs`, and Chromium
+   (`npx playwright install chromium`). Without Bun or Chromium their suites
+   skip, so a release gate must have both.
 
-4. Require the full CI, compatibility, cross-platform, shard/aggregate, and
-   non-publishing release-candidate workflows at that exact commit. This
-   includes native Node and Bun runs on Linux, Windows, and macOS plus the
-   browser-installed Playwright job.
-5. Inspect `npm pack --dry-run`, install the generated tarball in the real
-   package-install fixture, and inspect the Python sdist and wheel.
+4. Require the CI workflow at that exact commit: the Node 22.12 and 24 checks,
+   the Lean proofs, the SDKs and the 1.x oracle.
+5. Inspect `npm pack --dry-run`, then install the tarball in a scratch project
+   and run a Vitest record and replay, `tiacore --version` and `tiacore verify`.
 6. Review `npm audit --omit=dev`, Publint, and Are The Types Wrong output.
-7. Optionally compare `npm run benchmark:parallel`; a regression needs
-   investigation but benchmark variance alone does not override correctness.
+7. Run `npx tiacore doctor --perf` and compare the phase times with the last
+   release; a regression needs investigation, but timing noise alone does not
+   override correctness.
 8. Verify the candidate has no `.tia`, coverage, execution logs, credentials,
    test fixtures, or development-only files in its tarball.
 

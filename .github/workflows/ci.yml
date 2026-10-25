@@ -25,9 +25,17 @@ jobs:
         with:
           cache: npm
           node-version: ${{ matrix.node }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23.x'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
       - run: npm ci
       - run: npm ci && npm run build
         working-directory: .legacy
+      # Without a browser and Bun the Playwright and Bun suites skip.
+      - run: npx playwright install --with-deps chromium
       - run: npm run check
       # Archer needs Node 22.18 or newer to load archer.config.ts.
       - run: npm run check:architecture

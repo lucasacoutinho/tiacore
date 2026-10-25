@@ -6,42 +6,43 @@ skip possibly affected tests.
 
 ## Development setup
 
-Use Node 24 for the complete local suite and install Bun 1.3 when changing the
-Bun adapter:
+Use Node 24 for the complete local suite. Install Bun 1.3 and Chromium
+(`npx playwright install chromium`) to run the Bun and Playwright suites; they
+skip without them. The differential tests compare against the 1.x tree in
+`.legacy`, which must be built once:
 
 ```sh
 npm ci
-npm run check
+(cd .legacy && npm ci && npm run build)
+npm run gate
 ```
 
-`npm run check` verifies Oxfmt, runs Oxlint, type-checks the repository, and
-executes the test suite. Use `npm run fmt` and `npm run lint:fix` before
-committing.
+`npm run gate` verifies Oxfmt, runs Oxlint, type-checks with TypeScript 7 and
+the Effect language service, runs the test suite and checks the architecture
+rules. Use `npm run fmt` and `npm run lint:fix` before committing.
 
 Useful focused commands:
 
 ```sh
 npm run typecheck
-npm run fmt:check
-npm run lint
-npm run test:cross-platform
+npm run check:architecture
 npm run check:package
-npm run benchmark:parallel
+npm run check:proofs   # needs a Lean toolchain (elan)
+npm run check:python
+npm run check:go
 ```
 
-The benchmark is informational; correctness tests decide acceptance. The
-compatibility workflow compiles with TypeScript 7 and exercises Node 20/22/24,
-Vite 6/7/8, Vitest 4.1, Bun 1.3, npm, pnpm, Yarn Plug'n'Play, and Bun installs.
+Internals follow `docs/architecture/effect-conventions.md`. Public entry points
+stay plain TypeScript with Promise APIs: no Effect type reaches a public
+declaration file.
 
 ## Change expectations
 
 - Add a regression test that executes the real runner or framework path where
   practical. Use component tests for atomic-write, merge, parser, and explicit
   failure-injection boundaries.
-- Keep stable entry points limited to `@lucasacoutinho/tiacore`,
-  `@lucasacoutinho/tiacore/node`, `@lucasacoutinho/tiacore/bun`, and
-  `@lucasacoutinho/tiacore/core`. Do not import package internals in consumer
-  examples.
+- Keep the public entry points to the subpaths `package.json` exports. Do not
+  import package internals in consumer examples.
 - Store cache paths with project-relative forward slashes.
 - Treat cache and artifact input as untrusted: validate before use and fail
   closed on incomplete, conflicting, or corrupt data.
@@ -52,7 +53,7 @@ Vite 6/7/8, Vitest 4.1, Bun 1.3, npm, pnpm, Yarn Plug'n'Play, and Bun installs.
 ## Pull requests
 
 Keep changes scoped and explain the failure mode being addressed. Before
-requesting review, run `npm run check` and `npm run check:package`. Changes to
+requesting review, run `npm run gate` and `npm run check:package`. Changes to
 runtime/version claims must also update the checked-in compatibility matrix.
 
 Publishing, tagging, and dispatching a release remain maintainer-authorized

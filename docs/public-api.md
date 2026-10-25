@@ -41,8 +41,7 @@ cache.
 ## `@lucasacoutinho/tiacore/node` and `@lucasacoutinho/tiacore/bun`
 
 Each exports named `tia(options?)`, returning a `TiaRunner` with an asynchronous
-`run()` method. Both share `TiaRunnerOptions` and `TiaRunnerResult`. Node also
-enforces its 22.10 runtime minimum when the adapter is executed.
+`run()` method. Both share `TiaRunnerOptions` and `TiaRunnerResult`.
 
 ## `@lucasacoutinho/tiacore/evidence`
 
