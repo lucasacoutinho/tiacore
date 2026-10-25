@@ -152,6 +152,7 @@ export class CoreRun {
         update: {
           executedFiles: touchedFiles,
           fullyExecutedFiles: wholeTestFiles,
+          presentFiles: [...touchedFiles, ...(this.runnerTestFiles ?? [])],
           results,
           testEdges,
         },

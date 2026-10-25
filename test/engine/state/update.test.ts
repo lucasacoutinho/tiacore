@@ -140,6 +140,30 @@ const outerOnly = {
 layer(EngineLive, { excludeTestServices: true })(
   'shared graph updates',
   (it) => {
+    it.effect(
+      'checks only the graph files the caller did not see on disk',
+      () =>
+        Effect.gen(function* () {
+          // Neither file exists here. The one the caller says it saw is kept
+          // without a check; the other is pruned.
+          const root = yield* projectWith()
+          const previous = graph()
+          const updated = yield* updateGraph({
+            executedFiles: [],
+            fullyExecutedFiles: [],
+            header,
+            presentFiles: ['test/a.test.ts'],
+            previous,
+            results: new Map(),
+            root,
+            testEdges: new Map(),
+          })
+          expect(Object.keys(updated.edges)).toEqual(['test/a.test.ts'])
+          expect(updated.results['removed']).toBeUndefined()
+          expect(updated.results['old']).toBeDefined()
+        }),
+    )
+
     it.effect('replaces whole files and prunes deleted files atomically', () =>
       Effect.gen(function* () {
         const root = yield* projectWith('test/a.test.ts')

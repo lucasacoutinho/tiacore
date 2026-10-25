@@ -397,6 +397,8 @@ export class TiaReporter implements Reporter {
               : [...this.executedFiles].filter(
                   (file) => !this.replayedFiles.has(file),
                 ),
+          // Vitest collected these files this run, so they exist.
+          presentFiles: [...this.executedFiles, ...this.replayedFiles],
           results: this.results,
           testCoverage: this.testCoverage,
           testEdges: this.testEdges,

@@ -43,6 +43,11 @@ export interface GraphUpdateInput {
   readonly fallbackEdges?: ReadonlyMap<string, readonly string[]>
   readonly fullyExecutedFiles: Iterable<string>
   readonly header: GraphHeader
+  /**
+   * Test files the caller saw on disk during this run (it ran or collected
+   * them). They are not checked again; every other graph file is.
+   */
+  readonly presentFiles?: Iterable<string>
   readonly previous: TiaRuntimeGraph | null
   readonly results: ReadonlyMap<string, CachedTestResult>
   readonly root: string
@@ -215,7 +220,8 @@ export const updateGraph = Effect.fnUntraced(function* (
 ) {
   const fs = yield* FileSystem.FileSystem
   const graph = applyObservations(input)
-  const files = Object.keys(graph.edges)
+  const known = new Set(input.presentFiles)
+  const files = Object.keys(graph.edges).filter((file) => !known.has(file))
   const present = yield* Effect.forEach(
     files,
     (file) =>

@@ -146,6 +146,11 @@ function vcs(directory: string, ...args: string[]): void {
       'user.email=bench@tiacore.invalid',
       '-c',
       'commit.gpgsign=false',
+      // No detached maintenance repacking .git while a run copies it.
+      '-c',
+      'maintenance.auto=false',
+      '-c',
+      'gc.auto=0',
       ...args,
     ],
     { cwd: directory, stdio: 'ignore' },
