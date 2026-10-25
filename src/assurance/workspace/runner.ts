@@ -1,4 +1,3 @@
-import { availableParallelism } from 'node:os'
 import { resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
@@ -15,6 +14,7 @@ import { runPromise } from '../../host/runtime.ts'
 import { TiaFailed, type TiaError } from '../../wire/errors.ts'
 import { runProcess } from '../process.ts'
 import { decodeWorkspaceOptions } from './options.ts'
+import { normalizedConcurrency } from '../../engine/scheduling.ts'
 
 function validateLanes(lanes: readonly TiaWorkspaceLane[]): void {
   const byId = new Map<string, TiaWorkspaceLane>()
@@ -51,12 +51,6 @@ function validateLanes(lanes: readonly TiaWorkspaceLane[]): void {
     visited.add(id)
   }
   for (const lane of lanes) visit(lane.id)
-}
-
-function normalizedConcurrency(value: number | undefined): number {
-  return value === undefined
-    ? Math.max(1, Math.min(4, availableParallelism()))
-    : Math.max(1, Math.floor(value))
 }
 
 /** A lane fails when its result says `success: false` or `status` is not 0. */

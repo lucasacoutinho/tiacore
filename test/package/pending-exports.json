@@ -13,17 +13,6 @@
   "./artifacts tia",
   "./artifacts verifyArtifactAttestation",
   "./bun tia",
-  "./conformance TIA_ADAPTER_CONFORMANCE_SCENARIOS",
-  "./conformance TIA_ADAPTER_CONFORMANCE_VERSION",
-  "./conformance certifyAdapterReceipt",
-  "./conformance executeAdapterCertification",
-  "./conformance parseAdapterCertificationReceipt",
-  "./core TiaCore",
-  "./evidence DEFAULT_TIA_EVIDENCE_HEADER",
-  "./evidence TIA_EVIDENCE_DIRECTORY_ENV",
-  "./evidence TIA_EVIDENCE_HEADER_ENV",
-  "./evidence TiaEvidence",
-  "./evidence tia",
   "./node tia",
   "./playwright tia",
   "./playwright/reporter default",
@@ -32,7 +21,5 @@
   "./verification TiaVerifier",
   "./verification tia",
   "./vitest default",
-  "./vitest tia",
-  "./workspace TiaWorkspaceRunner",
-  "./workspace tia"
+  "./vitest tia"
 ]

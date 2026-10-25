@@ -16,3 +16,5 @@ skills-lock.json
 .legacy/sdks/python/dist/
 .build/
 proofs/.lake/
+test/fixtures/**/build/
+test/fixtures/**/executions.log
