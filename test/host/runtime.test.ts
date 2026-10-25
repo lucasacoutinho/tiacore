@@ -1,3 +1,7 @@
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import * as Effect from 'effect/Effect'
 import { afterAll, describe, expect, test } from 'vitest'
 
@@ -21,9 +25,20 @@ describe('runPromise', () => {
     expect((error as Error).cause).toBeInstanceOf(TiaInvalid)
   })
 
-  test('rethrows defects unchanged', async () => {
-    const defect = new RangeError('boom')
-    await expect(runPromise(Effect.die(defect))).rejects.toBe(defect)
+  test('rethrows defects unchanged after writing a crash report', async () => {
+    const crashes = mkdtempSync(join(tmpdir(), 'tiacore-crash-'))
+    process.env['TIACORE_CRASH_DIR'] = crashes
+    try {
+      const defect = new RangeError('boom')
+      await expect(runPromise(Effect.die(defect))).rejects.toBe(defect)
+      const [report] = readdirSync(crashes)
+      expect(readFileSync(join(crashes, report ?? ''), 'utf8')).toContain(
+        'RangeError: boom',
+      )
+    } finally {
+      delete process.env['TIACORE_CRASH_DIR']
+      rmSync(crashes, { force: true, recursive: true })
+    }
   })
 
   test('retains no memory across many runs', async () => {
