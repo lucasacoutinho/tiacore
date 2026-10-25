@@ -14,12 +14,22 @@ export const REQUEST_TIMEOUT_MS = 60_000
 /** Largest JSON listing a provider reads from a CI API. */
 export const MAX_LISTING_BYTES = 10 * 1024 * 1024
 
+/** Gives up on a body so its connection is released instead of held until the server finishes. */
+async function discard(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel()
+  } catch {
+    // The body was already closed or locked.
+  }
+}
+
 async function readBounded(
   response: Response,
   maximumBytes: number,
 ): Promise<Uint8Array | null> {
   const declaredLength = Number(response.headers.get('content-length'))
   if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
+    await discard(response)
     return null
   }
 
@@ -86,7 +96,9 @@ export const getBytes = (
         redirect: 'follow',
         signal,
       })
-      return response.ok ? await readBounded(response, maximumBytes) : null
+      if (response.ok) return await readBounded(response, maximumBytes)
+      await discard(response)
+      return null
     },
   }).pipe(
     Effect.timeoutOrElse({

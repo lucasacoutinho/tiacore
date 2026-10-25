@@ -120,10 +120,15 @@ function decodedDataUrl(value: string): string | null {
 async function uncachedBoundedText(url: string): Promise<string | null> {
   try {
     const response = await fetch(url)
-    if (!response.ok) return null
+    if (!response.ok) {
+      // An unread body would hold its connection open.
+      await response.body?.cancel()
+      return null
+    }
 
     const declared = Number(response.headers.get('content-length'))
     if (Number.isFinite(declared) && declared > MAX_SOURCE_MAP_BYTES) {
+      await response.body?.cancel()
       return null
     }
 

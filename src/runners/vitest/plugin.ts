@@ -11,6 +11,7 @@ import type { Plugin } from 'vite'
 import { VERSION } from '../../core/version.ts'
 import { runPromise } from '../../host/runtime.ts'
 import { projectFingerprint } from '../../engine/baseline/fingerprint.ts'
+import { CoverageTemplates } from '../../engine/coverage/templates.ts'
 import { globMatcher } from '../../engine/glob.ts'
 import {
   isInside,
@@ -232,6 +233,10 @@ export function tia(options: TiaOptions = {}): Plugin {
 
       if (!shared.initialized) {
         const current = runtime
+        // The runtime outlives a Vitest instance, and so would the templates
+        // of every file version this process ever transformed. This run
+        // registers the ones it needs as it transforms.
+        current.coverageTemplates = new CoverageTemplates()
         current.root = resolve(vitest.config.root)
         current.options = {
           ...normalized,
