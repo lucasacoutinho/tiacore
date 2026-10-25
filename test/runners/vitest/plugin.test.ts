@@ -61,6 +61,16 @@ function plugin(): CallablePlugin {
   return tia({ enabled: true }) as unknown as CallablePlugin
 }
 
+function ignoreSuitePathInArgv(run: () => void): void {
+  const previous = process.argv
+  process.argv = ['node', 'vitest', 'run']
+  try {
+    run()
+  } finally {
+    process.argv = previous
+  }
+}
+
 const temporaryDirectories: string[] = []
 
 function temporaryRoot(): string {
@@ -278,8 +288,10 @@ describe('plugin composition and bypasses', () => {
       },
     }
 
-    instance.configureVitest?.(context)
-    instance.configureVitest?.(context)
+    ignoreSuitePathInArgv(() => {
+      instance.configureVitest?.(context)
+      instance.configureVitest?.(context)
+    })
 
     expect(context.project.config.include).toBe(include)
     expect(reporters).toEqual([])
@@ -320,7 +332,9 @@ describe('plugin composition and bypasses', () => {
       },
     }
 
-    instance.configureVitest?.(context)
+    ignoreSuitePathInArgv(() => {
+      instance.configureVitest?.(context)
+    })
 
     expect(context.project.config.include).toBe(include)
     expect(lines).toEqual([])

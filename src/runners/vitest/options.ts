@@ -278,6 +278,17 @@ export function coverageRuntime(
 
 const OPTION_VALUES = new Set(['--config', '-c', '--dir', '--root'])
 
+function isCliFileArgument(root: string, argument: string): boolean {
+  const clean = slash(argument.replace(/:\d+$/u, ''))
+  return (
+    TEST_FILE_PATTERN.test(clean) ||
+    (clean !== 'run' &&
+      clean !== 'watch' &&
+      existsSync(resolve(root, clean)) &&
+      !clean.includes('.config.'))
+  )
+}
+
 /** True when the command line names test files or directories to run. */
 export function hasCliFileFilter(
   root: string,
@@ -288,14 +299,42 @@ export function hasCliFileFilter(
     if (argument.startsWith('-')) return false
     const previous = args[index - 1]
     if (previous !== undefined && OPTION_VALUES.has(previous)) return false
-    const clean = slash(argument.replace(/:\d+$/u, ''))
-    return (
-      TEST_FILE_PATTERN.test(clean) ||
-      (clean !== 'run' &&
-        clean !== 'watch' &&
-        existsSync(resolve(root, clean)) &&
-        !clean.includes('.config.'))
+    return isCliFileArgument(root, argument)
+  })
+}
+
+/**
+ * Flags whose next argv token is the flag's value. That token can look like a
+ * test file (`--exclude test/b.test.ts`) without the user naming a file filter.
+ */
+const SELECTION_VALUE_FLAGS = new Set([
+  '--exclude',
+  '--project',
+  '--related',
+  '--tagsFilter',
+  '--testNamePattern',
+  '-t',
+])
+
+function hasPositionalFileFilter(
+  root: string,
+  argv: readonly string[],
+): boolean {
+  const args = argv.slice(2)
+  let relatedCommand = false
+  return args.some((argument, index) => {
+    if (argument === 'related' && index === 0) {
+      relatedCommand = true
+      return false
+    }
+    if (argument.startsWith('-') || relatedCommand) return false
+    const previous = args[index - 1]
+    if (
+      previous !== undefined &&
+      (OPTION_VALUES.has(previous) || SELECTION_VALUE_FLAGS.has(previous))
     )
+      return false
+    return isCliFileArgument(root, argument)
   })
 }
 
@@ -308,6 +347,23 @@ export interface NativeSelection {
   related?: string[]
   tagsFilter?: string[]
   testNamePattern?: RegExp
+}
+
+export function nativeSelectionLabels(
+  root: string,
+  config: NativeSelection,
+  argv: readonly string[] = process.argv,
+): string[] {
+  const labels: string[] = []
+  if ((config.cliExclude?.length ?? 0) > 0) labels.push('--exclude')
+  if ((config.filters?.length ?? 0) > 0 || hasPositionalFileFilter(root, argv))
+    labels.push('file filters')
+  if (config.testNamePattern !== undefined) labels.push('-t')
+  if (config.changed) labels.push('--changed')
+  if ((config.related?.length ?? 0) > 0) labels.push('--related')
+  if ((config.project?.length ?? 0) > 0) labels.push('--project')
+  if ((config.tagsFilter?.length ?? 0) > 0) labels.push('--tagsFilter')
+  return labels
 }
 
 /** True when the user asked Vitest to select tests itself; tiacore then runs everything it is given. */
@@ -326,4 +382,19 @@ export function hasNativeSelection(
     config.testNamePattern !== undefined ||
     hasCliFileFilter(root, argv)
   )
+}
+
+export function bypassNotice(
+  watch: boolean,
+  labels: readonly string[],
+): string {
+  const selection =
+    labels.length === 0 ? null : `native selection (${labels.join(', ')})`
+  const cause =
+    watch && selection !== null
+      ? `watch mode and ${selection}`
+      : watch
+        ? 'watch mode'
+        : (selection ?? 'native selection')
+  return `tiacore: bypassed, ${cause} in use; graph not updated`
 }

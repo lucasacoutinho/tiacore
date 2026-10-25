@@ -35,8 +35,10 @@ import {
 } from '../../engine/state/partitions.ts'
 import { verificationTarget } from '../../engine/verification-snapshot.ts'
 import {
+  bypassNotice,
   coverageRuntime,
   hasNativeSelection,
+  nativeSelectionLabels,
   normalizeOptions,
   type NormalizedOptions,
   type TiaOptions,
@@ -351,17 +353,15 @@ export function tia(options: TiaOptions = {}): Plugin {
         wholeTestFiles: [],
       }
 
-      if (
-        vitest.config.watch ||
-        hasNativeSelection(
-          resolve(vitest.config.root ?? process.cwd()),
-          vitest.config,
-        )
-      ) {
+      const root = resolve(vitest.config.root ?? process.cwd())
+      const labels = nativeSelectionLabels(root, vitest.config)
+      if (vitest.config.watch || hasNativeSelection(root, vitest.config)) {
         for (const candidate of candidates)
           candidate.provide(TIA_SELECTION_KEY, selectAll)
         runtime.active = false
         shared.bypassed = true
+        if (runtime.options.log)
+          vitest.logger.log(`\n ${bypassNotice(vitest.config.watch, labels)}`)
         return
       }
 

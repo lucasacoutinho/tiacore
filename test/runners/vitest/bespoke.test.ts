@@ -748,7 +748,9 @@ test('persistently failing case', () => {
   })
 
   test('leaves watch mode on Vitest native selection', async () => {
-    const root = createProject()
+    const root = createProject({
+      pluginOptions: '{ enabled: true, log: true }',
+    })
     const watch = await runVitestUntil(root, ['--watch'], (output) =>
       output.includes('Waiting for file changes'),
     )
