@@ -1,6 +1,7 @@
 import { relative, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
+import * as Match from 'effect/Match'
 import * as Stream from 'effect/Stream'
 import { ChildProcess, ChildProcessSpawner } from 'effect/process'
 
@@ -17,10 +18,69 @@ class OutputTooLarge {
   readonly _tag = 'OutputTooLarge'
 }
 
+interface Finished {
+  readonly code: number
+  readonly output: Buffer
+}
+
+/**
+ * Asks for the HEAD commit and the repository top in one process. Git prints
+ * each answer as soon as it has it and stops at the first failure, so the
+ * order of the arguments decides what survives a failure:
+ * - `--is-inside-work-tree` never fails inside a repository, and prints
+ *   `false` in a bare repository or a git directory, where `--show-toplevel`
+ *   dies and HEAD can still resolve;
+ * - `--show-toplevel` prints the top before `--verify HEAD` fails on a
+ *   repository without commits.
+ */
+const HEAD_AND_TOP = [
+  'rev-parse',
+  '--is-inside-work-tree',
+  '--show-toplevel',
+  '--verify',
+  'HEAD',
+] as const
+
+/** What `HEAD_AND_TOP` printed. */
+type Located =
+  | { readonly _tag: 'Born'; readonly sha: string; readonly top: string }
+  | { readonly _tag: 'Unborn'; readonly top: string }
+  | { readonly _tag: 'NoWorkTree' }
+  | { readonly _tag: 'Unavailable' }
+  | { readonly _tag: 'Unrecognized' }
+
+function locate(finished: Finished | null): Located {
+  if (finished === null) return { _tag: 'Unavailable' }
+  const printed = finished.output.toString('utf8')
+  const newline = printed.indexOf('\n')
+  const first = newline === -1 ? printed : printed.slice(0, newline)
+  const rest = newline === -1 ? '' : printed.slice(newline + 1)
+  if (first === 'false') return { _tag: 'NoWorkTree' }
+  if (first === '') {
+    return finished.code === 0
+      ? { _tag: 'Unrecognized' }
+      : { _tag: 'Unavailable' }
+  }
+  if (first !== 'true') return { _tag: 'Unrecognized' }
+  if (finished.code !== 0) {
+    const top = rest.trim()
+    return top === '' ? { _tag: 'Unrecognized' } : { _tag: 'Unborn', top }
+  }
+  // The top may hold a newline; the commit is the last line.
+  const body = rest.trimEnd()
+  const split = body.lastIndexOf('\n')
+  const top = body.slice(0, split).trim()
+  const sha = body.slice(split + 1).trim()
+  return split === -1 || top === '' || sha === ''
+    ? { _tag: 'Unrecognized' }
+    : { _tag: 'Born', sha, top }
+}
+
 export function makeGit(
   spawner: ChildProcessSpawner.ChildProcessSpawner['Service'],
 ) {
-  const run = (root: string, args: readonly string[]) =>
+  /** Runs git and keeps its output whatever the exit code; null when it cannot run at all. */
+  const exec = (root: string, args: readonly string[]) =>
     Effect.scoped(
       Effect.gen(function* () {
         const handle = yield* spawner.spawn(
@@ -42,9 +102,17 @@ export function makeGit(
           }),
         )
         const code = yield* handle.exitCode
-        return Number(code) === 0 ? Buffer.concat(chunks) : null
+        return {
+          code: Number(code),
+          output: Buffer.concat(chunks),
+        } satisfies Finished
       }),
     ).pipe(Effect.orElseSucceed(() => null))
+
+  const run = (root: string, args: readonly string[]) =>
+    exec(root, args).pipe(
+      Effect.map((finished) => (finished?.code === 0 ? finished.output : null)),
+    )
 
   const text = (root: string, args: readonly string[]) =>
     run(root, args).pipe(
@@ -64,7 +132,9 @@ export function makeGit(
     )
 
   // A directory's repository top does not change while tiacore runs, and
-  // capture and change detection both ask for it, so it is asked once.
+  // capture and change detection both ask for it, so it is asked once. The
+  // question that finds HEAD answers it too, so a capture spends no process
+  // on the top: it is only asked on its own when nothing asked for HEAD first.
   const topLevels = new Map<string, Effect.Effect<string | null>>()
   const repositoryTop = (root: string) => {
     let top = topLevels.get(root)
@@ -76,6 +146,34 @@ export function makeGit(
     }
     return top
   }
+  const learnTop = (root: string, top: string) => {
+    if (!topLevels.has(root)) topLevels.set(root, Effect.succeed(top))
+  }
+
+  const verifiedHead = (root: string) =>
+    text(root, ['rev-parse', '--verify', 'HEAD'])
+
+  // HEAD moves, so it is asked every time.
+  const currentSha = (root: string) =>
+    exec(root, HEAD_AND_TOP).pipe(
+      Effect.flatMap((finished) =>
+        Match.valueTags(locate(finished), {
+          Born: ({ sha, top }) =>
+            Effect.sync(() => {
+              learnTop(root, top)
+              return sha
+            }),
+          NoWorkTree: () => verifiedHead(root),
+          Unavailable: () => Effect.succeed(null),
+          Unborn: ({ top }) =>
+            Effect.sync(() => {
+              learnTop(root, top)
+              return null
+            }),
+          Unrecognized: () => verifiedHead(root),
+        }),
+      ),
+    )
 
   /** Listings run at the repository top and come back relative to `root`. */
   const repositoryPaths = Effect.fnUntraced(function* (
@@ -93,7 +191,7 @@ export function makeGit(
   })
 
   return {
-    currentSha: (root: string) => text(root, ['rev-parse', '--verify', 'HEAD']),
+    currentSha,
     isAncestor: (root: string, ancestor: string, descendant: string) =>
       run(root, ['merge-base', '--is-ancestor', ancestor, descendant]).pipe(
         Effect.map((output) => output !== null),

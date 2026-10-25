@@ -25,6 +25,11 @@ follow Semantic Versioning.
 
 - A CLI crash writes a crash report, as a library call already did. A report
   directory keeps the 20 newest reports.
+- Baseline capture and change detection start fewer git processes. One
+  `git rev-parse` answers both HEAD and the repository top, so a cold prepare or
+  commit in a git project starts three git processes where 1.x started five. A
+  HEAD that has not moved since the stored baseline is no longer checked for
+  ancestry. The answers are the same.
 - Exporters flush when the process ends or half a second after the last library
   run. Before, a process with `TIACORE_DEVTOOLS` or an OTLP URL did not end on
   its own, and the trace and metrics files were written only on dispose.

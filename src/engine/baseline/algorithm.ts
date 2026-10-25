@@ -121,7 +121,14 @@ export function makeBaselines(probe: Probe): Baselines['Service'] {
   ) {
     const head = yield* probe.currentSha(root)
     if (head === null) return null
-    if (!(yield* probe.isAncestor(root, baseline.sha, head))) return null
+    // A commit is its own ancestor, and `head` exists, so asking is only
+    // needed when the project moved to another commit since the baseline.
+    if (
+      baseline.sha !== head &&
+      !(yield* probe.isAncestor(root, baseline.sha, head))
+    ) {
+      return null
+    }
     const [tracked, untracked] = yield* Effect.all(
       [probe.trackedChanges(root, baseline.sha), probe.untracked(root)],
       { concurrency: 'unbounded' },

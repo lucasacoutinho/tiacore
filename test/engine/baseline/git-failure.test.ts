@@ -51,7 +51,7 @@ describe('git failures', () => {
     const root = repository({ 'src/a.ts': 'a\n' })
     put(root, 'src/dirty.ts')
     process.env.PATH = `${shim(
-      'case "$*" in *rev-parse*--verify*) echo 0123456789012345678901234567890123456789;; *) head -c 22000000 /dev/zero | tr "\\0" "a";; esac',
+      'case "$*" in *--is-inside-work-tree*) printf "true\\n%s\\n0123456789012345678901234567890123456789\\n" "$PWD";; *) head -c 22000000 /dev/zero | tr "\\0" "a";; esac',
     )}:${originalPath}`
     expect(
       await run(Effect.flatMap(Baselines, (b) => b.capture(root, []))),
@@ -72,13 +72,27 @@ describe('git failures', () => {
   test('passes quotepath off, runs in the project root and ignores stdin', async () => {
     const root = repository({ 'src/a.ts': 'a\n' })
     const log = join(scratch('tia-log-'), 'calls.txt')
-    process.env.PATH = `${shim(`echo "$PWD|$*" >> ${log}; cat > /dev/null; echo abc`)}:${originalPath}`
+    process.env.PATH = `${shim(`echo "$PWD|$*" >> ${log}; cat > /dev/null; printf 'true\\n/top\\nabc\\n'`)}:${originalPath}`
     expect(
       await run(Effect.flatMap(Baselines, (b) => b.currentSha(root))),
     ).toBe('abc')
     const { readFileSync } = await import('node:fs')
     expect(readFileSync(log, 'utf8').trim()).toBe(
-      `${root}|-c core.quotepath=false rev-parse --verify HEAD`,
+      `${root}|-c core.quotepath=false rev-parse --is-inside-work-tree --show-toplevel --verify HEAD`,
     )
+  })
+
+  test('an answer it cannot read falls back to asking for HEAD alone', async () => {
+    const root = repository({ 'src/a.ts': 'a\n' })
+    const log = join(scratch('tia-log-'), 'calls.txt')
+    process.env.PATH = `${shim(`echo "$PWD|$*" >> ${log}; cat > /dev/null; echo abc`)}:${originalPath}`
+    expect(
+      await run(Effect.flatMap(Baselines, (b) => b.currentSha(root))),
+    ).toBe('abc')
+    const { readFileSync } = await import('node:fs')
+    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
+      `${root}|-c core.quotepath=false rev-parse --is-inside-work-tree --show-toplevel --verify HEAD`,
+      `${root}|-c core.quotepath=false rev-parse --verify HEAD`,
+    ])
   })
 })
