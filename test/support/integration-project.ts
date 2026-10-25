@@ -200,11 +200,6 @@ test('b', async () => {
   return root
 }
 
-/**
- * A git workspace whose Vitest root is `packages/a` and whose sibling
- * `packages/b` is outside that root. The returned `packageDir` is the
- * Vitest working directory.
- */
 export function createSiblingWorkspace(): {
   packageDir: string
   repo: string

@@ -20,12 +20,7 @@ export interface InstrumentationMatchers {
  */
 export interface TiaRuntime {
   active: boolean
-  /**
-   * Files inside this directory may be recorded even when they sit outside
-   * `root`. It is the git repository top when `root` is inside one, and
-   * `root` otherwise. Change detection uses the same top.
-   */
-  boundary: string
+  repositoryRoot: string
   coverage: TiaCoverageRuntime
   coverageTemplates: CoverageTemplates
   instrumenter: Instrumenter | null
@@ -47,7 +42,7 @@ export function initialRuntime(
 ): TiaRuntime {
   return {
     active: false,
-    boundary: root,
+    repositoryRoot: root,
     coverage: coverageRuntime(root, false, null),
     coverageTemplates: new CoverageTemplates(),
     instrumenter: null,

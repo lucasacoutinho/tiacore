@@ -38,32 +38,30 @@ export class CoverageTemplates {
     }
   }
 
-  /** Lists tracked files whose counters have no registered template. */
   unknownFiles(
     root: string,
     counters: ProbeCounterMap,
-    boundary = root,
+    repositoryRoot = root,
   ): string[] {
     return Object.entries(counters)
       .filter(
         ([path, file]) =>
           !this.byHash.has(file.hash) &&
-          trackedFile(root, path, boundary) !== null,
+          trackedFile(root, path, repositoryRoot) !== null,
       )
       .map(([path]) => path)
   }
 
-  /** Converts worker counters into a root-relative graph record. */
   record(
     root: string,
     counters: ProbeCounterMap,
-    boundary = root,
+    repositoryRoot = root,
   ): TiaCoverageRecord {
     const record: TiaCoverageRecord = {}
 
     for (const [key, file] of Object.entries(counters)) {
       const map = this.byHash.get(file.hash)
-      const path = trackedFile(root, key, boundary)
+      const path = trackedFile(root, key, repositoryRoot)
       if (map === undefined || path === null) continue
       record[path] = { b: file.b, f: file.f, map, s: file.s }
     }

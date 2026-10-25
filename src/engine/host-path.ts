@@ -59,20 +59,22 @@ export function resolveCacheDir(root: string, cacheDir: string): string {
     : api.resolve(root, cacheDir)
 }
 
-/**
- * A file inside `boundary`, relative to `root`. The result may begin with
- * `..` when `root` sits below `boundary`. Null for either root itself, for a
- * path outside `boundary`, and for a path on another drive.
- */
 export function trackedFile(
   root: string,
   path: string,
-  boundary = root,
+  repositoryRoot = root,
 ): string | null {
-  if (!isInside(boundary, path)) return null
-  const api = pathApi(root, path, boundary)
+  if (!isInside(repositoryRoot, path)) return null
+  const api = pathApi(root, path, repositoryRoot)
+  if (api.relative(repositoryRoot, path) === '') return null
   const relative = slash(api.relative(root, path))
-  if (relative === '' || relative === '.' || relative === '..') return null
+  if (
+    relative === '' ||
+    relative === '.' ||
+    relative.split('/').every((segment) => segment === '..')
+  ) {
+    return null
+  }
   if (api.isAbsolute(relative)) return null
   return relative
 }

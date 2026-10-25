@@ -42,7 +42,7 @@ export function importedAssetFiles(
   graph: ModuleGraphLike,
   moduleId: string,
   root: string,
-  boundary = root,
+  repositoryRoot = root,
 ): string[] {
   const queue = entryModules(graph, moduleId)
   const visited = new Set<ModuleNodeLike>()
@@ -63,7 +63,7 @@ export function importedAssetFiles(
         continue
       }
 
-      const relative = trackedFile(root, file, boundary)
+      const relative = trackedFile(root, file, repositoryRoot)
       if (relative !== null) {
         assets.add(relative)
       }
@@ -77,7 +77,7 @@ export function directlyImportedAssetFiles(
   graph: ModuleGraphLike,
   moduleId: string,
   root: string,
-  boundary = root,
+  repositoryRoot = root,
 ): string[] {
   const assets = new Set<string>()
 
@@ -88,7 +88,7 @@ export function directlyImportedAssetFiles(
         continue
       }
 
-      const relative = trackedFile(root, file, boundary)
+      const relative = trackedFile(root, file, repositoryRoot)
       if (relative !== null) {
         assets.add(relative)
       }

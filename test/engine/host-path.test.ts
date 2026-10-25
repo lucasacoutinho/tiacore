@@ -33,6 +33,10 @@ describe('portable path handling', () => {
     expect(trackedFile(root, '/repo/packages/b/src/value.ts')).toBeNull()
     expect(trackedFile(root, '/other/value.ts', boundary)).toBeNull()
     expect(trackedFile(root, root, boundary)).toBeNull()
+    expect(trackedFile(root, boundary, boundary)).toBeNull()
+    expect(
+      trackedFile('/repo/packages/nested/a', boundary, boundary),
+    ).toBeNull()
   })
 
   test('normalizes drive-letter and mixed-separator paths', () => {

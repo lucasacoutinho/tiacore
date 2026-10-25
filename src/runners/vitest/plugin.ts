@@ -179,27 +179,25 @@ function affectedTestsForProject(
 }
 
 /**
- * Root-relative name to instrument, or null when the file is outside the
- * tracked boundary or filtered out. A `**` glob does not match a `..` segment,
- * so a file outside the Vitest root is also matched on its boundary-relative path.
- * A file inside the Vitest root is matched only on its root-relative path.
+ * A `**` glob does not match a `..` segment, so a file outside the Vitest
+ * root is also matched on its repository-relative path.
  */
-function instrumentationName(
+export function instrumentationName(
   root: string,
-  boundary: string,
+  repositoryRoot: string,
   file: string,
   include: (path: string) => boolean,
   exclude: (path: string) => boolean,
 ): string | null {
-  const rootRelative = trackedFile(root, file, boundary)
+  const rootRelative = trackedFile(root, file, repositoryRoot)
   if (rootRelative === null) return null
   if (isInside(root, file)) {
     return include(rootRelative) && !exclude(rootRelative) ? rootRelative : null
   }
-  const boundaryRelative = trackedFile(boundary, file, boundary)
-  if (boundaryRelative === null) return null
-  const included = include(boundaryRelative) || include(rootRelative)
-  const excluded = exclude(boundaryRelative) || exclude(rootRelative)
+  const repositoryRelative = trackedFile(repositoryRoot, file, repositoryRoot)
+  if (repositoryRelative === null) return null
+  const included = include(repositoryRelative) || include(rootRelative)
+  const excluded = exclude(repositoryRelative) || exclude(rootRelative)
   return included && !excluded ? rootRelative : null
 }
 
@@ -258,7 +256,7 @@ async function planInstance(
       const top = yield* makeGit(
         yield* ChildProcessSpawner.ChildProcessSpawner,
       ).repositoryTop(current.root)
-      current.boundary =
+      current.repositoryRoot =
         top !== null && isInside(top, current.root) ? top : current.root
       current.verification = yield* verificationTarget(process.env)
       const fingerprint = yield* projectFingerprint(
@@ -454,7 +452,7 @@ export function tia(options: TiaOptions = {}): Plugin {
       if (cleanId === undefined || cleanId.startsWith('\0')) return
       const relativeId = instrumentationName(
         current.root,
-        current.boundary,
+        current.repositoryRoot,
         cleanId,
         matchers.include,
         matchers.exclude,

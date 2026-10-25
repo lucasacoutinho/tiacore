@@ -150,7 +150,7 @@ export class TiaReporter implements Reporter {
       const dependency = trackedFile(
         this.runtime.root,
         file,
-        this.runtime.boundary,
+        this.runtime.repositoryRoot,
       )
       if (dependency !== null) dependencies.add(dependency)
     }
@@ -158,7 +158,7 @@ export class TiaReporter implements Reporter {
       const dependency = trackedFile(
         this.runtime.root,
         file,
-        this.runtime.boundary,
+        this.runtime.repositoryRoot,
       )
       if (dependency !== null) shared.add(dependency)
     }
@@ -183,7 +183,7 @@ export class TiaReporter implements Reporter {
           graph,
           module.moduleId,
           this.runtime.root,
-          this.runtime.boundary,
+          this.runtime.repositoryRoot,
         ),
       )
       for (const collectionFile of value.collectionFiles) {
@@ -191,7 +191,7 @@ export class TiaReporter implements Reporter {
           graph,
           collectionFile,
           this.runtime.root,
-          this.runtime.boundary,
+          this.runtime.repositoryRoot,
         )) {
           sharedAssets.add(asset)
         }
@@ -247,7 +247,7 @@ export class TiaReporter implements Reporter {
       const dependency = trackedFile(
         this.runtime.root,
         dependencyFile,
-        this.runtime.boundary,
+        this.runtime.repositoryRoot,
       )
       if (dependency !== null) dependencies.add(dependency)
     }
@@ -290,7 +290,7 @@ export class TiaReporter implements Reporter {
             evidence.graph,
             resolve(this.runtime.root, dependency),
             this.runtime.root,
-            this.runtime.boundary,
+            this.runtime.repositoryRoot,
           )) {
             files.add(asset)
             moduleEdges.add(asset)
@@ -311,7 +311,7 @@ export class TiaReporter implements Reporter {
     const unknown = this.runtime.coverageTemplates.unknownFiles(
       this.runtime.root,
       counters,
-      this.runtime.boundary,
+      this.runtime.repositoryRoot,
     )
     if (unknown.length > 0 && !this.uninstrumentedCoverage) {
       this.uninstrumentedCoverage = true
@@ -325,7 +325,7 @@ export class TiaReporter implements Reporter {
       this.runtime.coverageTemplates.record(
         this.runtime.root,
         counters,
-        this.runtime.boundary,
+        this.runtime.repositoryRoot,
       ),
     )
   }
