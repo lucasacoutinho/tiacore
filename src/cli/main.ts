@@ -1,10 +1,13 @@
 import * as CliError from 'effect/cli/CliError'
 import * as Command from 'effect/cli/Command'
 import * as Cause from 'effect/Cause'
+import * as Console from 'effect/Console'
+import * as Effect from 'effect/Effect'
 import * as Exit from 'effect/Exit'
 import * as Option from 'effect/Option'
 
 import { join } from 'node:path'
+import { format } from 'node:util'
 
 import { VERSION } from '../core/version.ts'
 import { writeCrashReport } from '../host/crash.ts'
@@ -47,6 +50,32 @@ export interface CliOutcome {
   readonly message?: string
   /** The failure was already reported, for example in a written receipt. */
   readonly silent?: boolean
+  /** Help for a usage error, for stderr after `message`, as 1.x printed it. */
+  readonly usage?: string
+}
+
+/**
+ * Effect's CLI prints help, versions and completions through Console; tiacore's
+ * own commands write to stdout directly. The Console output is held until the
+ * outcome is known: it goes to stdout, or to stderr after a usage error.
+ */
+function heldConsole(): {
+  readonly console: Console.Console
+  readonly text: () => string
+} {
+  const lines: string[] = []
+  const console: Console.Console = Object.assign(
+    Object.create(globalThis.console),
+    {
+      log: (...values: ReadonlyArray<unknown>) => {
+        lines.push(format(...values))
+      },
+    },
+  )
+  return {
+    console,
+    text: () => (lines.length === 0 ? '' : `${lines.join('\n')}\n`),
+  }
 }
 
 /**
@@ -55,7 +84,27 @@ export interface CliOutcome {
  * `runPromise` calls use, so both report through the same exporters.
  */
 export async function execute(argv: readonly string[]): Promise<CliOutcome> {
-  const exit = await runExit(cli(argv))
+  // The wizard prompts interactively, so its output cannot wait.
+  if (argv.includes('--wizard'))
+    return outcomeOf(argv, await runExit(cli(argv)))
+  const held = heldConsole()
+  const exit = await runExit(
+    cli(argv).pipe(Effect.provideService(Console.Console, held.console)),
+  )
+  const outcome = outcomeOf(argv, exit)
+  const text = held.text()
+  if (text === '') return outcome
+  if (outcome.code !== 0 && outcome.silent !== true) {
+    return { ...outcome, usage: text }
+  }
+  process.stdout.write(text)
+  return outcome
+}
+
+function outcomeOf(
+  argv: readonly string[],
+  exit: Exit.Exit<unknown, Effect.Error<ReturnType<typeof cli>>>,
+): CliOutcome {
   if (Exit.isSuccess(exit)) return { code: 0 }
   const failure = Cause.findErrorOption(exit.cause)
   if (Option.isNone(failure)) {
