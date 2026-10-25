@@ -1,13 +1,24 @@
 import { readdirSync } from 'node:fs'
-import { setFlagsFromString } from 'node:v8'
+import { getHeapSpaceStatistics, setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
 
 setFlagsFromString('--expose-gc')
 const collect = runInNewContext('gc') as () => void
 
+/**
+ * Heap in use after full collections, without V8's code and trusted spaces:
+ * compiled code and its metadata grow as the JIT warms up, by amounts that
+ * differ between machines, and are not memory tiacore retains.
+ */
 function settledHeap(): number {
   for (let pass = 0; pass < 3; pass += 1) collect()
-  return process.memoryUsage().heapUsed
+  return getHeapSpaceStatistics()
+    .filter(
+      (space) =>
+        !space.space_name.includes('code') &&
+        !space.space_name.includes('trusted'),
+    )
+    .reduce((total, space) => total + space.space_used_size, 0)
 }
 
 export interface LeakOptions {
@@ -92,8 +103,8 @@ async function settleHandles(): Promise<{
 
 /**
  * Runs `operation` in batches and fails when retained heap keeps growing:
- * growth from the first to the last measured batch, divided by the number of
- * operations between them, must stay under `bytesPerOperation`. It also fails
+ * every measured batch must grow it by more than `bytesPerOperation` per
+ * operation for the run to fail, so one-time growth does not count. It also fails
  * when active handles or open file descriptors keep growing by more than
  * `handles`.
  */
@@ -109,14 +120,21 @@ export async function assertNoLeak(
   }
   await run()
   const handlesBefore = await settleHandles()
-  const start = settledHeap()
-  for (let batch = 0; batch < batches; batch += 1) await run()
+  // A leak grows the heap in every batch; a cache filling up or a one-off
+  // allocation grows it once. The smallest batch's growth is the leak rate.
+  const growths: number[] = []
+  let previous = settledHeap()
+  for (let batch = 0; batch < batches; batch += 1) {
+    await run()
+    const current = settledHeap()
+    growths.push(current - previous)
+    previous = current
+  }
   const handlesAfter = await settleHandles()
-  const growth = settledHeap() - start
-  const perOperation = growth / (batches * options.iterations)
+  const perOperation = Math.max(0, Math.min(...growths)) / options.iterations
   if (perOperation > options.bytesPerOperation) {
     throw new Error(
-      `retained heap grew ${growth} bytes over ${batches * options.iterations} operations (${perOperation.toFixed(1)} bytes each, limit ${options.bytesPerOperation})`,
+      `retained heap grew in every batch of ${options.iterations} operations, at least ${perOperation.toFixed(1)} bytes each (limit ${options.bytesPerOperation}); batch growth ${growths.join(', ')} bytes`,
     )
   }
   const handleGrowth = handlesAfter.handles - handlesBefore.handles
