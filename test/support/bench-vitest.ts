@@ -4,13 +4,14 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 
 // Generated Vitest projects for the end-to-end benchmarks: the same test files
 // run with plain Vitest, with the 2.0 plugin and with the 1.x plugin.
@@ -21,9 +22,14 @@ const vitestBin = join(packageRoot, 'node_modules/vitest/vitest.mjs')
 /** Which plugin the project's Vitest config loads, if any. */
 export type Tool = 'current' | 'legacy' | 'plain'
 
+/**
+ * The plugin each config imports, by package name as users write it. Vite
+ * bundles a config's relative and absolute imports on every run but leaves
+ * packages external, so a path import would charge the bundling to the tool.
+ */
 const plugins: Record<Exclude<Tool, 'plain'>, string> = {
-  current: join(packageRoot, 'dist/entries/index.js'),
-  legacy: join(packageRoot, 'node_modules/tiacore-v1/dist/entries/vitest.js'),
+  current: '@lucasacoutinho/tiacore/vitest',
+  legacy: 'tiacore-v1/vitest',
 }
 
 export interface ProjectShape {
@@ -119,7 +125,7 @@ function config(tool: Tool): string {
   const plugin =
     tool === 'plain'
       ? ''
-      : `import { tia } from ${JSON.stringify(pathToFileURL(plugins[tool]).href)}\n`
+      : `import { tia } from ${JSON.stringify(plugins[tool])}\n`
   return `import { defineConfig } from 'vitest/config'
 ${plugin}
 export default defineConfig({
@@ -218,9 +224,7 @@ function countOf(line: string, label: string): number {
 export function runVitest(root: string): VitestRun {
   // The repository's node_modules, linked so the project resolves vitest,
   // vite, effect and the plugins' dependencies.
-  if (!existsSync(join(root, 'node_modules'))) {
-    symlinkSync(join(packageRoot, 'node_modules'), join(root, 'node_modules'))
-  }
+  if (!existsSync(join(root, 'node_modules'))) linkModules(root)
   const started = performance.now()
   const result = spawnSync(process.execPath, [vitestBin, 'run'], {
     cwd: root,
@@ -253,4 +257,25 @@ export function editModule(root: string, module: number): void {
     `src/m${module}.ts`,
     `${sourceModule(module)}\nexport const edited = true\n`,
   )
+}
+
+/**
+ * A node_modules of links: every package the repository has, plus this
+ * checkout as `@lucasacoutinho/tiacore`, so the config imports 2.0 by name.
+ */
+function linkModules(root: string): void {
+  const source = join(packageRoot, 'node_modules')
+  const target = join(root, 'node_modules')
+  mkdirSync(target)
+  for (const entry of readdirSync(source)) {
+    if (entry !== '@lucasacoutinho') {
+      symlinkSync(join(source, entry), join(target, entry))
+      continue
+    }
+    mkdirSync(join(target, entry))
+    for (const scoped of readdirSync(join(source, entry))) {
+      symlinkSync(join(source, entry, scoped), join(target, entry, scoped))
+    }
+  }
+  symlinkSync(packageRoot, join(target, '@lucasacoutinho', 'tiacore'))
 }
