@@ -334,6 +334,45 @@ export function runVitestAsync(
   })
 }
 
+/**
+ * Runs Vitest until its output satisfies `done`, then stops it. For watch
+ * mode, which never exits on its own: waiting for evidence instead of a fixed
+ * time keeps the test correct on a loaded machine.
+ */
+export function runVitestUntil(
+  root: string,
+  args: string[],
+  done: (output: string) => boolean,
+  timeout = 60_000,
+): Promise<CommandResult> {
+  return new Promise((resolveResult, reject) => {
+    const child = spawn(
+      process.execPath,
+      [join(packageRoot, 'node_modules/vitest/vitest.mjs'), ...args],
+      {
+        cwd: root,
+        env: childEnvironment({}),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
+    let output = ''
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM')
+    }, timeout)
+    const collect = (value: unknown) => {
+      output += String(value)
+      if (done(output)) child.kill('SIGTERM')
+    }
+    child.stdout.on('data', collect)
+    child.stderr.on('data', collect)
+    child.on('error', reject)
+    child.on('close', (status, signal) => {
+      clearTimeout(timer)
+      resolveResult({ output, signal, status })
+    })
+  })
+}
+
 export function runCommand(
   root: string,
   command: string,

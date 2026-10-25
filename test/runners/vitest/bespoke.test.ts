@@ -19,6 +19,7 @@ import {
   readGraph,
   resetExecutions,
   runVitest,
+  runVitestUntil,
   writeGraphAt,
 } from '../../support/integration-project.ts'
 
@@ -725,9 +726,12 @@ test('persistently failing case', () => {
     expect(replay.output).toContain('no affected test files')
   })
 
-  test('leaves watch mode on Vitest native selection', () => {
+  test('leaves watch mode on Vitest native selection', async () => {
     const root = createProject()
-    const watch = runVitest(root, ['--watch'], 4_000)
+    const watch = await runVitestUntil(root, ['--watch'], (output) =>
+      output.includes('Waiting for file changes'),
+    )
+    expect(watch.output).toContain('Waiting for file changes')
 
     expect(executions(root).sort()).toEqual(['a', 'b'])
     expect(watch.output).not.toContain('TIA recording')
