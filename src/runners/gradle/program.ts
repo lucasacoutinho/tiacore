@@ -11,11 +11,7 @@ import type {
   TiaInvalidator,
 } from '../../core/protocol.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
-import {
-  readAdapterGraph,
-  spawnStatus,
-  writeAdapterGraph,
-} from '../../engine/scheduling.ts'
+import { inheritedEnvironment, runAttached } from '../../engine/process.ts'
 import {
   attempt,
   catalogFingerprint,
@@ -23,6 +19,8 @@ import {
   globFiles,
   ioFailure,
   planExternal,
+  readAdapterGraph,
+  writeAdapterGraph,
 } from '../external.ts'
 import type {
   DiscoverGradleOptions,
@@ -325,15 +323,15 @@ export const run = Effect.fn('tia.gradle.run')(function* (
       const started = yield* runMarker(dirname(graphPath)).pipe(
         Effect.orElseSucceed(() => new Date()),
       )
-      const exit = yield* spawnStatus({
-        arguments: [
+      const exit = yield* runAttached({
+        args: [
           ...(options.commandArguments ?? []),
           options.task ?? 'test',
           ...classes.flatMap((className) => ['--tests', className]),
         ],
         command,
         cwd: root,
-        environment: options.environment,
+        env: inheritedEnvironment(options.environment),
       })
       const reported =
         exit === 0

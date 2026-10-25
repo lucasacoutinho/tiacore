@@ -12,12 +12,12 @@ import {
   type TiaVerificationReceipt,
   type TiaVerificationSnapshot,
 } from '../../core/verification.ts'
+import { inheritedEnvironment, runProcess } from '../../engine/process.ts'
 import {
   TIA_VERIFICATION_DIRECTORY_ENV,
   TIA_VERIFICATION_PHASE_ENV,
 } from '../../engine/verification-snapshot.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
-import { runProcess } from '../process.ts'
 import {
   accuracyReceipt,
   comparePhases,
@@ -76,21 +76,21 @@ const executePhase = Effect.fnUntraced(function* (input: {
     args: input.arguments_,
     command: input.command,
     cwd: input.cwd,
-    env: {
+    env: inheritedEnvironment({
       ...input.environment,
       [TIA_VERIFICATION_DIRECTORY_ENV]: input.directory,
       [TIA_VERIFICATION_PHASE_ENV]: input.phase,
       // Only the full phase is fresh; an inherited TIA_FRESH must not turn the
       // selective phase into a second full run.
       TIA_FRESH: input.phase === 'full' ? '1' : undefined,
-    },
-    stdio: 'inherit',
+    }),
+    stdio: 'terminal',
   })
   const duration = performance.now() - started
   const phase: ExecutedPhase = {
     duration,
     snapshots: yield* readSnapshots(input.directory, input.phase),
-    status: outcome.code ?? 128,
+    status: outcome.status,
   }
   return phase
 })

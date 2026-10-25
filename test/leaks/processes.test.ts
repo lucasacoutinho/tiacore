@@ -7,7 +7,7 @@ import * as Effect from 'effect/Effect'
 import * as Fiber from 'effect/Fiber'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
-import { runProcess } from '../../src/assurance/process.ts'
+import { inheritedEnvironment, runProcess } from '../../src/engine/process.ts'
 import { executeSuites } from '../../src/engine/scheduling.ts'
 import { executeAdapterCertification } from '../../src/entries/conformance.ts'
 import {
@@ -15,7 +15,6 @@ import {
   type HostServices,
   runPromise,
 } from '../../src/host/runtime.ts'
-import { childEnvironment, runChild } from '../../src/runners/shared/process.ts'
 import type { TiaError } from '../../src/wire/errors.ts'
 import { assertNoLeak } from '../support/leak.ts'
 
@@ -56,21 +55,27 @@ async function gone(
 
 /**
  * Writes its pid, then starts a grandchild that writes its own and sleeps;
- * `mode` decides what the child does after that.
+ * `mode` decides what the child does after that. `exit` leaves cleanly once
+ * the grandchild has started.
  */
 function script(
   tag: string,
-  mode: 'flood' | 'sleep',
+  mode: 'exit' | 'flood' | 'sleep',
   withGrandchild = true,
 ): string {
   const pids = JSON.stringify(join(directory, tag))
   const grandchild = `require('node:fs').appendFileSync(${pids}, process.pid + '\\n'); setTimeout(() => {}, 60000)`
+  const after = {
+    exit: `const poll = setInterval(() => { if (require('node:fs').readFileSync(${pids}, 'utf8').split('\\n').filter(Boolean).length >= 2) process.exit(0) }, 5)`,
+    flood: "setInterval(() => process.stdout.write('x'.repeat(65536)), 1)",
+    sleep: 'setTimeout(() => {}, 60000)',
+  }[mode]
   return `
 const { appendFileSync } = require('node:fs')
 const { spawn } = require('node:child_process')
 appendFileSync(${pids}, process.pid + '\\n')
 ${withGrandchild ? `spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: 'ignore' })` : ''}
-${mode === 'flood' ? "setInterval(() => process.stdout.write('x'.repeat(65536)), 1)" : 'setTimeout(() => {}, 60000)'}
+${after}
 `
 }
 
@@ -108,34 +113,28 @@ const interruptOnceStarted = (
     }),
   )
 
-describe('child processes that end early', () => {
-  test('an interrupted run is killed with its grandchild, over and over', async () => {
-    const tags: string[] = []
-    let tick = 0
-    const result = await assertNoLeak(
-      async () => {
-        tick += 1
-        const tag = `child-${tick}`
-        tags.push(tag)
-        await interruptOnceStarted(
-          tag,
-          2,
-          runChild({
-            args: ['-e', script(tag, 'sleep')],
-            command: process.execPath,
-            cwd: directory,
-            env: childEnvironment(),
-            stdio: 'capture',
-          }),
-        )
-      },
-      { batches: 2, bytesPerOperation: 65_536, iterations: 6 },
-    )
-    expect(result.bytesPerOperation).toBeLessThan(65_536)
-    await gone(tags.flatMap(pidsOf))
-  }, 180_000)
+/** Runs `script(tag, 'exit')` to a clean exit and returns the pids it wrote. */
+const cleanExit = async (
+  tag: string,
+  group: 'own' | 'shared',
+  stdio: 'capture' | 'discard' | 'terminal',
+) => {
+  const outcome = await runPromise(
+    runProcess({
+      args: ['-e', script(tag, 'exit')],
+      command: process.execPath,
+      cwd: directory,
+      env: inheritedEnvironment(),
+      group,
+      stdio,
+    }),
+  )
+  expect(outcome.code).toBe(0)
+  return pidsOf(tag)
+}
 
-  test('an interrupted or overflowing assurance process is killed with its grandchild', async () => {
+describe('child processes that end early', () => {
+  test('an interrupted or overflowing process is killed with its grandchild', async () => {
     const tags: string[] = []
     let tick = 0
     const result = await assertNoLeak(
@@ -151,7 +150,7 @@ describe('child processes that end early', () => {
             args: ['-e', script(interruptedTag, 'sleep')],
             command: process.execPath,
             cwd: directory,
-            env: undefined,
+            env: inheritedEnvironment(),
             stdio: 'capture',
           }),
         )
@@ -160,7 +159,7 @@ describe('child processes that end early', () => {
             args: ['-e', script(floodTag, 'flood')],
             command: process.execPath,
             cwd: directory,
-            env: undefined,
+            env: inheritedEnvironment(),
             maxOutputBytes: 256 * 1024,
             stdio: 'capture',
             timeoutMs: 60_000,
@@ -174,6 +173,40 @@ describe('child processes that end early', () => {
     await gone(tags.flatMap(pidsOf))
   }, 180_000)
 
+  // A child's own group is killed when its leader exits, so nothing a verify,
+  // workspace, certify or runner child leaves behind outlives the run. A
+  // shared group cannot be killed, so a grandchild outlives the run: the price
+  // of a terminal's Ctrl-C reaching the child.
+  test
+    .skipIf(process.platform === 'win32')
+    .each(['capture', 'terminal'] as const)(
+    'a clean exit with %s stdio kills the grandchild of an own group',
+    async (stdio) => {
+      const pids = await cleanExit(`own-${stdio}`, 'own', stdio)
+      expect(pids).toHaveLength(2)
+      await gone(pids)
+    },
+    60_000,
+  )
+
+  test.skipIf(process.platform === 'win32')(
+    'a clean exit leaves the grandchild of a shared group running',
+    async () => {
+      const [leader, grandchild] = await cleanExit(
+        'shared',
+        'shared',
+        'discard',
+      )
+      try {
+        expect(alive(leader ?? 0)).toBe(false)
+        expect(alive(grandchild ?? 0)).toBe(true)
+      } finally {
+        if (grandchild !== undefined) process.kill(grandchild, 'SIGKILL')
+      }
+    },
+    60_000,
+  )
+
   test('an interrupted external-suite run kills its child and releases its fibers', async () => {
     const tags: string[] = []
     let tick = 0
@@ -186,8 +219,8 @@ describe('child processes that end early', () => {
           tag,
           1,
           executeSuites({
-            // Suites run in this process's group so a terminal's Ctrl-C reaches
-            // them (detached: false), so only the child itself is killed.
+            // Suites share this process's group so a terminal's Ctrl-C reaches
+            // them, so only the child itself is killed.
             argumentsFor: () => ['-e', script(tag, 'sleep', false)],
             command: process.execPath,
             cwd: directory,

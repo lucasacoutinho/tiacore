@@ -6,13 +6,14 @@ import * as FileSystem from 'effect/FileSystem'
 import type { CachedTestResult } from '../../core/runtime.ts'
 import type { TiaObservation } from '../../engine/core.ts'
 import { slash } from '../../engine/host-path.ts'
+import { runProcess } from '../../engine/process.ts'
 import type { HostServices } from '../../host/runtime.ts'
-import { groupBy } from '../shared/concurrency.ts'
 import {
+  childEnvironment,
+  groupBy,
   moduleFailureObservation,
   observationOf,
 } from '../shared/observations.ts'
-import { childEnvironment, runChild } from '../shared/process.ts'
 import type { FileObservations } from '../shared/run.ts'
 import { parseBunJunit, parseBunLcov, type BunCase } from './report.ts'
 
@@ -56,7 +57,7 @@ const executeBun = (
         prefix: 'tiacore-bun-run-',
       })
       const junitPath = join(temporary, 'results.xml')
-      const outcome = yield* runChild({
+      const outcome = yield* runProcess({
         args: [
           'test',
           `--test-name-pattern=${pattern}`,

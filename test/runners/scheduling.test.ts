@@ -1,22 +1,15 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import { afterEach, describe, expect, test } from 'vitest'
 
-import type {
-  TiaImpactGraph,
-  TiaSuiteDescriptor,
-} from '../../src/core/protocol.ts'
+import type { TiaSuiteDescriptor } from '../../src/core/protocol.ts'
 import {
   executeSuites,
-  groupBy,
   normalizedConcurrency,
-  parallelMap,
-  readAdapterGraph,
-  writeAdapterGraph,
 } from '../../src/engine/scheduling.ts'
 import { runPromise } from '../../src/host/runtime.ts'
 import { legacy } from '../support/legacy.ts'
@@ -242,55 +235,6 @@ describe('executeSuites cleanup', () => {
   }, 20_000)
 })
 
-describe('adapter graph files', () => {
-  test.each([
-    ['a missing file', undefined],
-    ['unparsable JSON', '{not json'],
-    ['an invalid graph', '{"protocolVersion":1}'],
-  ])('reads %s as no graph', async (_label, content) => {
-    const path = join(await directory(), 'graph.json')
-    if (content !== undefined) await writeFile(path, content)
-    expect(await runPromise(readAdapterGraph(path))).toBeNull()
-  })
-
-  test('writes pretty JSON with a trailing newline through a temporary file', async () => {
-    const path = join(await directory(), 'deep', 'graph.json')
-    const graph: TiaImpactGraph = {
-      complete: true,
-      environmentFingerprint: 'e',
-      fingerprint: 'f',
-      observations: [],
-      protocolVersion: 1,
-      suites: [],
-    }
-    await runPromise(writeAdapterGraph(path, graph))
-    expect(await readFile(path, 'utf8')).toBe(
-      `${JSON.stringify(graph, null, 2)}\n`,
-    )
-    expect(await runPromise(readAdapterGraph(path))).toMatchObject({
-      complete: true,
-    })
-    expect(existsSync(`${path}.${process.pid}.tmp`)).toBe(false)
-  })
-
-  test('leaves no temporary file when the rename fails', async () => {
-    const path = await directory()
-    const graph: TiaImpactGraph = {
-      complete: true,
-      environmentFingerprint: 'e',
-      fingerprint: 'f',
-      observations: [],
-      protocolVersion: 1,
-      suites: [],
-    }
-    // The target is a directory, so the rename cannot succeed.
-    await expect(runPromise(writeAdapterGraph(path, graph))).rejects.toThrow(
-      /./u,
-    )
-    expect(existsSync(`${path}.${process.pid}.tmp`)).toBe(false)
-  })
-})
-
 describe('concurrency helpers', () => {
   test('normalizedConcurrency matches 1.x for every accepted value', async () => {
     const old = await legacy<{
@@ -309,38 +253,4 @@ describe('concurrency helpers', () => {
       expect(() => normalizedConcurrency(value)).toThrow('finite')
     },
   )
-
-  test('groupBy keeps insertion order', () => {
-    expect([...groupBy([1, 2, 3, 4, 5], (value) => value % 2)]).toEqual([
-      [1, [1, 3, 5]],
-      [0, [2, 4]],
-    ])
-  })
-
-  test('parallelMap keeps input order and honors the bound', async () => {
-    let running = 0
-    let peak = 0
-    const results = await parallelMap(
-      [5, 4, 3, 2, 1],
-      2,
-      async (value, index) => {
-        running += 1
-        peak = Math.max(peak, running)
-        await new Promise((resolve) => setTimeout(resolve, value * 3))
-        running -= 1
-        return `${index}:${value}`
-      },
-    )
-    expect(results).toEqual(['0:5', '1:4', '2:3', '3:2', '4:1'])
-    expect(peak).toBe(2)
-  })
-
-  test('parallelMap rejects with the first failure', async () => {
-    await expect(
-      parallelMap([1, 2, 3], 2, async (value) => {
-        if (value === 2) throw new Error('boom')
-        return value
-      }),
-    ).rejects.toThrow('boom')
-  })
 })

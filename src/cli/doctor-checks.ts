@@ -2,10 +2,9 @@ import { dirname, join, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
-import * as Stream from 'effect/Stream'
-import { ChildProcess, ChildProcessSpawner } from 'effect/process'
 
 import { NODE_ENGINES, PEER_RANGES, VERSION } from '../core/version.ts'
+import { inheritedEnvironment, runProcess } from '../engine/process.ts'
 import { observeConfig } from '../host/observe.ts'
 import { satisfiesRange } from './semver-range.ts'
 
@@ -32,30 +31,24 @@ const check = (
   detail: string,
 ): DoctorCheck => ({ detail, id, status, title })
 
-/** Runs `git <args>` and returns its trimmed stdout, or null if git is missing or fails. */
-const gitText = Effect.fnUntraced(function* (
-  args: readonly string[],
-  cwd: string,
-) {
-  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
-  return yield* Effect.scoped(
-    Effect.gen(function* () {
-      const handle = yield* spawner.spawn(
-        ChildProcess.make('git', [...args], {
-          cwd,
-          stderr: 'ignore',
-          stdin: 'ignore',
-        }),
-      )
-      const output = yield* handle.stdout.pipe(
-        Stream.decodeText(),
-        Stream.mkString,
-      )
-      const code = yield* handle.exitCode
-      return Number(code) === 0 ? output.trim() : null
-    }),
-  ).pipe(Effect.orElseSucceed(() => null))
-})
+/** Runs `git <args>` in `cwd`; a git that cannot start is a TiaIo failure. */
+export const runGit = (args: readonly string[], cwd: string) =>
+  runProcess({
+    args,
+    command: 'git',
+    cwd,
+    env: inheritedEnvironment(),
+    stdio: 'capture',
+  })
+
+/** The trimmed output of `git <args>`, or null if git is missing or fails. */
+const gitText = (args: readonly string[], cwd: string) =>
+  runGit(args, cwd).pipe(
+    Effect.map((outcome) =>
+      outcome.code === 0 ? outcome.output.trim() : null,
+    ),
+    Effect.orElseSucceed(() => null),
+  )
 
 export function nodeCheck(nodeVersion: string): DoctorCheck {
   const supported = satisfiesRange(nodeVersion, NODE_ENGINES)

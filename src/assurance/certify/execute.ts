@@ -11,8 +11,8 @@ import {
   type TiaExecutableScenario,
 } from '../../core/conformance.ts'
 import { TIA_PROTOCOL_VERSION } from '../../core/protocol.ts'
+import { inheritedEnvironment, runProcess } from '../../engine/process.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
-import { runProcess } from '../process.ts'
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
 const MAX_TIMEOUT_MS = 10 * 60 * 1000
@@ -36,7 +36,7 @@ const execute = Effect.fnUntraced(function* (
     args: scenario.arguments ?? [],
     command: scenario.command,
     cwd: scenario.cwd ? resolve(root, scenario.cwd) : root,
-    env: scenario.environment,
+    env: inheritedEnvironment(scenario.environment),
     maxOutputBytes: MAX_OUTPUT_BYTES,
     stdio: 'capture',
     timeoutMs,

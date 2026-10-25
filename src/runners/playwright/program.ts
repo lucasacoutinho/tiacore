@@ -18,6 +18,7 @@ import {
 import { resolveFrameworkEdges } from '../../engine/edges/resolve.ts'
 import { formatRunPlanDetails } from '../../engine/explain.ts'
 import { slash } from '../../engine/host-path.ts'
+import { runAttached } from '../../engine/process.ts'
 import { replayedResults } from '../../engine/replay.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
 import {
@@ -32,7 +33,6 @@ import {
   type PlaywrightObservation,
 } from './protocol.ts'
 import { evidenceProblems, readReport } from './report.ts'
-import { spawnStatus } from './spawn.ts'
 import type { TiaPlaywrightOptions, TiaPlaywrightResult } from './types.ts'
 
 /**
@@ -286,18 +286,11 @@ export const run = Effect.fn('tia.playwright.run')(function* (
         return playwrightCli(cwd)
       },
     })
-    const status = yield* spawnStatus({
-      arguments: [
-        cliPath,
-        'test',
-        '--config',
-        config,
-        ...runArguments,
-        ...filters,
-      ],
+    const status = yield* runAttached({
+      args: [cliPath, 'test', '--config', config, ...runArguments, ...filters],
       command: nodeExecutable(),
       cwd,
-      environment: {
+      env: {
         ...process.env,
         ...(settings.evidenceDirectory === undefined
           ? {}

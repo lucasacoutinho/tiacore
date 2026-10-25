@@ -106,6 +106,8 @@ Effect package and write no Effect code, and no public type mentions Effect. The
   group gets `SIGKILL` at 30 seconds. `test.skip` and `it.todo` through
   `require("node:test")` record as skipped. A `concurrency` of `NaN` is rejected
   when the configuration is decoded, for Node and for workspaces.
+- Node and Bun: a `concurrency` of `Infinity` is rejected like `NaN`. 1.x
+  started every test file at once.
 - Playwright: a filter list over 24,000 characters falls back to a full run and
   says why. The warning for incomplete evidence keeps its text and adds
   `TIA detail:` lines. The count of cached tests excludes specs that rerun.

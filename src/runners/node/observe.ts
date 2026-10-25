@@ -7,14 +7,15 @@ import * as FileSystem from 'effect/FileSystem'
 import type { CachedTestResult } from '../../core/runtime.ts'
 import type { TiaObservation } from '../../engine/core.ts'
 import { slash } from '../../engine/host-path.ts'
+import { runProcess } from '../../engine/process.ts'
 import type { HostServices } from '../../host/runtime.ts'
-import { groupBy } from '../shared/concurrency.ts'
 import { isObject } from '../shared/json.ts'
 import {
+  childEnvironment,
+  groupBy,
   moduleFailureObservation,
   observationOf,
 } from '../shared/observations.ts'
-import { childEnvironment, runChild } from '../shared/process.ts'
 import type { FileObservations } from '../shared/run.ts'
 import {
   nodeDiscoveryHooksSupported,
@@ -124,7 +125,7 @@ export const executeNode = (
           root: context.root,
         }),
       )
-      yield* runChild({
+      yield* runProcess({
         args: [context.helpers.execution, request, output],
         command: process.execPath,
         cwd: context.root,
@@ -132,7 +133,7 @@ export const executeNode = (
           NODE_V8_COVERAGE: coverageDirectory,
           ...(context.log ? { TIACORE_NODE_DEBUG: '1' } : {}),
         }),
-        stdio: context.log ? 'inherit' : 'ignore',
+        stdio: context.log ? 'forward' : 'discard',
         timeoutMs: context.timeoutMs ?? EXECUTION_TIMEOUT_MS,
       })
       const execution = parseNodeExecution(yield* fs.readFileString(output))
@@ -146,13 +147,13 @@ const discoverFile = Effect.fnUntraced(function* (
   file: string,
   output: string,
 ) {
-  const outcome = yield* runChild({
+  const outcome = yield* runProcess({
     args: ['--import', pathToFileURL(context.helpers.register).href, file],
     command: process.execPath,
     cwd: context.root,
     env: childEnvironment({ TIACORE_NODE_DISCOVERY_FILE: output }),
-    stdio: context.log ? 'inherit' : 'ignore',
-  })
+    stdio: context.log ? 'forward' : 'discard',
+  }).pipe(Effect.orElseSucceed(() => ({ code: null })))
   return outcome.code === 0 ? null : slash(relative(context.root, file))
 })
 

@@ -3,13 +3,13 @@ import { join } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
-import { ChildProcess, ChildProcessSpawner } from 'effect/process'
 
 import type { TiaObservation } from '../engine/core.ts'
 import { CoreRun } from '../engine/core-run.ts'
 import { recordSpans, runPromise } from '../host/runtime.ts'
 import type { FinishedSpan } from '../host/observe.ts'
 import { TiaIo } from '../wire/errors.ts'
+import { runGit } from './doctor-checks.ts'
 
 /** Test files in the throwaway project; enough to make the stages measurable. */
 export const PERF_TEST_FILES = 40
@@ -63,35 +63,21 @@ export function summarizeSpans(
     )
 }
 
+/** The identity a commit in the throwaway project needs, whatever the user's config. */
+const IDENTITY = [
+  '-c',
+  'user.name=tiacore',
+  '-c',
+  'user.email=doctor@tiacore.invalid',
+  '-c',
+  'commit.gpgsign=false',
+]
+
 const git = Effect.fnUntraced(function* (cwd: string, args: readonly string[]) {
-  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
-  const code = yield* Effect.scoped(
-    Effect.flatMap(
-      spawner.spawn(
-        ChildProcess.make(
-          'git',
-          [
-            '-c',
-            'user.name=tiacore',
-            '-c',
-            'user.email=doctor@tiacore.invalid',
-            '-c',
-            'commit.gpgsign=false',
-            ...args,
-          ],
-          { cwd, stderr: 'ignore', stdin: 'ignore', stdout: 'ignore' },
-        ),
-      ),
-      (handle) => handle.exitCode,
-    ),
-  ).pipe(
-    Effect.mapError(
-      (error) => new TiaIo({ cause: error, message: error.message }),
-    ),
-  )
-  if (Number(code) !== 0) {
+  const outcome = yield* runGit([...IDENTITY, ...args], cwd)
+  if (outcome.code !== 0) {
     return yield* new TiaIo({
-      message: `git ${args.join(' ')} exited with ${code}`,
+      message: `git ${args.join(' ')} exited with ${outcome.status}`,
     })
   }
 })

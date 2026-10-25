@@ -1,5 +1,5 @@
 import { TiaCore } from '../../engine/core.ts'
-import { normalizedConcurrency } from '../shared/concurrency.ts'
+import { normalizedConcurrency } from '../../engine/scheduling.ts'
 import {
   relativeTestFiles,
   resolveTestFiles,

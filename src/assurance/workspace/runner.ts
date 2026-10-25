@@ -12,7 +12,7 @@ import type {
 } from '../../core/workspace.ts'
 import { runPromise } from '../../host/runtime.ts'
 import { TiaFailed, type TiaError } from '../../wire/errors.ts'
-import { runProcess } from '../process.ts'
+import { inheritedEnvironment, runProcess } from '../../engine/process.ts'
 import { decodeWorkspaceOptions } from './options.ts'
 import { normalizedConcurrency } from '../../engine/scheduling.ts'
 
@@ -78,10 +78,10 @@ const executeLane = Effect.fnUntraced(function* (
     args: lane.arguments ?? [],
     command: lane.command ?? '',
     cwd: resolve(root, lane.cwd ?? '.'),
-    env: lane.environment,
-    stdio: 'inherit',
+    env: inheritedEnvironment(lane.environment),
+    stdio: 'terminal',
   })
-  return { status: outcome.code ?? 128 }
+  return { status: outcome.status }
 })
 
 const schedule = Effect.fnUntraced(function* (options: TiaWorkspaceOptions) {

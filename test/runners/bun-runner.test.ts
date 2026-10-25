@@ -39,9 +39,12 @@ function project(files: Record<string, string>): string {
 const OPTIONS = { files: ['test/**/*.test.ts'], log: false }
 
 describe('bun runner options', () => {
-  test('rejects a NaN concurrency', () => {
+  test('rejects a NaN or infinite concurrency', () => {
     expect(() => tia({ concurrency: Number.NaN })).toThrow(
-      'concurrency must be a number',
+      'concurrency must be a finite number',
+    )
+    expect(() => tia({ concurrency: Number.POSITIVE_INFINITY })).toThrow(
+      'concurrency must be a finite number',
     )
   })
 

@@ -4,10 +4,10 @@ import { join } from 'node:path'
 
 import { afterAll, describe, expect, test } from 'vitest'
 
+import { inheritedEnvironment, runProcess } from '../../src/engine/process.ts'
 import { runPromise } from '../../src/host/runtime.ts'
 import { tia as adapterTia } from '../../src/entries/adapter.ts'
 import { tia as nodeTia } from '../../src/entries/node.ts'
-import { childEnvironment, runChild } from '../../src/runners/shared/process.ts'
 import { assertNoLeak } from '../support/leak.ts'
 import { initRepository } from '../support/runner-project.ts'
 
@@ -44,11 +44,11 @@ describe('memory', () => {
     const result = await assertNoLeak(
       () =>
         runPromise(
-          runChild({
+          runProcess({
             args: ['-e', 'process.exit(0)'],
             command: process.execPath,
             cwd: process.cwd(),
-            env: childEnvironment(),
+            env: inheritedEnvironment(),
             stdio: 'capture',
             timeoutMs: 10_000,
           }),

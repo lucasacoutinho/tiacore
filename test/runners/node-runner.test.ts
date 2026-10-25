@@ -196,12 +196,15 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
 
 describe('node runner options', () => {
   // NODE-PAR-03
-  test('rejects a NaN concurrency instead of dropping work', () => {
+  test('rejects a NaN or infinite concurrency instead of dropping or unbounding work', () => {
     expect(() => tia({ concurrency: Number.NaN })).toThrow(
-      'concurrency must be a number',
+      'concurrency must be a finite number',
     )
     expect(() => tia({ concurrency: Number('abc') })).toThrow(
-      'concurrency must be a number',
+      'concurrency must be a finite number',
+    )
+    expect(() => tia({ concurrency: Number.POSITIVE_INFINITY })).toThrow(
+      'concurrency must be a finite number',
     )
     expect(() => tia({ concurrency: 0.5, log: false })).not.toThrow()
   })

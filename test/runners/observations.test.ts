@@ -2,11 +2,8 @@ import { describe, expect, test } from 'vitest'
 
 import type { RunPlan } from '../../src/core/runtime.ts'
 import {
-  groupBy,
-  normalizedConcurrency,
-} from '../../src/runners/shared/concurrency.ts'
-import {
   fullyExecutedFiles,
+  groupBy,
   moduleFailureObservation,
   observationOf,
 } from '../../src/runners/shared/observations.ts'
@@ -97,19 +94,7 @@ describe('observationOf', () => {
   })
 })
 
-describe('shared scheduling helpers', () => {
-  // NODE-PAR-03
-  test('concurrency floors, has a minimum of one, and rejects NaN', () => {
-    expect(normalizedConcurrency(3.9)).toBe(3)
-    expect(normalizedConcurrency(0)).toBe(1)
-    expect(normalizedConcurrency(-5)).toBe(1)
-    expect(normalizedConcurrency(undefined)).toBeGreaterThanOrEqual(1)
-    expect(normalizedConcurrency(undefined)).toBeLessThanOrEqual(4)
-    expect(() => normalizedConcurrency(Number.NaN)).toThrow(
-      'TIA concurrency must be a number',
-    )
-  })
-
+describe('groupBy', () => {
   test('groupBy keeps first-seen key order and value order', () => {
     const groups = groupBy(['b1', 'a1', 'b2', 'a2'], (value) => value[0])
     expect([...groups]).toEqual([

@@ -1,6 +1,33 @@
 import type { RunPlan } from '../../core/runtime.ts'
 import { byCodeUnit } from '../../core/canonical.ts'
 import type { TiaObservation } from '../../engine/core.ts'
+import { inheritedEnvironment } from '../../engine/process.ts'
+
+/** Groups values by key, keeping first-seen key order and value order. */
+export function groupBy<T, K>(
+  values: readonly T[],
+  key: (value: T) => K,
+): Map<K, T[]> {
+  const groups = new Map<K, T[]>()
+  for (const value of values) {
+    const group = key(value)
+    const items = groups.get(group)
+    if (items === undefined) groups.set(group, [value])
+    else items.push(value)
+  }
+  return groups
+}
+
+/**
+ * The environment of a test file's child: ours without `NODE_TEST_CONTEXT`, so
+ * a runner started inside `node --test` does not make its children report to
+ * that run, plus `extra`.
+ */
+export function childEnvironment(
+  extra: Readonly<Record<string, string>> = {},
+): Record<string, string | undefined> {
+  return inheritedEnvironment({ NODE_TEST_CONTEXT: undefined, ...extra })
+}
 
 /** The failed observation that stands for a test file that did not load or run. */
 export function moduleFailureObservation(file: string): TiaObservation {

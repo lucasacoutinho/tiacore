@@ -10,12 +10,7 @@ import type {
   TiaImpactGraph,
 } from '../../core/protocol.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
-import {
-  aggregateStatus,
-  executeSuites,
-  readAdapterGraph,
-  writeAdapterGraph,
-} from '../../engine/scheduling.ts'
+import { aggregateStatus, executeSuites } from '../../engine/scheduling.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
 import {
   attempt,
@@ -25,6 +20,8 @@ import {
   ioFailure,
   planExternal,
   protocolSuite,
+  readAdapterGraph,
+  writeAdapterGraph,
 } from '../external.ts'
 import type {
   DiscoverMaestroOptions,

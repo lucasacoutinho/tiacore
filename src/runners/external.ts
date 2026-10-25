@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
+import { dirname } from 'node:path'
 
 import * as Effect from 'effect/Effect'
+import * as FileSystem from 'effect/FileSystem'
 import type * as PlatformError from 'effect/PlatformError'
 import { glob } from 'tinyglobby'
 
@@ -15,7 +17,8 @@ import type {
 } from '../core/protocol.ts'
 import { TIA_PROTOCOL_VERSION } from '../core/protocol.ts'
 import { createImpactPlan } from '../engine/plan/protocol.ts'
-import { systemMessage } from '../engine/scheduling.ts'
+import { systemMessage } from '../engine/process.ts'
+import { parseImpactGraph } from '../wire/decode.ts'
 import { TiaInvalid, TiaIo } from '../wire/errors.ts'
 
 /** Runs a computation that throws 1.x-style errors, keeping the message. */
@@ -141,3 +144,35 @@ export function globFiles(
 export function ioFailure(error: PlatformError.PlatformError): TiaIo {
   return new TiaIo({ cause: error, message: systemMessage(error) })
 }
+
+/** Reads a recorded graph; a missing, unreadable or invalid file is no graph. */
+export const readAdapterGraph = Effect.fnUntraced(function* (path: string) {
+  const fs = yield* FileSystem.FileSystem
+  return yield* fs.readFileString(path).pipe(
+    Effect.map((text): TiaImpactGraph | null => {
+      try {
+        return parseImpactGraph(JSON.parse(text))
+      } catch {
+        return null
+      }
+    }),
+    Effect.orElseSucceed((): TiaImpactGraph | null => null),
+  )
+})
+
+/** Promotes a graph atomically: write a temporary file, then rename it. */
+export const writeAdapterGraph = Effect.fnUntraced(function* (
+  path: string,
+  graph: TiaImpactGraph,
+) {
+  const fs = yield* FileSystem.FileSystem
+  const temporary = `${path}.${process.pid}.tmp`
+  yield* Effect.gen(function* () {
+    yield* fs.makeDirectory(dirname(path), { recursive: true })
+    yield* fs.writeFileString(temporary, `${JSON.stringify(graph, null, 2)}\n`)
+    yield* fs.rename(temporary, path)
+  }).pipe(
+    Effect.tapError(() => Effect.ignore(fs.remove(temporary, { force: true }))),
+    Effect.mapError(ioFailure),
+  )
+})
