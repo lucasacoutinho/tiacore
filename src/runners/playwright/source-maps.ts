@@ -29,8 +29,8 @@ interface CoverageRange {
 
 /**
  * A memo of pending lookups that forgets the least recently used entry past
- * its limit. 1.x memoized for the life of the process, which grew with every
- * distinct script URL a long-lived Playwright worker saw.
+ * its limit, so a long-lived Playwright worker does not grow with every
+ * distinct script URL it sees.
  */
 class BoundedMemo<V> {
   private readonly entries = new Map<string, V>()

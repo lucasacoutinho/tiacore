@@ -3,12 +3,12 @@
 // or to collection when none is, so `conservation` holds for sequential traces:
 // collection plus the sum of the test deltas equals the whole delta.
 //
-// 1.x copied every counter of every file into fresh objects several times for
-// each window, about 4.7 ms a copy on 300 files x 560 counters. The ledger keeps one
-// Float64Array of boundary counters per file and does one pass per boundary
-// that reads, compares and advances the boundary together. A file whose
-// counters did not move allocates nothing, and a window's accumulators exist
-// only for the files the window touched.
+// Copying every counter of every file into fresh objects several times for
+// each window costs about 4.7 ms a copy on 300 files x 560 counters. The
+// ledger keeps one Float64Array of boundary counters per file and does one
+// pass per boundary that reads, compares and advances the boundary together.
+// A file whose counters did not move allocates nothing, and a window's
+// accumulators exist only for the files the window touched.
 
 import type {
   CoverageProbe,

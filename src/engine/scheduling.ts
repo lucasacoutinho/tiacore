@@ -14,8 +14,8 @@ import { inheritedEnvironment, runAttached } from './process.ts'
 /**
  * The bounded worker count for a run: `min(4, available parallelism)` when
  * unset, otherwise the floor of the value, at least 1. NaN and infinities are
- * rejected at the public seam: 1.x started zero workers for NaN and dropped
- * the work, and an infinite count would start every file at once.
+ * rejected at the public seam: NaN would start zero workers and drop the work,
+ * and an infinite count would start every file at once.
  */
 export function normalizedConcurrency(value: number | undefined): number {
   if (value === undefined) {

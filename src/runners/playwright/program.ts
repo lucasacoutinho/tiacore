@@ -96,8 +96,7 @@ export interface PlaywrightFilters {
 /**
  * The positional path filters for a plan: none for a record, one escaped
  * absolute path per affected spec for a replay. A list longer than
- * MAX_FILTER_CHARACTERS is dropped for a full run that says why; 1.x dropped it
- * without a word.
+ * MAX_FILTER_CHARACTERS is dropped for a full run that says why.
  */
 export function planFilters(plan: RunPlan, root: string): PlaywrightFilters {
   if (plan.mode === 'record') return { filters: [] }

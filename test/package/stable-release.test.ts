@@ -85,7 +85,7 @@ const versionManifestNames = new Set([
   'setup.py',
 ])
 
-/** Tracked manifests of the SDKs and the root, leaving out test fixtures and the 1.x tree. */
+/** Tracked manifests of the SDKs and the root, leaving out test fixtures and test data. */
 function trackedManifests(): string[] {
   const listed = spawnSync('git', ['ls-files', '-z'], {
     cwd: root,

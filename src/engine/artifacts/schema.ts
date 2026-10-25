@@ -17,7 +17,7 @@ import {
 // docs/protocol/schemas/tiacore-artifact-{attestation,manifest}-v1.schema.json exactly:
 // unknown fields are invalid, identifiers are bounded at 8192 characters, a
 // lineage names at most 100 distinct parents. Timestamps need to parse as
-// dates; the schema's `date-time` format is not tightened further, as in 1.x.
+// dates; the schema's `date-time` format is not tightened further.
 
 const strict = { onExcessProperty: 'error' } as const
 

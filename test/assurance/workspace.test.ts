@@ -450,7 +450,7 @@ describe('workspace config', () => {
       `export default { lanes: [{ id: 'bad', command: ${JSON.stringify(process.execPath)}, arguments: ['-e', 'process.exit(1)'] }] }`,
     )
     const output = join(path, '..', 'out.json')
-    // As in 1.x, a failed run is reported by the receipt and the exit code only.
+    // A failed run is reported by the receipt and the exit code only.
     const previous = process.exitCode
     try {
       await runCli(['run', '--config', path, '--output', output])

@@ -15,7 +15,7 @@ type ResolvedValues = Partial<Record<CoverageMetric, number>>
 
 interface ThresholdSet {
   coverageMap: CoverageMap
-  /** True for a glob set that matched no file; 1.x let it pass. */
+  /** True for a glob set that matched no file, which fails the threshold. */
   matchesNothing: boolean
   name: string
   values: ResolvedValues
