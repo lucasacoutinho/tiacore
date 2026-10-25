@@ -8,12 +8,6 @@ node_modules/
 *.tgz
 executions.log
 skills-lock.json
-
-# Legacy 1.x tree (differential oracle and perf baseline)
-.legacy/node_modules/
-.legacy/dist/
-.legacy/coverage/
-.legacy/sdks/python/dist/
 .build/
 proofs/.lake/
 test/fixtures/**/build/

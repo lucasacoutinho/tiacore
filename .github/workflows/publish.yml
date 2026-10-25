@@ -35,9 +35,6 @@ jobs:
           lake-package-directory: proofs
           build-args: --wfail
       - run: npm ci
-      # The built 1.x tree is the oracle of the differential tests.
-      - run: npm ci && npm run build
-        working-directory: .legacy
       - run: npx playwright install --with-deps chromium
       - run: npm run release:check
       - run: npm publish

@@ -32,13 +32,12 @@ Before publishing a release:
    npm run release:check
    ```
 
-   The gate needs the built 1.x oracle (`npm ci && npm run build` in `.legacy`),
-   Go, Python 3, Bun, a Lean toolchain (elan) for `check:proofs`, and Chromium
-   (`npx playwright install chromium`). Without Bun or Chromium their suites
-   skip, so a release gate must have both.
+   The gate needs Go, Python 3, Bun, a Lean toolchain (elan) for `check:proofs`,
+   and Chromium (`npx playwright install chromium`). Without Bun or Chromium
+   their suites skip, so a release gate must have both.
 
 4. Require the CI workflow at that exact commit: the Node 22.12 and 24 checks,
-   the Lean proofs, the SDKs and the 1.x oracle.
+   the Lean proofs and the SDKs.
 5. Inspect `npm pack --dry-run`, then install the tarball in a scratch project
    and run a Vitest record and replay, `tiacore --version` and `tiacore verify`.
 6. Review `npm audit --omit=dev`, Publint, and Are The Types Wrong output.

@@ -1,9 +1,0 @@
-appId: ${APP_ID}
-name: Open settings after sign in
-tags:
-  - health
-  - settings
----
-- runFlow: login.yaml
-- tapOn:
-    id: open-settings

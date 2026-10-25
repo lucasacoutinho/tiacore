@@ -22,7 +22,10 @@ const current = fileURLToPath(
   new URL('../../../dist/entries/core.js', import.meta.url),
 )
 const old = fileURLToPath(
-  new URL('../../../.legacy/dist/entries/core.js', import.meta.url),
+  new URL(
+    '../../../node_modules/tiacore-v1/dist/entries/core.js',
+    import.meta.url,
+  ),
 )
 
 const TEST_FILES = 40

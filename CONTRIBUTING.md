@@ -8,12 +8,11 @@ skip possibly affected tests.
 
 Use Node 24 for the complete local suite. Install Bun 1.3 and Chromium
 (`npx playwright install chromium`) to run the Bun and Playwright suites; they
-skip without them. The differential tests compare against the 1.x tree in
-`.legacy`, which must be built once:
+skip without them. The differential tests compare against the published 1.2.1,
+installed as the `tiacore-v1` development dependency.
 
 ```sh
 npm ci
-(cd .legacy && npm ci && npm run build)
 npm run gate
 ```
 

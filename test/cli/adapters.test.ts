@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 const fixtures = fileURLToPath(new URL('../fixtures/', import.meta.url))
 const legacyCli = fileURLToPath(
-  new URL('../../.legacy/dist/entries/cli.js', import.meta.url),
+  new URL('../../node_modules/tiacore-v1/dist/entries/cli.js', import.meta.url),
 )
 const cli = fileURLToPath(new URL('../../dist/entries/cli.js', import.meta.url))
 

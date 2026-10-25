@@ -3,9 +3,6 @@ import { pathToFileURL } from 'node:url'
 
 import { describe, expect, test } from 'vitest'
 
-import legacyExports from './legacy-exports.json' with { type: 'json' }
-import pendingExports from './pending-exports.json' with { type: 'json' }
-
 interface Manifest {
   bin: Record<string, string>
   exports: Record<string, string | { default: string; types: string }>
@@ -14,6 +11,13 @@ interface Manifest {
 const root = new URL('../../', import.meta.url)
 const manifest: Manifest = JSON.parse(
   readFileSync(new URL('package.json', root), 'utf8'),
+)
+// The published 1.2.1, installed as the devDependency `tiacore-v1`.
+const v1: Pick<Manifest, 'exports'> = JSON.parse(
+  readFileSync(new URL('node_modules/tiacore-v1/package.json', root), 'utf8'),
+)
+const v1Subpaths = Object.keys(v1.exports).filter(
+  (subpath) => subpath !== './package.json',
 )
 
 function entryFile(subpath: string): string {
@@ -33,21 +37,21 @@ async function exportedNames(subpath: string): Promise<string[]> {
 describe('public exports', () => {
   test('keeps every 1.x subpath', () => {
     expect(Object.keys(manifest.exports).toSorted()).toEqual(
-      [
-        ...Object.keys(legacyExports).filter((key) => key !== 'bin'),
-        './package.json',
-      ].toSorted(),
+      [...v1Subpaths, './package.json'].toSorted(),
     )
   })
 
-  test('lists exactly the 1.x runtime exports that 2.0 does not provide yet', async () => {
+  test('keeps every 1.x runtime export', async () => {
     const missing: string[] = []
-    for (const [subpath, names] of Object.entries(legacyExports)) {
+    for (const subpath of v1Subpaths) {
+      const specifier =
+        subpath === '.' ? 'tiacore-v1' : `tiacore-v1/${subpath.slice(2)}`
+      const previous: object = await import(specifier)
       const current = new Set(await exportedNames(subpath))
-      for (const name of names) {
+      for (const name of Object.keys(previous)) {
         if (!current.has(name)) missing.push(`${subpath} ${name}`)
       }
     }
-    expect(missing.toSorted()).toEqual(pendingExports)
+    expect(missing).toEqual([])
   })
 })

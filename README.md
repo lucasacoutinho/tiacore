@@ -180,12 +180,11 @@ attestation by default.
 
 ```sh
 npm ci
-(cd .legacy && npm ci && npm run build)
 npm run gate
 ```
 
-`.legacy/` holds the 1.x source. Differential tests compare against its build,
-so build it before the first test run.
+Differential tests compare 2.0 with the published 1.2.1, installed as the
+`tiacore-v1` development dependency.
 
 `npm run gate` runs Oxfmt, Oxlint, the type check, the tests, and the
 architecture check. `npm run check` is the same without the architecture check.

@@ -99,7 +99,6 @@ function trackedManifests(): string[] {
     .split('\0')
     .filter(
       (path) =>
-        !path.startsWith('.legacy/') &&
         !path.startsWith('test/fixtures/') &&
         !path.includes('/testdata/') &&
         (versionManifestNames.has(path.split('/').at(-1) ?? '') ||
