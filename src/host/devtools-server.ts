@@ -11,9 +11,6 @@ import type { SpanBook } from './span-book.ts'
 /** Fewest milliseconds between two metrics requests that follow ended spans. */
 const MIN_ASK_GAP_MS = 250
 
-/** The port Effect's devtools clients and editor extensions connect to. */
-export const DEFAULT_DEVTOOLS_PORT = 34_437
-
 export interface DevtoolsServerOptions {
   readonly book: SpanBook
   /** The interface to listen on; defaults to localhost. */

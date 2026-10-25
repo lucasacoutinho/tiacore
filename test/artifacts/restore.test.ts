@@ -2,9 +2,9 @@ import { strToU8, zipSync } from 'fflate'
 import { describe, expect, test } from 'vitest'
 
 import type { TiaArtifactProvider } from '../../src/core/artifacts.ts'
-import { archiveGraph } from '../../src/engine/artifacts/archive.ts'
 import {
   archive as archiveOf,
+  archiveGraph,
   cacheDirectory,
   graph,
   readStored,

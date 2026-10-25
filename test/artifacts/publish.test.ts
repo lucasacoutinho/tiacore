@@ -15,7 +15,6 @@ import type {
 } from '../../src/core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../src/core/runtime.ts'
 import {
-  archiveGraph,
   readArtifactArchive,
   writeArtifactArchive,
 } from '../../src/engine/artifacts/archive.ts'
@@ -25,6 +24,7 @@ import {
 } from '../../src/engine/artifacts/publisher.ts'
 import { verifyArtifactAttestation } from '../../src/engine/artifacts/trust.ts'
 import {
+  archiveGraph,
   graph as baseGraph,
   privateKeyPem,
   publicKeyPem,

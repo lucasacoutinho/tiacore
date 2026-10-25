@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 
 import { byCodeUnit } from '../../core/canonical.ts'
@@ -11,6 +9,7 @@ import {
   type TiaArtifactAttestationV1,
 } from '../../core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../core/runtime.ts'
+import { hashBytes } from '../baseline/fingerprint.ts'
 import { parseArtifactGraph } from './portable-graph.ts'
 import { parseArtifactAttestation } from './trust.ts'
 
@@ -150,7 +149,7 @@ function readArchive(
       return {
         ...(attestation === undefined ? {} : { attestation }),
         graph,
-        graphSha256: createHash('sha256').update(bytes).digest('hex'),
+        graphSha256: hashBytes(bytes),
       }
     }
   }
@@ -187,13 +186,6 @@ export function readArtifactArchive(
 ): TiaArtifactArchive | null {
   if (runner !== undefined && !isSafeRunner(runner)) return null
   return readArchive(archive, runner, 0, { expanded: 0, nested: 0 })
-}
-
-export function archiveGraph(
-  archive: Uint8Array,
-  runner: string | undefined,
-): TiaRuntimeGraph | null {
-  return readArtifactArchive(archive, runner)?.graph ?? null
 }
 
 /** Zips `entries` in the order given with fixed timestamps: the output is deterministic. */

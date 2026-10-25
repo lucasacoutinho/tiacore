@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { Ajv2020 } from 'ajv/dist/2020.js'
 import { describe, expect, test } from 'vitest'
 
-import { parseAdapterCapabilities } from '../../src/assurance/certify/capabilities.ts'
+import { parseAdapterCapabilities } from '../support/adapter-capabilities.ts'
 
 const root = process.cwd()
 const document: unknown = JSON.parse(

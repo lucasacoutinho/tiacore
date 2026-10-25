@@ -1,13 +1,13 @@
-import * as Cause from 'effect/Cause'
-import * as Exit from 'effect/Exit'
-import * as Option from 'effect/Option'
+// Validates the shipped capabilities/adapter-capabilities-v1.json for
+// test/assurance/capabilities.test.ts. Nothing in the package reads that file.
+
 import * as Schema from 'effect/Schema'
 
 import type {
   TiaAdapterCapabilityLevel,
   TiaAdapterSelectionGranularity,
-} from '../../core/conformance.ts'
-import { describeIssue } from '../../wire/issue.ts'
+} from '../../src/core/conformance.ts'
+import { valueOrThrow } from '../../src/wire/issue.ts'
 
 export interface AdapterCapability {
   baselines: Array<'explicit-changes' | 'filesystem' | 'git'>
@@ -105,9 +105,8 @@ const decode = Schema.decodeUnknownExit(Contract)
 export function parseAdapterCapabilities(
   value: unknown,
 ): AdapterCapabilityContract {
-  const exit = decode(value, { onExcessProperty: 'error' })
-  if (Exit.isSuccess(exit)) return exit.value
-  const error = Cause.findErrorOption(exit.cause)
-  if (Option.isNone(error)) throw Cause.squash(exit.cause)
-  throw new Error(describeIssue('TIA adapter capabilities', error.value.issue))
+  return valueOrThrow(
+    'TIA adapter capabilities',
+    decode(value, { onExcessProperty: 'error' }),
+  )
 }

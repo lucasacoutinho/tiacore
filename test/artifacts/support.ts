@@ -11,6 +11,7 @@ import { afterEach } from 'vitest'
 
 import type { RestoreArtifactsInput } from '../../src/core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../src/core/runtime.ts'
+import { readArtifactArchive } from '../../src/engine/artifacts/archive.ts'
 import { baselinesMemory } from '../../src/engine/baseline/memory.ts'
 import { restoreGraph } from '../../src/engine/artifacts/restore.ts'
 import { GraphStore } from '../../src/engine/ports.ts'
@@ -51,6 +52,12 @@ export function graph(
 export function archive(fingerprint: string): Uint8Array {
   return zipSync({ 'graph.json': strToU8(JSON.stringify(graph(fingerprint))) })
 }
+
+/** The graph `archive` holds for `runner`, or null when it holds none. */
+export const archiveGraph = (
+  bytes: Uint8Array,
+  runner: string | undefined,
+): TiaRuntimeGraph | null => readArtifactArchive(bytes, runner)?.graph ?? null
 
 export const sha256 = (value: Uint8Array | string): string =>
   createHash('sha256').update(value).digest('hex')

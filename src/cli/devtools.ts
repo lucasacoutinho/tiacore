@@ -2,6 +2,7 @@ import * as Command from 'effect/cli/Command'
 import * as Flag from 'effect/cli/Flag'
 import * as Effect from 'effect/Effect'
 
+import { DEFAULT_DEVTOOLS_PORT } from '../core/defaults.ts'
 import { TiaInvalid } from '../wire/errors.ts'
 
 /** The server loads on first use so `--help` and the other commands stay fast. */
@@ -44,7 +45,7 @@ export const devtoolsCommand = Command.make(
     ),
     port: Flag.Int('port').pipe(
       Flag.withDescription('port to listen on; 0 picks a free one'),
-      Flag.withDefault(34_437),
+      Flag.withDefault(DEFAULT_DEVTOOLS_PORT),
     ),
   },
   Effect.fn('tia.cli.devtools')(function* (options) {

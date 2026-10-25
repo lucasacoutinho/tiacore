@@ -15,3 +15,6 @@ export const DEFAULT_EXCLUDE = [
 ]
 
 export const DEFAULT_CACHE_DIR = '.tia'
+
+/** The port Effect's devtools clients and editor extensions connect to. */
+export const DEFAULT_DEVTOOLS_PORT = 34_437

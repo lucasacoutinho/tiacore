@@ -2,7 +2,6 @@ import { resolve } from 'node:path'
 
 import * as Match from 'effect/Match'
 import * as Effect from 'effect/Effect'
-import * as Layer from 'effect/Layer'
 import * as Predicate from 'effect/Predicate'
 
 import {
@@ -14,12 +13,9 @@ import {
   type TiaArtifactSource,
 } from '../../core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../core/runtime.ts'
-import { runPromise } from '../../host/runtime.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
-import { BaselinesLive } from '../baseline/live.ts'
 import { Baselines, GraphStore } from '../ports.ts'
 import { mergePartitionedGraphs } from '../state/merge.ts'
-import { GraphStoreLive } from '../state/graph-store.ts'
 import { createFilesystemArtifactProvider } from './filesystem.ts'
 import { createGitHubActionsArtifactProvider } from './github-actions.ts'
 import { createGitLabCiArtifactProvider } from './gitlab-ci.ts'
@@ -269,12 +265,3 @@ export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
     restored: false,
   }
 })
-
-const live = Layer.mergeAll(GraphStoreLive, BaselinesLive)
-
-/** `restoreGraph` over the live graph store and git baselines. */
-export function restoreGraphFromArtifacts(
-  input: RestoreArtifactsInput,
-): Promise<RestoreArtifactResult> {
-  return runPromise(restoreGraph(input).pipe(Effect.provide(live)))
-}

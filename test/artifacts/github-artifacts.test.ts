@@ -4,10 +4,10 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import type { TiaArtifactProvider } from '../../src/core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../src/core/runtime.ts'
-import { archiveGraph } from '../../src/engine/artifacts/archive.ts'
 import { createGitHubActionsArtifactProvider } from '../../src/engine/artifacts/github-actions.ts'
 import { readBoundedResponse } from '../../src/engine/artifacts/http.ts'
 import {
+  archiveGraph,
   cacheDirectory as cacheDir,
   graph,
   readStored,
