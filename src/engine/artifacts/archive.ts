@@ -188,6 +188,30 @@ export function readArtifactArchive(
   return readArchive(archive, runner, 0, { expanded: 0, nested: 0 })
 }
 
+/**
+ * The attestation at the top level of a publisher's archive, or null when the
+ * archive is oversized, corrupt, breaks a limit or holds no valid attestation.
+ * Unlike `readArtifactArchive` it inflates nothing else, not even the graph.
+ */
+export function readArchiveAttestation(
+  archive: Uint8Array,
+): TiaArtifactAttestationV1 | null {
+  if (archive.byteLength > MAX_ARTIFACT_ARCHIVE_BYTES) return null
+  const entries = extract(
+    archive,
+    (name) => name === 'attestation.json',
+    false,
+    { expanded: 0, nested: 0 },
+  )
+  const bytes = entries?.['attestation.json']
+  if (bytes === undefined) return null
+  try {
+    return parseArtifactAttestation(JSON.parse(strFromU8(bytes)))
+  } catch {
+    return null
+  }
+}
+
 /** Zips `entries` in the order given with fixed timestamps: the output is deterministic. */
 export function writeArtifactArchive(
   entries: ReadonlyArray<readonly [string, Uint8Array]>,

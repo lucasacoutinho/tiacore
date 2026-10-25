@@ -20,6 +20,7 @@ export type {
   TiaArtifactManifestV1,
   TiaArtifactPublishReceipt,
   TiaArtifactPublisherOptions,
+  TiaArtifactRetentionOptions,
   TiaArtifactSink,
   TiaArtifactSinkInput,
   TiaArtifactSinkResult,

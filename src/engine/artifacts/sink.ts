@@ -5,7 +5,12 @@ import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 
 import {
+  MANIFEST_KEY,
+  resolveRetention,
+} from '../../core/artifact-retention.ts'
+import {
   isSafeRelativePath,
+  type TiaArtifactRetentionOptions,
   type TiaArtifactSink,
   type TiaArtifactSinkInput,
   type TiaArtifactSinkResult,
@@ -16,6 +21,7 @@ import {
   TiaInvalid,
   TiaIo,
 } from '../../wire/errors.ts'
+import { pruneArtifactDirectory } from './retention.ts'
 
 export const FILESYSTEM_SINK_NAME = 'filesystem artifact sink'
 
@@ -25,11 +31,16 @@ function urlFor(key: string, baseUrl: string | undefined): string {
   return new URL(key, normalized).toString()
 }
 
-/** Writes one artifact file atomically: a temporary sibling, then a rename. */
+/**
+ * Writes one artifact file atomically: a temporary sibling, then a rename.
+ * The publisher writes the manifest last, so once that file is in place the
+ * directory is pruned to `retention`. Pruning never fails the write.
+ */
 export const putToDirectory = Effect.fnUntraced(function* (
   directory: string,
   baseUrl: string | undefined,
   input: TiaArtifactSinkInput,
+  retention?: TiaArtifactRetentionOptions | false,
 ) {
   const target = resolve(directory, input.key)
   const path = relative(directory, target)
@@ -50,6 +61,12 @@ export const putToDirectory = Effect.fnUntraced(function* (
     ),
     Effect.mapError(systemIoError),
   )
+  const policy = resolveRetention(retention)
+  if (policy !== null && input.key === MANIFEST_KEY) {
+    yield* pruneArtifactDirectory(directory, policy, input.body).pipe(
+      Effect.ignoreCause,
+    )
+  }
   const result: TiaArtifactSinkResult = { url: urlFor(input.key, baseUrl) }
   return result
 })

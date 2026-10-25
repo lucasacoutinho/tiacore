@@ -155,6 +155,26 @@ and promotion state. The built-in filesystem sink produces files for any CI
 upload mechanism. A custom sink only implements `put()` and can target object
 storage or a CI-native artifact API.
 
+The filesystem sink bounds its directory. `TiaFilesystemArtifactSinkOptions`
+(`filesystem` on the publisher options, or the argument of
+`createFilesystemArtifactSink`) takes `retention`:
+
+```ts
+interface TiaArtifactRetentionOptions {
+  keep?: number // newest archives to keep, default 20
+  maxAgeDays?: number // also delete archives older than this, default none
+}
+// retention?: TiaArtifactRetentionOptions | false   (false keeps everything)
+```
+
+After it writes `manifest.json`, the sink deletes `tiacore-<digest>.zip` files
+beyond the policy. It never deletes an archive the manifest lists, the newest
+unexpired promoted archive of each runner and fingerprint, or an archive written
+in the last 10 minutes. A `keep` that is not a positive integer, or a
+`maxAgeDays` that is not a positive number, throws when the publisher or sink is
+created. The CLI exposes `--keep`, `--max-age-days` and `--no-prune`. See
+[CI and parallelism](guides/ci-and-parallelism.md#retention-of-the-artifact-directory).
+
 The CLI exposes both states:
 
 ```sh

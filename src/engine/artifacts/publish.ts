@@ -5,6 +5,11 @@ import * as Effect from 'effect/Effect'
 import * as Redacted from 'effect/Redacted'
 
 import {
+  archiveKey,
+  MANIFEST_KEY,
+  retentionProblem,
+} from '../../core/artifact-retention.ts'
+import {
   isArtifactIdentifier,
   isSafeRunner,
   MAX_ARTIFACT_ARCHIVE_BYTES,
@@ -31,17 +36,19 @@ import { createArtifactAttestation } from './trust.ts'
 const DEFAULT_EXPIRY_SECONDS = 7 * 24 * 60 * 60
 const MAX_EXPIRY_SECONDS = 365 * 24 * 60 * 60
 
-function artifactKey(sha256: string): string {
-  return `tiacore-${sha256.slice(0, 24)}.zip`
-}
-
 const invalid = (message: string) => new TiaInvalid({ message })
 
 /** The first problem with the options a publisher is built from, if any. */
 export function optionsProblem(
   options: Pick<
     TiaArtifactPublisherOptions,
-    'artifactId' | 'group' | 'parents' | 'producer' | 'runId' | 'runner'
+    | 'artifactId'
+    | 'filesystem'
+    | 'group'
+    | 'parents'
+    | 'producer'
+    | 'runId'
+    | 'runner'
   > & { signing: Pick<TiaArtifactSigningOptions, 'expiresInSeconds'> },
 ): string | null {
   if (String(options.artifactId).trim() === '') {
@@ -74,6 +81,8 @@ export function optionsProblem(
   ) {
     return 'TIA artifact signing expiry must be between 1 second and 1 year'
   }
+  const retention = retentionProblem(options.filesystem?.retention)
+  if (retention !== null) return retention
   const identifiers = [options.group, ...(options.parents ?? [])].filter(
     (value) => value !== undefined,
   )
@@ -208,6 +217,7 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
           resolve(root, options.filesystem?.directory ?? '.tia-artifacts'),
           options.filesystem?.baseUrl,
           input,
+          options.filesystem?.retention,
         )
       : putToSink(options.sink, input)
   const sinkName = options.sink?.name ?? 'filesystem artifact sink'
@@ -215,7 +225,7 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
   const artifact = yield* put({
     body: archive,
     contentType: 'application/zip',
-    key: artifactKey(sha256),
+    key: archiveKey(sha256),
     sha256,
   })
   const artifactId: TiaArtifactId = artifact.id ?? options.artifactId
@@ -248,7 +258,7 @@ export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
   const manifestResult = yield* put({
     body: manifestBytes,
     contentType: 'application/json',
-    key: 'manifest.json',
+    key: MANIFEST_KEY,
     sha256: hashBytes(manifestBytes),
   })
 

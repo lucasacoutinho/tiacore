@@ -27,6 +27,14 @@ const options = {
     Flag.withDescription('partition group identifier'),
     Flag.optional,
   ),
+  keep: Flag.Int('keep').pipe(
+    Flag.withDescription('newest archives kept in the output directory'),
+    Flag.optional,
+  ),
+  maxAgeDays: Flag.Finite('max-age-days').pipe(
+    Flag.withDescription('also prune archives older than this many days'),
+    Flag.optional,
+  ),
   outputDir: Flag.String('output-dir').pipe(
     Flag.withDescription('artifact output directory'),
     Flag.withDefault('.tia-artifacts'),
@@ -38,6 +46,12 @@ const options = {
   producer: Flag.String('producer').pipe(
     Flag.withDescription('producing system name'),
     Flag.optional,
+  ),
+  prune: Flag.Boolean('prune').pipe(
+    Flag.withDescription(
+      'prune old archives from the output directory; --no-prune keeps them all',
+    ),
+    Flag.withDefault(true),
   ),
   receipt: Flag.String('receipt').pipe(
     Flag.withDescription('write the publication receipt to a file or -'),
@@ -101,6 +115,12 @@ const artifactCommand = (
           filesystem: {
             ...some('baseUrl', flags.baseUrl),
             directory: flags.outputDir,
+            retention: flags.prune
+              ? {
+                  ...some('keep', flags.keep),
+                  ...some('maxAgeDays', flags.maxAgeDays),
+                }
+              : false,
           },
           ...some('group', flags.group),
           parents: [...flags.parent],

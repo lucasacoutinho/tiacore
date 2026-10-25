@@ -86,6 +86,71 @@ release lane. Promotion is an authenticated claim, not a trusted boolean read
 from an unverified manifest. Publishing and promotion remain independent from
 GitHub, GitLab, or any branch name.
 
+## Retention of the artifact directory
+
+A directory that lives across runs, such as a cached `.tia-artifacts`, would
+grow by one archive per publish. The filesystem sink therefore prunes it after
+it writes `manifest.json`, which is the last write of a publish. With no setting
+it keeps these archives and deletes the rest:
+
+- the 20 newest archives, by modification time. A store that resets modification
+  times when it restores files, such as an artifact download, ranks them by
+  restore time;
+- every archive the manifest lists, including one a concurrent publish listed;
+- for each runner and fingerprint, the newest unexpired promoted archive that
+  would otherwise be deleted. Restore with `requirePromoted` depends on it. A
+  promoted archive that is already among the 20 newest can leave one older
+  promoted archive behind until it falls out of the window too. At most 32
+  archives are kept this way, because the code that prunes does not check
+  signatures.
+
+Only files named `tiacore-<24 hex digits>.zip` directly in the directory are
+candidates. Other files and subdirectories stay. A prune that fails for any
+reason leaves the archives where they are and does not fail the publish.
+
+```ts
+import { tia } from '@lucasacoutinho/tiacore/artifacts'
+
+tia({
+  // ...
+  filesystem: {
+    directory: '.tia-artifacts',
+    retention: { keep: 50, maxAgeDays: 30 },
+  },
+})
+```
+
+`createFilesystemArtifactSink({ retention })` takes the same setting for a sink
+you pass to `sink`. `keep` is a positive integer. `maxAgeDays` also deletes
+archives last written longer ago than that, even within the newest `keep`.
+Archives the rules above keep stay either way. `retention: false` keeps every
+archive. The CLI has `--keep <count>`, `--max-age-days <days>` and `--no-prune`.
+
+Pruning is safe next to a reader because of two choices:
+
+- An archive written in the last 10 minutes is never deleted. A second publish
+  into the same directory writes its archive before its manifest, and for that
+  gap nothing lists the archive. A reader that listed the directory a moment ago
+  may also be about to open it.
+- A reader already copes with an archive that disappears. The filesystem
+  provider skips a file it can no longer open and uses the other candidates, or
+  runs the full suite when none is left. Restore is an optimization, so the
+  worst result of losing a race is more tests, never fewer. On Windows a file a
+  reader holds open cannot be deleted. It stays until the next publish.
+
+The sink reads the manifest from disk after it writes its own, so it also keeps
+what a concurrent publish listed. It does not check again right before each
+delete. That check would not be atomic, and the grace period covers the same
+window.
+
+Sharded runs publish one archive per shard. When several runs share one
+directory, set `keep` to at least the shards per run times the runs you want to
+keep, or the newest run can lose some of its fragments and cannot be merged.
+
+The GitHub Actions, GitLab CI and HTTP manifest providers need no retention
+setting. They only download. The CI system or the object store that holds the
+files decides how long they live.
+
 ## GitHub Actions example
 
 Use a unique key per commit with a restore prefix:

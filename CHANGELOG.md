@@ -67,9 +67,21 @@ Effect package and write no Effect code, and no public type mentions Effect. The
   reproduce them. `conformance/selection/v1/vectors.json` holds 500 selection
   problems answered by a Lean model of the selection kernel.
 - `ws` is a runtime dependency. The devtools server needs it.
+- Retention for the filesystem artifact sink. `TiaFilesystemArtifactSinkOptions`
+  takes `retention: { keep?, maxAgeDays? }` or `false`, and
+  `tiacore artifacts publish|promote` takes `--keep`, `--max-age-days` and
+  `--no-prune`.
 
 ### Changed
 
+- The filesystem artifact sink and `tiacore artifacts publish|promote` now prune
+  their output directory. 1.x kept every archive, so a long-lived directory grew
+  without bound. After each published manifest the sink keeps the 20 newest
+  `tiacore-<digest>.zip` files, any archive the manifest lists, and the newest
+  unexpired promoted archive of each runner and fingerprint, and deletes the
+  rest. An archive written in the last 10 minutes is never deleted. Other files
+  are never touched. To keep the old behavior, pass `retention: false` or
+  `--no-prune`.
 - The `tiacore` bin enables Node's compile cache, so commands after the first
   start faster. `NODE_DISABLE_COMPILE_CACHE=1` turns it off. Library imports do
   not change how the host process compiles modules.

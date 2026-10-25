@@ -2,6 +2,7 @@ import * as Effect from 'effect/Effect'
 
 import { resolve } from 'node:path'
 
+import { retentionProblem } from '../../core/artifact-retention.ts'
 import type {
   TiaArtifactPublisherOptions,
   TiaArtifactPublishReceipt,
@@ -57,10 +58,14 @@ export function createFilesystemArtifactSink(
   options: TiaFilesystemArtifactSinkOptions = {},
   root = process.cwd(),
 ): TiaArtifactSink {
+  const problem = retentionProblem(options.retention)
+  if (problem !== null) throw new Error(problem)
   const directory = resolve(root, options.directory ?? '.tia-artifacts')
   return {
     name: FILESYSTEM_SINK_NAME,
     put: (input) =>
-      runPromise(putToDirectory(directory, options.baseUrl, input)),
+      runPromise(
+        putToDirectory(directory, options.baseUrl, input, options.retention),
+      ),
   }
 }

@@ -1,4 +1,10 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -36,6 +42,23 @@ const required = [
   '--signing-key-id',
   'k1',
 ]
+
+/** Five archives named like the publisher's, one to five days old. */
+function aged(root: string): string[] {
+  const directory = join(root, '.tia-artifacts')
+  mkdirSync(directory, { recursive: true })
+  return [1, 2, 3, 4, 5].map((days) => {
+    const name = `tiacore-${days.toString(16).padStart(24, '0')}.zip`
+    const time = (Date.now() - days * 86_400_000) / 1_000
+    writeFileSync(join(directory, name), 'old')
+    utimesSync(join(directory, name), time, time)
+    return name
+  })
+}
+const archives = (root: string) =>
+  readdirSync(join(root, '.tia-artifacts')).filter((name) =>
+    name.endsWith('.zip'),
+  )
 
 async function run(
   command: 'promote' | 'publish',
@@ -247,6 +270,49 @@ describe('artifacts publish and promote', () => {
         ])
       ).message,
     ).toBe('TIA refuses to promote a graph without complete coverage')
+  })
+
+  describe('pruning the output directory', () => {
+    test('keeps the newest 20 by default and as many as --keep names (the earlier publish counts)', async () => {
+      const { receipt, root } = await prepared()
+      const old = aged(root)
+      expect((await run('publish', root, receipt)).code).toBe(0)
+      expect(archives(root)).toHaveLength(6)
+      expect((await run('publish', root, receipt, ['--keep', '3'])).code).toBe(
+        0,
+      )
+      expect(archives(root).filter((name) => old.includes(name))).toEqual([
+        old[0],
+      ])
+    })
+
+    test('--max-age-days drops archives older than that', async () => {
+      const { receipt, root } = await prepared()
+      const old = aged(root)
+      await run('publish', root, receipt, ['--max-age-days', '2.5'])
+      expect(archives(root).filter((name) => old.includes(name))).toEqual(
+        old.slice(0, 2),
+      )
+    })
+
+    test('--no-prune keeps every archive', async () => {
+      const { receipt, root } = await prepared()
+      aged(root)
+      await run('publish', root, receipt, ['--keep', '1', '--no-prune'])
+      expect(archives(root)).toHaveLength(6)
+    })
+
+    test('refuses a --keep that would keep nothing', async () => {
+      const { receipt, root } = await prepared()
+      for (const keep of ['0', '-1']) {
+        expect(
+          (await run('publish', root, receipt, ['--keep', keep])).message,
+        ).toBe('TIA artifact retention keep must be a positive integer')
+      }
+      expect(
+        (await run('publish', root, receipt, ['--max-age-days', '0'])).message,
+      ).toBe('TIA artifact retention maxAgeDays must be a positive number')
+    })
   })
 
   test('requires the identifying flags', async () => {

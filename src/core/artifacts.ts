@@ -116,9 +116,26 @@ export interface TiaArtifactSink {
   ): Promise<TiaArtifactSinkResult> | TiaArtifactSinkResult
 }
 
+/**
+ * How many archives the filesystem sink leaves in its directory. The sink
+ * prunes after it writes a manifest, and only touches files named
+ * `tiacore-<24 hex digits>.zip` in that directory.
+ */
+export interface TiaArtifactRetentionOptions {
+  /** Newest archives to keep, by modification time. Defaults to 20. */
+  keep?: number
+  /** Also prune archives last written more than this many days ago. */
+  maxAgeDays?: number
+}
+
 export interface TiaFilesystemArtifactSinkOptions {
   baseUrl?: string
   directory?: string
+  /**
+   * Retention applied after each published manifest. Defaults to the newest 20
+   * archives; `false` keeps every archive.
+   */
+  retention?: TiaArtifactRetentionOptions | false
 }
 
 export interface TiaArtifactPublisherOptions {
