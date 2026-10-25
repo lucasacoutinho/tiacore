@@ -127,9 +127,10 @@
     "check:vectors": "node sdks/protocol-vectors.ts check",
     "check:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
     "check:go": "cd sdks/go && go test -count=1 ./... && go vet ./...",
-    "release:check": "npm run check && npm run check:architecture && npm run check:package && npm run check:proofs && npm run check:vectors && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
+    "release:check": "npm run check && npm run check:architecture && npm run check:package && npm run check:perf && npm run check:proofs && npm run check:vectors && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
     "prepare": "node prepare.mjs",
-    "gate": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm run check:architecture"
+    "gate": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm run check:architecture",
+    "check:perf": "npm run build && vitest run --config vitest.perf.config.ts"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",

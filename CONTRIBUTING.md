@@ -26,6 +26,7 @@ Useful focused commands:
 npm run typecheck
 npm run check:architecture
 npm run check:package
+npm run check:perf     # timing budgets against 1.x, one file at a time
 npm run check:proofs   # needs a Lean toolchain (elan)
 npm run check:python
 npm run check:go
