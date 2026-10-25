@@ -81,7 +81,7 @@ Effect and `node:` out of `core` and `probe`. Keep files under 800 lines.
 - Every long-lived resource and every past leak gets a test with `assertNoLeak`
   from `test/support/leak.ts`.
 - Pure decisions in `src/core` get a Lean model in `proofs/` and vectors in
-  `conformance/`; `npm run check:proofs` audits the axioms.
+  `docs/protocol/conformance/`; `npm run check:proofs` audits the axioms.
 
 ## Before every commit
 

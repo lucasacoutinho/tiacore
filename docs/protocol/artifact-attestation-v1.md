@@ -47,4 +47,4 @@ a new `keyId`; consumers may trust both keys during a bounded transition and
 then set `notBefore` or remove the previous public key.
 
 The normative JSON shape is
-[`tiacore-artifact-attestation-v1.schema.json`](../schemas/tiacore-artifact-attestation-v1.schema.json).
+[`tiacore-artifact-attestation-v1.schema.json`](schemas/tiacore-artifact-attestation-v1.schema.json).

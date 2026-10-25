@@ -75,10 +75,11 @@ grows with the counters tests touch, not with tests times source size.
 
 Other languages integrate through a versioned protocol, not a shared binary. The
 impact graph format, its JSON Schemas and the planning rules are specified in
-`spec/` and `schemas/`, and `conformance/` holds vectors every implementation
-must reproduce. The Python and Go SDKs in `sdks/` pass them, and
-`tiacore certify` checks an adapter against the kit. JavaScript-only data, such
-as coverage counters, stays out of the portable graph.
+`docs/protocol/` with its `schemas/`, and `docs/protocol/conformance/` holds
+vectors every implementation must reproduce. The Python and Go SDKs in `sdks/`
+pass them, and `tiacore certify` checks an adapter against the kit.
+JavaScript-only data, such as coverage counters, stays out of the portable
+graph.
 
 ## Correctness
 

@@ -24,7 +24,7 @@ the complete discovered suite.
 ## Protocol conformance
 
 `tiacore.create_impact_plan` is certified against every shared vector in
-`conformance/protocol/v1` (`plans.json`, `invalid-graphs.json`,
+`docs/protocol/conformance/protocol/v1` (`plans.json`, `invalid-graphs.json`,
 `canonicalization.json` and the generated `generated-plans.json`), and the plan
 it returns matches the TypeScript planner field for field.
 

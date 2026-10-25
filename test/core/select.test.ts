@@ -15,7 +15,10 @@ const vectors: {
   cases: { expected: ModelSelection; problem: ModelProblem }[]
 } = JSON.parse(
   readFileSync(
-    new URL('../../conformance/selection/v1/vectors.json', import.meta.url),
+    new URL(
+      '../../docs/protocol/conformance/selection/v1/vectors.json',
+      import.meta.url,
+    ),
     'utf8',
   ),
 )

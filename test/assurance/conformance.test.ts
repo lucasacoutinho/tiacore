@@ -53,7 +53,10 @@ const ajv = new Ajv2020({ allErrors: false, strict: false })
 const validateSchema = ajv.compile(
   JSON.parse(
     readFileSync(
-      join(root, 'schemas/tiacore-adapter-certification-v1.schema.json'),
+      join(
+        root,
+        'docs/protocol/schemas/tiacore-adapter-certification-v1.schema.json',
+      ),
       'utf8',
     ),
   ),
@@ -71,7 +74,10 @@ function rejects(value: unknown): boolean {
 describe('adapter conformance certification', () => {
   test('keeps the public scenario catalog synchronized with JSON', () => {
     const catalog = JSON.parse(
-      readFileSync(join(root, 'conformance/adapter/v1/scenarios.json'), 'utf8'),
+      readFileSync(
+        join(root, 'docs/protocol/conformance/adapter/v1/scenarios.json'),
+        'utf8',
+      ),
     ) as {
       contractVersion: number
       scenarios: unknown[]
@@ -373,7 +379,7 @@ describe('executable adapter certification', () => {
     const passing = await executeAdapterCertification(
       options({
         arguments: ['-e', code],
-        cwd: 'conformance',
+        cwd: 'docs/protocol/conformance',
         environment: { TIA_PROBE: 'yes' },
       }),
     )

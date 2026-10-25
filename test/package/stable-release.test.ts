@@ -216,12 +216,8 @@ describe('stable release contract', () => {
     ])
     expect(packageJson.files).toEqual(
       expect.arrayContaining([
-        'capabilities',
-        'conformance',
         'dist',
         'docs',
-        'schemas',
-        'spec',
         'README.md',
         'CHANGELOG.md',
         'LICENSE',
@@ -304,12 +300,14 @@ describe('stable release contract', () => {
     })
 
     const attestation = json<JsonSchema>(
-      'schemas/tiacore-artifact-attestation-v1.schema.json',
+      'docs/protocol/schemas/tiacore-artifact-attestation-v1.schema.json',
     )
     const manifest = json<JsonSchema>(
-      'schemas/tiacore-artifact-manifest-v1.schema.json',
+      'docs/protocol/schemas/tiacore-artifact-manifest-v1.schema.json',
     )
-    const protocol = json<JsonSchema>('schemas/tiacore-impact-v1.schema.json')
+    const protocol = json<JsonSchema>(
+      'docs/protocol/schemas/tiacore-impact-v1.schema.json',
+    )
     expect(attestation.properties.version?.const).toBe(
       TIA_ARTIFACT_ATTESTATION_VERSION,
     )

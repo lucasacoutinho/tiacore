@@ -248,6 +248,6 @@ keeps first branch runs fast without allowing an incomplete partial graph to
 become the release baseline.
 
 The vendor-neutral artifact manifest is specified in
-[`spec/artifact-manifest-v1.md`](../../spec/artifact-manifest-v1.md). The signed
-archive claim is specified in
-[`spec/artifact-attestation-v1.md`](../../spec/artifact-attestation-v1.md).
+[`docs/protocol/artifact-manifest-v1.md`](../protocol/artifact-manifest-v1.md).
+The signed archive claim is specified in
+[`docs/protocol/artifact-attestation-v1.md`](../protocol/artifact-attestation-v1.md).

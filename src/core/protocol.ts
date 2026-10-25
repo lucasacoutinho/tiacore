@@ -1,4 +1,4 @@
-// Wire types of protocol v1 (spec/protocol-v1.md). src/wire/protocol.ts decodes into them.
+// Wire types of protocol v1 (docs/protocol/protocol-v1.md). src/wire/protocol.ts decodes into them.
 
 export const TIA_PROTOCOL_VERSION = 1 as const
 

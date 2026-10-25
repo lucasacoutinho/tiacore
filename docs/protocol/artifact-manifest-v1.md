@@ -52,4 +52,4 @@ Authorization is forwarded to same-origin archive URLs only. Cross-origin signed
 URLs receive no manifest authorization header.
 
 The normative JSON shape is
-[`tiacore-artifact-manifest-v1.schema.json`](../schemas/tiacore-artifact-manifest-v1.schema.json).
+[`tiacore-artifact-manifest-v1.schema.json`](schemas/tiacore-artifact-manifest-v1.schema.json).

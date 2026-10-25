@@ -14,7 +14,7 @@ import {
 
 // Decoders for the two documents that cross a trust boundary: the attestation
 // in an archive and the manifest an HTTP provider serves. They follow
-// schemas/tiacore-artifact-{attestation,manifest}-v1.schema.json exactly:
+// docs/protocol/schemas/tiacore-artifact-{attestation,manifest}-v1.schema.json exactly:
 // unknown fields are invalid, identifiers are bounded at 8192 characters, a
 // lineage names at most 100 distinct parents. Timestamps need to parse as
 // dates; the schema's `date-time` format is not tightened further, as in 1.x.

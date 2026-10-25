@@ -17,7 +17,10 @@ import {
 
 function fixture<T>(name: string): T {
   return JSON.parse(
-    readFileSync(join(process.cwd(), 'conformance/protocol/v1', name), 'utf8'),
+    readFileSync(
+      join(process.cwd(), 'docs/protocol/conformance/protocol/v1', name),
+      'utf8',
+    ),
   ) as T
 }
 

@@ -10,13 +10,16 @@ import {
   parseImpactGraph,
 } from '../../src/wire/decode.ts'
 
-// The committed schemas in schemas/ are what the Python and Go SDKs and third
+// The committed schemas in docs/protocol/schemas/ are what the Python and Go SDKs and third
 // parties validate against. Anything the 2.0 decoder accepts must pass them,
 // or tiacore would publish graphs its own schemas reject.
 
 function committed(name: string): Record<string, unknown> {
   return JSON.parse(
-    readFileSync(new URL(`../../schemas/${name}`, import.meta.url), 'utf8'),
+    readFileSync(
+      new URL(`../../docs/protocol/schemas/${name}`, import.meta.url),
+      'utf8',
+    ),
   )
 }
 
@@ -106,7 +109,7 @@ describe('committed JSON Schemas', () => {
     const vectors: { vectors: { graph: unknown; name: string }[] } = JSON.parse(
       readFileSync(
         new URL(
-          '../../conformance/protocol/v1/invalid-graphs.json',
+          '../../docs/protocol/conformance/protocol/v1/invalid-graphs.json',
           import.meta.url,
         ),
         'utf8',

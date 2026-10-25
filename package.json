@@ -27,12 +27,8 @@
     "tiacore": "dist/entries/cli.js"
   },
   "files": [
-    "capabilities",
-    "conformance",
     "dist",
     "docs",
-    "schemas",
-    "spec",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -117,7 +113,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node config/build.mjs",
+    "build": "node build.mjs",
     "typecheck": "effect-tsgo patch --typescript --no-oxlint --log-level=error && tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings --report-unused-disable-directives",
     "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
@@ -127,12 +123,12 @@
     "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
     "check:architecture": "archer check --reporter agent",
     "check:package": "npm run build && publint && attw --pack . --profile esm-only",
-    "check:proofs": "cd proofs && lake build --wfail && lake exe tia-axioms && cd .. && node config/selection-vectors.ts check && node config/selection-vectors.ts fuzz 20000",
-    "check:vectors": "node config/protocol-vectors.ts check",
+    "check:proofs": "cd proofs && lake build --wfail && lake exe tia-axioms && cd .. && node proofs/selection-vectors.ts check && node proofs/selection-vectors.ts fuzz 20000",
+    "check:vectors": "node sdks/protocol-vectors.ts check",
     "check:python": "python3 -B -m unittest discover -s sdks/python/tests -v",
     "check:go": "cd sdks/go && go test -count=1 ./... && go vet ./...",
     "release:check": "npm run check && npm run check:architecture && npm run check:package && npm run check:proofs && npm run check:vectors && npm run check:python && npm run check:go && npm audit --omit=dev && npm pack --dry-run",
-    "prepare": "node config/prepare.mjs",
+    "prepare": "node prepare.mjs",
     "gate": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm run check:architecture"
   },
   "dependencies": {

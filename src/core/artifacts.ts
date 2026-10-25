@@ -1,5 +1,5 @@
 // Public types of the provider-neutral graph artifacts: the attestation and
-// manifest documents (spec/artifact-*-v1.md), the publisher, sinks, and the
+// manifest documents (docs/protocol/artifact-*-v1.md), the publisher, sinks, and the
 // provider contract users implement. Plain interfaces and Promise methods; the
 // engine lifts them into Effect.
 

@@ -50,7 +50,7 @@
     {
       "evidence": {
         "assertions": 1,
-        "fixture": "../../conformance/protocol/v1/plans.json"
+        "fixture": "../../docs/protocol/conformance/protocol/v1/plans.json"
       },
       "id": "structural-change-full",
       "passed": true
@@ -66,7 +66,7 @@
     {
       "evidence": {
         "assertions": 1,
-        "fixture": "../../conformance/protocol/v1/plans.json"
+        "fixture": "../../docs/protocol/conformance/protocol/v1/plans.json"
       },
       "id": "environment-change-full",
       "passed": true
@@ -82,12 +82,12 @@
     {
       "evidence": {
         "assertions": 1,
-        "fixture": "../../conformance/protocol/v1/plans.json"
+        "fixture": "../../docs/protocol/conformance/protocol/v1/plans.json"
       },
       "id": "resource-locks",
       "passed": true
     }
   ],
   "selectionGranularity": "test-file",
-  "sourceRevision": "sha256:5d7e513296dfa585bcec7c01be7c26acd8a21b63e6dcdd7f9b7581cb727a4ecc"
+  "sourceRevision": "sha256:1d023440c9efc6645c6b985191503476571663022c170c3aaf37f42aa6173902"
 }

@@ -10,7 +10,7 @@ import (
 )
 
 func vectorPath(name string) string {
-	return filepath.Join("..", "..", "conformance", "protocol", "v1", name)
+	return filepath.Join("..", "..", "docs", "protocol", "conformance", "protocol", "v1", name)
 }
 
 func loadVectors(t *testing.T, name string, into any) {

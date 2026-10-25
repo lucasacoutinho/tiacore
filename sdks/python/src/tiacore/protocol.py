@@ -1,7 +1,7 @@
 """Protocol v1 impact planning.
 
 This module mirrors the TypeScript planner (``src/engine/plan/protocol.ts``) and
-is certified against the shared vectors in ``conformance/protocol/v1``.
+is certified against the shared vectors in ``docs/protocol/conformance/protocol/v1``.
 Ordering is by UTF-16 code unit, so it agrees with TypeScript for non-BMP text.
 """
 

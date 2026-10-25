@@ -5,7 +5,7 @@ import { expect, test } from 'vitest'
 import {
   GENERATED_PLANS,
   generateVectors,
-} from '../../config/protocol-vectors.ts'
+} from '../../sdks/protocol-vectors.ts'
 
 test('the committed generated plan vectors match the TypeScript planner', () => {
   expect(readFileSync(GENERATED_PLANS, 'utf8') === generateVectors()).toBe(true)

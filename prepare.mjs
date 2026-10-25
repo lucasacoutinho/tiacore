@@ -62,7 +62,7 @@ function buildIsolated() {
       recursive: true,
     })
     run('npm', ['ci', '--include=dev', '--ignore-scripts'], workspace)
-    run(process.execPath, ['config/build.mjs'], workspace)
+    run(process.execPath, ['build.mjs'], workspace)
     rmSync(join(root, 'dist'), { force: true, recursive: true })
     cpSync(join(workspace, 'dist'), join(root, 'dist'), { recursive: true })
   } finally {
@@ -81,7 +81,7 @@ if (!dependencyInstall) {
     ])
   }
 } else if (hasBuildToolchain(root) && !insideNodeModules(root)) {
-  run(process.execPath, ['config/build.mjs'])
+  run(process.execPath, ['build.mjs'])
 } else {
   buildIsolated()
 }

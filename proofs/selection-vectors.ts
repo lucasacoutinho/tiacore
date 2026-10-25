@@ -1,5 +1,5 @@
-// Usage: node config/selection-vectors.ts write | check | fuzz [count]
-//   write  regenerate conformance/selection/v1/vectors.json from the Lean model
+// Usage: node proofs/selection-vectors.ts write | check | fuzz [count]
+//   write  regenerate docs/protocol/conformance/selection/v1/vectors.json from the Lean model
 //   check  fail if the committed vectors differ from the Lean model's answers
 //   fuzz   compare the TypeScript kernel with the Lean model on fresh random problems
 import { spawnSync } from 'node:child_process'
@@ -15,7 +15,7 @@ import {
   type ModelSelection,
 } from '../test/support/selection-problems.ts'
 
-const VECTORS = 'conformance/selection/v1/vectors.json'
+const VECTORS = 'docs/protocol/conformance/selection/v1/vectors.json'
 const VECTOR_SEED = 20_261_025
 const VECTOR_COUNT = 500
 

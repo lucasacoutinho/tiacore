@@ -28,6 +28,6 @@
       }
     ]
   },
-  "include": ["src", "test", "config", "*.ts"],
+  "include": ["src", "test", "proofs/*.ts", "sdks/*.ts", "*.ts"],
   "exclude": ["test/fixtures"]
 }

@@ -1,5 +1,5 @@
-// Usage: node config/protocol-vectors.ts write | check
-//   write  regenerate conformance/protocol/v1/generated-plans.json from the TypeScript planner
+// Usage: node sdks/protocol-vectors.ts write | check
+//   write  regenerate docs/protocol/conformance/protocol/v1/generated-plans.json from the TypeScript planner
 //   check  fail if the committed file differs from what the planner produces today
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -11,7 +11,8 @@ import type {
 } from '../src/core/protocol.ts'
 import { createImpactPlan } from '../src/engine/plan/protocol.ts'
 
-export const GENERATED_PLANS = 'conformance/protocol/v1/generated-plans.json'
+export const GENERATED_PLANS =
+  'docs/protocol/conformance/protocol/v1/generated-plans.json'
 const SEED = 20_261_026
 const COUNT = 400
 

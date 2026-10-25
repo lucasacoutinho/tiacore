@@ -60,9 +60,9 @@ native outcomes.
   inputs, replay behavior, coverage behavior, and known boundaries.
 
 The shipped
-[`adapter-capabilities-v1.json`](../../capabilities/adapter-capabilities-v1.json)
+[`adapter-capabilities-v1.json`](../protocol/capabilities/adapter-capabilities-v1.json)
 file is the machine-readable contract. Its schema is
-[`tiacore-adapter-capabilities-v1.schema.json`](../../schemas/tiacore-adapter-capabilities-v1.schema.json).
+[`tiacore-adapter-capabilities-v1.schema.json`](../protocol/schemas/tiacore-adapter-capabilities-v1.schema.json).
 
 ## Qualification gates
 

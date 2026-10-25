@@ -14,6 +14,11 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 
 ### Breaking changes
 
+- The protocol contract moved inside the package. The specs, JSON Schemas,
+  conformance vectors and the adapter capability contract were at the package
+  root in `spec/`, `schemas/`, `conformance/` and `capabilities/`. They are now
+  under `docs/protocol/`: for example `docs/protocol/schemas/` and
+  `docs/protocol/conformance/protocol/v1/`.
 - Requires Node.js `^22.12.0 || >=24.0.0`. Node.js 20 and 22.0 to 22.11 are no
   longer supported.
 - The package is ESM only. The CommonJS build and the `main` and `module` fields

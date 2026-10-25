@@ -1,4 +1,4 @@
-// Validates the shipped capabilities/adapter-capabilities-v1.json for
+// Validates the shipped docs/protocol/capabilities/adapter-capabilities-v1.json for
 // test/assurance/capabilities.test.ts. Nothing in the package reads that file.
 
 import * as Schema from 'effect/Schema'

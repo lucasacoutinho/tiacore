@@ -79,7 +79,7 @@ export interface VerifyArtifactInput {
 
 /**
  * Decides whether an artifact may be used as a baseline. The checks run in the
- * order spec/artifact-attestation-v1.md lists them, and the first failure
+ * order docs/protocol/artifact-attestation-v1.md lists them, and the first failure
  * names the reason: signature, graph digest, graph identity, runner, validity
  * window, then the trust policy.
  */

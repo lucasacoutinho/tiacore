@@ -21,7 +21,10 @@ import { privateKeyPem } from './support.ts'
 
 function committed(name: string): Record<string, unknown> {
   return JSON.parse(
-    readFileSync(new URL(`../../schemas/${name}`, import.meta.url), 'utf8'),
+    readFileSync(
+      new URL(`../../docs/protocol/schemas/${name}`, import.meta.url),
+      'utf8',
+    ),
   )
 }
 

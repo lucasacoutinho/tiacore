@@ -8,7 +8,10 @@ import { parseAdapterCapabilities } from '../support/adapter-capabilities.ts'
 
 const root = process.cwd()
 const document: unknown = JSON.parse(
-  readFileSync(join(root, 'capabilities/adapter-capabilities-v1.json'), 'utf8'),
+  readFileSync(
+    join(root, 'docs/protocol/capabilities/adapter-capabilities-v1.json'),
+    'utf8',
+  ),
 )
 const contract = parseAdapterCapabilities(document)
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -30,7 +33,8 @@ describe('adapter capability contract', () => {
     expect(new Set(contract.adapters.map(({ id }) => id)).size).toBe(
       contract.adapters.length,
     )
-    expect(packageJson.files).toContain('capabilities')
+    // The capability contract ships with the protocol docs.
+    expect(packageJson.files).toContain('docs')
     expect(packageJson.exports).toHaveProperty('./vitest')
     expect(packageJson.exports).toHaveProperty('./adapter')
     expect(packageJson.exports).toHaveProperty('./workspace')
@@ -105,7 +109,10 @@ describe('adapter capability contract', () => {
     const validate = ajv.compile(
       JSON.parse(
         readFileSync(
-          join(root, 'schemas/tiacore-adapter-capabilities-v1.schema.json'),
+          join(
+            root,
+            'docs/protocol/schemas/tiacore-adapter-capabilities-v1.schema.json',
+          ),
           'utf8',
         ),
       ),

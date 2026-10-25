@@ -8,7 +8,7 @@ from typing import Any
 
 SDK_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = SDK_ROOT.parents[1]
-VECTORS = REPOSITORY_ROOT / "conformance" / "protocol" / "v1"
+VECTORS = REPOSITORY_ROOT / "docs" / "protocol" / "conformance" / "protocol" / "v1"
 sys.path.insert(0, str(SDK_ROOT / "src"))
 
 from tiacore.protocol import (  # noqa: E402
