@@ -258,6 +258,18 @@ describe('run planning', () => {
       mode: 'record',
       reason: 'structural file changed: ../../bun.lock',
     })
+
+    writeFileSync(join(repository, 'bun.lock'), '{"lockfileVersion":1}\n')
+    writeFileSync(
+      join(repository, 'package.json'),
+      '{"private":true,"name":"root"}\n',
+    )
+    const manifest = await plan(root, cached, {
+      options: { ...options, onUnknownChange: 'ignore' },
+    })
+    expect(manifest.mode).toBe('record')
+    expect(manifest.reason).toBe('structural file changed: ../../package.json')
+    expect(manifest.changedFiles).toEqual(['../../package.json'])
   })
 
   test('does not treat a nested manifest or an ancestor note as structural', async () => {

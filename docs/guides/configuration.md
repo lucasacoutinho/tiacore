@@ -1,7 +1,10 @@
 # Configuration and safety
 
 tiacore defaults are conservative. A setting may narrow known irrelevant files,
-but uncertainty still expands to a full run unless you explicitly opt out.
+but uncertainty still expands to a full run unless you explicitly opt out. A
+lockfile, package manifest, tsconfig, jsconfig, or Vite or Vitest config in a
+parent of the project root is structural. `ignoreChanges` and
+`onUnknownChange: 'ignore'` do not skip it.
 
 ## Vitest options
 

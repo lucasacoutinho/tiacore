@@ -7,6 +7,11 @@ follow Semantic Versioning.
 
 ### Fixed
 
+- A lockfile, package manifest, tsconfig, jsconfig, or Vite or Vitest config in
+  a parent of the project root is a structural change. When the project root is
+  a workspace package, a repository-root `bun.lock` was an unknown file
+  (`../../bun.lock`). `onUnknownChange: 'ignore'` then replayed the suite. That
+  file now forces a full run.
 - The Vitest plugin deletes `setup-<version>.mjs` files from earlier tiacore
   versions in `.tia/runtime` when it writes the current one. After an upgrade,
   only the current setup file remains. Before, `setup-1.2.1.mjs` stayed next to
