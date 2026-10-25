@@ -239,9 +239,18 @@ The CLI exposes the same differential gate:
 tiacore verify --output .tia/verification.json -- npm test
 ```
 
-Every TIA runner reached by the command writes an isolated phase snapshot. A
-missing or duplicate runner snapshot fails verification, so a command may safely
-cover multiple Vitest configurations or heterogeneous workspace lanes.
+Put the test command after `--`. Without it, options meant for the test command
+are read as `tiacore verify` options and rejected.
+
+The Vitest, Node, Bun, Playwright, and TypeScript adapter runners each write an
+isolated phase snapshot. A missing or duplicate runner snapshot fails
+verification, so a command may safely cover multiple Vitest configurations or
+heterogeneous workspace lanes. The k6, Gradle, and Maestro runners and the
+Python and Go SDKs plan impact graphs but do not run tests, so they write no
+snapshot. A verification that reaches only them fails with `snapshot-invalid`.
+
+To keep the phase snapshots, pass `--artifacts <dir>`. Each verification writes
+them to `<dir>/run-XXXXXX/selective/` and `<dir>/run-XXXXXX/full/`.
 
 ## Compatibility policy
 
