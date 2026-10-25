@@ -163,6 +163,12 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 
 ### Fixed
 
+- Node runner on Node 22.12 to 22.14, where `node:test` cases cannot be
+  discovered without running them: each test file now runs whole in its own
+  child, and re-running affected cases runs their files whole too. Before, one
+  child ran every file and a case depended on everything that run touched, so a
+  selective and a full run recorded different evidence and `tiacore verify`
+  failed.
 - Evidence events are written under a temporary name and renamed, so a reader
   never sees a partial event.
 - Waiting for the commit lock can be interrupted. Before, an interrupted commit

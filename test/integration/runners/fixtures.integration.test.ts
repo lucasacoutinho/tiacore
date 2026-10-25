@@ -12,6 +12,7 @@ import {
   resetExecutions,
   runCommand,
 } from '../../support/runner-project.ts'
+import { NODE_DISCOVERY_HOOKS } from '../../support/node-version.ts'
 
 // The node:test, bun:test and custom adapter cases, run against the built
 // package through real fixture projects.
@@ -67,68 +68,79 @@ describe.skipIf(!hasBun)('bun:test fixture project', () => {
 })
 
 describe('node:test fixture project', () => {
-  test('selects exact node:test cases and reruns cached failures', async () => {
-    const root = createFixtureProject('node-runner')
+  // Exact case selection needs node:test discovery hooks (Node 22.15+); below
+  // that the runner runs each affected file whole.
+  test.skipIf(!NODE_DISCOVERY_HOOKS)(
+    'selects exact node:test cases and reruns cached failures',
+    async () => {
+      const root = createFixtureProject('node-runner')
 
-    const initial = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(initial.status, initial.output).toBe(0)
-    expect(executions(root).sort()).toEqual(['node-a', 'node-b'])
-    expect(initial.output).toContain('TIA node recording full-suite baseline')
-    const initialGraph = await readGraph(root, 'node')
-    const find = (name: string) =>
-      Object.values(initialGraph.results).find(
-        (result) => result.fullName === name,
+      const initial = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(initial.status, initial.output).toBe(0)
+      expect(executions(root).sort()).toEqual(['node-a', 'node-b'])
+      expect(initial.output).toContain('TIA node recording full-suite baseline')
+      const initialGraph = await readGraph(root, 'node')
+      const find = (name: string) =>
+        Object.values(initialGraph.results).find(
+          (result) => result.fullName === name,
+        )
+      const aResult = find('node case a')
+      const bResult = find('node case b')
+      expect(initialGraph.testEdges[aResult!.id]?.files).toContain('src/a.mjs')
+      expect(initialGraph.testEdges[aResult!.id]?.files).not.toContain(
+        'src/b.mjs',
       )
-    const aResult = find('node case a')
-    const bResult = find('node case b')
-    expect(initialGraph.testEdges[aResult!.id]?.files).toContain('src/a.mjs')
-    expect(initialGraph.testEdges[aResult!.id]?.files).not.toContain(
-      'src/b.mjs',
-    )
-    expect(initialGraph.testEdges[bResult!.id]?.files).toContain('src/b.mjs')
-    if (hooks) {
-      // The skipped case is only visible to precise discovery.
-      expect(find('node skipped case')?.state).toBe('skipped')
-    }
+      expect(initialGraph.testEdges[bResult!.id]?.files).toContain('src/b.mjs')
+      if (hooks) {
+        // The skipped case is only visible to precise discovery.
+        expect(find('node skipped case')?.state).toBe('skipped')
+      }
 
-    resetExecutions(root)
-    writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'broken'\n")
-    const failed = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(failed.status, failed.output).toBe(1)
-    expect(executions(root)).toEqual(['node-a'])
-    expect(failed.output).toContain('1 affected test case')
+      resetExecutions(root)
+      writeFileSync(
+        join(root, 'src/a.mjs'),
+        "export const a = () => 'broken'\n",
+      )
+      const failed = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(failed.status, failed.output).toBe(1)
+      expect(executions(root)).toEqual(['node-a'])
+      expect(failed.output).toContain('1 affected test case')
 
-    resetExecutions(root)
-    const retried = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(retried.status, retried.output).toBe(1)
-    expect(executions(root)).toEqual(['node-a'])
+      resetExecutions(root)
+      const retried = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(retried.status, retried.output).toBe(1)
+      expect(executions(root)).toEqual(['node-a'])
 
-    resetExecutions(root)
-    writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'a'\n")
-    const repaired = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(repaired.status, repaired.output).toBe(0)
-    expect(executions(root)).toEqual(['node-a'])
-  })
+      resetExecutions(root)
+      writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'a'\n")
+      const repaired = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(repaired.status, repaired.output).toBe(0)
+      expect(executions(root)).toEqual(['node-a'])
+    },
+  )
 
-  test('records and recovers a node:test module-load failure', async () => {
-    const root = createFixtureProject('node-module-failure')
-    const failed = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(failed.status, failed.output).toBe(1)
-    expect(Object.values((await readGraph(root, 'node')).results)).toEqual([
-      expect.objectContaining({
-        fullName: 'test/broken.test.mjs (module failure)',
-        state: 'failed',
-      }),
-    ])
+  test.skipIf(!NODE_DISCOVERY_HOOKS)(
+    'records and recovers a node:test module-load failure',
+    async () => {
+      const root = createFixtureProject('node-module-failure')
+      const failed = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(failed.status, failed.output).toBe(1)
+      expect(Object.values((await readGraph(root, 'node')).results)).toEqual([
+        expect.objectContaining({
+          fullName: 'test/broken.test.mjs (module failure)',
+          state: 'failed',
+        }),
+      ])
 
-    writeFileSync(
-      join(root, 'src/missing.mjs'),
-      "export const value = 'recovered'\n",
-    )
-    const recovered = runCommand(root, process.execPath, ['run-tia.mjs'])
-    expect(recovered.status, recovered.output).toBe(0)
-    expect(executions(root)).toEqual(['module-recovered'])
-  })
+      writeFileSync(
+        join(root, 'src/missing.mjs'),
+        "export const value = 'recovered'\n",
+      )
+      const recovered = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(recovered.status, recovered.output).toBe(0)
+      expect(executions(root)).toEqual(['module-recovered'])
+    },
+  )
 
   test('uses one aggregate Node coverage pass when hooks are unavailable', async () => {
     const root = createFixtureProject('node-runner')

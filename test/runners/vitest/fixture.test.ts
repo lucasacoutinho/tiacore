@@ -22,6 +22,7 @@ import {
   runVitestAsync,
   readGraphAt,
 } from '../../support/integration-project.ts'
+import { nodeAtLeast } from '../../support/node-version.ts'
 
 afterEach(async () => {
   cleanupProjects()
@@ -232,56 +233,60 @@ describe('runnable fixture projects', async () => {
     expect(replay.output).toContain('1 cached test result')
   })
 
-  test('tracks real SQLite table and EJS view dependencies per test', async () => {
-    const root = createFixtureProject('framework-edges')
-    const initial = runVitest(root)
-    expect(initial.status, initial.output).toBe(0)
-    expect(executions(root).sort()).toEqual([
-      'database-order',
-      'database-user',
-      'view-admin',
-      'view-user',
-    ])
+  // node:sqlite needs no flag from Node 22.13.
+  test.skipIf(!nodeAtLeast('22.13.0'))(
+    'tracks real SQLite table and EJS view dependencies per test',
+    async () => {
+      const root = createFixtureProject('framework-edges')
+      const initial = runVitest(root)
+      expect(initial.status, initial.output).toBe(0)
+      expect(executions(root).sort()).toEqual([
+        'database-order',
+        'database-user',
+        'view-admin',
+        'view-user',
+      ])
 
-    const graph = await readGraph(root)
-    const byName = (name: string) =>
-      Object.values(graph.results).find((result) =>
-        result.fullName.includes(name),
-      )!
-    expect(graph.testEdges[byName('users table').id]?.files).toContain(
-      'migrations/001_users.sql',
-    )
-    expect(graph.testEdges[byName('users table').id]?.files).not.toContain(
-      'migrations/002_orders.sql',
-    )
-    expect(graph.testEdges[byName('orders table').id]?.files).toContain(
-      'migrations/002_orders.sql',
-    )
-    expect(graph.testEdges[byName('user EJS').id]?.files).toContain(
-      'views/user.ejs',
-    )
-    expect(graph.testEdges[byName('admin EJS').id]?.files).toContain(
-      'views/admin.ejs',
-    )
+      const graph = await readGraph(root)
+      const byName = (name: string) =>
+        Object.values(graph.results).find((result) =>
+          result.fullName.includes(name),
+        )!
+      expect(graph.testEdges[byName('users table').id]?.files).toContain(
+        'migrations/001_users.sql',
+      )
+      expect(graph.testEdges[byName('users table').id]?.files).not.toContain(
+        'migrations/002_orders.sql',
+      )
+      expect(graph.testEdges[byName('orders table').id]?.files).toContain(
+        'migrations/002_orders.sql',
+      )
+      expect(graph.testEdges[byName('user EJS').id]?.files).toContain(
+        'views/user.ejs',
+      )
+      expect(graph.testEdges[byName('admin EJS').id]?.files).toContain(
+        'views/admin.ejs',
+      )
 
-    resetExecutions(root)
-    writeFileSync(
-      join(root, 'migrations/001_users.sql'),
-      'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, active INTEGER);\\n',
-    )
-    const databaseReplay = runVitest(root)
-    expect(databaseReplay.status, databaseReplay.output).toBe(0)
-    expect(executions(root)).toEqual(['database-user'])
+      resetExecutions(root)
+      writeFileSync(
+        join(root, 'migrations/001_users.sql'),
+        'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, active INTEGER);\\n',
+      )
+      const databaseReplay = runVitest(root)
+      expect(databaseReplay.status, databaseReplay.output).toBe(0)
+      expect(executions(root)).toEqual(['database-user'])
 
-    resetExecutions(root)
-    writeFileSync(
-      join(root, 'views/user.ejs'),
-      '<h1>Hello <%= name %>!</h1>\\n',
-    )
-    const viewReplay = runVitest(root)
-    expect(viewReplay.status, viewReplay.output).toBe(0)
-    expect(executions(root)).toEqual(['view-user'])
-  })
+      resetExecutions(root)
+      writeFileSync(
+        join(root, 'views/user.ejs'),
+        '<h1>Hello <%= name %>!</h1>\\n',
+      )
+      const viewReplay = runVitest(root)
+      expect(viewReplay.status, viewReplay.output).toBe(0)
+      expect(executions(root)).toEqual(['view-user'])
+    },
+  )
 
   test('merges simultaneous local Vitest shards and reconstructs full coverage', async () => {
     const root = createFixtureProject('sharded-vitest')
@@ -350,76 +355,80 @@ describe('runnable fixture projects', async () => {
     expect(existsSync(join(root, '.tia/state.json'))).toBe(false)
   })
 
-  test('selects React Testing Library suites and their imported assets', async () => {
-    const root = createFixtureProject('react-jsdom')
+  // jsdom 30 needs Node 22.22.
+  test.skipIf(!nodeAtLeast('22.22.0'))(
+    'selects React Testing Library suites and their imported assets',
+    async () => {
+      const root = createFixtureProject('react-jsdom')
 
-    const initial = runVitest(root)
-    expect(initial.status, initial.output).toBe(0)
-    expect(executions(root).sort()).toEqual(['badge', 'button', 'lazy-panel'])
-    expect((await readGraph(root)).edges['test/Button.test.tsx']).toEqual(
-      expect.arrayContaining([
-        'src/Button.module.css',
-        'src/Button.tsx',
-        'src/save.svg',
-      ]),
-    )
-    expect((await readGraph(root)).edges['test/Badge.test.tsx']).toContain(
-      'src/badge.json',
-    )
-    expect((await readGraph(root)).edges['test/LazyPanel.test.tsx']).toContain(
-      'src/LazyPanel.tsx',
-    )
+      const initial = runVitest(root)
+      expect(initial.status, initial.output).toBe(0)
+      expect(executions(root).sort()).toEqual(['badge', 'button', 'lazy-panel'])
+      expect((await readGraph(root)).edges['test/Button.test.tsx']).toEqual(
+        expect.arrayContaining([
+          'src/Button.module.css',
+          'src/Button.tsx',
+          'src/save.svg',
+        ]),
+      )
+      expect((await readGraph(root)).edges['test/Badge.test.tsx']).toContain(
+        'src/badge.json',
+      )
+      expect(
+        (await readGraph(root)).edges['test/LazyPanel.test.tsx'],
+      ).toContain('src/LazyPanel.tsx')
 
-    resetExecutions(root)
-    appendFileSync(join(root, 'src/LazyPanel.tsx'), '\n')
-    const lazyReplay = runVitest(root)
-    expect(lazyReplay.status, lazyReplay.output).toBe(0)
-    expect(executions(root), lazyReplay.output).toEqual(['lazy-panel'])
-    expect(lazyReplay.output).toContain('2 cached test results')
+      resetExecutions(root)
+      appendFileSync(join(root, 'src/LazyPanel.tsx'), '\n')
+      const lazyReplay = runVitest(root)
+      expect(lazyReplay.status, lazyReplay.output).toBe(0)
+      expect(executions(root), lazyReplay.output).toEqual(['lazy-panel'])
+      expect(lazyReplay.output).toContain('2 cached test results')
 
-    resetExecutions(root)
-    appendFileSync(join(root, 'src/Button.tsx'), '\n')
-    const componentReplay = runVitest(root)
-    expect(componentReplay.status, componentReplay.output).toBe(0)
-    expect(executions(root), componentReplay.output).toEqual(['button'])
-    expect(componentReplay.output).toContain('2 cached test results')
+      resetExecutions(root)
+      appendFileSync(join(root, 'src/Button.tsx'), '\n')
+      const componentReplay = runVitest(root)
+      expect(componentReplay.status, componentReplay.output).toBe(0)
+      expect(executions(root), componentReplay.output).toEqual(['button'])
+      expect(componentReplay.output).toContain('2 cached test results')
 
-    resetExecutions(root)
-    writeFileSync(
-      join(root, 'src/Button.module.css'),
-      '.primary { color: rebeccapurple; }\n',
-    )
-    const cssReplay = runVitest(root)
-    expect(cssReplay.status, cssReplay.output).toBe(0)
-    expect(executions(root), cssReplay.output).toEqual(['button'])
+      resetExecutions(root)
+      writeFileSync(
+        join(root, 'src/Button.module.css'),
+        '.primary { color: rebeccapurple; }\n',
+      )
+      const cssReplay = runVitest(root)
+      expect(cssReplay.status, cssReplay.output).toBe(0)
+      expect(executions(root), cssReplay.output).toEqual(['button'])
 
-    resetExecutions(root)
-    writeFileSync(
-      join(root, 'src/badge.json'),
-      '{\n  "label": "ready-copy"\n}\n\n',
-    )
-    const jsonReplay = runVitest(root)
-    expect(jsonReplay.status, jsonReplay.output).toBe(0)
-    expect(executions(root), jsonReplay.output).toEqual(['badge'])
+      resetExecutions(root)
+      writeFileSync(
+        join(root, 'src/badge.json'),
+        '{\n  "label": "ready-copy"\n}\n\n',
+      )
+      const jsonReplay = runVitest(root)
+      expect(jsonReplay.status, jsonReplay.output).toBe(0)
+      expect(executions(root), jsonReplay.output).toEqual(['badge'])
 
-    resetExecutions(root)
-    writeFileSync(
-      join(root, 'src/save.svg'),
-      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h2v2z"/></svg>\n',
-    )
-    const svgReplay = runVitest(root)
-    expect(svgReplay.status, svgReplay.output).toBe(0)
-    expect(executions(root), svgReplay.output).toEqual(['button'])
+      resetExecutions(root)
+      writeFileSync(
+        join(root, 'src/save.svg'),
+        '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h2v2z"/></svg>\n',
+      )
+      const svgReplay = runVitest(root)
+      expect(svgReplay.status, svgReplay.output).toBe(0)
+      expect(executions(root), svgReplay.output).toEqual(['button'])
 
-    resetExecutions(root)
-    appendFileSync(join(root, 'src/NeverRendered.tsx'), '\n')
-    const unknownLazyChunk = runVitest(root)
-    expect(unknownLazyChunk.status, unknownLazyChunk.output).toBe(0)
-    expect(executions(root).sort()).toEqual(['badge', 'button', 'lazy-panel'])
-    expect(unknownLazyChunk.output).toContain(
-      'changed file is unknown to the graph: src/NeverRendered.tsx',
-    )
-  })
+      resetExecutions(root)
+      appendFileSync(join(root, 'src/NeverRendered.tsx'), '\n')
+      const unknownLazyChunk = runVitest(root)
+      expect(unknownLazyChunk.status, unknownLazyChunk.output).toBe(0)
+      expect(executions(root).sort()).toEqual(['badge', 'button', 'lazy-panel'])
+      expect(unknownLazyChunk.output).toContain(
+        'changed file is unknown to the graph: src/NeverRendered.tsx',
+      )
+    },
+  )
 
   test(
     'selects one Browser Mode case in a mixed Node/browser suite',

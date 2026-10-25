@@ -22,6 +22,7 @@ import {
   runVitestUntil,
   writeGraphAt,
 } from '../../support/integration-project.ts'
+import { nodeAtLeast } from '../../support/node-version.ts'
 
 afterEach(() => {
   cleanupProjects()
@@ -208,10 +209,13 @@ appendFileSync(new URL('../setup.log', import.meta.url), 'setup\\n')
     )
   })
 
-  test('loads a linked package setup inside a jsdom project', async () => {
-    const root = createProject({
-      linkPackage: true,
-      testA: `import { appendFileSync } from 'node:fs'
+  // jsdom 30 needs Node 22.22.
+  test.skipIf(!nodeAtLeast('22.22.0'))(
+    'loads a linked package setup inside a jsdom project',
+    async () => {
+      const root = createProject({
+        linkPackage: true,
+        testA: `import { appendFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { a } from '../src/a'
 
@@ -221,7 +225,7 @@ test('a in jsdom', async () => {
   expect(a()).toBe('a')
 })
 `,
-      testB: `import { appendFileSync } from 'node:fs'
+        testB: `import { appendFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { b } from '../src/b'
 
@@ -231,17 +235,18 @@ test('b in jsdom', async () => {
   expect(b()).toBe('b')
 })
 `,
-      testConfig: "environment: 'jsdom',",
-    })
+        testConfig: "environment: 'jsdom',",
+      })
 
-    const initial = runVitest(root)
-    expect(initial.status, initial.output).toBe(0)
-    expect(executions(root).sort()).toEqual(['a', 'b'])
-    expect((await readGraph(root)).edges['test/a.test.ts']).toContain(
-      'src/a.ts',
-    )
-    expect(initial.output).not.toContain('Cannot find module')
-  })
+      const initial = runVitest(root)
+      expect(initial.status, initial.output).toBe(0)
+      expect(executions(root).sort()).toEqual(['a', 'b'])
+      expect((await readGraph(root)).edges['test/a.test.ts']).toContain(
+        'src/a.ts',
+      )
+      expect(initial.output).not.toContain('Cannot find module')
+    },
+  )
 
   test('records sequential and concurrent dependencies per test case', async () => {
     const root = createProject({

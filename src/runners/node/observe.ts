@@ -21,7 +21,6 @@ import {
   nodeDiscoveryHooksSupported,
   parseNodeDiscoveryRecords,
   type NodeCase,
-  type NodeDiscovery,
   type NodeExecution,
 } from './discovery.ts'
 
@@ -160,12 +159,12 @@ const discoverFile = Effect.fnUntraced(function* (
 /**
  * Precise discovery: one child per file loads it with `node:test` replaced by
  * a recording shim. Null when it found nothing at all (no cases, no failures),
- * which sends the caller to the aggregate path.
+ * which sends the caller to running each file whole.
  */
 const discoverWithHooks = (
   context: NodeContext,
   files: readonly string[],
-): Effect.Effect<NodeDiscovery | null, never, HostServices> =>
+): Effect.Effect<NodeExecution | null, never, HostServices> =>
   Effect.scoped(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem
@@ -186,31 +185,36 @@ const discoverWithHooks = (
       )
       if (cases.length === 0 && moduleFailures.length === 0) return null
       return {
-        aggregate: false,
         cases,
         coverageFiles: [],
         moduleFailures,
         success: moduleFailures.length === 0,
-      } satisfies NodeDiscovery
+      } satisfies NodeExecution
     }),
   ).pipe(
-    Effect.orElseSucceed((): NodeDiscovery => ({
+    Effect.orElseSucceed((): NodeExecution => ({
       ...failedExecution(context, files),
-      aggregate: false,
     })),
   )
 
-const discover = Effect.fnUntraced(function* (
-  context: NodeContext,
-  files: readonly string[],
-) {
-  if (nodeDiscoveryHooksSupported()) {
-    const discovery = yield* discoverWithHooks(context, files)
-    if (discovery !== null) return discovery
-  }
-  const aggregate = yield* executeNode(context, files, undefined)
-  return { ...aggregate, aggregate: true } satisfies NodeDiscovery
-})
+/**
+ * Runs each file whole in its own child and charges every case with what its
+ * file's run touched. One child per file keeps a case's evidence independent
+ * of which other files ran, so selective and full runs record the same.
+ */
+const observeFilesWhole = (context: NodeContext, files: readonly string[]) =>
+  Effect.forEach(files, (file) => executeNode(context, [file], undefined), {
+    concurrency: context.concurrency,
+  }).pipe(
+    Effect.map((runs): FileObservations => ({
+      complete: runs.every((run) => run.moduleFailures.length === 0),
+      observations: runs.flatMap((run) =>
+        run.cases.map((testCase) =>
+          observationOf(testCase, [testCase.file, ...run.coverageFiles]),
+        ),
+      ),
+    })),
+  )
 
 function matchesCandidate(candidate: NodeCase, item: NodeCase): boolean {
   return (
@@ -258,9 +262,9 @@ const observeCandidate = Effect.fnUntraced(function* (
 /**
  * Observes test files. With discovery hooks each discovered case runs alone in
  * its own child (cases of one file in order, files in parallel); without them
- * one child runs every file and each case depends on everything that run
- * touched. The aggregate path cannot vouch for the run when any file failed to
- * load, crashed or timed out: it reports `complete: false`.
+ * each file runs whole in its own child and its cases depend on everything
+ * that file's run touched. That path cannot vouch for the run when any file
+ * failed to load, crashed or timed out: it reports `complete: false`.
  */
 export const observeNodeFiles = Effect.fnUntraced(function* (
   context: NodeContext,
@@ -269,16 +273,10 @@ export const observeNodeFiles = Effect.fnUntraced(function* (
   if (files.length === 0) {
     return { complete: true, observations: [] } satisfies FileObservations
   }
-  const discovery = yield* discover(context, files)
-
-  if (discovery.aggregate) {
-    return {
-      complete: discovery.moduleFailures.length === 0,
-      observations: discovery.cases.map((testCase) =>
-        observationOf(testCase, [testCase.file, ...discovery.coverageFiles]),
-      ),
-    } satisfies FileObservations
-  }
+  const discovery = nodeDiscoveryHooksSupported()
+    ? yield* discoverWithHooks(context, files)
+    : null
+  if (discovery === null) return yield* observeFilesWhole(context, files)
 
   const groups = groupBy(discovery.cases, (candidate) => candidate.file)
   const perFile = yield* Effect.forEach(
@@ -337,11 +335,29 @@ const observeCachedCase = Effect.fnUntraced(function* (
   return execution.moduleFailures.map(moduleFailureObservation)
 })
 
-/** Re-runs affected cached cases, grouped by file: files in parallel, cases in order. */
+/**
+ * Re-runs affected cached cases, grouped by file: files in parallel, cases in
+ * order. Without discovery hooks a fresh run cannot run cases alone, so this
+ * runs each affected file whole too: both paths then record the same evidence.
+ */
 export const observeNodeCachedCases = Effect.fnUntraced(function* (
   context: NodeContext,
   cached: readonly CachedTestResult[],
 ) {
+  if (!nodeDiscoveryHooksSupported()) {
+    const files = [...new Set(cached.map((result) => result.file))]
+    const { observations } = yield* observeFilesWhole(
+      context,
+      files.map((file) => resolve(context.root, file)),
+    )
+    const observed = new Set(observations.map((item) => item.file))
+    return [
+      ...observations,
+      ...files
+        .filter((file) => !observed.has(file))
+        .map(moduleFailureObservation),
+    ]
+  }
   const groups = groupBy(cached, (result) => result.file)
   const perFile = yield* Effect.forEach(
     [...groups.values()],

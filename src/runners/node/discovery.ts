@@ -22,10 +22,6 @@ export interface NodeExecution {
   success: boolean
 }
 
-export interface NodeDiscovery extends NodeExecution {
-  aggregate: boolean
-}
-
 /** `node:test` programmatic coverage needs 22.10. */
 export function nodeVersionSupported(version = process.versions.node): boolean {
   const [major = 0, minor = 0] = version.split('.').map(Number)
@@ -34,7 +30,7 @@ export function nodeVersionSupported(version = process.versions.node): boolean {
 
 /**
  * Non-executing discovery needs `module.registerHooks` (22.15). Below that,
- * or with `TIACORE_NODE_DISCOVERY_HOOKS=0`, the runner aggregates.
+ * or with `TIACORE_NODE_DISCOVERY_HOOKS=0`, the runner runs each file whole.
  */
 export function nodeDiscoveryHooksSupported(
   version = process.versions.node,

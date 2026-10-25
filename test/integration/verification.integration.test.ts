@@ -17,6 +17,7 @@ import {
   resetExecutions,
   runCommand,
 } from '../support/runner-project.ts'
+import { NODE_DISCOVERY_HOOKS } from '../support/node-version.ts'
 
 afterEach(() => {
   cleanupProjects()
@@ -26,11 +27,19 @@ afterEach(() => {
 const cli = join(packageRoot, 'dist/entries/cli.js')
 
 describe('verification CLI', () => {
-  test('compares a selective Node run with a fresh full run', () => {
+  test('verifies a Node run without discovery hooks', () => {
+    // Below Node 22.15 (or with the hooks off) the runner runs each affected
+    // file whole; the selective and full phases must still agree.
+    const environment = { TIACORE_NODE_DISCOVERY_HOOKS: '0' }
     const root = createFixtureProject('node-runner')
-    const baseline = runCommand(root, process.execPath, ['run-tia.mjs'])
+    const baseline = runCommand(
+      root,
+      process.execPath,
+      ['run-tia.mjs'],
+      60_000,
+      environment,
+    )
     expect(baseline.status, baseline.output).toBe(0)
-    resetExecutions(root)
     writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'a'\n\n")
 
     const result = runCommand(
@@ -46,61 +55,99 @@ describe('verification CLI', () => {
         'run-tia.mjs',
       ],
       60_000,
+      environment,
     )
 
     expect(result.status, result.output).toBe(0)
-    expect(executions(root).sort()).toEqual(['node-a', 'node-a', 'node-b'])
     const receipt: TiaVerificationReceipt = JSON.parse(
       readFileSync(join(root, 'verification.json'), 'utf8'),
     )
+    expect(receipt.issues).toEqual([])
     expect(receipt).toMatchObject({
-      accuracy: {
-        executedTests: 1,
-        expectedTests: 1,
-        falseNegativeRate: 0,
-        missedTests: 0,
-        precision: 1,
-        unnecessaryTests: 0,
-      },
-      performance: {
-        executionReduction: 0.5,
-        fallbacks: [],
-        fullExecutedTests: 2,
-        selectiveExecutedTests: 1,
-        selectiveReplayedTests: 2,
-      },
-      schema: 2,
-      success: true,
+      accuracy: { falseNegativeRate: 0, missedTests: 0 },
       verified: true,
     })
-    expect(receipt.runners).toEqual([
-      expect.objectContaining({
-        runner: 'node',
-        selection: expect.objectContaining({
-          executedTestIds: expect.arrayContaining([
-            expect.stringContaining('node case a'),
-          ]),
-          expectedTestIds: expect.arrayContaining([
-            expect.stringContaining('node case a'),
-          ]),
-          falseNegativeRate: 0,
-          missedTestIds: [],
-        }),
-        verified: true,
-      }),
-    ])
-    expect(receipt.phases.selective.runners).toEqual(['node'])
-    expect(receipt.phases.full.runners).toEqual(['node'])
-    expect(receipt.phases.selective.metrics).toEqual([
-      expect.objectContaining({
-        executedTests: 1,
-        mode: 'replay',
-        replayedTests: 2,
-        runner: 'node',
-      }),
-    ])
-    expect(receipt.performance.speedup).toBeGreaterThan(0)
   })
+
+  // The exact counts below need single-case selection (Node 22.15+).
+  test.skipIf(!NODE_DISCOVERY_HOOKS)(
+    'compares a selective Node run with a fresh full run',
+    () => {
+      const root = createFixtureProject('node-runner')
+      const baseline = runCommand(root, process.execPath, ['run-tia.mjs'])
+      expect(baseline.status, baseline.output).toBe(0)
+      resetExecutions(root)
+      writeFileSync(join(root, 'src/a.mjs'), "export const a = () => 'a'\n\n")
+
+      const result = runCommand(
+        root,
+        process.execPath,
+        [
+          cli,
+          'verify',
+          '--output',
+          'verification.json',
+          '--',
+          process.execPath,
+          'run-tia.mjs',
+        ],
+        60_000,
+      )
+
+      expect(result.status, result.output).toBe(0)
+      expect(executions(root).sort()).toEqual(['node-a', 'node-a', 'node-b'])
+      const receipt: TiaVerificationReceipt = JSON.parse(
+        readFileSync(join(root, 'verification.json'), 'utf8'),
+      )
+      expect(receipt).toMatchObject({
+        accuracy: {
+          executedTests: 1,
+          expectedTests: 1,
+          falseNegativeRate: 0,
+          missedTests: 0,
+          precision: 1,
+          unnecessaryTests: 0,
+        },
+        performance: {
+          executionReduction: 0.5,
+          fallbacks: [],
+          fullExecutedTests: 2,
+          selectiveExecutedTests: 1,
+          selectiveReplayedTests: 2,
+        },
+        schema: 2,
+        success: true,
+        verified: true,
+      })
+      expect(receipt.runners).toEqual([
+        expect.objectContaining({
+          runner: 'node',
+          selection: expect.objectContaining({
+            executedTestIds: expect.arrayContaining([
+              expect.stringContaining('node case a'),
+            ]),
+            expectedTestIds: expect.arrayContaining([
+              expect.stringContaining('node case a'),
+            ]),
+            falseNegativeRate: 0,
+            missedTestIds: [],
+          }),
+          verified: true,
+        }),
+      ])
+      expect(receipt.phases.selective.runners).toEqual(['node'])
+      expect(receipt.phases.full.runners).toEqual(['node'])
+      expect(receipt.phases.selective.metrics).toEqual([
+        expect.objectContaining({
+          executedTests: 1,
+          mode: 'replay',
+          replayedTests: 2,
+          runner: 'node',
+        }),
+      ])
+      expect(receipt.performance.speedup).toBeGreaterThan(0)
+    },
+  )
 
   test('compares a selective Vitest run with a fresh full run', () => {
     const root = createProject()

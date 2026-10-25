@@ -10,6 +10,7 @@ import {
   cleanupProjects,
   createFixtureProject,
 } from '../../support/runner-project.ts'
+import { NODE_DISCOVERY_HOOKS } from '../../support/node-version.ts'
 
 interface LegacyRunner {
   tia: typeof tia
@@ -35,47 +36,52 @@ function shape(result: TiaRunnerResult): object {
 // `test.skip` into a plain test; this fixture is ESM, so both
 // agree here, and test/runners/node-shim.test.ts pins the CommonJS case.)
 describe('node runner against the 1.x oracle', () => {
-  test('record, replay and change observe the same cases and files', async () => {
-    const oracle = await legacy<LegacyRunner>('entries/node.js')
-    const roots = [
-      createFixtureProject('node-runner'),
-      createFixtureProject('node-runner'),
-    ]
-    const sides = [oracle.tia, tia]
-    const steps: Array<[string, (root: string) => void]> = [
-      ['record', () => {}],
-      ['replay', () => {}],
-      [
-        'change a',
-        (root) =>
-          writeFileSync(
-            join(root, 'src/a.mjs'),
-            "export const a = () => 'a'\n\n",
-          ),
-      ],
-      [
-        'edit the test file',
-        (root) =>
-          writeFileSync(
-            join(root, 'src/b.mjs'),
-            "export const b = () => 'b'\n// edit\n",
-          ),
-      ],
-    ]
-    for (const [label, mutate] of steps) {
-      const shapes: Array<ReturnType<typeof shape>> = []
-      for (const [index, make] of sides.entries()) {
-        const root = roots[index]!
-        mutate(root)
-        const result = await make({
-          files: ['test/**/*.test.mjs'],
-          fresh: false,
-          log: false,
-          root,
-        }).run()
-        shapes.push(shape(result))
+  // 1.x and 2.0 both select single cases only with discovery hooks (22.15+).
+  test.skipIf(!NODE_DISCOVERY_HOOKS)(
+    'record, replay and change observe the same cases and files',
+    async () => {
+      const oracle = await legacy<LegacyRunner>('entries/node.js')
+      const roots = [
+        createFixtureProject('node-runner'),
+        createFixtureProject('node-runner'),
+      ]
+      const sides = [oracle.tia, tia]
+      const steps: Array<[string, (root: string) => void]> = [
+        ['record', () => {}],
+        ['replay', () => {}],
+        [
+          'change a',
+          (root) =>
+            writeFileSync(
+              join(root, 'src/a.mjs'),
+              "export const a = () => 'a'\n\n",
+            ),
+        ],
+        [
+          'edit the test file',
+          (root) =>
+            writeFileSync(
+              join(root, 'src/b.mjs'),
+              "export const b = () => 'b'\n// edit\n",
+            ),
+        ],
+      ]
+      for (const [label, mutate] of steps) {
+        const shapes: Array<ReturnType<typeof shape>> = []
+        for (const [index, make] of sides.entries()) {
+          const root = roots[index]!
+          mutate(root)
+          const result = await make({
+            files: ['test/**/*.test.mjs'],
+            fresh: false,
+            log: false,
+            root,
+          }).run()
+          shapes.push(shape(result))
+        }
+        expect(shapes[1], label).toEqual(shapes[0])
       }
-      expect(shapes[1], label).toEqual(shapes[0])
-    }
-  }, 120_000)
+    },
+    120_000,
+  )
 })

@@ -20,6 +20,7 @@ import { GraphStore } from '../../../src/engine/ports.ts'
 import { graphDigest } from '../../../src/engine/state/segments.ts'
 import { baseGraph } from '../../engine/support/graphs.ts'
 import { EngineLive } from '../../engine/support/layers.ts'
+import { TYPESCRIPT_FLAGS } from '../../support/node-version.ts'
 
 // The multi-process transaction test and the killed-writer failure injection.
 // The Vitest-driven worktree and worker-exit cases are in
@@ -71,7 +72,7 @@ function runWriter(
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      [writer, cacheDir, expectedPath, proposedPath],
+      [...TYPESCRIPT_FLAGS, writer, cacheDir, expectedPath, proposedPath],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
       },
@@ -89,9 +90,13 @@ function runWriter(
 }
 
 async function crashLockHolder(cacheDir: string): Promise<void> {
-  const child = spawn(process.execPath, [lockHolder, cacheDir], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+  const child = spawn(
+    process.execPath,
+    [...TYPESCRIPT_FLAGS, lockHolder, cacheDir],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
   await new Promise<void>((resolveReady, rejectReady) => {
     child.on('error', rejectReady)
     child.stdout.on('data', (value) => {
