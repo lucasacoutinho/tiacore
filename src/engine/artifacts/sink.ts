@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { dirname, relative, resolve } from 'node:path'
 
+import * as Cause from 'effect/Cause'
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 
@@ -63,8 +64,15 @@ export const putToDirectory = Effect.fnUntraced(function* (
   )
   const policy = resolveRetention(retention)
   if (policy !== null && input.key === MANIFEST_KEY) {
+    // Pruning is best effort: the publish already succeeded.
     yield* pruneArtifactDirectory(directory, policy, input.body).pipe(
-      Effect.ignoreCause,
+      Effect.catchCause((cause) =>
+        Effect.sync(() => {
+          console.warn(
+            `TIA could not prune the artifact directory ${directory}: ${errorMessage(Cause.squash(cause))}`,
+          )
+        }),
+      ),
     )
   }
   const result: TiaArtifactSinkResult = { url: urlFor(input.key, baseUrl) }

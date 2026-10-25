@@ -696,7 +696,8 @@ describe('a prune that fails', () => {
     expect(archivesIn(out)).toEqual([nameOf(1), nameOf(2)])
   })
 
-  test('never fails the write of the manifest', async () => {
+  test('never fails the write of the manifest, and says so', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const root = temporaryRoot()
     const out = join(root, 'out')
     plant(out, nameOf(1), HOUR)
@@ -729,5 +730,9 @@ describe('a prune that fails', () => {
       )
       expect(archivesIn(out)).toHaveLength(2)
     }
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('TIA could not prune the artifact directory'),
+    )
+    warn.mockRestore()
   })
 })
