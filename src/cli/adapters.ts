@@ -118,14 +118,14 @@ export const optionalGraph = Effect.fnUntraced(function* (
   return Option.isSome(path) ? yield* readGraph(path.value) : null
 })
 
-export interface GraphKnowledge {
+interface GraphKnowledge {
   invalidators: TiaInvalidator[]
   knownSources: string[]
   observations: TiaDependencyObservation[]
 }
 
 /** What `record --graph-options` adds to a recorded graph; other keys are ignored. */
-export const readGraphKnowledge = Effect.fnUntraced(function* (
+const readGraphKnowledge = Effect.fnUntraced(function* (
   path: Option.Option<string>,
 ) {
   if (Option.isNone(path)) {
@@ -145,4 +145,57 @@ export const readGraphKnowledge = Effect.fnUntraced(function* (
     knownSources: decoded.knownSources ?? [],
     observations: decoded.observations ?? [],
   } satisfies GraphKnowledge
+})
+
+/** What the plan flags hold once the parser has read them. */
+export interface PlanFlagValues {
+  readonly changes: string
+  readonly environmentFingerprint: string
+  readonly fingerprint: Option.Option<string>
+  readonly forceFull: boolean
+  readonly graph: Option.Option<string>
+  readonly ignoreChange: readonly string[]
+  readonly ignoreUnknown: boolean
+}
+
+/**
+ * The planner options the plan flags describe. With `blankIsAbsent`, an empty
+ * `--fingerprint` or `--graph` counts as not given, as it always did for the
+ * Gradle command; k6 and Maestro take an empty string for a value.
+ */
+export const planOptions = Effect.fnUntraced(function* (
+  options: PlanFlagValues,
+  blankIsAbsent: boolean,
+) {
+  const given = (flag: Option.Option<string>) =>
+    blankIsAbsent ? Option.filter(flag, (value) => value !== '') : flag
+  const fingerprint = given(options.fingerprint)
+  return {
+    changes: yield* readChanges(options.changes),
+    currentEnvironmentFingerprint: options.environmentFingerprint,
+    ...(Option.isSome(fingerprint)
+      ? { currentFingerprint: fingerprint.value }
+      : {}),
+    forceFull: options.forceFull,
+    graph: yield* optionalGraph(given(options.graph)),
+    ignoreChanges: [...options.ignoreChange],
+    onUnknownChange: options.ignoreUnknown
+      ? ('ignore' as const)
+      : ('full' as const),
+  }
+})
+
+/** The graph options `record` builds from its flags and `--graph-options` file. */
+export const recordOptions = Effect.fnUntraced(function* (options: {
+  readonly environmentFingerprint: string
+  readonly fingerprint: Option.Option<string>
+  readonly graphOptions: Option.Option<string>
+}) {
+  return {
+    environmentFingerprint: options.environmentFingerprint,
+    ...(Option.isSome(options.fingerprint)
+      ? { fingerprint: options.fingerprint.value }
+      : {}),
+    ...(yield* readGraphKnowledge(options.graphOptions)),
+  }
 })

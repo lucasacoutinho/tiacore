@@ -6,6 +6,7 @@ import * as Option from 'effect/Option'
 import { VERSION } from '../core/version.ts'
 import { formatDuration } from '../host/span-render.ts'
 import { TiaFailed } from '../wire/errors.ts'
+import { output, outputPath, readGraph } from './adapters.ts'
 import {
   type CheckStatus,
   type DoctorCheck,
@@ -13,7 +14,6 @@ import {
 } from './doctor-checks.ts'
 import type { PerfReport } from './doctor-perf.ts'
 import { emitJson } from './io.ts'
-import { graphAt, output, outputPath } from './protocol.ts'
 
 export interface DoctorReport {
   readonly checks: readonly DoctorCheck[]
@@ -109,7 +109,7 @@ export const doctorCommand = Command.make(
   flags,
   Effect.fn('tia.cli.doctor')(function* (options) {
     if (Option.isSome(options.graph)) {
-      const graph = yield* graphAt(options.graph.value)
+      const graph = yield* readGraph(options.graph.value)
       yield* emitJson(
         {
           ok: true,

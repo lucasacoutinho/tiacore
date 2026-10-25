@@ -143,6 +143,7 @@ describe('k6 commands', () => {
     [['--allowed-profile', 'smoke']],
     [['--allowed-profile', 'nope']],
     [['--fingerprint', 'other']],
+    [['--fingerprint', '']],
   ])('plan with %j', (extra) => {
     expect(
       same([
@@ -159,6 +160,27 @@ describe('k6 commands', () => {
       ]).status,
     ).toBe(extra.includes('nope') ? 1 : 0)
   })
+
+  // Unlike the Gradle command, k6 and Maestro take an empty --graph for a
+  // path, so the read fails instead of planning without a graph.
+  test.each(['k6', 'maestro'])(
+    '%s plan with an empty --graph fails',
+    (name) => {
+      const args = name === 'k6' ? k6 : maestro
+      const result = same([
+        name,
+        'plan',
+        ...args,
+        '--changes',
+        changes,
+        '--environment-fingerprint',
+        'env',
+        '--graph',
+        '',
+      ])
+      expect(result.status).toBe(1)
+    },
+  )
 
   test('plan without a graph is a full plan and accepts an object change set', () => {
     const result = same([
@@ -294,6 +316,7 @@ describe('maestro commands', () => {
     [['--ignore-unknown']],
     [['--ignore-change', 'e2e/**']],
     [['--exclude-tag', 'experimental']],
+    [['--fingerprint', '']],
   ])('plan with %j', (extra) => {
     const result = same([
       'maestro',

@@ -1,17 +1,15 @@
 import * as Command from 'effect/cli/Command'
 import * as Flag from 'effect/cli/Flag'
 import * as Effect from 'effect/Effect'
-import * as Option from 'effect/Option'
 
 import {
-  optionalGraph,
   output,
   outputPath,
   planFlags,
+  planOptions,
   projectFlag,
-  readChanges,
-  readGraphKnowledge,
   recordFlags,
+  recordOptions,
   repeated,
   rootFlag,
 } from './adapters.ts'
@@ -56,13 +54,8 @@ const record = Command.make(
   Effect.fn('tia.cli.k6.record')(function* (options) {
     const { createGraph, discover } = yield* programs()
     const suites = yield* discover(where(options))
-    const knowledge = yield* readGraphKnowledge(options.graphOptions)
     const graph = yield* createGraph(options.root, {
-      environmentFingerprint: options.environmentFingerprint,
-      ...(Option.isSome(options.fingerprint)
-        ? { fingerprint: options.fingerprint.value }
-        : {}),
-      ...knowledge,
+      ...(yield* recordOptions(options)),
       suites,
     })
     yield* emitJson(graph, outputPath(options.output))
@@ -87,15 +80,7 @@ const plan = Command.make(
       ...(options.allowedProfile.length === 0
         ? {}
         : { allowedProfiles: [...options.allowedProfile] }),
-      changes: yield* readChanges(options.changes),
-      currentEnvironmentFingerprint: options.environmentFingerprint,
-      ...(Option.isSome(options.fingerprint)
-        ? { currentFingerprint: options.fingerprint.value }
-        : {}),
-      forceFull: options.forceFull,
-      graph: yield* optionalGraph(options.graph),
-      ignoreChanges: [...options.ignoreChange],
-      onUnknownChange: options.ignoreUnknown ? 'ignore' : 'full',
+      ...(yield* planOptions(options, false)),
     })
     yield* emitJson(result, outputPath(options.output))
   }),

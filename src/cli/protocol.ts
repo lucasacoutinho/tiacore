@@ -6,19 +6,11 @@ import * as Schema from 'effect/Schema'
 
 import type { TiaExecutionPolicy } from '../core/protocol.ts'
 import { createImpactPlan, mergeImpactGraphs } from '../engine/plan/protocol.ts'
-import { parseImpactGraph } from '../wire/decode.ts'
 import { TiaInvalid } from '../wire/errors.ts'
 import { describeIssue } from '../wire/issue.ts'
 import { SuiteDescriptor } from '../wire/protocol.ts'
+import { output, outputPath, readChanges, readGraph } from './adapters.ts'
 import { attempt, emitJson, readJson } from './io.ts'
-
-const ChangeSet = Schema.Union([
-  Schema.mutable(Schema.Array(Schema.String)),
-  Schema.Struct({
-    files: Schema.mutable(Schema.Array(Schema.String)),
-    provider: Schema.optionalKey(Schema.String),
-  }),
-])
 
 const Policy = Schema.Struct({
   allowedSuites: Schema.optionalKey(
@@ -39,10 +31,6 @@ function decodeWith<S extends Schema.Top>(schema: S, message: string) {
     decode(value).pipe(Effect.mapError(() => new TiaInvalid({ message })))
 }
 
-const decodeChanges = decodeWith(
-  ChangeSet,
-  'TIA change set must be a string array or an object with files',
-)
 const decodePolicy = decodeWith(Policy, 'TIA execution policy is invalid')
 const decodeSuites = Schema.decodeUnknownEffect(
   Schema.mutable(Schema.Array(SuiteDescriptor)),
@@ -60,19 +48,6 @@ const decodeCatalog = (value: unknown) =>
     : Effect.fail(
         new TiaInvalid({ message: 'TIA suite catalog must be an array' }),
       )
-
-export const graphAt = Effect.fnUntraced(function* (path: string) {
-  const value = yield* readJson(path)
-  return yield* attempt(() => parseImpactGraph(value))
-})
-
-export const output = Flag.String('output').pipe(
-  Flag.withDescription('write JSON to a file or -'),
-  Flag.optional,
-)
-
-export const outputPath = (value: Option.Option<string>) =>
-  Option.getOrUndefined(value)
 
 const plan = Command.make(
   'plan',
@@ -109,14 +84,14 @@ const plan = Command.make(
       : {}
     if (options.forceFull) policy.forceFull = true
     const catalog = yield* decodeCatalog(yield* readJson(options.catalog))
-    const changes = yield* decodeChanges(yield* readJson(options.changes))
+    const files = yield* readChanges(options.changes)
     const graph = Option.isSome(options.graph)
-      ? yield* graphAt(options.graph.value)
+      ? yield* readGraph(options.graph.value)
       : null
     const result = yield* attempt(() =>
       createImpactPlan({
         catalog,
-        changes: Array.isArray(changes) ? { files: changes } : changes,
+        changes: { files },
         currentEnvironmentFingerprint: options.environmentFingerprint,
         currentFingerprint: options.fingerprint,
         graph,
@@ -137,7 +112,7 @@ const merge = Command.make(
     output,
   },
   Effect.fn('tia.cli.merge')(function* (options) {
-    const graphs = yield* Effect.forEach(options.graph, graphAt)
+    const graphs = yield* Effect.forEach(options.graph, readGraph)
     const merged = yield* attempt(() => mergeImpactGraphs(graphs))
     yield* emitJson(merged, outputPath(options.output))
   }),
@@ -151,7 +126,7 @@ const inspect = Command.make(
   'inspect',
   { graph: graphFlag, output },
   Effect.fn('tia.cli.inspect')(function* (options) {
-    const graph = yield* graphAt(options.graph)
+    const graph = yield* readGraph(options.graph)
     yield* emitJson(
       {
         adapters: [

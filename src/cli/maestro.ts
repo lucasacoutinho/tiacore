@@ -1,17 +1,15 @@
 import * as Command from 'effect/cli/Command'
 import * as Flag from 'effect/cli/Flag'
 import * as Effect from 'effect/Effect'
-import * as Option from 'effect/Option'
 
 import {
-  optionalGraph,
   output,
   outputPath,
   planFlags,
+  planOptions,
   projectFlag,
-  readChanges,
-  readGraphKnowledge,
   recordFlags,
+  recordOptions,
   repeated,
   rootFlag,
 } from './adapters.ts'
@@ -63,16 +61,8 @@ const record = Command.make(
   Effect.fn('tia.cli.maestro.record')(function* (options) {
     const { createMaestroGraph, discover } = yield* programs()
     const suites = yield* discover(where(options))
-    const knowledge = yield* readGraphKnowledge(options.graphOptions)
     yield* emitJson(
-      createMaestroGraph({
-        environmentFingerprint: options.environmentFingerprint,
-        ...(Option.isSome(options.fingerprint)
-          ? { fingerprint: options.fingerprint.value }
-          : {}),
-        ...knowledge,
-        suites,
-      }),
+      createMaestroGraph({ ...(yield* recordOptions(options)), suites }),
       outputPath(options.output),
     )
   }),
@@ -89,15 +79,7 @@ const plan = Command.make(
     const suites = yield* discover(where(options))
     const result = yield* planSuites(suites, {
       ...where(options),
-      changes: yield* readChanges(options.changes),
-      currentEnvironmentFingerprint: options.environmentFingerprint,
-      ...(Option.isSome(options.fingerprint)
-        ? { currentFingerprint: options.fingerprint.value }
-        : {}),
-      forceFull: options.forceFull,
-      graph: yield* optionalGraph(options.graph),
-      ignoreChanges: [...options.ignoreChange],
-      onUnknownChange: options.ignoreUnknown ? 'ignore' : 'full',
+      ...(yield* planOptions(options, false)),
     })
     yield* emitJson(result, outputPath(options.output))
   }),

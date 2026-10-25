@@ -1,14 +1,12 @@
 import * as Command from 'effect/cli/Command'
 import * as Effect from 'effect/Effect'
-import * as Option from 'effect/Option'
 
 import {
-  optionalGraph,
   output,
   outputPath,
   planFlags,
+  planOptions,
   projectFlag,
-  readChanges,
   repeated,
   rootFlag,
 } from './adapters.ts'
@@ -61,17 +59,7 @@ const plan = Command.make(
     const suites = yield* discover(where(options))
     const result = yield* planSuites(suites, {
       ...where(options),
-      changes: yield* readChanges(options.changes),
-      currentEnvironmentFingerprint: options.environmentFingerprint,
-      ...(Option.isSome(options.fingerprint) && options.fingerprint.value !== ''
-        ? { currentFingerprint: options.fingerprint.value }
-        : {}),
-      forceFull: options.forceFull,
-      graph: yield* optionalGraph(
-        Option.filter(options.graph, (path) => path !== ''),
-      ),
-      ignoreChanges: [...options.ignoreChange],
-      onUnknownChange: options.ignoreUnknown ? 'ignore' : 'full',
+      ...(yield* planOptions(options, true)),
     })
     yield* emitJson(result, outputPath(options.output))
   }),
