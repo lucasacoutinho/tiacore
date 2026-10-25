@@ -45,3 +45,21 @@ os.Exit(result.Status)
 
 Keep `.tia/` out of version control. Every Git worktree gets an independent
 baseline when the cache stays project-relative.
+
+## Protocol conformance
+
+`tiacore.CreateImpactPlan` is certified against every shared vector in
+`conformance/protocol/v1` (`plans.json`, `invalid-graphs.json`,
+`canonicalization.json` and the generated `generated-plans.json`), and the plan
+it returns matches the TypeScript planner field for field, including the
+`dependsOn` closure and `allowedSuites` policy.
+
+- Collections sort by UTF-16 code unit, like the TypeScript planner.
+- Changed paths lose trailing slashes and `x/../` segments; paths that name or
+  leave the project root are rejected.
+- Invalidators and `IgnoreChanges` use the shared glob subset: `*` and `?` stay
+  inside one path segment, a whole `**` segment spans zero or more segments,
+  `[...]` and `{a,b}` work and dotfiles match.
+- `TIA_FRESH` set to `1`, `true`, `yes` or `on` (any ASCII case) in the process
+  environment forces a full run.
+- A package at the project root is a suite like any other.

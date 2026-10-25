@@ -3,6 +3,7 @@ package tiacore
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -148,7 +149,7 @@ func TestRunnerFallsBackForUnknownStructuralCorruptAndEnvironmentChanges(t *test
 		}
 		options.ForceFull = true
 		result := New(options).Run(context.Background())
-		if result.Plan.Mode != "full" || !strings.Contains(result.Plan.Reason, "requested") {
+		if result.Plan.Mode != "full" || result.Plan.Reason != "policy requires a full run" {
 			t.Fatalf("plan = %#v", result.Plan)
 		}
 	})
@@ -173,7 +174,7 @@ func TestFailedRunDoesNotPromoteItsSnapshot(t *testing.T) {
 	}
 }
 
-func TestCreatePlanNormalizesWindowsPathsAndPreservesResourceLocks(t *testing.T) {
+func TestCreateImpactPlanNormalizesWindowsPathsAndPreservesResourceLocks(t *testing.T) {
 	suite := Suite{Adapter: "go-test", File: "app/a/a_test.go", ID: "go-test:a", Project: "fixture", ResourceLocks: []string{"database"}}
 	graph := Graph{
 		ProtocolVersion:        ProtocolVersion,
@@ -183,7 +184,17 @@ func TestCreatePlanNormalizesWindowsPathsAndPreservesResourceLocks(t *testing.T)
 		Suites:                 []Suite{suite},
 		Observations:           []Observation{{Confidence: "inferred", Kind: "import", Source: "lib/a/a.go", SuiteID: suite.ID}},
 	}
-	plan := createPlan(graph, &graph, []string{`lib\a\a.go`}, false)
+	stored, err := json.Marshal(graph)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := CreateImpactPlan(PlanInput{
+		Catalog: []Suite{suite}, Changes: []string{`lib\a\a.go`},
+		EnvironmentFingerprint: "go", Fingerprint: "catalog", Graph: stored,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if plan.Mode != "selective" || !reflect.DeepEqual(plan.ChangedFiles, []string{"lib/a/a.go"}) {
 		t.Fatalf("plan = %#v", plan)
 	}

@@ -77,7 +77,7 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 		if item.ImportPath == "" || item.Dir == "" {
 			continue
 		}
-		if _, err := relativePath(root, item.Dir); err != nil {
+		if !withinRoot(root, item.Dir) {
 			continue
 		}
 		packages[item.ImportPath] = item
@@ -90,7 +90,7 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 	for importPath := range packages {
 		allPackages = append(allPackages, importPath)
 	}
-	sort.Strings(allPackages)
+	sortUTF16(allPackages)
 
 	project := options.Project
 	if project == "" {
@@ -111,7 +111,7 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 		item := packages[importPath]
 		testFiles := append([]string{}, item.TestGoFiles...)
 		testFiles = append(testFiles, item.XTestGoFiles...)
-		sort.Strings(testFiles)
+		sortUTF16(testFiles)
 		representative := testFiles
 		tags := []string{"go-package:" + importPath, "go-tests"}
 		if len(representative) == 0 {
@@ -129,7 +129,7 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 		suites = append(suites, Suite{Adapter: "go-test", File: file, ID: id, Project: project, Tags: tags})
 		suitePackages[id] = importPath
 	}
-	sort.Slice(suites, func(left, right int) bool { return suites[left].ID < suites[right].ID })
+	sort.Slice(suites, func(left, right int) bool { return utf16Less(suites[left].ID, suites[right].ID) })
 
 	observations := make([]Observation, 0)
 	for _, suite := range suites {
@@ -145,10 +145,10 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 	}
 	sort.Slice(observations, func(left, right int) bool {
 		if observations[left].SuiteID != observations[right].SuiteID {
-			return observations[left].SuiteID < observations[right].SuiteID
+			return utf16Less(observations[left].SuiteID, observations[right].SuiteID)
 		}
 		if observations[left].Source != observations[right].Source {
-			return observations[left].Source < observations[right].Source
+			return utf16Less(observations[left].Source, observations[right].Source)
 		}
 		return observations[left].Kind < observations[right].Kind
 	})
@@ -186,7 +186,7 @@ func packageFiles(item goPackage) []string {
 	} {
 		files = append(files, group...)
 	}
-	sort.Strings(files)
+	sortUTF16(files)
 	return uniqueStrings(files)
 }
 
@@ -225,7 +225,7 @@ func transitivePackageFiles(root, start string, packages map[string]goPackage) [
 	for file := range files {
 		result = append(result, file)
 	}
-	sort.Strings(result)
+	sortUTF16(result)
 	return result
 }
 

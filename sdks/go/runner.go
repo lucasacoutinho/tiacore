@@ -46,7 +46,7 @@ func (runner *Runner) run(ctx context.Context) Result {
 	if err != nil {
 		fmt.Fprintf(options.Stderr, "tiacore-go: discovery failed; running the full Go suite: %v\n", err)
 		status := runGoTest(ctx, options, root, fullPackageArguments(options))
-		return Result{Plan: fullPlan(nil, nil, "Go package discovery failed"), Status: status, Success: status == 0}
+		return Result{Plan: planAll(map[string]Suite{}, []string{}, "Go package discovery failed"), Status: status, Success: status == 0}
 	}
 
 	previous, stateErr := readState(cachePath)
@@ -58,8 +58,25 @@ func (runner *Runner) run(ctx context.Context) Result {
 	} else if stateErr != nil {
 		fmt.Fprintf(options.Stderr, "tiacore-go: ignoring incompatible state: %v\n", stateErr)
 	}
-	force := options.ForceFull || os.Getenv("TIA_FRESH") == "1"
-	plan := createPlan(currentCatalog.Graph, previousGraph, changes, force)
+	var storedGraph json.RawMessage
+	if previousGraph != nil {
+		encoded, encodeErr := json.Marshal(previousGraph)
+		if encodeErr != nil {
+			return failedResult(options, fmt.Errorf("encode stored Go graph: %w", encodeErr))
+		}
+		storedGraph = encoded
+	}
+	plan, planErr := CreateImpactPlan(PlanInput{
+		Catalog:                currentCatalog.Graph.Suites,
+		Changes:                changes,
+		EnvironmentFingerprint: currentCatalog.Graph.EnvironmentFingerprint,
+		Fingerprint:            currentCatalog.Graph.Fingerprint,
+		Graph:                  storedGraph,
+		Policy:                 Policy{ForceFull: options.ForceFull || FreshRequested(os.Getenv("TIA_FRESH"))},
+	})
+	if planErr != nil {
+		return failedResult(options, fmt.Errorf("plan Go impact: %w", planErr))
+	}
 	packages := selectedPackages(plan, currentCatalog, options)
 	writePlan(options, plan, packages)
 
@@ -143,7 +160,7 @@ func selectedPackages(plan Plan, current catalog, options Options) []string {
 			packages = append(packages, packageName)
 		}
 	}
-	sort.Strings(packages)
+	sortUTF16(packages)
 	return packages
 }
 
