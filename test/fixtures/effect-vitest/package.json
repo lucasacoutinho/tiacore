@@ -1,0 +1,14 @@
+{
+  "name": "tia-fixture-effect-vitest",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^4.0.6",
+    "@lucasacoutinho/tiacore": "file:../../..",
+    "effect": "^4.0.6",
+    "vitest": "^5.0.5"
+  }
+}
