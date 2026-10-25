@@ -13,9 +13,9 @@ import { ioError } from './state-files.ts'
 
 // The commit lock: the directory <cacheDir>/state.lock holding owner.json.
 // A lock is stale when its owner is a dead process on this host, or when it is
-// older than the stale threshold. A stale lock is reclaimed by renaming it
-// away (atomic, so one waiter wins) and checking that what was moved is the
-// lock that was judged stale; a live lock moved by mistake is put back.
+// older than the stale threshold. A new lock is published by renaming a
+// directory that already holds owner.json, and a stale lock is removed only
+// under the reclaim guard after its owner is read again (see reclaim).
 
 export interface LockOwner {
   readonly createdAt: number
@@ -26,6 +26,8 @@ export interface LockOwner {
 
 export const DEFAULT_LOCK_TIMEOUT_MS = 10_000
 export const DEFAULT_STALE_LOCK_MS = 120_000
+/** A reclaim guard older than this was left by a reclaimer that crashed. */
+const RECLAIM_GUARD_STALE_MS = 5_000
 
 export const lockPath = (cacheDir: string): string =>
   join(cacheDir, 'state.lock')
@@ -94,28 +96,51 @@ export function makeLock(fs: FileSystem.FileSystem) {
       : Option.none<string | null>()
   })
 
+  /**
+   * Removes the lock if it still holds the owner judged stale. Reclaimers take
+   * a guard directory first, so one at a time re-reads the owner and removes
+   * the lock. A new lock cannot appear while the stale one exists, so a
+   * confirmed stale owner means the lock removed is the stale one.
+   */
   const reclaim = Effect.fnUntraced(function* (
     path: string,
     judged: string | null,
   ) {
-    const moved = `${path}.stale.${process.pid}.${randomUUID()}`
-    const renamed = yield* fs.rename(path, moved).pipe(
+    const guard = `${path}.reclaim`
+    const guarded = yield* fs.makeDirectory(guard).pipe(
       Effect.as(true),
       Effect.orElseSucceed(() => false),
     )
-    if (!renamed) return
-    const owner = yield* readOwner(moved)
-    if ((owner?.token ?? null) !== judged) {
-      const restored = yield* fs.rename(moved, path).pipe(
-        Effect.as(true),
-        Effect.orElseSucceed(() => false),
-      )
-      if (restored) return
+    if (!guarded) {
+      // A reclaimer that crashed inside the guard leaves it behind.
+      const age = yield* guardAge(guard)
+      if (Option.isSome(age) && age.value >= RECLAIM_GUARD_STALE_MS) {
+        yield* fs
+          .remove(guard, { force: true, recursive: true })
+          .pipe(Effect.ignore)
+      }
+      return
     }
-    yield* fs
-      .remove(moved, { force: true, recursive: true })
-      .pipe(Effect.ignore)
+    yield* readOwner(path).pipe(
+      Effect.flatMap((owner) =>
+        (owner?.token ?? null) === judged
+          ? fs.remove(path, { force: true, recursive: true })
+          : Effect.void,
+      ),
+      Effect.ignore,
+      Effect.ensuring(
+        fs.remove(guard, { force: true, recursive: true }).pipe(Effect.ignore),
+      ),
+    )
   })
+
+  const guardAge = (guard: string) =>
+    Effect.all([fs.stat(guard), Clock.currentTimeMillis]).pipe(
+      Effect.map(([info, now]) =>
+        Option.map(info.mtime, (time) => now - time.getTime()),
+      ),
+      Effect.orElseSucceed(() => Option.none<number>()),
+    )
 
   /** Takes the lock, or returns none once `timeout` milliseconds have passed. */
   const acquire = Effect.fnUntraced(function* (
@@ -137,30 +162,33 @@ export function makeLock(fs: FileSystem.FileSystem) {
         pid: process.pid,
         token: randomUUID(),
       }
-      const held = yield* fs.makeDirectory(path).pipe(
-        Effect.as(false),
-        Effect.catch((error) =>
-          error.reason._tag === 'AlreadyExists'
-            ? Effect.succeed(true)
-            : Effect.fail(ioError(error)),
-        ),
-      )
-      if (!held) {
-        yield* fs
-          .writeFileString(
-            join(path, 'owner.json'),
-            `${JSON.stringify(owner)}\n`,
-          )
-          .pipe(
-            Effect.onError(() =>
-              fs
-                .remove(path, { force: true, recursive: true })
-                .pipe(Effect.ignore),
+      // The owner is written before the lock appears: a lock directory never
+      // exists without owner.json, so a waiter reclaiming a stale lock cannot
+      // move a new lock away before its owner is known.
+      const draft = `${path}.new.${owner.token}`
+      yield* fs.makeDirectory(draft).pipe(Effect.mapError(ioError))
+      const published = yield* fs
+        .writeFileString(
+          join(draft, 'owner.json'),
+          `${JSON.stringify(owner)}\n`,
+        )
+        .pipe(
+          Effect.mapError(ioError),
+          // The rename fails while another writer holds the lock; the loop
+          // then waits or reclaims and tries again.
+          Effect.andThen(
+            fs.rename(draft, path).pipe(
+              Effect.as(true),
+              Effect.orElseSucceed(() => false),
             ),
-            Effect.mapError(ioError),
-          )
-        return Option.some(owner)
-      }
+          ),
+          Effect.ensuring(
+            fs
+              .remove(draft, { force: true, recursive: true })
+              .pipe(Effect.ignore),
+          ),
+        )
+      if (published) return Option.some(owner)
       const stale = yield* judgeStale(path, staleAfter)
       if (Option.isSome(stale)) {
         yield* reclaim(path, stale.value)

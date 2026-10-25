@@ -533,5 +533,39 @@ layer(EngineLive, { excludeTestServices: true })(
           expect(yield* fs.exists(join(cacheDir, 'state.lock'))).toBe(false)
         }),
     )
+
+    it.effect(
+      'reclaims a stale lock past a reclaim guard left by a crashed reclaimer',
+      () =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem
+          const cacheDir = yield* tempDirectory('tia-state-')
+          const expected = baseGraph()
+          yield* seed(cacheDir, expected)
+          yield* fs.makeDirectory(join(cacheDir, 'state.lock'))
+          yield* fs.writeFileString(
+            join(cacheDir, 'state.lock/owner.json'),
+            `${JSON.stringify({
+              createdAt: Date.now(),
+              hostname: hostname(),
+              pid: 2_147_483_647,
+              token: 'dead-writer',
+            })}\n`,
+          )
+          const guard = join(cacheDir, 'state.lock.reclaim')
+          yield* fs.makeDirectory(guard)
+          const old = new Date(Date.now() - 60_000)
+          yield* fs.utimes(guard, old, old)
+          const result = yield* commitFrom(
+            cacheDir,
+            expected,
+            propose(expected, () => {}, 1),
+            { lockTimeoutMs: 5_000 },
+          )
+          expect(result.status).not.toBe('conflict')
+          expect(yield* fs.exists(join(cacheDir, 'state.lock'))).toBe(false)
+          expect(yield* fs.exists(guard)).toBe(false)
+        }),
+    )
   },
 )
