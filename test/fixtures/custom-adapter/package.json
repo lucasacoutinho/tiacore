@@ -1,0 +1,8 @@
+{
+  "name": "tiacore-fixture-custom-adapter",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@lucasacoutinho/tiacore": "file:../../.."
+  }
+}

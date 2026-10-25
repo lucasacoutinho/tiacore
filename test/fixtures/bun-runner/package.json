@@ -1,0 +1,12 @@
+{
+  "name": "tiacore-fixture-bun-runner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "certify": "bun test certification/adapter.test.ts",
+    "test": "bun ./run-tia.ts"
+  },
+  "dependencies": {
+    "@lucasacoutinho/tiacore": "file:../../.."
+  }
+}
