@@ -305,9 +305,23 @@ export function graphGeneration(graph: TiaRuntimeGraph): string {
   }
 }
 
+/**
+ * The digests the store read or wrote each graph object at. Serializing a
+ * graph to digest it costs as much as writing it, and a commit checks the
+ * graph its caller read. Graph objects are never changed in place: updates
+ * clone them, so an object keeps the digest it was read or written at.
+ */
+const knownDigests = new WeakMap<TiaRuntimeGraph, string>()
+
+/** Records that `graph` was read or written at `digest`. */
+export function noteGraphDigest(graph: TiaRuntimeGraph, digest: string): void {
+  knownDigests.set(graph, digest)
+}
+
 /** `graphGeneration`, with null for no graph. */
 export function graphDigest(graph: TiaRuntimeGraph | null): string | null {
-  return graph === null ? null : graphGeneration(graph)
+  if (graph === null) return null
+  return knownDigests.get(graph) ?? graphGeneration(graph)
 }
 
 /** The manifest file body, or throws when it exceeds the storage limit. */

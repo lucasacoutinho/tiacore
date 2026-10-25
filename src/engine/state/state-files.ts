@@ -21,6 +21,7 @@ import {
   MAX_MANIFEST_BYTES,
   manifestBody,
   parseManifest,
+  noteGraphDigest,
   parseSegment,
   referencedObjects,
   SEGMENT_DOMAINS,
@@ -167,9 +168,9 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
       records[jobs[index]!.domain].push(segment)
     }
     const graph = parseRuntimeGraph(assembleGraph(manifest, records))
-    return graph === null
-      ? NO_GRAPH
-      : ({ digest: manifest.generation, graph } satisfies StoredGraph)
+    if (graph === null) return NO_GRAPH
+    noteGraphDigest(graph, manifest.generation)
+    return { digest: manifest.generation, graph } satisfies StoredGraph
   })
 
   /** Reads and validates the stored graph. Anything wrong reads as no graph. */
@@ -233,6 +234,7 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
       step = yield* nextSegment(generator)
     }
     const manifest = step.value
+    noteGraphDigest(graph, manifest.generation)
     const body = yield* Effect.try({
       catch: ioError,
       try: () => manifestBody(manifest),
