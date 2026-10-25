@@ -106,8 +106,10 @@ describe('1.x interchange', () => {
 
   test('reads and verifies an archive a 1.x publisher wrote', async () => {
     const root = temporaryRoot('tiacore-differential-')
+    // A 1.x graph has no collectionFiles field.
+    const { collectionFiles: _, ...current } = coverageGraph(5)
     const graph = {
-      ...coverageGraph(5),
+      ...current,
       baseline: { sha: 'old-sha', source: 'git' as const, workingTree: {} },
       complete: true,
       coverageComplete: true,
@@ -132,7 +134,11 @@ describe('1.x interchange', () => {
     // The fixture's coverage map ids are placeholders; restoring re-derives
     // them from the map content, so compare everything else.
     const { collectionCoverage, coverageMaps, testCoverage, ...rest } = graph
-    expect(read?.graph).toMatchObject({ ...rest, schema: GRAPH_SCHEMA_VERSION })
+    expect(read?.graph).toMatchObject({
+      ...rest,
+      collectionFiles: {},
+      schema: GRAPH_SCHEMA_VERSION,
+    })
     expect(Object.keys(read?.graph.testCoverage ?? {})).toEqual(
       Object.keys(testCoverage),
     )

@@ -93,6 +93,8 @@ export function parseArtifactGraph(source: unknown): TiaRuntimeGraph | null {
   const testCoverage = compactRecords(value['testCoverage'], coverageMaps)
   if (collectionCoverage === null || testCoverage === null) return null
   return parseRuntimeGraph({
+    // A 1.x graph records no collection files; none is what it means.
+    collectionFiles: {},
     ...value,
     collectionCoverage,
     coverageMaps,
