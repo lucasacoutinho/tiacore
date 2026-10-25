@@ -10,7 +10,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .protocol import PROTOCOL_VERSION, create_impact_plan
+from .protocol import (
+    PROTOCOL_VERSION,
+    create_impact_plan,
+    sorted_utf16,
+    utf16_key,
+)
 
 EXCLUDED_DIRECTORIES = {
     ".git",
@@ -52,30 +57,56 @@ class TiaPytestResult:
     success: bool
 
 
+def _inside_root(root: Path, path: Path) -> Path | None:
+    """Return the resolved path when it stays inside root and is not excluded."""
+    try:
+        lexical = path.relative_to(root)
+        resolved = path.resolve()
+        relative = resolved.relative_to(root)
+    except (ValueError, OSError, RuntimeError):
+        return None
+    if any(
+        part in EXCLUDED_DIRECTORIES
+        for part in (*lexical.parts, *relative.parts)
+    ):
+        return None
+    return resolved
+
+
 def _relative(root: Path, path: Path) -> str:
-    return path.resolve().relative_to(root).as_posix()
+    return path.relative_to(root).as_posix()
+
+
+def fresh_requested(value: str | None) -> bool:
+    """Parse TIA_FRESH: 1, true, yes or on in any case."""
+    return value is not None and value.lower() in {"1", "true", "yes", "on"}
 
 
 def _python_files(root: Path) -> list[Path]:
-    return sorted(
-        path
+    found = {
+        resolved
         for path in root.rglob("*.py")
-        if not any(part in EXCLUDED_DIRECTORIES for part in path.parts)
-    )
+        if (resolved := _inside_root(root, path)) is not None
+    }
+    return sorted(found)
+
+
+def _variants(root: Path, path: Path) -> list[tuple[str, ...]]:
+    relative = path.relative_to(root)
+    variants = [relative.with_suffix("").parts]
+    if relative.parts and relative.parts[0] == "src":
+        variants.append(Path(*relative.parts[1:]).with_suffix("").parts)
+    return [parts for parts in variants if parts]
 
 
 def _module_names(root: Path, path: Path) -> set[str]:
-    relative = path.relative_to(root)
-    variants = [relative]
-    if relative.parts and relative.parts[0] == "src":
-        variants.append(Path(*relative.parts[1:]))
     names: set[str] = set()
-    for variant in variants:
-        parts = list(variant.with_suffix("").parts)
-        if parts and parts[-1] == "__init__":
-            parts.pop()
-        if parts:
-            names.add(".".join(parts))
+    for parts in _variants(root, path):
+        dotted = list(parts)
+        if dotted[-1] == "__init__":
+            dotted.pop()
+        if dotted:
+            names.add(".".join(dotted))
     return names
 
 
@@ -87,20 +118,34 @@ def _module_index(root: Path) -> dict[str, Path]:
     return modules
 
 
-def _imported_modules(path: Path) -> set[str]:
+def _imported_modules(root: Path, path: Path) -> set[str]:
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except (OSError, SyntaxError):
+        tree = ast.parse(path.read_bytes(), filename=str(path))
+    except (OSError, SyntaxError, ValueError, RecursionError):
         return set()
+    packages = [parts[:-1] for parts in _variants(root, path)]
     modules: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             modules.update(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                modules.add(node.module)
+            if node.level == 0:
+                bases: list[tuple[str, ...]] = [()]
+            else:
+                bases = [
+                    package[: len(package) - (node.level - 1)]
+                    for package in packages
+                    if node.level - 1 <= len(package)
+                ]
+            tail = tuple(node.module.split(".")) if node.module else ()
+            for base in bases:
+                prefix = (*base, *tail)
+                if prefix:
+                    modules.add(".".join(prefix))
                 modules.update(
-                    f"{node.module}.{alias.name}" for alias in node.names
+                    ".".join((*prefix, alias.name))
+                    for alias in node.names
+                    if alias.name != "*"
                 )
     return modules
 
@@ -118,8 +163,13 @@ def _resolve_module(
     return None
 
 
-def _dependencies(root: Path, test_file: Path) -> list[str]:
-    modules = _module_index(root)
+def _dependencies(
+    root: Path,
+    test_file: Path,
+    modules: Mapping[str, Path] | None = None,
+) -> list[str]:
+    if modules is None:
+        modules = _module_index(root)
     visited: set[Path] = set()
     pending = [test_file]
     while pending:
@@ -127,20 +177,20 @@ def _dependencies(root: Path, test_file: Path) -> list[str]:
         if path in visited:
             continue
         visited.add(path)
-        for module in _imported_modules(path):
+        for module in _imported_modules(root, path):
             imported = _resolve_module(module, modules)
             if imported is not None and imported not in visited:
                 pending.append(imported)
 
     parent = test_file.parent
     while parent == root or root in parent.parents:
-        conftest = parent / "conftest.py"
-        if conftest.is_file():
+        conftest = _inside_root(root, parent / "conftest.py")
+        if conftest is not None and conftest.is_file():
             visited.add(conftest)
         if parent == root:
             break
         parent = parent.parent
-    return sorted(_relative(root, path) for path in visited)
+    return sorted_utf16(_relative(root, path) for path in visited)
 
 
 def discover_pytest_suites(options: TiaPytestOptions) -> list[dict[str, Any]]:
@@ -152,8 +202,11 @@ def discover_pytest_suites(options: TiaPytestOptions) -> list[dict[str, Any]]:
             raise ValueError(f"pytest test root escapes project: {test_root}")
         if not directory.is_dir():
             continue
-        files.update(directory.rglob("test_*.py"))
-        files.update(directory.rglob("*_test.py"))
+        for pattern in ("test_*.py", "*_test.py"):
+            for path in directory.rglob(pattern):
+                resolved = _inside_root(root, path)
+                if resolved is not None:
+                    files.add(resolved)
     return [
         {
             "adapter": "pytest",
@@ -161,8 +214,7 @@ def discover_pytest_suites(options: TiaPytestOptions) -> list[dict[str, Any]]:
             "id": f"pytest:{options.project}:{_relative(root, path)}",
             "project": options.project,
         }
-        for path in sorted(files)
-        if not any(part in EXCLUDED_DIRECTORIES for part in path.parts)
+        for path in sorted(files, key=lambda item: utf16_key(_relative(root, item)))
     ]
 
 
@@ -173,7 +225,7 @@ def pytest_catalog_fingerprint(
     digest = hashlib.sha256()
     digest.update(
         json.dumps(
-            sorted(suites, key=lambda suite: suite["id"]),
+            sorted(suites, key=lambda suite: utf16_key(suite["id"])),
             separators=(",", ":"),
             sort_keys=True,
         ).encode()
@@ -191,9 +243,10 @@ def create_pytest_graph(
     suites: Sequence[dict[str, Any]],
 ) -> dict[str, Any]:
     root = Path(options.root).resolve()
+    modules = _module_index(root)
     observations = []
     for suite in suites:
-        for source in _dependencies(root, root / suite["file"]):
+        for source in _dependencies(root, root / suite["file"], modules):
             observations.append(
                 {
                     "confidence": "exact",
@@ -227,7 +280,11 @@ def create_pytest_graph(
         "knownSources": [],
         "observations": sorted(
             observations,
-            key=lambda item: (item["suiteId"], item["source"], item["kind"]),
+            key=lambda item: (
+                utf16_key(item["suiteId"]),
+                utf16_key(item["source"]),
+                item["kind"],
+            ),
         ),
         "protocolVersion": PROTOCOL_VERSION,
         "suites": list(suites),
@@ -237,7 +294,7 @@ def create_pytest_graph(
 def _read_graph(path: Path) -> dict[str, Any] | None:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError, RecursionError):
         return None
     return value if isinstance(value, dict) else None
 
@@ -268,7 +325,8 @@ class TiaPytestRunner:
             environment_fingerprint=self.options.environment_fingerprint,
             fingerprint=fingerprint,
             graph=graph,
-            force_full=self.options.force_full,
+            force_full=self.options.force_full
+            or fresh_requested(os.environ.get("TIA_FRESH")),
             ignore_changes=self.options.ignore_changes,
             on_unknown_change=self.options.on_unknown_change,
         )
