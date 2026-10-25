@@ -1,6 +1,4 @@
-import { existsSync } from 'node:fs'
-
-import { defineConfig } from '@lucasacoutinho/archer'
+import { defineConfig, r, use } from '@lucasacoutinho/archer'
 
 const allowed: Record<string, readonly string[]> = {
   assurance: ['core', 'wire', 'host', 'engine', 'runners'],
@@ -13,45 +11,41 @@ const allowed: Record<string, readonly string[]> = {
   runners: ['core', 'wire', 'host', 'probe', 'engine', 'evidence'],
   wire: ['core'],
 }
-const present = Object.keys(allowed).filter((layer) =>
-  existsSync(`src/${layer}`),
-)
+
+// The workspace loader imports a user-chosen config module at runtime.
+const workspaceLoader = 'src/assurance/workspace/config.ts'
 
 export default defineConfig({
-  include: ['src/**/*.ts'],
-  rules(archer) {
-    archer.expect('src/**').toBeFreeOfCycles().as('strict/no-cycles')
-    // The workspace loader imports a user-chosen config module at runtime.
-    archer
-      .expect('src/**')
-      .ignoring('src/assurance/workspace/config.ts')
-      .toHaveResolvableDependencies()
-      .as('strict/resolvable-dependencies')
-    archer.expect('src/**').toUseStrictEquality().as('strict/strict-equality')
-
-    const layers = archer.layers(
-      Object.fromEntries(present.map((layer) => [layer, `src/${layer}/**`])),
-    )
-    for (const layer of present) {
-      layers
-        .where(layer)
-        .mayOnlyDependOn(
-          ...(allowed[layer] ?? []).filter((dependency) =>
-            present.includes(dependency),
-          ),
-        )
-    }
-
-    archer
-      .expect('src/**')
-      .ignoring('src/entries/**', 'src/assurance/workspace/config.ts')
-      .not.toDependOn(['src/entries/**'])
-      .as('boundaries/no-entrypoint-backedges')
-      .because('Package entry points stay thin leaves of the dependency graph.')
-
-    archer
-      .expect('src/**')
-      .toHaveLineCountLessThan(800)
-      .as('maintainability/source-size')
-  },
+  // A baseline would accept violations silently.
+  baseline: false,
+  // The package sources only, as the rules below select them.
+  projects: ['tsconfig.build.json'],
+  rules: [
+    r.acyclic('strict/no-cycles', 'src/**'),
+    r.resolvable('strict/resolvable-dependencies', {
+      all: ['src/**', { not: workspaceLoader }],
+    }),
+    r.forbidUse('strict/strict-equality', 'src/**', use.looseEquality),
+    // A layer may import local files only from itself and the layers listed.
+    // Files outside every layer, such as `src/entries`, are not allowed either.
+    ...Object.entries(allowed).map(([layer, dependencies]) =>
+      r.onlyDependOn(
+        `layers/${layer}`,
+        `src/${layer}/**`,
+        [layer, ...dependencies].map((name) => `src/${name}/**`),
+        { localOnly: true },
+      ),
+    ),
+    r.forbid(
+      'boundaries/no-entrypoint-backedges',
+      { all: ['src/**', { not: ['src/entries/**', workspaceLoader] }] },
+      'src/entries/**',
+      {
+        reason:
+          'Package entry points stay thin leaves of the dependency graph.',
+      },
+    ),
+    // At most 799 lines, so every file stays under 800.
+    r.maxLines('maintainability/source-size', 'src/**', 799),
+  ],
 })

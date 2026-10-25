@@ -125,7 +125,7 @@
     "fmt:check": "oxfmt --check .",
     "test": "npm run build && vitest run",
     "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test",
-    "check:architecture": "vitest run --config vitest.archer.config.ts",
+    "check:architecture": "archer check --reporter agent",
     "check:package": "npm run build && publint && attw --pack . --profile esm-only",
     "check:proofs": "cd proofs && lake build --wfail && lake exe tia-axioms && cd .. && node config/selection-vectors.ts check && node config/selection-vectors.ts fuzz 20000",
     "check:vectors": "node config/protocol-vectors.ts check",
@@ -157,7 +157,7 @@
     "@effect/platform-node": "4.0.6",
     "@effect/tsgo": "0.56.1",
     "@effect/vitest": "4.0.6",
-    "@lucasacoutinho/archer": "0.2.1",
+    "@lucasacoutinho/archer": "0.3.0",
     "@playwright/test": "^1.64.1",
     "@testing-library/react": "^16.3.3",
     "@types/istanbul-lib-instrument": "^1.7.8",
@@ -197,11 +197,6 @@
     },
     "vitest": {
       "optional": true
-    }
-  },
-  "overrides": {
-    "@lucasacoutinho/archer": {
-      "vitest": "$vitest"
     }
   },
   "engines": {

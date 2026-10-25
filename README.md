@@ -152,18 +152,12 @@ npm run check:go
 
 `npm run check` enforces Oxfmt and Oxlint before type-checking and testing.
 
-The optional cross-food check runs this suite with both `tia()` and Archer's
-Vitest `archer()` plugin:
-
-```sh
-npm run build
-npm run check:architecture
-```
-
-It prefers an installed `@lucasacoutinho/archer` package and otherwise uses a
-built `../archer` checkout. Set `ARCHER_VITEST_ENTRY` for a checkout in another
-location. This command is separate from `npm run check` so each repository can
-still validate in a standalone checkout.
+`npm run check:architecture` runs
+[Archer](https://github.com/lucasacoutinho/archer) over `src/` with the rules in
+`archer.config.ts`: no import cycles, resolvable imports, strict equality, the
+layer table, no imports of `src/entries/`, and files under 800 lines. It needs
+Node.js 22.18 or newer. `npm run gate` runs it last, and the Node 22.12 CI job
+skips it.
 
 Implementation code is grouped by responsibility. `src/index.ts` is the only
 file at the source root; package subpath shims and the CLI launcher live in
