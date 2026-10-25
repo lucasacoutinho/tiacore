@@ -10,7 +10,12 @@ import {
   type TiaArtifactSinkInput,
   type TiaArtifactSinkResult,
 } from '../../core/artifacts.ts'
-import { ioError, systemIoError, TiaInvalid } from '../../wire/errors.ts'
+import {
+  errorMessage,
+  systemIoError,
+  TiaInvalid,
+  TiaIo,
+} from '../../wire/errors.ts'
 
 export const FILESYSTEM_SINK_NAME = 'filesystem artifact sink'
 
@@ -55,6 +60,6 @@ export const putToDirectory = Effect.fnUntraced(function* (
  */
 export const putToSink = (sink: TiaArtifactSink, input: TiaArtifactSinkInput) =>
   Effect.tryPromise({
-    catch: ioError,
+    catch: (error) => new TiaIo({ message: errorMessage(error) }),
     try: async () => sink.put(input),
   })
