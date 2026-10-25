@@ -1,0 +1,10 @@
+node_modules/
+/dist/
+/sdks/python/dist/
+/coverage/
+.agents/
+.tia/
+.worktrees/
+*.tgz
+executions.log
+skills-lock.json

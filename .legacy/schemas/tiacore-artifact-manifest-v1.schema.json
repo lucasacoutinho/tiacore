@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucasacoutinho.github.io/tiacore/schemas/tiacore-artifact-manifest-v1.schema.json",
+  "title": "tiacore HTTP artifact manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "artifacts"],
+  "properties": {
+    "version": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "url"],
+        "properties": {
+          "id": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string", "minLength": 1, "maxLength": 8192 }
+            ]
+          },
+          "url": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "group": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string", "minLength": 1, "maxLength": 8192 }
+            ]
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "runner": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "promoted": { "type": "boolean" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "size": { "type": "integer", "minimum": 0, "maximum": 26214400 },
+          "lineage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["baseline", "parents", "producedAt", "runId"],
+            "properties": {
+              "baseline": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["sha"],
+                "properties": {
+                  "sha": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192
+                  },
+                  "source": { "enum": ["filesystem", "git"] }
+                }
+              },
+              "parents": {
+                "type": "array",
+                "maxItems": 100,
+                "uniqueItems": true,
+                "items": {
+                  "oneOf": [
+                    { "type": "integer" },
+                    { "type": "string", "minLength": 1, "maxLength": 8192 }
+                  ]
+                }
+              },
+              "producedAt": { "type": "string", "format": "date-time" },
+              "producer": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8192
+              },
+              "runId": { "type": "string", "minLength": 1, "maxLength": 8192 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

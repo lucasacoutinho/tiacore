@@ -1,0 +1,162 @@
+{
+  "protocolVersion": 1,
+  "catalog": [
+    {
+      "adapter": "example",
+      "file": "test/login.test.ts",
+      "id": "suite:login",
+      "project": "example",
+      "resourceLocks": ["database"]
+    },
+    {
+      "adapter": "example",
+      "dependsOn": ["suite:login"],
+      "file": "test/settings.test.ts",
+      "id": "suite:settings",
+      "project": "example",
+      "resourceLocks": ["browser"]
+    }
+  ],
+  "graph": {
+    "complete": true,
+    "environmentFingerprint": "node-24",
+    "fingerprint": "project-v1",
+    "invalidators": [
+      {
+        "pattern": "config/**",
+        "reason": "configuration changed"
+      }
+    ],
+    "knownSources": ["docs/README.md"],
+    "observations": [
+      {
+        "confidence": "observed",
+        "kind": "executed",
+        "source": "src/login.ts",
+        "suiteId": "suite:login"
+      },
+      {
+        "confidence": "observed",
+        "kind": "executed",
+        "source": "src/settings.ts",
+        "suiteId": "suite:settings"
+      }
+    ],
+    "protocolVersion": 1,
+    "suites": [
+      {
+        "adapter": "example",
+        "file": "test/login.test.ts",
+        "id": "suite:login",
+        "project": "example",
+        "resourceLocks": ["database"]
+      },
+      {
+        "adapter": "example",
+        "dependsOn": ["suite:login"],
+        "file": "test/settings.test.ts",
+        "id": "suite:settings",
+        "project": "example",
+        "resourceLocks": ["browser"]
+      }
+    ]
+  },
+  "vectors": [
+    {
+      "name": "selects an observed suite and its dependency",
+      "changes": ["src/settings.ts"],
+      "environmentFingerprint": "node-24",
+      "fingerprint": "project-v1",
+      "expected": {
+        "cached": [],
+        "changedFiles": ["src/settings.ts"],
+        "mode": "selective",
+        "protocolVersion": 1,
+        "reason": "2 affected suites",
+        "reasons": {
+          "suite:login": ["dependency of suite:settings"],
+          "suite:settings": ["observed dependency changed: src/settings.ts"]
+        },
+        "resourceLocks": ["browser", "database"],
+        "selected": ["suite:login", "suite:settings"]
+      }
+    },
+    {
+      "name": "skips a known unaffected source",
+      "changes": ["docs/README.md"],
+      "environmentFingerprint": "node-24",
+      "fingerprint": "project-v1",
+      "expected": {
+        "cached": ["suite:login", "suite:settings"],
+        "changedFiles": ["docs/README.md"],
+        "mode": "skip",
+        "protocolVersion": 1,
+        "reason": "no suites are affected",
+        "reasons": {},
+        "resourceLocks": [],
+        "selected": []
+      }
+    },
+    {
+      "name": "runs the full catalog for an unknown change",
+      "changes": ["src/unknown.ts"],
+      "environmentFingerprint": "node-24",
+      "fingerprint": "project-v1",
+      "expected": {
+        "cached": [],
+        "changedFiles": ["src/unknown.ts"],
+        "mode": "full",
+        "protocolVersion": 1,
+        "reason": "changed file is unknown to the impact graph: src/unknown.ts",
+        "reasons": {
+          "suite:login": [
+            "changed file is unknown to the impact graph: src/unknown.ts"
+          ],
+          "suite:settings": [
+            "changed file is unknown to the impact graph: src/unknown.ts"
+          ]
+        },
+        "resourceLocks": ["browser", "database"],
+        "selected": ["suite:login", "suite:settings"]
+      }
+    },
+    {
+      "name": "runs the full catalog when the environment changes",
+      "changes": [],
+      "environmentFingerprint": "node-22",
+      "fingerprint": "project-v1",
+      "expected": {
+        "cached": [],
+        "changedFiles": [],
+        "mode": "full",
+        "protocolVersion": 1,
+        "reason": "execution environment changed",
+        "reasons": {
+          "suite:login": ["execution environment changed"],
+          "suite:settings": ["execution environment changed"]
+        },
+        "resourceLocks": ["browser", "database"],
+        "selected": ["suite:login", "suite:settings"]
+      }
+    },
+    {
+      "name": "applies a structural invalidator",
+      "changes": ["config/runner.json"],
+      "environmentFingerprint": "node-24",
+      "fingerprint": "project-v1",
+      "expected": {
+        "cached": [],
+        "changedFiles": ["config/runner.json"],
+        "mode": "full",
+        "protocolVersion": 1,
+        "reason": "configuration changed: config/runner.json",
+        "reasons": {
+          "suite:login": ["configuration changed: config/runner.json"],
+          "suite:settings": ["configuration changed: config/runner.json"]
+        },
+        "resourceLocks": ["browser", "database"],
+        "selected": ["suite:login", "suite:settings"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tiacore.dev/schemas/impact-v1.json",
+  "title": "tiacore impact graph v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "complete",
+    "fingerprint",
+    "environmentFingerprint",
+    "suites",
+    "observations"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": 1
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "environmentFingerprint": {
+      "type": "string",
+      "maxLength": 8192
+    },
+    "knownSources": {
+      "type": "array",
+      "maxItems": 1000000,
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "uniqueItems": true
+    },
+    "invalidators": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pattern", "reason"],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          }
+        }
+      }
+    },
+    "suites": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "$ref": "#/$defs/suite"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 1000000,
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/|[A-Za-z][A-Za-z0-9+.-]*:|\\.\\.(?:[/\\\\]|$)).+"
+    },
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "file", "id", "project"],
+      "properties": {
+        "adapter": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "file": {
+          "$ref": "#/$defs/path"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "dependsOn": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "uniqueItems": true
+        },
+        "resourceLocks": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confidence", "kind", "source", "suiteId"],
+      "properties": {
+        "confidence": {
+          "enum": ["conservative", "exact", "inferred", "observed"]
+        },
+        "kind": {
+          "enum": [
+            "capability",
+            "configuration",
+            "conservative",
+            "database",
+            "executed",
+            "fixture",
+            "import",
+            "lazy",
+            "route",
+            "view"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/path"
+        },
+        "suiteId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      }
+    }
+  }
+}
