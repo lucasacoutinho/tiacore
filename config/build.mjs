@@ -25,11 +25,13 @@ const entries = {
 
 // Scripts that run in child processes the runners spawn. They must be real
 // files in dist next to the entries (the runners resolve them from there).
-const helperEntries = [
-  'src/runners/node/discovery-register.ts',
-  'src/runners/node/discovery-shim.ts',
-  'src/runners/node/execution-child.ts',
-]
+const helperEntries = Object.fromEntries(
+  [
+    'src/runners/node/discovery-register.ts',
+    'src/runners/node/discovery-shim.ts',
+    'src/runners/node/execution-child.ts',
+  ].map((file) => [file.replace(/^.*\//u, '').replace(/\.ts$/u, ''), file]),
+)
 
 rmSync('dist', { force: true, recursive: true })
 mkdirSync('.build', { recursive: true })
@@ -44,7 +46,7 @@ const result = await build({
   bundle: true,
   chunkNames: 'chunks/[name]-[hash]',
   entryNames: '[name]',
-  entryPoints: [...entries, ...helperEntries],
+  entryPoints: { ...entries, ...helperEntries },
   external: [
     ...Object.keys(manifest.dependencies ?? {}),
     ...Object.keys(manifest.peerDependencies ?? {}),
