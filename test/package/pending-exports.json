@@ -19,11 +19,7 @@
   "./conformance executeAdapterCertification",
   "./conformance parseAdapterCertificationReceipt",
   "./core TiaCore",
-  "./evidence DEFAULT_TIA_EVIDENCE_HEADER",
-  "./evidence TIA_EVIDENCE_DIRECTORY_ENV",
-  "./evidence TIA_EVIDENCE_HEADER_ENV",
-  "./evidence TiaEvidence",
-  "./evidence tia",
+  "./core formatRunPlanDetails",
   "./gradle TiaGradleRunner",
   "./gradle createGradleGraph",
   "./gradle discoverGradleSuites",
@@ -54,5 +50,6 @@
   "./vitest default",
   "./vitest tia",
   "./workspace TiaWorkspaceRunner",
-  "./workspace tia"
+  "./workspace tia",
+  "bin runCli"
 ]
