@@ -21,8 +21,10 @@ export default defineConfig({
   include: ['src/**/*.ts'],
   rules(archer) {
     archer.expect('src/**').toBeFreeOfCycles().as('strict/no-cycles')
+    // The workspace loader imports a user-chosen config module at runtime.
     archer
       .expect('src/**')
+      .ignoring('src/assurance/workspace/config.ts')
       .toHaveResolvableDependencies()
       .as('strict/resolvable-dependencies')
     archer.expect('src/**').toUseStrictEquality().as('strict/strict-equality')
@@ -42,7 +44,7 @@ export default defineConfig({
 
     archer
       .expect('src/**')
-      .ignoring('src/entries/**')
+      .ignoring('src/entries/**', 'src/assurance/workspace/config.ts')
       .not.toDependOn(['src/entries/**'])
       .as('boundaries/no-entrypoint-backedges')
       .because('Package entry points stay thin leaves of the dependency graph.')

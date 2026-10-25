@@ -7,11 +7,13 @@ import * as Exit from 'effect/Exit'
 import * as Option from 'effect/Option'
 
 import { VERSION } from '../core/version.ts'
+import { certifyCommand } from './certify.ts'
 import { protocolCommands } from './protocol.ts'
+import { runCommand } from './run.ts'
 
 const root = Command.make('tiacore').pipe(
   Command.withDescription('Test impact analysis for heterogeneous test suites'),
-  Command.withSubcommands([...protocolCommands]),
+  Command.withSubcommands([...protocolCommands, certifyCommand, runCommand]),
 )
 
 export const cli = Command.runWith(root, {

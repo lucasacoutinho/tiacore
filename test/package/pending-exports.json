@@ -13,11 +13,6 @@
   "./artifacts tia",
   "./artifacts verifyArtifactAttestation",
   "./bun tia",
-  "./conformance TIA_ADAPTER_CONFORMANCE_SCENARIOS",
-  "./conformance TIA_ADAPTER_CONFORMANCE_VERSION",
-  "./conformance certifyAdapterReceipt",
-  "./conformance executeAdapterCertification",
-  "./conformance parseAdapterCertificationReceipt",
   "./core TiaCore",
   "./gradle TiaGradleRunner",
   "./gradle createGradleGraph",
@@ -47,7 +42,5 @@
   "./verification TiaVerifier",
   "./verification tia",
   "./vitest default",
-  "./vitest tia",
-  "./workspace TiaWorkspaceRunner",
-  "./workspace tia"
+  "./vitest tia"
 ]
