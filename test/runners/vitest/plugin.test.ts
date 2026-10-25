@@ -1,6 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { afterEach, describe, expect, test } from 'vitest'
@@ -124,6 +132,28 @@ describe('plugin composition and bypasses', () => {
     expect(typeof proxy === 'string' && existsSync(proxy)).toBe(true)
     expect(readFileSync(proxy!, 'utf8')).toMatch(
       /^import "file:\/\/.*\/(?:src\/runners\/vitest\/setup\.ts|dist\/entries\/vitest-setup\.js)"\n$/,
+    )
+  })
+
+  test('drops setup files left by an earlier version', () => {
+    const root = temporaryRoot()
+    const runtime = join(root, '.tia', 'runtime')
+    mkdirSync(runtime, { recursive: true })
+    writeFileSync(join(runtime, 'setup-1.2.1.mjs'), 'import "old"\n')
+    writeFileSync(join(runtime, 'setup-0.4.0.mjs'), 'import "older"\n')
+    writeFileSync(join(runtime, 'playwright-session.json'), '{}\n')
+
+    const config: TestConfig = { root }
+    const instance = plugin()
+    instance.config?.(config)
+    instance.config?.(config)
+
+    const setupFiles = config.test?.setupFiles
+    const registered = Array.isArray(setupFiles) ? setupFiles[0] : ''
+    expect(registered).toMatch(/\.tia\/runtime\/setup-.*\.mjs$/)
+    expect(existsSync(registered)).toBe(true)
+    expect(readdirSync(runtime).sort()).toEqual(
+      ['playwright-session.json', basename(registered)].sort(),
     )
   })
 
