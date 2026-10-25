@@ -34,6 +34,9 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 
 ### Added
 
+- `TiaEvidence.collectChecked()` returns the collected files and whether every
+  event was read. The Playwright fixture uses it: when an event is lost, the
+  test's dependencies count as incomplete and the graph is not updated.
 - `tiacore devtools` listens for spans and metrics from tiacore processes run
   with `TIACORE_DEVTOOLS` and prints a live summary: slowest spans, time by span
   name, failed spans and metrics. It uses Effect's devtools protocol, on
@@ -145,6 +148,10 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 
 ### Fixed
 
+- Evidence events are written under a temporary name and renamed, so a reader
+  never sees a partial event.
+- Waiting for the commit lock can be interrupted. Before, an interrupted commit
+  waited until it took the lock or timed out, up to 10 seconds.
 - The runtime planner missed tests in `__tests__` directories.
 - The Vitest plugin kept the coverage templates of every file version it had
   transformed in the same process.

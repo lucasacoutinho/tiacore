@@ -132,12 +132,13 @@ async function recordDependencies(
   }
   await Promise.allSettled(pending)
 
+  let evidenceComplete = true
   if (evidence !== null && correlationId !== undefined) {
-    for (const file of await evidence.collect(correlationId, {
+    const collected = await evidence.collectChecked(correlationId, {
       remove: true,
-    })) {
-      files.add(file)
-    }
+    })
+    evidenceComplete = collected.complete
+    for (const file of collected.files) files.add(file)
   }
 
   for (const page of pages) {
@@ -183,6 +184,9 @@ async function recordDependencies(
     }
   }
 
+  // Without the attachment the reporter marks the test's dependencies
+  // incomplete, so a lost evidence event never shrinks the selection.
+  if (!evidenceComplete) return
   await testInfo.attach(PLAYWRIGHT_DEPENDENCIES_ATTACHMENT, {
     body: Buffer.from(JSON.stringify([...files].sort())),
     contentType: 'application/json',

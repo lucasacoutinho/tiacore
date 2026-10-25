@@ -5,4 +5,8 @@ export {
   TIA_EVIDENCE_DIRECTORY_ENV,
   TIA_EVIDENCE_HEADER_ENV,
 } from '../evidence/index.ts'
-export type { TiaEvidenceEvent, TiaEvidenceOptions } from '../evidence/index.ts'
+export type {
+  TiaEvidenceCollection,
+  TiaEvidenceEvent,
+  TiaEvidenceOptions,
+} from '../evidence/index.ts'

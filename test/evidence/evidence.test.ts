@@ -312,6 +312,67 @@ describe('collecting', () => {
     await expect(evidence.collect(id)).resolves.toEqual(['good.ts'])
   })
 
+  test('reports a collection complete when every event was read', async () => {
+    const evidence = new TiaEvidence({ root: project() })
+    await expect(evidence.collectChecked('none')).resolves.toEqual({
+      complete: true,
+      files: [],
+    })
+    await evidence.record(['src/a.ts'], 'clean')
+    await evidence.record(['src/b.ts'], 'clean')
+    await expect(evidence.collectChecked('clean')).resolves.toEqual({
+      complete: true,
+      files: ['src/a.ts', 'src/b.ts'],
+    })
+    expect(
+      readdirSync(hashed(evidence.directory, 'clean')).filter(
+        (name) => !name.endsWith('.json'),
+      ),
+    ).toEqual([])
+  })
+
+  test.each([
+    [
+      'a partial event',
+      '2.json',
+      (id: string) => valid(id, ['b.ts']).slice(0, 20),
+    ],
+    [
+      'an event still being written',
+      '2.tmp',
+      (id: string) => valid(id, ['b.ts']),
+    ],
+    ['an invalid event', '2.json', (id: string) => valid(id, [1])],
+    [
+      'an oversized event',
+      '2.json',
+      (id: string) => `${valid(id, ['b.ts'])}${' '.repeat(1024 * 1024)}`,
+    ],
+  ])('reports a collection incomplete after %s', async (_, name, text) => {
+    const evidence = new TiaEvidence({ root: project() })
+    const id = 'lossy'
+    seed(evidence, id, '1.json', valid(id, ['a.ts']))
+    seed(evidence, id, name, text(id))
+    await expect(evidence.collectChecked(id)).resolves.toEqual({
+      complete: false,
+      files: ['a.ts'],
+    })
+  })
+
+  test('reports a collection incomplete past the event bound', async () => {
+    const evidence = new TiaEvidence({ root: project() })
+    const id = 'over'
+    const directory = hashed(evidence.directory, id)
+    mkdirSync(directory, { recursive: true })
+    for (let index = 0; index < 10_001; index += 1) {
+      writeFileSync(
+        join(directory, `${String(index).padStart(6, '0')}.json`),
+        valid(id, [`f${index}.ts`]),
+      )
+    }
+    expect((await evidence.collectChecked(id)).complete).toBe(false)
+  })
+
   test('reads at most 10000 events, oldest names first (EVID-COL-02)', async () => {
     const evidence = new TiaEvidence({ root: project() })
     const id = 'capped'

@@ -5,6 +5,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  rename,
   rm,
   writeFile,
 } from 'node:fs/promises'
@@ -28,6 +29,12 @@ export interface TiaEvidenceEvent {
   producedAt: string
   producer: string
   schema: 1
+}
+
+/** What `collectChecked` read. `complete` is false when an event was lost. */
+export interface TiaEvidenceCollection {
+  complete: boolean
+  files: string[]
 }
 
 export interface TiaEvidenceOptions {
@@ -147,10 +154,11 @@ export class TiaEvidence {
     }
     const targetDirectory = correlationDirectory(this.directory, id)
     await mkdir(targetDirectory, { recursive: true })
-    const target = resolve(
-      targetDirectory,
-      `${Date.now()}-${process.pid}-${randomUUID()}.json`,
-    )
+    const name = `${Date.now()}-${process.pid}-${randomUUID()}`
+    // Written under a temporary name and renamed, so a reader never sees a
+    // partial event under its final name.
+    const temporary = resolve(targetDirectory, `${name}.tmp`)
+    const target = resolve(targetDirectory, `${name}.json`)
     const payload: TiaEvidenceEvent = {
       correlationId: id,
       files: normalized,
@@ -158,29 +166,52 @@ export class TiaEvidence {
       producer: this.producer,
       schema: 1,
     }
-    await writeFile(target, `${JSON.stringify(payload)}\n`, {
+    await writeFile(temporary, `${JSON.stringify(payload)}\n`, {
       encoding: 'utf8',
       flag: 'wx',
     })
+    await rename(temporary, target)
   }
 
+  /** The files recorded for `correlationId`. See `collectChecked`. */
   async collect(
     correlationId: string,
     options: { remove?: boolean } = {},
   ): Promise<string[]> {
+    return (await this.collectChecked(correlationId, options)).files
+  }
+
+  /**
+   * The files recorded for `correlationId`, and whether every event was read.
+   * An event that cannot be read or validated, an event still being written,
+   * more events than the bound, or an unexpected directory makes the
+   * collection incomplete: its files are a subset of what was recorded.
+   */
+  async collectChecked(
+    correlationId: string,
+    options: { remove?: boolean } = {},
+  ): Promise<TiaEvidenceCollection> {
     const id = this.correlationId(correlationId)
     const directory = correlationDirectory(this.directory, id)
     let entries: string[]
     try {
       const stat = await lstat(directory)
-      if (!stat.isDirectory() || stat.isSymbolicLink()) return []
-      entries = (await readdir(directory)).sort().slice(0, MAX_EVENTS)
-    } catch {
-      return []
+      if (!stat.isDirectory() || stat.isSymbolicLink()) {
+        return { complete: false, files: [] }
+      }
+      entries = (await readdir(directory)).sort()
+    } catch (error) {
+      const missing =
+        error instanceof Error && 'code' in error && error.code === 'ENOENT'
+      return { complete: missing, files: [] }
     }
+    let complete = entries.length <= MAX_EVENTS
     const files = new Set<string>()
-    for (const entryName of entries) {
-      if (!entryName.endsWith('.json')) continue
+    for (const entryName of entries.slice(0, MAX_EVENTS)) {
+      if (!entryName.endsWith('.json')) {
+        complete = false
+        continue
+      }
       const path = resolve(directory, entryName)
       try {
         const stat = await lstat(path)
@@ -189,21 +220,23 @@ export class TiaEvidence {
           stat.isSymbolicLink() ||
           stat.size > MAX_EVENT_BYTES
         ) {
+          complete = false
           continue
         }
         const parsed = event(
           JSON.parse(await readFile(path, 'utf8')) as unknown,
           id,
         )
+        if (parsed === null) complete = false
         for (const file of parsed?.files ?? []) files.add(file)
       } catch {
-        // A partial or concurrently removed event is not trusted as evidence.
+        complete = false
       }
     }
     if (options.remove === true) {
       await rm(directory, { force: true, recursive: true })
     }
-    return [...files].sort()
+    return { complete, files: [...files].sort() }
   }
 }
 
