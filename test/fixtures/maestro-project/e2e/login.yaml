@@ -1,0 +1,10 @@
+appId: ${APP_ID}
+name: Sign in
+tags:
+  - health
+  - identity
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: sign-in

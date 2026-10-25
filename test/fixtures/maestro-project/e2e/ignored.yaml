@@ -1,0 +1,6 @@
+appId: ${APP_ID}
+name: Ignored experimental flow
+tags:
+  - experimental
+---
+- launchApp

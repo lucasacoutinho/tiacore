@@ -139,12 +139,15 @@
   },
   "dependencies": {
     "@types/istanbul-lib-coverage": "^2.0.6",
+    "es-module-lexer": "^3.0.4",
+    "fast-xml-parser": "^5.11.2",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-instrument": "^6.0.3",
     "istanbul-lib-report": "^3.0.1",
     "istanbul-reports": "^3.2.0",
     "picomatch": "^4.0.7",
-    "tinyglobby": "^0.2.17"
+    "tinyglobby": "^0.2.17",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",

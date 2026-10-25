@@ -1,1 +1,17 @@
-export {}
+export {
+  createGradleGraph,
+  discoverGradleSuites,
+  gradleCatalogFingerprint,
+  parseJUnitReport,
+  planGradle,
+  readJUnitReports,
+  tia,
+  TiaGradleRunner,
+  type DiscoverGradleOptions,
+  type GradleGraphOptions,
+  type GradleSuite,
+  type JUnitCase,
+  type PlanGradleOptions,
+  type TiaGradleOptions,
+  type TiaGradleResult,
+} from '../runners/gradle/index.ts'
