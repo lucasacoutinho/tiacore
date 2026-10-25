@@ -1,12 +1,19 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 // Runs on `npm install` in a checkout and when a package manager installs
-// tiacore from a Git URL. Both have the devDependencies, and both need dist/:
-// it is not committed. Bun does not install a Git dependency's
-// devDependencies, so a Bun install provisions them for the build and removes
-// them afterwards.
+// tiacore from a Git URL. A Git install needs dist/, which is not committed,
+// so it builds. A checkout only patches the TypeScript language service:
+// `npm test` builds before it tests. The package manager sets INIT_CWD to the
+// directory it was run in; for a dependency that is the consumer's project,
+// not this one. Without INIT_CWD, build: it is never wrong, only slower.
+// Bun does not install a Git dependency's devDependencies, so a Bun install
+// provisions them for the build and removes them afterwards.
+
+const initCwd = process.env.INIT_CWD
+const dependencyInstall =
+  initCwd === undefined || resolve(initCwd) !== resolve(process.cwd())
 
 const requiredBuildFiles = [
   'node_modules/@effect/platform-node/package.json',
@@ -50,7 +57,7 @@ function provisionToolchain() {
   return true
 }
 
-const provisioned = provisionToolchain()
+const provisioned = dependencyInstall && provisionToolchain()
 try {
   // The Effect language service patch serves development type checks only.
   if (existsSync('node_modules/@effect/tsgo/package.json')) {
@@ -61,7 +68,7 @@ try {
       '--no-oxlint',
     ])
   }
-  run(process.execPath, ['config/build.mjs'])
+  if (dependencyInstall) run(process.execPath, ['config/build.mjs'])
 } finally {
   if (provisioned) {
     rmSync(join(process.cwd(), 'node_modules'), {
