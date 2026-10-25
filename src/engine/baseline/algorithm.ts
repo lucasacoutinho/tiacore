@@ -122,8 +122,10 @@ export function makeBaselines(probe: Probe): Baselines['Service'] {
     const head = yield* probe.currentSha(root)
     if (head === null) return null
     if (!(yield* probe.isAncestor(root, baseline.sha, head))) return null
-    const tracked = yield* probe.trackedChanges(root, baseline.sha)
-    const untracked = yield* probe.untracked(root)
+    const [tracked, untracked] = yield* Effect.all(
+      [probe.trackedChanges(root, baseline.sha), probe.untracked(root)],
+      { concurrency: 'unbounded' },
+    )
     if (tracked === null || untracked === null) return null
     const candidates = unique([
       ...Object.keys(baseline.workingTree),
@@ -153,8 +155,10 @@ export function makeBaselines(probe: Probe): Baselines['Service'] {
     sha: string,
     ignoredPrefixes: readonly string[],
   ) {
-    const tracked = yield* probe.trackedChanges(root, sha)
-    const untracked = yield* probe.untracked(root)
+    const [tracked, untracked] = yield* Effect.all(
+      [probe.trackedChanges(root, sha), probe.untracked(root)],
+      { concurrency: 'unbounded' },
+    )
     if (tracked === null || untracked === null) return null
     const trackedSet = new Set(tracked)
     const candidates = unique([...tracked, ...untracked]).filter(

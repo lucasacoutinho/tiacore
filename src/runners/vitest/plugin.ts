@@ -19,12 +19,8 @@ import {
   slash,
 } from '../../engine/host-path.ts'
 import { EngineLive } from '../../engine/layers.ts'
-import { restoreGraph } from '../../engine/artifacts/restore.ts'
-import {
-  beginRun,
-  snapshotProject,
-  type RestoreRequest,
-} from '../../engine/lifecycle.ts'
+import { artifactRestore } from '../../engine/artifacts/restore-step.ts'
+import { beginRun, snapshotProject } from '../../engine/lifecycle.ts'
 import {
   partitionCacheDir,
   partitionGroup,
@@ -302,20 +298,14 @@ export function tia(options: TiaOptions = {}): Plugin {
               current.partition === null
                 ? current.options.cacheDir
                 : partitionCacheDir(current.options.cacheDir, current.partition)
-            const providers = current.options.artifactProviders
+            const restore = yield* artifactRestore(
+              current.options.artifacts,
+              current.options.log,
+              current.options.artifactTrust,
+            )
             return yield* beginRun({
               cacheDir: current.options.cacheDir,
-              ...(providers.length === 0
-                ? {}
-                : {
-                    restore: (request: RestoreRequest) =>
-                      restoreGraph({
-                        ...request,
-                        log: current.options.log,
-                        providers,
-                        trust: current.options.artifactTrust,
-                      }),
-                  }),
+              ...(restore === undefined ? {} : { restore }),
               coverageRequested: current.coverage.enabled,
               fingerprint,
               ignoredPrefixes: current.ignoredPrefixes,

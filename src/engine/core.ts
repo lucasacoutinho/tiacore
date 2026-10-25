@@ -9,7 +9,6 @@ import {
 } from '../core/defaults.ts'
 import { freshRequested } from '../core/env.ts'
 import type {
-  TiaArtifactProvider,
   TiaArtifactSource,
   TiaArtifactTrustPolicy,
 } from '../core/artifacts.ts'
@@ -33,9 +32,8 @@ import {
   projectUnchanged,
   snapshotProject,
   type ProjectSnapshot,
-  type RestoreRequest,
 } from './lifecycle.ts'
-import { artifactProviders, restoreGraph } from './artifacts/restore.ts'
+import { artifactRestore } from './artifacts/restore-step.ts'
 import { EngineLive } from './layers.ts'
 import { GraphStore } from './ports.ts'
 import {
@@ -77,7 +75,7 @@ export interface TiaObservation {
 
 export interface TiaCoreEngineOptions
   extends FingerprintOptions, RuntimePlanOptions {
-  readonly artifactProviders: readonly TiaArtifactProvider[]
+  readonly artifacts: readonly TiaArtifactSource[]
   readonly artifactTrust: TiaArtifactTrustPolicy
   readonly cacheDir: string
   readonly log: boolean
@@ -89,7 +87,12 @@ function normalizedOptions(
   options: TiaCoreOptions,
 ): TiaCoreEngineOptions {
   return {
-    artifactProviders: artifactProviders(options.artifacts),
+    artifacts:
+      options.artifacts === undefined
+        ? []
+        : Array.isArray(options.artifacts)
+          ? options.artifacts
+          : [options.artifacts],
     artifactTrust: options.artifactTrust ?? {},
     cacheDir: resolveCacheDir(root, options.cacheDir ?? DEFAULT_CACHE_DIR),
     exclude: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
@@ -156,20 +159,14 @@ export class TiaCore {
         ignoredPrefixes,
         fingerprint,
       )
-      const providers = this.options.artifactProviders
+      const restore = yield* artifactRestore(
+        this.options.artifacts,
+        this.options.log,
+        this.options.artifactTrust,
+      )
       const begun = yield* beginRun({
         cacheDir: this.cacheDir,
-        ...(providers.length === 0
-          ? {}
-          : {
-              restore: (request: RestoreRequest) =>
-                restoreGraph({
-                  ...request,
-                  log: this.options.log,
-                  providers: [...providers],
-                  trust: this.options.artifactTrust,
-                }),
-            }),
+        ...(restore === undefined ? {} : { restore }),
         fingerprint,
         ignoredPrefixes,
         options: this.options,

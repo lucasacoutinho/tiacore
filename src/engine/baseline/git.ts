@@ -63,12 +63,26 @@ export function makeGit(
       ),
     )
 
+  // A directory's repository top does not change while tiacore runs, and
+  // capture and change detection both ask for it, so it is asked once.
+  const topLevels = new Map<string, Effect.Effect<string | null>>()
+  const repositoryTop = (root: string) => {
+    let top = topLevels.get(root)
+    if (top === undefined) {
+      top = Effect.runSync(
+        Effect.cached(text(root, ['rev-parse', '--show-toplevel'])),
+      )
+      topLevels.set(root, top)
+    }
+    return top
+  }
+
   /** Listings run at the repository top and come back relative to `root`. */
   const repositoryPaths = Effect.fnUntraced(function* (
     root: string,
     args: readonly string[],
   ) {
-    const repositoryRoot = yield* text(root, ['rev-parse', '--show-toplevel'])
+    const repositoryRoot = yield* repositoryTop(root)
     if (repositoryRoot === null) return null
     const listed = yield* paths(repositoryRoot, args)
     return (
