@@ -1,6 +1,7 @@
 import * as Cause from 'effect/Cause'
 import type * as DevToolsSchema from 'effect/devtools/DevToolsSchema'
 import * as Exit from 'effect/Exit'
+import * as Match from 'effect/Match'
 
 /**
  * What `tiacore devtools` knows about the spans and metrics its clients sent.
@@ -76,23 +77,29 @@ function statusOf(exit: Exit.Exit<unknown, unknown>): SlowSpan['status'] {
   return Exit.hasInterrupts(exit) ? 'interrupted' : 'failure'
 }
 
+function distribution(state: {
+  readonly count: number
+  readonly max: number
+  readonly min: number
+  readonly sum: number
+}): string {
+  const mean = state.count === 0 ? 0 : state.sum / state.count
+  return `n=${state.count} mean=${mean.toFixed(2)} min=${state.min} max=${state.max}`
+}
+
 function metricValue(metric: DevToolsSchema.Metric): string {
-  switch (metric.type) {
-    case 'Counter':
-      return String(metric.state.count)
-    case 'Gauge':
-      return String(metric.state.value)
-    case 'Frequency':
-      return [...metric.state.occurrences]
-        .map(([key, count]) => `${key}=${count}`)
-        .join(' ')
-    case 'Histogram':
-    case 'Summary': {
-      const { count, max, min, sum } = metric.state
-      const mean = count === 0 ? 0 : sum / count
-      return `n=${count} mean=${mean.toFixed(2)} min=${min} max=${max}`
-    }
-  }
+  return Match.value(metric).pipe(
+    Match.discriminatorsExhaustive('type')({
+      Counter: ({ state }) => String(state.count),
+      Frequency: ({ state }) =>
+        [...state.occurrences]
+          .map(([key, count]) => `${key}=${count}`)
+          .join(' '),
+      Gauge: ({ state }) => String(state.value),
+      Histogram: ({ state }) => distribution(state),
+      Summary: ({ state }) => distribution(state),
+    }),
+  )
 }
 
 function attributeText(
@@ -137,16 +144,11 @@ export class SpanBook {
 
   ingest(client: number, request: DevToolsSchema.Request.WithoutPing): void {
     this.revision += 1
-    switch (request._tag) {
-      case 'Span':
-        this.ingestSpan(client, request)
-        return
-      case 'MetricsSnapshot':
-        this.ingestMetrics(request)
-        return
-      case 'SpanEvent':
-        return
-    }
+    Match.valueTags(request, {
+      MetricsSnapshot: (snapshot) => this.ingestMetrics(snapshot),
+      Span: (span) => this.ingestSpan(client, span),
+      SpanEvent: () => {},
+    })
   }
 
   summary(): SpanSummary {

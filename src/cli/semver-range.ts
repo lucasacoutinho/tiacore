@@ -1,3 +1,5 @@
+import * as Match from 'effect/Match'
+
 type Triple = readonly [number, number, number]
 
 const VERSION_PATTERN = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+].*)?$/u
@@ -33,23 +35,21 @@ function satisfiesComparator(
   const operator = match?.[1] ?? '='
   const target = parseVersion(match?.[2] ?? '')
   if (target === null) return null
-  switch (operator) {
-    case '>=':
-      return compare(version, target) >= 0
-    case '>':
-      return compare(version, target) > 0
-    case '<=':
-      return compare(version, target) <= 0
-    case '<':
-      return compare(version, target) < 0
-    case '^':
-    case '~': {
-      const [low, high] = bounds(operator, target)
-      return compare(version, low) >= 0 && compare(version, high) < 0
-    }
-    default:
-      return compare(version, target) === 0
-  }
+  const order = compare(version, target)
+  return Match.value(operator).pipe(
+    Match.when('>=', () => order >= 0),
+    Match.when('>', () => order > 0),
+    Match.when('<=', () => order <= 0),
+    Match.when('<', () => order < 0),
+    Match.when(
+      (value) => value === '^' || value === '~',
+      (value) => {
+        const [low, high] = bounds(value, target)
+        return compare(version, low) >= 0 && compare(version, high) < 0
+      },
+    ),
+    Match.orElse(() => order === 0),
+  )
 }
 
 /**

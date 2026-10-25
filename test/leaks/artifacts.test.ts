@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { afterAll, describe, expect, test } from 'vitest'
 
-import { tia } from '../../src/engine/artifacts/publish.ts'
+import { tia } from '../../src/engine/artifacts/publisher.ts'
 import { disposeHost } from '../../src/host/runtime.ts'
 import { assertNoLeak } from '../support/leak.ts'
 import {
