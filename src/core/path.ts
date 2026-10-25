@@ -38,8 +38,33 @@ function hasScheme(segment: string): boolean {
   return true
 }
 
+/** True when every segment is a real name, so normalization returns the input. */
+function isCanonical(value: string): boolean {
+  let segmentStart = 0
+  for (let index = 0; index <= value.length; index += 1) {
+    const code = index === value.length ? 47 : value.charCodeAt(index)
+    if (code === 92 || code === 0) return false
+    if (code !== 47) continue
+    const length = index - segmentStart
+    if (length === 0) return false
+    if (value.charCodeAt(segmentStart) === 46) {
+      if (length === 1) return false
+      if (length === 2 && value.charCodeAt(segmentStart + 1) === 46)
+        return false
+    }
+    segmentStart = index + 1
+  }
+  return true
+}
+
 /** Normalizes a project-relative path to `/`-separated canonical form. */
 export function normalizePath(value: string): NormalizedPath {
+  if (value.length <= MAX_PATH_LENGTH && isCanonical(value)) {
+    const slash = value.indexOf('/')
+    if (!hasScheme(slash === -1 ? value : value.slice(0, slash))) {
+      return { _tag: 'Accepted', path: value }
+    }
+  }
   if (value.includes('\0')) return { _tag: 'Rejected', reason: 'nul' }
   if (value.length > MAX_PATH_LENGTH) {
     return { _tag: 'Rejected', reason: 'too-long' }

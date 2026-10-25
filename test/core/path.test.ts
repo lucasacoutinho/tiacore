@@ -26,9 +26,15 @@ function accepted(value: string): string | undefined {
   return result._tag === 'Accepted' ? result.path : undefined
 }
 
-// 1.x keeps trailing slashes, so `x/../` became `./` and passed its root check.
-// 2.0 drops trailing slashes and rejects that path as naming the root.
+// Two 1.x defects are excluded from the comparison:
+// - it kept trailing slashes, so `x/../` became `./` and passed its root check;
+//   2.0 rejects that path as naming the root;
+// - it stripped a leading `./` before normalizing, so `.//src` became `/src`
+//   and was rejected as absolute; 2.0 accepts it as `src`.
+const strippedToAbsolute = /^(?:\.[/\\])+[/\\]/u
+
 function legacyAccepted(value: string): string | undefined {
+  if (strippedToAbsolute.test(value)) return accepted(value)
   let path
   try {
     path = normalizeProtocolPath(value)
@@ -39,7 +45,26 @@ function legacyAccepted(value: string): string | undefined {
   return trimmed === '.' ? undefined : trimmed
 }
 
+const segments = ['', '.', '..', 'src', 'c:', '...']
+const separators = ['/', '\\']
+
+function* allPaths(prefix: string, depth: number): Generator<string> {
+  yield prefix
+  if (depth === 0) return
+  for (const name of segments) {
+    for (const slash of separators)
+      yield* allPaths(`${prefix}${name}${slash}`, depth - 1)
+  }
+}
+
 describe('normalizePath', () => {
+  it('agrees with 1.x on every path of up to three segments', () => {
+    const disagreements = [...allPaths('', 3)].filter(
+      (value) => accepted(value) !== legacyAccepted(value),
+    )
+    expect(disagreements).toEqual([])
+  })
+
   it.each([
     ['src/a.ts', 'src/a.ts'],
     ['./src//./a.ts', 'src/a.ts'],
