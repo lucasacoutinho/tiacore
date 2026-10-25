@@ -19,7 +19,6 @@
   "./conformance executeAdapterCertification",
   "./conformance parseAdapterCertificationReceipt",
   "./core TiaCore",
-  "./core formatRunPlanDetails",
   "./gradle TiaGradleRunner",
   "./gradle createGradleGraph",
   "./gradle discoverGradleSuites",
@@ -50,6 +49,5 @@
   "./vitest default",
   "./vitest tia",
   "./workspace TiaWorkspaceRunner",
-  "./workspace tia",
-  "bin runCli"
+  "./workspace tia"
 ]

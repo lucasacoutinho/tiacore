@@ -65,8 +65,12 @@ Effect and `node:` out of `core` and `probe`. Keep files under 800 lines.
   `parseRuntimeGraph` (a type guard, no copy) after reading.
 - Order every collection with `byCodeUnit` / `sortByKey` from
   `src/core/canonical.ts`. Never use `localeCompare`.
-- Normalize paths with `normalizePath` (`src/core/path.ts`). Match globs with
-  `globMatcher` (`src/engine/glob.ts`), the single glob dialect.
+- Normalize paths with `normalizePath` (`src/core/path.ts`). Match changed
+  paths, invalidators and ignore lists with `globMatcher`
+  (`src/engine/glob.ts`). Three 1.x dialects stay as they were, each pinned by a
+  test: coverage threshold globs and subprocess edge `tests` use picomatch
+  defaults (no dot files), and coverage include/exclude uses
+  `{ contains: true, dot: true }`.
 
 ## Tests
 

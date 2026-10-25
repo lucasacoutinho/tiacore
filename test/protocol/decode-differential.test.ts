@@ -61,24 +61,35 @@ const graph = Arbitrary.all({
   })),
 )
 
+// Sorts object keys and array items so that only content is compared: 1.x
+// sorts with localeCompare and builds objects in a different key order.
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value
+      .map(canonical)
+      .sort((left, right) =>
+        JSON.stringify(left) < JSON.stringify(right) ? -1 : 1,
+      )
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [
+          key,
+          canonical((value as Record<string, unknown>)[key]),
+        ]),
+    )
+  }
+  return value
+}
+
 function outcome(parse: (value: unknown) => unknown, value: unknown): unknown {
-  let parsed: unknown
   try {
-    parsed = parse(value)
+    return canonical(parse(value))
   } catch {
     return 'rejected'
   }
-  // 1.x sorts with localeCompare and 2.0 with code units; compare as sets.
-  return JSON.parse(
-    JSON.stringify(parsed, (_key, entry: unknown) =>
-      Array.isArray(entry)
-        ? entry
-            .map((item) => JSON.stringify(item))
-            .sort()
-            .map((item) => JSON.parse(item))
-        : entry,
-    ),
-  )
 }
 
 describe('parseImpactGraph', () => {
