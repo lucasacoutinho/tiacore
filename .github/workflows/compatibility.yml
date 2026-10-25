@@ -69,6 +69,12 @@ jobs:
           - node: 24
             vite: 8.3.5
             vitest: 4.1.12
+          - node: 22.12.0
+            vite: 7.3.6
+            vitest: 5.0.5
+          - node: 24
+            vite: 8.3.5
+            vitest: 5.0.5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -147,6 +153,11 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npx vitest run test/integration/vitest/playwright.integration.test.ts
+      - run: >-
+          npx vitest run test/integration/vitest/fixture.integration.test.ts -t "selects one Browser Mode case"
+      - run: npm install --no-save --legacy-peer-deps vitest@5.0.5 @vitest/coverage-v8@5.0.5 @vitest/browser-playwright@5.0.5 @testing-library/dom@10.4.2
       - run: npm run build
       - run: npx vitest run test/integration/vitest/playwright.integration.test.ts
       - run: >-

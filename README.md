@@ -97,8 +97,9 @@ minor releases, but it is never treated as portable application data.
 | pytest       | `sdks/python`                        | Test files and transitive local imports                                 |
 | Go           | `sdks/go`                            | Test and compile-only packages from the local package graph             |
 
-Vitest 4.1 and Node.js 20 or newer are required for the main package. The
-standalone Node adapter requires Node.js 22.10 or newer. See the
+Vitest 4.1 or 5 and Node.js 20 or newer are required for the main package.
+Vitest 5 itself requires Node.js 22.12 or newer. The standalone Node adapter
+requires Node.js 22.10 or newer. See the
 [compatibility contract](docs/architecture/capability-contract.md) for adapter
 claims and certification levels.
 

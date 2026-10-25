@@ -5,6 +5,21 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Added
+
+- Supported Vitest 5 alongside Vitest 4.1. The `vitest` peer range is now
+  `>=4.1.0 <6.0.0`.
+
+### Changed
+
+- With Vitest 5, the plugin turns off `fsModuleCache` and `sharedViteServer`
+  unless the configuration sets them. A cached transform skips tiacore's
+  coverage instrumentation, and a shared Vite server skips the plugin's
+  per-project setup. An explicit `fsModuleCache: true` still fails safe to a
+  full run, as before.
+- Updated runtime dependencies within their ranges, including
+  `es-module-lexer` 3.
+
 ## 1.2.0 - Unreleased
 
 ### Breaking changes

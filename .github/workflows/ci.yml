@@ -34,6 +34,29 @@ jobs:
       - run: npm run check
       - run: npm run check:go
 
+  vitest-5:
+    name: Vitest 5 / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22.12.0
+          - 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: npm
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      # archer 0.2.1 declares vitest <5, so the swap ignores peer ranges and
+      # restores the peer that npm ci installed for @testing-library/react.
+      - run: npm install --no-save --legacy-peer-deps vitest@5.0.5 @vitest/coverage-v8@5.0.5 @vitest/browser-playwright@5.0.5 @testing-library/dom@10.4.2
+      - run: npx vitest --version
+      - run: npx tsc -p tsconfig.build.json --noEmit
+      - run: npm test
+
   shard:
     runs-on: ubuntu-latest
     strategy:

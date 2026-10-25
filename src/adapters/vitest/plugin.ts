@@ -511,6 +511,15 @@ export function tia(options: TiaOptions = {}): Plugin {
       }
       const setupProxy = ensureSetupProxy(root, normalized.cacheDir, setupPath)
       config.test ??= {}
+      // Vitest 5 enables both by default. A cached transform skips tiacore's
+      // instrumentation, and a shared Vite server skips this hook for inline
+      // projects. Vitest 4 ignores the unknown keys.
+      if (!('fsModuleCache' in config.test)) {
+        Object.assign(config.test, { fsModuleCache: false })
+      }
+      if (!('sharedViteServer' in config.test)) {
+        Object.assign(config.test, { sharedViteServer: false })
+      }
       const setupFiles = normalizeSetupFiles(config.test.setupFiles)
       if (!setupFiles.includes(setupProxy)) {
         config.test.setupFiles = [...setupFiles, setupProxy]

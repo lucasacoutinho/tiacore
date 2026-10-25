@@ -9,7 +9,9 @@ import { tia } from '../../../src/adapters/vitest/plugin.js'
 interface TestConfig {
   root?: string
   test?: {
+    fsModuleCache?: boolean
     setupFiles?: string | string[]
+    sharedViteServer?: boolean
   }
 }
 
@@ -74,6 +76,31 @@ describe('plugin composition and bypasses', () => {
     instance.config?.(config)
 
     expect(config.test?.setupFiles).toBe('./test/setup.ts')
+  })
+
+  test('turns off Vitest 5 module caching and shared Vite servers by default', () => {
+    const config: TestConfig = { root: temporaryRoot() }
+
+    plugin().config?.(config)
+
+    expect(config.test).toMatchObject({
+      fsModuleCache: false,
+      sharedViteServer: false,
+    })
+  })
+
+  test('keeps explicit module cache and shared Vite server settings', () => {
+    const config: TestConfig = {
+      root: temporaryRoot(),
+      test: { fsModuleCache: true, sharedViteServer: true },
+    }
+
+    plugin().config?.(config)
+
+    expect(config.test).toMatchObject({
+      fsModuleCache: true,
+      sharedViteServer: true,
+    })
   })
 
   test('appends its setup module to an existing string setup file', () => {

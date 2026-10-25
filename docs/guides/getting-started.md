@@ -7,7 +7,7 @@ command again to verify replay before adding CI restoration.
 ## Requirements
 
 - The npm package requires Node.js 20 or newer.
-- Vitest requires version 4.1 or newer.
+- Vitest requires version 4.1 or 5. Vitest 5 requires Node.js 22.12 or newer.
 - The standalone `node:test` adapter requires Node.js 22.10 or newer. Node 22.15
   and newer provides precise non-executing discovery.
 - Playwright requires version 1.46 or newer.
