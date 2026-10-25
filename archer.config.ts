@@ -10,7 +10,7 @@ const allowed: Record<string, readonly string[]> = {
   evidence: [],
   host: ['core', 'wire'],
   probe: ['core'],
-  runners: ['core', 'wire', 'host', 'probe', 'engine'],
+  runners: ['core', 'wire', 'host', 'probe', 'engine', 'evidence'],
   wire: ['core'],
 }
 const present = Object.keys(allowed).filter((layer) =>
