@@ -89,23 +89,28 @@ describe('protocol scale against 1.x', async () => {
     expect(createImpactPlan(input)).toEqual(old.createImpactPlan(input))
   })
 
-  // ADR 0004 budget: protocol-scale planning is no slower than 1.x. The two
-  // planners run interleaved so machine load hits both; the best of five runs
-  // each, with 50% headroom for noise.
+  // Budget: protocol-scale planning is no slower than 1.x, with 50% headroom.
+  // Each round times both planners back to back, so a load spike hits both
+  // sides of one pair; the median ratio over the rounds ignores outliers.
   test(
     'plans a monorepo-scale graph no slower than the 1.x planner',
     { timeout: 60_000 },
     () => {
-      const best = { current: Infinity, legacy: Infinity }
-      for (let round = 0; round < 5; round += 1) {
+      const ratios: number[] = []
+      for (let round = 0; round < 7; round += 1) {
         let started = performance.now()
         old.createImpactPlan(input)
-        best.legacy = Math.min(best.legacy, performance.now() - started)
+        const legacyMs = performance.now() - started
         started = performance.now()
         createImpactPlan(input)
-        best.current = Math.min(best.current, performance.now() - started)
+        ratios.push((performance.now() - started) / legacyMs)
       }
-      expect(best.current).toBeLessThan(best.legacy * 1.5)
+      expect(median(ratios)).toBeLessThan(1.5)
     },
   )
 })
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((left, right) => left - right)
+  return sorted[Math.floor(sorted.length / 2)] ?? Number.NaN
+}
