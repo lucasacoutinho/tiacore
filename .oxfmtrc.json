@@ -7,7 +7,8 @@
     "dist/**",
     "proofs/.lake/**",
     "sdks/python/dist/**",
-    "conformance/selection/v1/vectors.json"
+    "conformance/selection/v1/vectors.json",
+    "conformance/protocol/v1/generated-plans.json"
   ],
   "printWidth": 80,
   "proseWrap": "always",
