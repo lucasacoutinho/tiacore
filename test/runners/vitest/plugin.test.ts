@@ -149,7 +149,7 @@ describe('plugin composition and bypasses', () => {
     instance.config?.(config)
 
     const setupFiles = config.test?.setupFiles
-    const registered = Array.isArray(setupFiles) ? setupFiles[0] : ''
+    const registered = Array.isArray(setupFiles) ? (setupFiles[0] ?? '') : ''
     expect(registered).toMatch(/\.tia\/runtime\/setup-.*\.mjs$/)
     expect(existsSync(registered)).toBe(true)
     expect(readdirSync(runtime).sort()).toEqual(
