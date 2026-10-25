@@ -1,7 +1,9 @@
 // Implements proofs/Tia/Window.lean. `sync` is `Cov.delta boundary snap` followed
 // by `boundary := snap`; it charges the delta to the test window that is open,
 // or to collection when none is, so `conservation` holds for sequential traces:
-// collection plus the sum of the test deltas equals the whole delta.
+// collection plus the sum of the test deltas equals the whole delta. Work that
+// a finished test left running (`leftover`) is the `Ev.leftover` event: its delta
+// goes to collection, never to the window it happens to run in.
 //
 // Copying every counter of every file into fresh objects several times for
 // each window costs about 4.7 ms a copy on 300 files x 560 counters. The
@@ -20,6 +22,14 @@ import type {
   ProbeModuleWindow,
   ProbeTestWindow,
 } from './types.ts'
+
+/**
+ * Each `leftover` step costs two passes over every counter. A fiber that keeps
+ * waking through many windows would make that cost grow without bound, so a
+ * module separates this many steps and charges later ones like ordinary work.
+ * That is the attribution the module had without `leftover`, so it stays sound.
+ */
+const MAX_LEFTOVER_STEPS = 1000
 
 /** Istanbul numbers its counters, so integer keys index its objects directly. */
 type CounterKey = number | string
@@ -228,6 +238,9 @@ class Ledger implements CoverageProbe {
   private whole: Accumulator = new Map()
   private concurrent = false
   private epoch = 0
+  /** Whether `leftover` work is running now; its counters belong to collection. */
+  private leftoverRunning = false
+  private leftoverSteps = 0
 
   constructor(source: ProbeCoverageSource) {
     this.source = source
@@ -252,6 +265,25 @@ class Ledger implements CoverageProbe {
     this.sync(true)
   }
 
+  leftover<T>(owner: string, body: () => T): T {
+    if (this.leftoverRunning || this.open.size === 0 || this.open.has(owner)) {
+      return body()
+    }
+    if (this.leftoverSteps >= MAX_LEFTOVER_STEPS) return body()
+    this.leftoverSteps += 1
+    this.sync(true)
+    this.leftoverRunning = true
+    try {
+      return body()
+    } finally {
+      try {
+        this.sync(true)
+      } finally {
+        this.leftoverRunning = false
+      }
+    }
+  }
+
   closeModule(): ProbeModuleWindow {
     this.sync(true)
     const concurrent = this.concurrent
@@ -261,6 +293,7 @@ class Ledger implements CoverageProbe {
     this.whole = new Map()
     this.open.clear()
     this.concurrent = false
+    this.leftoverSteps = 0
     return {
       collectionCoverage: collection.coverage,
       collectionFiles: collection.files,
@@ -308,7 +341,7 @@ class Ledger implements CoverageProbe {
 
   private chargeAdvance(ledger: FileLedger, advanced: Float64Array): void {
     charge(this.whole, ledger, advanced)
-    if (this.open.size === 0) {
+    if (this.open.size === 0 || this.leftoverRunning) {
       charge(this.collection, ledger, advanced)
       return
     }

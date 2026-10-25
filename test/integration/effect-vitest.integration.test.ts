@@ -33,8 +33,10 @@ import {
 // resource, it.prop, layer() in each of its forms and detached fibers. The
 // fixture gives every test its own source modules, so a source edit has one
 // expected selection. Tiacore attributes coverage to the test whose window is
-// open when code runs (hook markers, src/runners/vitest/setup.ts); these tests
-// pin what that means for Effect's runtime.
+// open when code runs (hook markers, src/runners/vitest/setup.ts), except work
+// that a finished test's fiber is still running, which goes to the whole file
+// (src/runners/vitest/leftover.ts); these tests pin what that means for
+// Effect's runtime.
 
 interface Case {
   /** The line the test body appends to executions.log. */
@@ -269,9 +271,10 @@ describe('selection after a source edit', () => {
     // A detached fiber that finishes after the body, between two tests: the
     // coverage belongs to no test, so every test of the file reruns.
     ['src/detached-after.ts', detachedFile],
-    // A detached fiber that finishes while a later test runs: the later test
-    // owns the coverage (see the dedicated test below).
-    ['src/detached-later.ts', ['neighbour']],
+    // A detached fiber that finishes while a later test runs: the forking test
+    // started the work, so the module is collection evidence of the whole file.
+    ['src/detached-later.ts', detachedFile],
+    // What the later test runs itself stays in its window.
     ['src/detached-neighbour.ts', ['neighbour']],
     // A changed test file reruns all of its tests.
     ['test/basic.test.ts', ['effect', 'live', 'scoped', 'prop', 'effectProp']],
@@ -311,15 +314,25 @@ describe('selection after a source edit', () => {
 })
 
 describe('detached fibers', () => {
-  test('attribute late coverage to the window it ran in, not to the forking test', () => {
+  test('charge work a finished test left running to the whole file, not to the test it ran in', () => {
     // The fiber forked by `forker` touched src/detached-later.ts while
-    // `neighbour` was running. The forker's outcome was settled before that,
-    // so only the test that was running can be affected by the code.
-    expect(edgeFiles('neighbour')).toContain('src/detached-later.ts')
-    expect(edgeFiles('forker')).not.toContain('src/detached-later.ts')
-    // Coverage between two windows is collection coverage, shared by the file.
+    // `neighbour` was running. `neighbour` did not start that work, and
+    // `forker` is the test that causes it, so the module is evidence of the
+    // file, like a module that runs between two tests.
     for (const key of detachedFile) {
+      expect(edgeFiles(key)).toContain('src/detached-later.ts')
       expect(edgeFiles(key)).toContain('src/detached-after.ts')
+    }
+    expect(recordedGraph.collectionFiles['test/detached.test.ts']).toEqual(
+      expect.arrayContaining([
+        'src/detached-after.ts',
+        'src/detached-later.ts',
+      ]),
+    )
+    // What the running test calls itself stays in its window.
+    expect(edgeFiles('neighbour')).toContain('src/detached-neighbour.ts')
+    for (const key of detachedFile.filter((other) => other !== 'neighbour')) {
+      expect(edgeFiles(key)).not.toContain('src/detached-neighbour.ts')
     }
     // Inside the window it belongs to the test alone.
     expect(edgeFiles('inside')).toContain('src/detached-inside.ts')
@@ -328,26 +341,22 @@ describe('detached fibers', () => {
     }
   })
 
-  // Known limitation. Replaying the forking test removes the fiber from the
-  // run, so the neighbour no longer touches the module and its new evidence
-  // drops the edge. The module is then unknown to the graph, and the next
-  // edit falls back to a full run. The fallback is sound; the precision is
-  // lost until that run records the fiber again.
-  test('lose a module that only a replayed test spawns until the next full run', () => {
+  // Replaying the forking test removes the fiber from the run. The module the
+  // fiber touched is collection evidence, which a partial run keeps, so it
+  // stays known to the graph and the next edit to it does not run everything.
+  test('keep a module that only a replayed test spawns', () => {
     const root = copyRecorded()
 
-    touch(root, 'src/detached-later.ts')
+    touch(root, 'src/detached-neighbour.ts')
     expect(selection(runSelective(root))).toEqual(selectionOf(['neighbour']))
     resetExecutions(root)
 
     touch(root, 'src/detached-later.ts')
     const rerun = runSelective(root)
 
-    expect(rerun.plan.mode).toBe('record')
-    expect(rerun.plan.reason).toContain(
-      'changed file is unknown to the graph: src/detached-later.ts',
-    )
-    expect(selection(rerun)).toEqual(selectionOf(everyCase))
+    expect(rerun.plan.mode).toBe('replay')
+    expect(rerun.plan.reason).not.toContain('unknown to the graph')
+    expect(selection(rerun)).toEqual(selectionOf(detachedFile))
   })
 })
 
@@ -452,6 +461,16 @@ describe('tiacore verify', () => {
         'src/detached-after.ts',
       ],
       ['live', 'scoped', 'prop', 'effectProp', ...detachedFile],
+    ],
+    [
+      'the module of a detached fiber that finishes during a later test',
+      ['src/detached-later.ts'],
+      detachedFile,
+    ],
+    [
+      'only the later test, which replays the forking test',
+      ['src/detached-neighbour.ts'],
+      ['neighbour'],
     ],
   ]
 

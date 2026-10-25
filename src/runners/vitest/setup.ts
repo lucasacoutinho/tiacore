@@ -12,6 +12,11 @@
 // shares. When hooks run in parallel the body cannot be bounded, and the
 // module is recorded in concurrent mode: its tests fall back to whole-file
 // selection.
+//
+// A detached Effect fiber can outlive the test that forked it and run during a
+// later test. The later test did not cause that work, so ./leftover.ts routes
+// its counters to collection (every test of the module shares them) instead
+// of the later test's window.
 import type {} from './augmentations.ts'
 
 import {
@@ -26,6 +31,7 @@ import {
 
 import { installProbe } from '../../probe/ledger.ts'
 import type { ProbeCoverageMap, ProbeTestWindow } from '../../probe/types.ts'
+import { trackLeftoverWork } from './leftover.ts'
 import {
   TIA_META_KEY,
   TIA_REPLAY_META_KEY,
@@ -47,6 +53,8 @@ function providedSelection(): TiaTestSelection {
     return { hooks: 'stack', mode: 'all', testIds: [], wholeTestFiles: [] }
   }
 }
+
+const leftover = trackLeftoverWork(probe)
 
 const selection = providedSelection()
 const selectedIds = new Set(selection.testIds)
@@ -107,7 +115,9 @@ aroundEach(async (runTest, context) => {
   const concurrent = context.task.concurrent === true || !boundedHooks
   if (concurrent) probe.beginTest(context.task.id, true)
   try {
-    await runTest()
+    await (leftover === undefined
+      ? runTest()
+      : leftover.run(context.task.id, runTest))
   } finally {
     const window = concurrent
       ? probe.endTest(context.task.id)

@@ -45,9 +45,9 @@ export interface ProbeTestWindow {
 
 export interface ProbeModuleWindow {
   /**
-   * Counters advanced outside test bodies. A module that ran tests
-   * concurrently cannot split them, so it reports every counter the module
-   * advanced.
+   * Counters advanced outside test bodies, and by work a finished test left
+   * running (`CoverageProbe.leftover`). A module that ran tests concurrently
+   * cannot split them, so it reports every counter the module advanced.
    */
   collectionCoverage: ProbeCounterMap
   collectionFiles: string[]
@@ -67,6 +67,15 @@ export interface CoverageProbe {
   endTest(id: string): ProbeTestWindow
   /** Charges everything since the last boundary to collection. */
   gap(): void
+  /**
+   * Runs `body`, a synchronous step of work the test `owner` started and left
+   * running, such as a detached fiber. Another test's window may be open while
+   * it runs, but the open test did not cause it. The counters `body` advances
+   * go to collection, which every test of the module shares, and not to the
+   * open windows. Outside any window, or inside the owner's own window, `body`
+   * is charged as usual.
+   */
+  leftover<T>(owner: string, body: () => T): T
   /** Takes the final gap, returns the module's windows and starts afresh. */
   closeModule(): ProbeModuleWindow
 }

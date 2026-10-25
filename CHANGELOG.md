@@ -152,6 +152,14 @@ Effect package and write no Effect code, and no public type mentions Effect. The
 - With `@effect/vitest`, coverage of a layer's construction and finalizers
   belongs to every test of the file, so editing a module a layer uses selects
   them all.
+- With `@effect/vitest`, a detached fiber (`Effect.forkDetach`) that finishes
+  while a later test runs is no longer charged to that test. The modules it
+  touches belong to the whole test file, so editing one selects every test of
+  the file. A run that replays the forking test keeps that evidence, so the
+  module stays known to the graph and `tiacore verify` agrees between its
+  phases. Tiacore finds the forking test through the async context Effect 4
+  keeps for each fiber, on Node.js. Work that is not an Effect fiber, such as a
+  timer callback, is still charged to the test that is running.
 - The Python and Go SDKs reproduce every protocol vector and share the
   TypeScript planner's reasons, check order and glob subset. They also fix
   `build` and `dist` paths, root-level packages and the `dependsOn` closure.

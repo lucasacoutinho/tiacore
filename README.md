@@ -148,9 +148,10 @@ attestation by default.
   Node, Bun, Playwright, and TypeScript adapter runners do. k6, Gradle, Maestro,
   and the Python and Go SDKs plan impact graphs but run no tests, so a
   verification that reaches only them fails with `snapshot-invalid`.
-- With `@effect/vitest`, a detached fiber that finishes during a later test gets
-  that test's coverage. `tiacore verify` then reports different evidence when
-  the first test is replayed. See
+- Work that a test leaves running outside an Effect fiber, such as a timer
+  callback, gets charged to the later test that is running when it executes.
+  `tiacore verify` then reports different evidence when the first test is
+  replayed. Detached `@effect/vitest` fibers are handled; see
   [Testing with `@effect/vitest`](docs/guides/getting-started.md#testing-with-effectvitest).
 - Interrupting a run of external suites (k6, Gradle, Maestro) from code stops
   the suite process but can leave its children running. Ctrl-C in a terminal

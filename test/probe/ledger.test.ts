@@ -24,11 +24,17 @@ const increment = Arbitrary.schema(
 )
 const incrementList = Arbitrary.array(increment, { maxLength: 6 })
 
-/** One step of a sequential module: some hits, then a gap or a test body. */
+/**
+ * One step of a sequential module: some hits, then a gap or a test body. The
+ * body is split around `late`, hits that work a finished test left running
+ * advances (`Ev.leftover`): they never belong to the window they interrupt.
+ */
 const step = Arbitrary.all({
+  after: incrementList,
   before: incrementList,
   body: incrementList,
   kind: Arbitrary.schema(Schema.Literals(['gap', 'test'])),
+  late: incrementList,
 })
 const trace = Arbitrary.array(step, { maxLength: 12 })
 
@@ -41,7 +47,13 @@ const apply = (world: World, list: readonly Increment[]) => {
 
 /** `Acc.step` of proofs/Tia/Window.lean over dense snapshots. */
 function reference(
-  steps: readonly { before: Increment[]; body: Increment[]; kind: string }[],
+  steps: readonly {
+    after: Increment[]
+    before: Increment[]
+    body: Increment[]
+    kind: string
+    late: Increment[]
+  }[],
 ) {
   const world = new World()
   const start = world.dense()
@@ -56,10 +68,19 @@ function reference(
         addInto(collection, deltaOf(boundary, gap))
         boundary = gap
         apply(world, item.body)
+        const body = world.dense()
+        const own = deltaOf(boundary, body)
+        boundary = body
+        apply(world, item.late)
+        const late = world.dense()
+        addInto(collection, deltaOf(boundary, late))
+        boundary = late
+        apply(world, item.after)
         const after = world.dense()
-        if (item.kind === 'test') tests.push(deltaOf(boundary, after))
-        else addInto(collection, deltaOf(boundary, after))
+        addInto(own, deltaOf(boundary, after))
         boundary = after
+        if (item.kind === 'test') tests.push(own)
+        else addInto(collection, own)
       }
       return { collection, final: boundary, start, tests, world }
     },
@@ -84,10 +105,14 @@ describe('coverage ledger', () => {
           apply(live, item.before)
           if (item.kind === 'gap') {
             apply(live, item.body)
+            probe.leftover('finished', () => apply(live, item.late))
+            apply(live, item.after)
             probe.gap()
           } else {
             probe.beginTest(`t${index}`)
             apply(live, item.body)
+            probe.leftover('finished', () => apply(live, item.late))
+            apply(live, item.after)
             ledgerTests.push(probe.endTest(`t${index}`))
           }
         })
@@ -96,7 +121,8 @@ describe('coverage ledger', () => {
       const expected = driven.run()
       const module = probe.closeModule()
 
-      // Per-window attribution (body_window): each test sees only its window.
+      // Per-window attribution (body_window, window_split_by_leftover): each
+      // test sees its own steps, not the leftover work that ran inside it.
       const expectedTests = expected.tests.map((delta) =>
         formatDelta(delta, hashes(expected.world)),
       )
@@ -282,5 +308,134 @@ describe('coverage ledger edges', () => {
     world.apply({ by: 1, file: 0, kind: 's', path: 0, slot: 0 })
     expect(probe.closeModule().files).toEqual(['/project/src/file0.ts'])
     expect(probe.closeModule().files).toEqual([])
+  })
+})
+
+const hit = (file: number): Increment => ({
+  by: 1,
+  file,
+  kind: 's',
+  path: 0,
+  slot: 0,
+})
+
+describe('leftover work', () => {
+  it('returns what the body returns and charges the open window as usual for its owner', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.beginTest('a')
+    const result = probe.leftover('a', () => {
+      world.apply(hit(0))
+      return 'done'
+    })
+    const window = probe.endTest('a')
+
+    expect(result).toBe('done')
+    expect(window.files).toEqual([World.pathOf(0)])
+    expect(probe.closeModule().collectionFiles).toEqual([])
+  })
+
+  it('charges work of another test to collection while a window is open', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.beginTest('b')
+    world.apply(hit(1))
+    probe.leftover('a', () => world.apply(hit(0)))
+    world.apply(hit(2))
+    const window = probe.endTest('b')
+    const module = probe.closeModule()
+
+    expect(window.files).toEqual([World.pathOf(1), World.pathOf(2)])
+    expect(module.collectionFiles).toEqual([World.pathOf(0)])
+    expect(module.files).toEqual([
+      World.pathOf(0),
+      World.pathOf(1),
+      World.pathOf(2),
+    ])
+  })
+
+  it('charges work outside every window to collection, as a gap does', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.leftover('a', () => world.apply(hit(0)))
+    probe.beginTest('b')
+
+    expect(probe.endTest('b').files).toEqual([])
+    expect(probe.closeModule().collectionFiles).toEqual([World.pathOf(0)])
+  })
+
+  it('goes back to charging the window when the body throws', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.beginTest('b')
+    expect(() =>
+      probe.leftover('a', () => {
+        world.apply(hit(0))
+        throw new Error('boom')
+      }),
+    ).toThrow('boom')
+    world.apply(hit(1))
+    const window = probe.endTest('b')
+
+    expect(window.files).toEqual([World.pathOf(1)])
+    expect(probe.closeModule().collectionFiles).toEqual([World.pathOf(0)])
+  })
+
+  it('treats nested leftover work as the outer step', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.beginTest('b')
+    probe.leftover('a', () => {
+      world.apply(hit(0))
+      probe.leftover('c', () => world.apply(hit(1)))
+      world.apply(hit(2))
+    })
+    world.apply(hit(3))
+    const window = probe.endTest('b')
+
+    expect(window.files).toEqual([World.pathOf(3)])
+    expect(probe.closeModule().collectionFiles).toEqual([
+      World.pathOf(0),
+      World.pathOf(1),
+      World.pathOf(2),
+    ])
+  })
+
+  it('reports every counter in concurrent mode, leftover work included', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.beginTest('b', true)
+    probe.beginTest('c', true)
+    probe.leftover('a', () => world.apply(hit(0)))
+    world.apply(hit(1))
+    probe.endTest('b')
+    probe.endTest('c')
+    const module = probe.closeModule()
+
+    expect(module.concurrent).toBe(true)
+    expect(module.collectionFiles).toEqual([World.pathOf(0), World.pathOf(1)])
+  })
+
+  it('stops separating the steps of a fiber that keeps waking', () => {
+    const world = new World()
+    const probe = installProbe(() => world.coverage)
+    probe.beginTest('b')
+    for (let wake = 0; wake < 1000; wake += 1) {
+      probe.leftover('a', () => world.apply(hit(0)))
+    }
+    probe.leftover('a', () => world.apply(hit(1)))
+    const window = probe.endTest('b')
+    const module = probe.closeModule()
+
+    // The 1,001st step is charged like ordinary work, to the open window.
+    expect(window.files).toEqual([World.pathOf(1)])
+    expect(module.collectionFiles).toEqual([World.pathOf(0)])
+    expect(module.concurrent).toBe(false)
+
+    // The next module separates steps again.
+    probe.beginTest('c')
+    probe.leftover('a', () => world.apply(hit(2)))
+    expect(probe.endTest('c').files).toEqual([])
+    expect(probe.closeModule().collectionFiles).toEqual([World.pathOf(2)])
   })
 })

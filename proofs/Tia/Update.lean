@@ -16,6 +16,13 @@ structure FileEvidence where
 def Covered (e : FileEvidence) : Prop :=
   ∀ t ∈ e.tests, ∀ c ∈ e.collection, c ∈ t.2
 
+/-- Work a finished test left running (`Window.lean`'s `Ev.leftover`) is charged to the file's
+collection, not to the test whose window was open. `Covered` still makes it a dependency of that
+test, and of every other test of the file. -/
+theorem leftover_is_dependency_of_every_test (e : FileEvidence) (h : Covered e) (c : Path)
+    (hc : c ∈ e.collection) : ∀ t ∈ e.tests, c ∈ t.2 :=
+  fun t ht => h t ht c hc
+
 /-- A run that executed every test of the file replaces its evidence. -/
 def updateFull (observed : List Path) (executed : List (Key × List Path)) : FileEvidence :=
   { collection := observed

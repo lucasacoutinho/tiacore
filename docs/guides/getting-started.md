@@ -78,13 +78,24 @@ to the whole file: a layer's construction and finalizers, and a fiber that
 finishes between tests. A `layer(L, { concurrent: true })` block selects its
 whole file.
 
-Selection stays safe for every shape. One shape makes `tiacore verify` report
-different evidence between its selective and full phases: a detached fiber
-(`Effect.forkDetach`) that finishes while a later test runs. Its coverage
-belongs to the later test. If the forking test is replayed, the fiber does not
-exist, and the module it touches becomes unknown to the graph. The next edit to
-that module then runs the full suite. To avoid this, finish or interrupt fibers
+A detached fiber (`Effect.forkDetach`) can outlive the test that forked it and
+finish while a later test runs. The later test did not start that work, so
+tiacore does not charge it to that test. The modules the fiber touches become
+evidence of the whole file, like a fiber that finishes between tests: editing
+one of them selects every test of the file, and `tiacore verify` agrees between
+its selective and full phases. What the later test calls itself stays in its own
+window. To keep per-test selection for those modules, finish or interrupt fibers
 before the test body ends.
+
+Tiacore finds the test that started a fiber through the async context that
+Effect 4 keeps for each fiber, so this works on Node.js only. A fiber that no
+test started, such as one a layer forks in a `beforeAll` hook, is charged to the
+test that is running when it executes. Work that is not an Effect fiber, such as
+a timer callback, is charged the same way (see
+[Known limits](../migration/1.x-to-2.0.md#known-limits)). Tiacore separates the
+first 1,000 steps of such fibers in a test file and charges later steps to the
+running test, because separating a step costs two passes over every coverage
+counter.
 
 ## Playwright
 
