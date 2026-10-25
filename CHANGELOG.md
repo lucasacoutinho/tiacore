@@ -3,7 +3,34 @@
 All notable changes to tiacore will be documented here. Published releases
 follow Semantic Versioning.
 
-## Unreleased
+## 2.0.0 - Unreleased
+
+tiacore 2.0 is a rewrite on Effect 4 and TypeScript 7. It keeps every 1.x
+package entry point, export name, CLI flag and exit code, and every versioned
+wire contract (protocol, adapter API, artifact attestation and manifest,
+verification snapshot, verification receipt). Effect is bundled. You install no
+Effect package and write no Effect code, and no public type mentions Effect. The
+[migration guide](docs/migration/1.x-to-2.0.md) says what to change.
+
+### Breaking changes
+
+- Requires Node.js `^22.12.0 || >=24.0.0`. Node.js 20 and 22.0 to 22.11 are no
+  longer supported.
+- The package is ESM only. The CommonJS build and the `main` and `module` fields
+  are gone. `require()` of every entry point works on Node.js 22.12 and newer
+  through Node's `require(esm)`. The entry points are the same, and
+  `./package.json` is now exported too.
+- The local cache has a new layout (graph schema 6, store version 4). 2.0 does
+  not read a 1.x cache and 1.x does not read a 2.0 cache, so the first run after
+  the upgrade is a full run that records a new baseline. Sort order and path
+  normalization changed, so graph digests change once.
+- `tiacore verify` needs `--` before a test command that has options of its own,
+  as in `tiacore verify -- node run.mjs --flag`. Without it, the parser rejects
+  the unknown flag. 1.x forwarded it.
+- `tiacore help <command>` is gone. Use `tiacore <command> --help`. Help and
+  usage-error text changed. Both are outside the CLI contract.
+- A coverage threshold glob that matches no file now fails with an error that
+  names the threshold. 1.x let it pass.
 
 ### Added
 
@@ -11,18 +38,100 @@ follow Semantic Versioning.
   with `TIACORE_DEVTOOLS` and prints a live summary: slowest spans, time by span
   name, failed spans and metrics. It uses Effect's devtools protocol, on
   `ws://localhost:34437` by default.
-- `tiacore doctor` checks the install (Node.js, git, peers, writable
-  directories). `--perf` also times a cold prepare, a commit and a warm prepare
-  on a throwaway git project and ranks the slowest phases. `--json` prints JSON.
-  `doctor --graph` still validates a graph.
-- Three run metrics (`tia_runs_total`, `tia_run_duration_ms`,
-  `tia_heap_used_bytes`) and more stage spans.
-- `docs/observability.md` documents `TIACORE_DEVTOOLS`, `TIACORE_OTLP_URL`,
-  `TIACORE_TRACE_FILE`, `TIACORE_METRICS_FILE` and `TIACORE_CRASH_DIR`.
-- `ws` is now a runtime dependency; the devtools server needs it.
+- `tiacore doctor` without `--graph` checks the install: Node.js, git, peers,
+  and the cache and crash directories. `--perf` also times a cold prepare, a
+  commit and a warm prepare on a throwaway git project and ranks the slowest
+  phases. `--json` prints JSON. `doctor --graph` still validates a graph.
+- Observability that stays off until you set a variable: `TIACORE_DEVTOOLS`,
+  `TIACORE_OTLP_URL`, `TIACORE_TRACE_FILE`, `TIACORE_METRICS_FILE` and
+  `TIACORE_CRASH_DIR`. Stage spans and three run metrics (`tia_runs_total`,
+  `tia_run_duration_ms`, `tia_heap_used_bytes`) cover the runners. Exporters
+  flush when the process ends, or half a second after the last library run. See
+  `docs/observability.md`.
+- Crash reports. A defect, which is a bug in tiacore and not an input error or a
+  failed test, writes a report under `.tia/crashes` and prints its path, for
+  library calls and CLI commands. The directory keeps the 20 newest reports.
+- `tiacore verify --artifacts <dir>` is documented. It keeps the phase snapshots
+  of each verification.
+- The Python SDK reads `TIA_FRESH`.
+- Shared test vectors. `conformance/protocol/v1/generated-plans.json` holds 400
+  plans from the TypeScript planner, and the TypeScript, Python and Go planners
+  reproduce them. `conformance/selection/v1/vectors.json` holds 500 selection
+  problems answered by a Lean model of the selection kernel.
+- `ws` is a runtime dependency. The devtools server needs it.
 
 ### Changed
 
+- The `tiacore` bin enables Node's compile cache, so commands after the first
+  start faster. `NODE_DISABLE_COMPILE_CACHE=1` turns it off. Library imports do
+  not change how the host process compiles modules.
+- A CLI command and the engine work it starts share one runtime, so a process
+  opens one Effect devtools connection and one set of OTLP exporters.
+- A Vitest run that replays some tests of a file keeps the file's shared
+  evidence (module load and hooks) and adds what it observed. A run that only
+  replays an `@effect/vitest` unnamed layer block now passes `tiacore verify`.
+- Rewrote the engine, runners, CLI and verification on Effect 4. `commander` is
+  gone. The CLI uses Effect's CLI parser, so it has the global flags
+  `--completions`, `--wizard`, `--log-level` and `-v`. `-v` prints
+  `tiacore v<version>`. `--version` and `-V` print the bare version.
+- `TIA_FRESH` accepts `1`, `true`, `yes` and `on` in any case in every runner
+  and in the Go and Python SDKs. Before, only the Vitest plugin did. Playwright,
+  the shared engine and Go accepted only `1`.
+- `@types/istanbul-lib-instrument` is a development dependency. No public
+  declaration references it.
+- Sorting uses UTF-16 code unit order everywhere, so results no longer depend on
+  the locale. A trailing slash is dropped from paths, so `a` and `a/` name one
+  path.
+- `allowedSuites` now limits the dependency closure to the allowed suites and
+  reports the disallowed dependents. Before, the closure escaped the allowed
+  set.
+- The store keeps the working-tree list as its own object, so a project with
+  more than about 10,000 dirty files no longer throws. An unreferenced object is
+  deleted 24 hours after its last use, and reuse counts as a use.
+- Artifact restore skips a candidate whose baseline commit is not an ancestor of
+  `HEAD`. Attestation checks run in the order the specification gives:
+  signature, digest, identity, runner, validity window, then policy. Archive
+  reads are bounded at 10,000 entries, 64 MiB inflated, 8 nested archives and a
+  500:1 expansion ratio above 1 MiB. Every artifact request has a 60 second
+  deadline. Attestations and manifests are checked against their JSON Schemas,
+  and a manifest with one invalid entry yields no candidates.
+- Artifact publication is deterministic. Equal graphs under one clock give the
+  same archive bytes, digest and name. Signing keys can be PEM, PEM with literal
+  `\n`, or base64 DER.
+- Node: an aggregate pass with a module failure, crash or timeout reports
+  `success: false`, saves no graph and commits nothing. The execution child
+  group gets `SIGKILL` at 30 seconds. `test.skip` and `it.todo` through
+  `require("node:test")` record as skipped. A `concurrency` of `NaN` is rejected
+  when the configuration is decoded, for Node and for workspaces.
+- Playwright: a filter list over 24,000 characters falls back to a full run and
+  says why. The warning for incomplete evidence keeps its text and adds
+  `TIA detail:` lines. The count of cached tests excludes specs that rerun.
+  Imports are found with `es-module-lexer`, not a regular expression. A source
+  map under `node_modules` is never attributed. A run commits `complete: true`
+  and `coverageComplete: false`, because selection is file-level.
+- Gradle rejects result XML older than the run start.
+- k6 ignores type-only imports. When a profile cannot be lexed, it runs the full
+  suite before it runs anything. A successful run with an unlexable profile
+  writes a `complete: false` graph.
+- Maestro follows `runFlow` transitively, scans every YAML document, and
+  excludes `config.yaml` and `config.yml` at the flows root only.
+- Running children of an external-suite run stop when the run fails or is
+  interrupted.
+- A baseline treats directories, FIFOs and sockets as unavailable and refuses
+  files of 2 GiB or more.
+- Verification clears `TIA_FRESH` for the selective phase, inherited or passed
+  in `environment`. The full phase sets it to `1`. The selection audit uses the
+  planner's own kernel. A malformed snapshot or plan fails verification with an
+  `invalid TIA verification snapshot` message. `certify execute --spec` decodes
+  the spec and fails on a malformed one.
+- With `@effect/vitest`, coverage of a layer's construction and finalizers
+  belongs to every test of the file, so editing a module a layer uses selects
+  them all.
+- The Python and Go SDKs reproduce every protocol vector and share the
+  TypeScript planner's reasons, check order and glob subset. They also fix
+  `build` and `dist` paths, root-level packages and the `dependsOn` closure.
+- The Python SDK (`tiacore-pytest`) takes the package version, 2.0.0. The Go SDK
+  has no version of its own.
 - A CLI crash writes a crash report, as a library call already did. A report
   directory keeps the 20 newest reports.
 - Baseline capture and change detection start fewer git processes. One
@@ -36,10 +145,17 @@ follow Semantic Versioning.
 
 ### Fixed
 
+- The runtime planner missed tests in `__tests__` directories.
 - The Vitest plugin kept the coverage templates of every file version it had
   transformed in the same process.
 - A refused or oversized artifact response, or Playwright source-map response,
   kept its connection open.
+- A file that was re-instrumented during a run lost counter increments.
+- Results of test files that no longer exist were replayed and counted.
+- A stale state lock was removed and recreated, which raced other waiters. It is
+  now renamed away and its owner checked.
+- A `__proto__` coverage key in a schema-3 graph replaced a prototype. Such a
+  graph is rejected.
 
 ## 1.2.1 - 2026-10-25
 

@@ -151,9 +151,12 @@ npx tiacore doctor --json
 
 The checks:
 
+- **tiacore.** Reports the version, the platform and the architecture.
 - **Node.js.** The version must satisfy `^22.12.0 || >=24.0.0`.
 - **git.** Reports the version. Without git, tiacore falls back to file
   snapshots, which are slower.
+- **Git repository.** Is the current directory in a git work tree? If not, this
+  is a note.
 - **Peers.** Looks for `vitest`, `vite` and `@playwright/test` from the current
   directory upward. A version outside the supported range fails. A missing peer
   is only a note. `typescript` is listed when found.

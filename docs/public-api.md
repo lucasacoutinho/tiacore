@@ -254,10 +254,12 @@ them to `<dir>/run-XXXXXX/selective/` and `<dir>/run-XXXXXX/full/`.
 
 ## Compatibility policy
 
-Published releases follow Semantic Versioning. Throughout `1.x`, documented
-entry points, exported TypeScript APIs, configuration, CLI behavior, and
-versioned wire contracts remain backward compatible. Removing or changing one
-incompatibly requires a new major release.
+Published releases follow Semantic Versioning. Within a major version,
+documented entry points, exported TypeScript APIs, configuration, CLI behavior,
+and versioned wire contracts remain backward compatible. Removing or changing
+one incompatibly requires a new major release. Version 2.0 keeps every 1.x entry
+point and wire contract; the [migration guide](migration/1.x-to-2.0.md) lists
+what else changed.
 
 Protocol version 1, TypeScript adapter API version 1, adapter conformance
 version 1, artifact attestation and manifest version 1, verification snapshot

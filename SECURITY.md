@@ -2,11 +2,12 @@
 
 ## Supported versions
 
-Security fixes target the latest minor release in the `1.x` line. Development
-snapshots and older major versions are not supported.
+Security fixes target the latest minor release of each supported major version.
+Development snapshots and older major versions are not supported.
 
 | Version | Supported |
 | ------- | --------- |
+| 2.x     | Yes       |
 | 1.x     | Yes       |
 | < 1.0   | No        |
 

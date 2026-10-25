@@ -11,7 +11,7 @@ selects affected cases, reruns previous failures, and reuses cached outcomes.
 Coverage reconstruction is a separate capability and is not implied by this
 level.
 
-Vitest, `node:test`, and `bun:test` currently meet this level. Node 22.10
+Vitest, `node:test`, and `bun:test` currently meet this level. Node 22.12
 through 22.14 records an aggregate dependency set for every case in one file, so
 those releases select conservatively even though replay still addresses
 individual named cases.

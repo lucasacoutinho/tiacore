@@ -6,10 +6,11 @@ command again to verify replay before adding CI restoration.
 
 ## Requirements
 
-- The npm package requires Node.js 20 or newer.
-- Vitest requires version 4.1 or 5. Vitest 5 requires Node.js 22.12 or newer.
-- The standalone `node:test` adapter requires Node.js 22.10 or newer. Node 22.15
-  and newer provides precise non-executing discovery.
+- The npm package requires Node.js `^22.12.0 || >=24.0.0`. It is ESM only. From
+  CommonJS, use `require()` on Node.js 22.12 or newer.
+- Vitest requires version 4.1 or 5.
+- The standalone `node:test` adapter gets precise non-executing discovery on
+  Node.js 22.15 and newer.
 - Playwright requires version 1.46 or newer.
 - The Bun adapter is certified on Bun 1.3.
 
@@ -21,21 +22,18 @@ Install the package from npm:
 npm install -D @lucasacoutinho/tiacore
 ```
 
-To test unreleased changes, install a local checkout or an exact VCS revision:
+To test unreleased changes, build a checkout and install the tarball it packs. A
+Git URL does not work: `dist/` is not committed, and `prepare` does not build
+it.
 
 ```sh
-npm install --save-dev ../tiacore
-npm install --save-dev \
-  git+https://github.com/lucasacoutinho/tiacore.git#<exact-commit>
+npm ci
+npm run build
+npm pack
+npm install --save-dev /path/to/tiacore/lucasacoutinho-tiacore-<version>.tgz
 ```
 
-VCS installations compile during `prepare`; generated `dist/` files are not
-committed. Bun VCS consumers must list `@lucasacoutinho/tiacore` in the root
-`trustedDependencies` and have npm available for the temporary, lockfile-pinned
-build toolchain.
-
-Add `.tia/` to `.gitignore`. Packed, linked, workspace, and VCS installations
-provide both ESM and CommonJS exports.
+Add `.tia/` to `.gitignore`.
 
 ## Vitest
 

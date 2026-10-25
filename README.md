@@ -11,11 +11,13 @@ It supports Vitest, Playwright, `node:test`, `bun:test`, Maestro, k6,
 Gradle/JUnit, pytest, and Go's native test runner. Git improves baseline
 comparison, but it is optional.
 
-tiacore 1.x is stable and licensed under Apache-2.0.
+tiacore is licensed under Apache-2.0. Version 2.0 keeps every 1.x package entry
+point. It is ESM only and needs Node.js 22.12 or newer. If you use 1.x, read
+[Upgrade from 1.x](#upgrade-from-1x) first.
 
 ## Quick start
 
-Install tiacore from npm:
+tiacore needs Node.js `^22.12.0 || >=24.0.0`. Install it from npm:
 
 ```sh
 npm install -D @lucasacoutinho/tiacore
@@ -78,10 +80,13 @@ workspace command that invokes several TIA runners in one pass.
 - Complete Istanbul reports and thresholds survive partial test execution.
 - A versioned protocol and conformance suite support adapters outside
   JavaScript.
+- `tiacore doctor` checks the install. `tiacore devtools`, OTLP export, and
+  trace and metrics files show where a run spends its time. See
+  [Observability](docs/observability.md).
 
 The documented package entry points and versioned contracts follow Semantic
-Versioning throughout 1.x. Internal cache storage may rebuild safely between
-minor releases, but it is never treated as portable application data.
+Versioning. Internal cache storage may rebuild safely between releases, but it
+is never treated as portable application data.
 
 ## Supported runners
 
@@ -97,11 +102,27 @@ minor releases, but it is never treated as portable application data.
 | pytest       | `sdks/python`                        | Test files and transitive local imports                                 |
 | Go           | `sdks/go`                            | Test and compile-only packages from the local package graph             |
 
-Vitest 4.1 or 5 and Node.js 20 or newer are required for the main package.
-Vitest 5 itself requires Node.js 22.12 or newer. The standalone Node adapter
-requires Node.js 22.10 or newer. See the
+The package needs Node.js `^22.12.0 || >=24.0.0`. Its peers are optional:
+`vitest` >=4.1 <6, `vite` >=6 <9, and `@playwright/test` >=1.46 <2. See the
 [compatibility contract](docs/architecture/capability-contract.md) for adapter
 claims and certification levels.
+
+The package is ESM only. Use `import`, or call `require()` on Node.js 22.12 or
+newer. tiacore is written on Effect, and the package bundles it. You install no
+Effect package, you write no Effect code, and no public type mentions Effect.
+
+## Upgrade from 1.x
+
+Three things change for most projects:
+
+1. Run tiacore on Node.js 22.12 or newer. Node.js 20 is no longer supported.
+2. Put `--` before a `tiacore verify` test command that has options of its own,
+   as in `tiacore verify -- node run.mjs --flag`.
+3. Expect one full run. 2.0 does not read a 1.x `.tia/` cache, and 1.x does not
+   read a 2.0 cache.
+
+The [1.x to 2.0 migration guide](docs/migration/1.x-to-2.0.md) lists the changes
+to the CLI, the cache, and the runners.
 
 ## How it works
 
@@ -121,6 +142,20 @@ filesystem downloads, GitHub Actions, GitLab CI, an HTTP manifest, or a custom
 artifact provider. Shared artifacts require a trusted Ed25519 producer
 attestation by default.
 
+## Known limits
+
+- `tiacore verify` needs a runner that writes a phase snapshot. The Vitest,
+  Node, Bun, Playwright, and TypeScript adapter runners do. k6, Gradle, Maestro,
+  and the Python and Go SDKs plan impact graphs but run no tests, so a
+  verification that reaches only them fails with `snapshot-invalid`.
+- With `@effect/vitest`, a detached fiber that finishes during a later test gets
+  that test's coverage. `tiacore verify` then reports different evidence when
+  the first test is replayed. See
+  [Testing with `@effect/vitest`](docs/guides/getting-started.md#testing-with-effectvitest).
+- Interrupting a run of external suites (k6, Gradle, Maestro) from code stops
+  the suite process but can leave its children running. Ctrl-C in a terminal
+  reaches them.
+
 ## Documentation
 
 - [Getting started and runner setup](docs/guides/getting-started.md)
@@ -129,6 +164,7 @@ attestation by default.
 - [Differential verification](docs/guides/verification.md)
 - [TypeScript adapter contract](docs/guides/custom-adapters.md)
 - [Monorepo benchmark baseline](docs/benchmarks/monorepo-baseline.md)
+- [Migrating from 1.x to 2.0](docs/migration/1.x-to-2.0.md)
 - [Observability: devtools, doctor, crash reports](docs/observability.md)
 - [Public API](docs/public-api.md)
 - [Target architecture](docs/architecture/target.md)
@@ -144,24 +180,28 @@ attestation by default.
 
 ```sh
 npm ci
-npm run check
-npm run check:package
-npm run check:python
-npm run check:go
+(cd .legacy && npm ci && npm run build)
+npm run gate
 ```
 
-`npm run check` enforces Oxfmt and Oxlint before type-checking and testing.
+`.legacy/` holds the 1.x source. Differential tests compare against its build,
+so build it before the first test run.
+
+`npm run gate` runs Oxfmt, Oxlint, the type check, the tests, and the
+architecture check. `npm run check` is the same without the architecture check.
+Other checks are `npm run check:package`, `check:python`, `check:go`,
+`check:proofs`, and `check:vectors`. `npm run release:check` runs all of them,
+then `npm audit` and `npm pack --dry-run`.
 
 `npm run check:architecture` runs
 [Archer](https://github.com/lucasacoutinho/archer) over `src/` with the rules in
 `archer.config.ts`: no import cycles, resolvable imports, strict equality, the
 layer table, no imports of `src/entries/`, and files under 800 lines. It needs
-Node.js 22.18 or newer. `npm run gate` runs it last, and the Node 22.12 CI job
-skips it.
+Node.js 22.18 or newer, so the Node.js 22.12 CI job skips it.
 
-Implementation code is grouped by responsibility. `src/index.ts` is the only
-file at the source root; package subpath shims and the CLI launcher live in
-`src/entries/`.
+Source code is grouped by layer under `src/`, as
+[effect-conventions.md](docs/architecture/effect-conventions.md) describes.
+`src/entries/` holds one shim for each package export and the CLI launcher.
 
 ## License
 
