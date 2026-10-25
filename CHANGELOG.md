@@ -3,7 +3,7 @@
 All notable changes to tiacore will be documented here. Published releases
 follow Semantic Versioning.
 
-## 2.0.0 - Unreleased
+## 2.0.0 - 2026-10-25
 
 tiacore 2.0 is a rewrite on Effect 4 and TypeScript 7. It keeps every 1.x
 package entry point, export name, CLI flag and exit code, and every versioned

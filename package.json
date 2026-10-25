@@ -1,6 +1,6 @@
 {
   "name": "@lucasacoutinho/tiacore",
-  "version": "2.0.0-dev.0",
+  "version": "2.0.0",
   "private": false,
   "description": "Runner-neutral test impact analysis for JavaScript, browser, native, and load-test suites",
   "keywords": [
