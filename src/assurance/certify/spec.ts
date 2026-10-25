@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema'
 
-import type { TiaExecutableCertificationOptions } from './execute.ts'
+import type { TiaExecutableCertificationOptions } from '../../core/conformance.ts'
 import { CapabilityLevel, Feature, Granularity } from './receipt.ts'
 
 const Scenario = Schema.Struct({

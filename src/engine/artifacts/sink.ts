@@ -9,9 +9,7 @@ import {
   type TiaArtifactSink,
   type TiaArtifactSinkInput,
   type TiaArtifactSinkResult,
-  type TiaFilesystemArtifactSinkOptions,
 } from '../../core/artifacts.ts'
-import { runPromise } from '../../host/runtime.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
 
 export const FILESYSTEM_SINK_NAME = 'filesystem artifact sink'
@@ -57,18 +55,6 @@ export const putToDirectory = Effect.fnUntraced(function* (
   const result: TiaArtifactSinkResult = { url: urlFor(input.key, baseUrl) }
   return result
 })
-
-export function createFilesystemArtifactSink(
-  options: TiaFilesystemArtifactSinkOptions = {},
-  root = process.cwd(),
-): TiaArtifactSink {
-  const directory = resolve(root, options.directory ?? '.tia-artifacts')
-  return {
-    name: FILESYSTEM_SINK_NAME,
-    put: (input) =>
-      runPromise(putToDirectory(directory, options.baseUrl, input)),
-  }
-}
 
 /**
  * Calls a user sink. It may return a value, return a promise, or throw; every

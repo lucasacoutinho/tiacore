@@ -2,7 +2,7 @@ export {
   createFilesystemArtifactSink,
   tia,
   TiaArtifactPublisher,
-} from '../engine/artifacts/publish.ts'
+} from '../engine/artifacts/publisher.ts'
 export {
   createArtifactAttestation,
   parseArtifactAttestation,

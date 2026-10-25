@@ -21,10 +21,8 @@ import {
   type TiaArtifactPublisherOptions,
   type TiaArtifactSigningOptions,
 } from '../../core/artifacts.ts'
-import { runPromise } from '../../host/runtime.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
 import { GraphStore } from '../ports.ts'
-import { GraphStoreLive } from '../state/graph-store.ts'
 import { writeArtifactArchive } from './archive.ts'
 import { portableGraphBytes } from './portable-graph.ts'
 import { putToDirectory, putToSink } from './sink.ts'
@@ -32,8 +30,6 @@ import { createArtifactAttestation } from './trust.ts'
 
 const DEFAULT_EXPIRY_SECONDS = 7 * 24 * 60 * 60
 const MAX_EXPIRY_SECONDS = 365 * 24 * 60 * 60
-
-export { createFilesystemArtifactSink } from './sink.ts'
 
 function digest(value: Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')
@@ -46,7 +42,7 @@ function artifactKey(sha256: string): string {
 const invalid = (message: string) => new TiaInvalid({ message })
 
 /** The first problem with the options a publisher is built from, if any. */
-function optionsProblem(
+export function optionsProblem(
   options: Pick<
     TiaArtifactPublisherOptions,
     'artifactId' | 'group' | 'parents' | 'producer' | 'runId' | 'runner'
@@ -101,13 +97,18 @@ function optionsProblem(
 }
 
 /** Publisher options with the private key held as a redacted value. */
-interface PublisherConfig extends Omit<TiaArtifactPublisherOptions, 'signing'> {
+export interface PublisherConfig extends Omit<
+  TiaArtifactPublisherOptions,
+  'signing'
+> {
   signing: Omit<TiaArtifactSigningOptions, 'privateKey'> & {
     privateKey: Redacted.Redacted<string>
   }
 }
 
-function configure(options: TiaArtifactPublisherOptions): PublisherConfig {
+export function configure(
+  options: TiaArtifactPublisherOptions,
+): PublisherConfig {
   const { signing, ...rest } = options
   return {
     ...rest,
@@ -115,7 +116,7 @@ function configure(options: TiaArtifactPublisherOptions): PublisherConfig {
   }
 }
 
-const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
+export const publishConfigured = Effect.fn('tia.artifacts.publish')(function* (
   options: PublisherConfig,
   promoted: boolean,
 ) {
@@ -281,35 +282,3 @@ export const publishGraph = (
   options: TiaArtifactPublisherOptions,
   promoted: boolean,
 ) => publishConfigured(configure(options), promoted)
-
-export class TiaArtifactPublisher {
-  private readonly config: PublisherConfig
-
-  constructor(options: TiaArtifactPublisherOptions) {
-    const problem = optionsProblem(options)
-    if (problem !== null) throw new Error(problem)
-    this.config = configure(options)
-  }
-
-  publish(): Promise<TiaArtifactPublishReceipt> {
-    return this.write(false)
-  }
-
-  promote(): Promise<TiaArtifactPublishReceipt> {
-    return this.write(true)
-  }
-
-  private write(promoted: boolean): Promise<TiaArtifactPublishReceipt> {
-    return runPromise(
-      publishConfigured(this.config, promoted).pipe(
-        Effect.provide(GraphStoreLive),
-      ),
-    )
-  }
-}
-
-export function tia(
-  options: TiaArtifactPublisherOptions,
-): TiaArtifactPublisher {
-  return new TiaArtifactPublisher(options)
-}

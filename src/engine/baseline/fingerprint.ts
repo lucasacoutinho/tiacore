@@ -5,7 +5,7 @@ import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 
 import { byCodeUnit } from '../../core/canonical.ts'
-import type { RuntimePlanOptions } from '../../core/runtime.ts'
+import type { FingerprintOptions } from './options.ts'
 import { VERSION } from '../../core/version.ts'
 import { TiaIo } from '../../wire/errors.ts'
 
@@ -18,15 +18,6 @@ export const MAX_HASHED_BYTES = 2 ** 31
 /** Files in the project root whose change invalidates every recorded graph. */
 export const STRUCTURAL_FILE_PATTERN =
   /^(?:package\.json|(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)|(?:tsconfig|jsconfig)(?:\.[^.]+)?\.json|(?:vite|vitest)(?:\.[^.]+)?\.config\.[cm]?[jt]s)$/u
-
-export interface FingerprintOptions extends Pick<
-  RuntimePlanOptions,
-  'ignoreChanges' | 'onUnknownChange'
-> {
-  readonly exclude: readonly string[]
-  readonly frameworkFingerprint: string
-  readonly include: readonly string[]
-}
 
 export function hashBytes(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')

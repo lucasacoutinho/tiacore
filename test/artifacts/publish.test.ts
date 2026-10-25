@@ -22,7 +22,7 @@ import {
 import {
   createFilesystemArtifactSink,
   tia,
-} from '../../src/engine/artifacts/publish.ts'
+} from '../../src/engine/artifacts/publisher.ts'
 import { verifyArtifactAttestation } from '../../src/engine/artifacts/trust.ts'
 import {
   graph as baseGraph,

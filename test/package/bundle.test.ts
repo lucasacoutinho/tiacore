@@ -38,7 +38,7 @@ function declarationClosure(entry: string): Map<string, string[]> {
     for (const specifier of specifiers) {
       if (!specifier.startsWith('.')) continue
       const target = resolve(dirname(file), specifier).replace(
-        /\.js$/u,
+        /\.(?:js|ts)$/u,
         '.d.ts',
       )
       if (existsSync(target)) pending.push(target)

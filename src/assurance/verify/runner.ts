@@ -16,7 +16,6 @@ import {
   TIA_VERIFICATION_DIRECTORY_ENV,
   TIA_VERIFICATION_PHASE_ENV,
 } from '../../engine/verification-snapshot.ts'
-import { runPromise } from '../../host/runtime.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
 import { runProcess } from '../process.ts'
 import {
@@ -96,7 +95,9 @@ const executePhase = Effect.fnUntraced(function* (input: {
   return phase
 })
 
-function normalized(options: TiaVerificationOptions): TiaVerificationOptions {
+export function normalized(
+  options: TiaVerificationOptions,
+): TiaVerificationOptions {
   if (options.command.trim() === '') {
     throw new Error('TIA verification command cannot be empty')
   }
@@ -189,19 +190,3 @@ export const verify = Effect.fn('tia.verify.run')(function* (
     return receipt
   }).pipe(Effect.ensuring(cleanup))
 })
-
-export class TiaVerifier {
-  private readonly options: TiaVerificationOptions
-
-  constructor(options: TiaVerificationOptions) {
-    this.options = normalized(options)
-  }
-
-  run(): Promise<TiaVerificationReceipt> {
-    return runPromise(verify(this.options))
-  }
-}
-
-export function tia(options: TiaVerificationOptions): TiaVerifier {
-  return new TiaVerifier(options)
-}

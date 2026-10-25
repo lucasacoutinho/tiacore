@@ -14,8 +14,8 @@ import {
   projectFingerprint,
   STRUCTURAL_FILE_PATTERN,
   UNAVAILABLE_HASH,
-  type FingerprintOptions,
 } from '../../../src/engine/baseline/fingerprint.ts'
+import type { FingerprintOptions } from '../../../src/engine/baseline/options.ts'
 import { legacy } from '../../support/legacy.ts'
 import { cleanupScratch, put, scratch } from '../support/repos.ts'
 

@@ -1,4 +1,4 @@
-export { TiaVerifier, tia } from '../assurance/verify/runner.ts'
+export { TiaVerifier, tia } from '../assurance/verify/verifier.ts'
 export {
   TIA_VERIFICATION_RECEIPT_VERSION,
   TIA_VERIFICATION_SNAPSHOT_VERSION,

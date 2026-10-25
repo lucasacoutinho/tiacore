@@ -166,3 +166,26 @@ export function judgeReceipt(
     },
   }
 }
+
+/** A scenario `executeAdapterCertification` runs as a process. */
+export interface TiaExecutableScenario {
+  arguments?: string[]
+  assertions?: number
+  command: string
+  cwd?: string
+  environment?: Record<string, string>
+  fixture: string
+  id: string
+  timeoutMs?: number
+}
+
+export interface TiaExecutableCertificationOptions {
+  adapter: string
+  capabilityLevel: TiaAdapterCapabilityLevel
+  features?: TiaAdapterFeature[]
+  root?: string
+  runner: { name: string; version: string }
+  scenarios: TiaExecutableScenario[]
+  selectionGranularity: TiaAdapterCertificationReceipt['selectionGranularity']
+  sourceRevision: string
+}

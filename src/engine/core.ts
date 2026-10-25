@@ -21,11 +21,8 @@ import type {
   TiaTestEdge,
 } from '../core/runtime.ts'
 import { runPromise } from '../host/runtime.ts'
-import {
-  hashBytes,
-  projectFingerprint,
-  type FingerprintOptions,
-} from './baseline/fingerprint.ts'
+import { hashBytes, projectFingerprint } from './baseline/fingerprint.ts'
+import type { FingerprintOptions } from './baseline/options.ts'
 import { projectRelative, resolveCacheDir } from './host-path.ts'
 import {
   beginRun,

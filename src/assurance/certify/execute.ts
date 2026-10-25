@@ -5,40 +5,17 @@ import * as Effect from 'effect/Effect'
 
 import {
   TIA_ADAPTER_CONFORMANCE_VERSION,
-  type TiaAdapterCapabilityLevel,
   type TiaAdapterCertificationReceipt,
-  type TiaAdapterFeature,
   type TiaAdapterScenarioResult,
+  type TiaExecutableCertificationOptions,
+  type TiaExecutableScenario,
 } from '../../core/conformance.ts'
 import { TIA_PROTOCOL_VERSION } from '../../core/protocol.ts'
-import { runPromise } from '../../host/runtime.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
 import { runProcess } from '../process.ts'
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
 const MAX_TIMEOUT_MS = 10 * 60 * 1000
-
-export interface TiaExecutableScenario {
-  arguments?: string[]
-  assertions?: number
-  command: string
-  cwd?: string
-  environment?: Record<string, string>
-  fixture: string
-  id: string
-  timeoutMs?: number
-}
-
-export interface TiaExecutableCertificationOptions {
-  adapter: string
-  capabilityLevel: TiaAdapterCapabilityLevel
-  features?: TiaAdapterFeature[]
-  root?: string
-  runner: { name: string; version: string }
-  scenarios: TiaExecutableScenario[]
-  selectionGranularity: TiaAdapterCertificationReceipt['selectionGranularity']
-  sourceRevision: string
-}
 
 const execute = Effect.fnUntraced(function* (
   root: string,
@@ -104,9 +81,3 @@ export const executeCertification = Effect.fnUntraced(function* (
   }
   return receipt
 })
-
-export function executeAdapterCertification(
-  options: TiaExecutableCertificationOptions,
-): Promise<TiaAdapterCertificationReceipt> {
-  return runPromise(executeCertification(options))
-}

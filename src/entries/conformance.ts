@@ -16,4 +16,4 @@ export {
   executeAdapterCertification,
   type TiaExecutableCertificationOptions,
   type TiaExecutableScenario,
-} from '../assurance/certify/execute.ts'
+} from '../assurance/certify/executable.ts'
