@@ -7,6 +7,10 @@ follow Semantic Versioning.
 
 ### Fixed
 
+## 2.0.1 - 2026-10-25
+
+### Fixed
+
 - A lockfile, package manifest, tsconfig, jsconfig, or Vite or Vitest config in
   a parent of the project root is a structural change. When the project root is
   a workspace package, a repository-root `bun.lock` was an unknown file
