@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.0.3 - 2026-10-26
+
 ### Fixed
 
 - The project fingerprint distinguishes Bun from Node.js. Bun reports a Node.js
