@@ -65,8 +65,17 @@ export type TiaVerificationIssueCode =
   | 'selective-run-failed'
   | 'snapshot-invalid'
 
+export type TiaCoverageCounterKind = 'branch' | 'function' | 'statement'
+
+export interface TiaCoverageDifference {
+  kind: TiaCoverageCounterKind
+  sourceFile: string
+  testFile: string
+}
+
 export interface TiaVerificationIssue {
   code: TiaVerificationIssueCode
+  differences?: TiaCoverageDifference[]
   message: string
   runner?: string
 }
