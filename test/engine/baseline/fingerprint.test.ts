@@ -9,6 +9,7 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { VERSION } from '../../../src/core/version.ts'
 import {
   DELETED_HASH,
+  fingerprintRuntime,
   hashBytes,
   hashFile,
   projectFingerprint,
@@ -52,6 +53,40 @@ const fingerprint = (root: string, extra: string[] = [], opts = options) =>
       Effect.provide(NodeServices.layer),
     ),
   )
+
+/** Runs `body` with `process.versions.bun` set, then restores it. */
+const withBun = async <T>(
+  version: string | undefined,
+  body: () => Promise<T>,
+): Promise<T> => {
+  const versions = process.versions as NodeJS.ProcessVersions & {
+    bun?: string
+  }
+  const had = Object.hasOwn(versions, 'bun')
+  const previous = versions.bun
+  try {
+    if (version === undefined) Reflect.deleteProperty(versions, 'bun')
+    else {
+      Object.defineProperty(versions, 'bun', {
+        configurable: true,
+        enumerable: true,
+        value: version,
+        writable: true,
+      })
+    }
+    return await body()
+  } finally {
+    if (!had) Reflect.deleteProperty(versions, 'bun')
+    else {
+      Object.defineProperty(versions, 'bun', {
+        configurable: true,
+        enumerable: true,
+        value: previous,
+        writable: true,
+      })
+    }
+  }
+}
 
 afterEach(cleanupScratch)
 
@@ -120,7 +155,7 @@ describe('project fingerprint', () => {
     expect(STRUCTURAL_FILE_PATTERN.test('xpackage.json')).toBe(false)
   })
 
-  test('binds to structure, options, platform, Node major and version', async () => {
+  test('binds to structure, options, platform, Node major, runtime and version', async () => {
     const root = scratch()
     put(root, 'package.json', '{}\n')
     put(root, 'src/a.ts')
@@ -139,6 +174,7 @@ describe('project fingerprint', () => {
         onUnknownChange: options.onUnknownChange,
         platform: process.platform,
         plugin: VERSION,
+        runtime: fingerprintRuntime(),
         structural: [['package.json', hashBytes('{}\n')]],
       }),
     )
@@ -153,6 +189,50 @@ describe('project fingerprint', () => {
     ]) {
       expect(await fingerprint(root, [], changed)).not.toBe(base)
     }
+  })
+
+  test('names Bun by its major and Node.js otherwise', () => {
+    expect(fingerprintRuntime({})).toBe('node')
+    expect(fingerprintRuntime({ bun: undefined })).toBe('node')
+    expect(fingerprintRuntime({ bun: '' })).toBe('node')
+    expect(fingerprintRuntime({ bun: '.' })).toBe('node')
+    expect(fingerprintRuntime({ bun: '1.4.4' })).toBe('bun-1')
+    expect(fingerprintRuntime({ bun: '1.9.0' })).toBe('bun-1')
+    expect(fingerprintRuntime({ bun: '2.0.0' })).toBe('bun-2')
+    expect(fingerprintRuntime({ bun: '1.4.4', node: '26.3.0' })).toBe('bun-1')
+  })
+
+  test('a Bun fingerprint differs from Node when the Node major matches', async () => {
+    const root = scratch()
+    put(root, 'package.json', '{}\n')
+    const nodeMajor = process.versions.node.split('.')[0]
+    const payload = (runtime: string) =>
+      hashBytes(
+        JSON.stringify({
+          arch: process.arch,
+          exclude: options.exclude,
+          frameworks: options.frameworkFingerprint,
+          ignoreChanges: options.ignoreChanges,
+          include: options.include,
+          node: nodeMajor,
+          onUnknownChange: options.onUnknownChange,
+          platform: process.platform,
+          plugin: VERSION,
+          runtime,
+          structural: [['package.json', hashBytes('{}\n')]],
+        }),
+      )
+
+    const onNode = await withBun(undefined, () => fingerprint(root))
+    const onBun = await withBun('1.4.4', () => fingerprint(root))
+    expect(onNode).toBe(payload('node'))
+    expect(onBun).toBe(payload('bun-1'))
+    expect(onBun).not.toBe(onNode)
+    expect(await withBun('1.9.0', () => fingerprint(root))).toBe(onBun)
+    expect(await withBun('2.0.0', () => fingerprint(root))).toBe(
+      payload('bun-2'),
+    )
+    expect(await withBun('', () => fingerprint(root))).toBe(onNode)
   })
 
   test('hashes structural files of the root only, and not through symlinks', async () => {

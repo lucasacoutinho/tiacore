@@ -5,6 +5,19 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Fixed
+
+- The project fingerprint distinguishes Bun from Node.js. Bun reports a Node.js
+  compatibility version in `process.versions.node`, so a graph recorded under
+  Bun matched a Node.js run on the same major and replayed its cached results.
+  The fingerprint now includes the runtime (`node`, or `bun-<major>`). Switching
+  between Bun and Node.js, or changing the Bun major, records a full-suite
+  baseline, the same as a lockfile or config change. Vitest, `node:test`,
+  `bun:test`, Playwright, and custom adapters share this fingerprint. Gradle,
+  k6, Maestro, pytest, and Go do not: their fingerprints are supplied by the
+  caller. The first run after upgrading records a new baseline, because an older
+  fingerprint does not say which runtime produced it.
+
 ## 2.0.2 - 2026-10-26
 
 ### Changed

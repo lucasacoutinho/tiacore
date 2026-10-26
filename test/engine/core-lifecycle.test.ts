@@ -410,6 +410,66 @@ describe('TiaCore options and lifecycle', () => {
     })
   })
 
+  test('records a full baseline when the runtime changes between Bun and Node', async () => {
+    const root = project()
+    const versions = process.versions as NodeJS.ProcessVersions & {
+      bun?: string
+    }
+    const had = Object.hasOwn(versions, 'bun')
+    const previous = versions.bun
+    const setBun = (version: string | undefined) => {
+      if (version === undefined) Reflect.deleteProperty(versions, 'bun')
+      else {
+        Object.defineProperty(versions, 'bun', {
+          configurable: true,
+          enumerable: true,
+          value: version,
+          writable: true,
+        })
+      }
+    }
+    const record = async () => {
+      const core = new TiaCore({ ...OPTIONS, root, testFiles: ['test/**'] })
+      await core.prepare()
+      await core.commit([observation('a')], ['test/a.test.ts'])
+    }
+    const nextPlan = () =>
+      new TiaCore({ ...OPTIONS, root, testFiles: ['test/**'] }).prepare()
+    try {
+      setBun('1.4.4')
+      await record()
+      setBun(undefined)
+      await expect(nextPlan()).resolves.toMatchObject({
+        mode: 'record',
+        reason: 'project structure changed',
+        replayedTests: 0,
+      })
+      await record()
+      setBun('1.4.4')
+      await expect(nextPlan()).resolves.toMatchObject({
+        mode: 'record',
+        reason: 'project structure changed',
+        replayedTests: 0,
+      })
+      await record()
+      setBun('1.9.0')
+      await expect(nextPlan()).resolves.toMatchObject({
+        mode: 'replay',
+        replayedTests: 1,
+      })
+    } finally {
+      if (!had) Reflect.deleteProperty(versions, 'bun')
+      else {
+        Object.defineProperty(versions, 'bun', {
+          configurable: true,
+          enumerable: true,
+          value: previous,
+          writable: true,
+        })
+      }
+    }
+  })
+
   test('stamps the saved graph, stores failures, and re-stamps an empty commit', async () => {
     const root = project()
     const recording = new TiaCore({ ...OPTIONS, root })
