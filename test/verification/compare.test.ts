@@ -1,12 +1,28 @@
 import { describe, expect, test } from 'vitest'
 
 import { emptyGraph } from '../../src/engine/state/update.ts'
-import type { TiaRuntimeGraph } from '../../src/core/runtime.ts'
+import type {
+  TiaCoverageHits,
+  TiaRuntimeGraph,
+} from '../../src/core/runtime.ts'
 import { compareVerificationSnapshots } from '../../src/assurance/verify/compare.ts'
 import type {
   TiaVerificationPhase,
   TiaVerificationSnapshot,
 } from '../../src/core/verification.ts'
+
+function counters(value: {
+  b?: TiaCoverageHits['b']
+  f?: TiaCoverageHits['f']
+  s?: TiaCoverageHits['s']
+}): TiaCoverageHits {
+  return {
+    b: value.b ?? {},
+    f: value.f ?? {},
+    map: 'example',
+    s: value.s ?? {},
+  }
+}
 
 function graph(): TiaRuntimeGraph {
   const value = emptyGraph()
@@ -224,5 +240,201 @@ describe('differential verification', () => {
         snapshot('full', full),
       ),
     ).toMatchObject({ issues: [], verified: true })
+  })
+
+  test('names the test file, source file, and counter kind on coverage mismatch', () => {
+    const selective = graph()
+    const full = graph()
+    selective.collectionCoverage['test/a.test.ts'] = {
+      'src/a.ts': counters({ b: { 0: [0, 1] }, s: { 0: 4 } }),
+      'src/gone.ts': counters({ f: { 0: 1 } }),
+    }
+    full.collectionCoverage['test/a.test.ts'] = {
+      'src/a.ts': counters({ b: { 0: [1, 1] }, s: { 0: 9 } }),
+    }
+    selective.collectionCoverage['test/example.test.ts'] = {
+      'src/example.ts': counters({ s: { 0: 1 } }),
+      'src/other.ts': counters({ f: { 1: 2 } }),
+    }
+    full.collectionCoverage['test/example.test.ts'] = {
+      'src/example.ts': counters({ s: { 0: 0 } }),
+      'src/other.ts': counters({ b: { 0: [1, 0] }, f: { 1: 0 } }),
+    }
+    selective.collectionCoverage['test/stable.test.ts'] = {
+      'src/stable.ts': counters({ f: { 0: 2 }, s: { 0: 4 } }),
+    }
+    full.collectionCoverage['test/stable.test.ts'] = {
+      'src/stable.ts': counters({ f: { 0: 8 }, s: { 0: 9 } }),
+    }
+    full.collectionCoverage['test/only-full.test.ts'] = {
+      'src/only.ts': counters({ s: { 3: 1 } }),
+    }
+
+    const result = compareVerificationSnapshots(
+      snapshot('selective', selective),
+      snapshot('full', full),
+    )
+
+    expect(result.verified).toBe(false)
+    expect(result.issues).toEqual([
+      {
+        code: 'coverage-mismatch',
+        differences: [
+          {
+            kind: 'branch',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/a.test.ts',
+          },
+          {
+            kind: 'function',
+            sourceFile: 'src/gone.ts',
+            testFile: 'test/a.test.ts',
+          },
+          {
+            kind: 'statement',
+            sourceFile: 'src/example.ts',
+            testFile: 'test/example.test.ts',
+          },
+          {
+            kind: 'branch',
+            sourceFile: 'src/other.ts',
+            testFile: 'test/example.test.ts',
+          },
+          {
+            kind: 'function',
+            sourceFile: 'src/other.ts',
+            testFile: 'test/example.test.ts',
+          },
+          {
+            kind: 'statement',
+            sourceFile: 'src/only.ts',
+            testFile: 'test/only-full.test.ts',
+          },
+        ],
+        message:
+          'selective and full phases produced different reconstructed coverage evidence',
+        runner: 'vitest:fixture',
+      },
+    ])
+  })
+
+  test('keeps the first 8 coverage differences in code-unit order', () => {
+    const selective = graph()
+    const full = graph()
+    for (let index = 0; index < 6; index += 1) {
+      const testFile = `test/file-${index}.test.ts`
+      selective.collectionCoverage[testFile] = {
+        'src/a.ts': counters({
+          b: { 0: [1, 0] },
+          f: { 0: 1 },
+          s: { 0: 1 },
+        }),
+      }
+      full.collectionCoverage[testFile] = {
+        'src/a.ts': counters({}),
+      }
+    }
+
+    const result = compareVerificationSnapshots(
+      snapshot('selective', selective),
+      snapshot('full', full),
+    )
+
+    expect(result.issues).toEqual([
+      {
+        code: 'coverage-mismatch',
+        differences: [
+          {
+            kind: 'branch',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-0.test.ts',
+          },
+          {
+            kind: 'function',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-0.test.ts',
+          },
+          {
+            kind: 'statement',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-0.test.ts',
+          },
+          {
+            kind: 'branch',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-1.test.ts',
+          },
+          {
+            kind: 'function',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-1.test.ts',
+          },
+          {
+            kind: 'statement',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-1.test.ts',
+          },
+          {
+            kind: 'branch',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-2.test.ts',
+          },
+          {
+            kind: 'function',
+            sourceFile: 'src/a.ts',
+            testFile: 'test/file-2.test.ts',
+          },
+        ],
+        message:
+          'selective and full phases produced different reconstructed coverage evidence',
+        runner: 'vitest:fixture',
+      },
+    ])
+  })
+
+  test('reports a coverage-map id change with an empty difference list', () => {
+    const selective = graph()
+    const full = graph()
+    selective.collectionCoverage['test/example.test.ts'] = {
+      'src/example.ts': { ...counters({ s: { 0: 1 } }), map: 'left' },
+    }
+    full.collectionCoverage['test/example.test.ts'] = {
+      'src/example.ts': { ...counters({ s: { 0: 1 } }), map: 'right' },
+    }
+
+    const result = compareVerificationSnapshots(
+      snapshot('selective', selective),
+      snapshot('full', full),
+    )
+
+    expect(result.issues).toEqual([
+      {
+        code: 'coverage-mismatch',
+        differences: [],
+        message:
+          'selective and full phases produced different reconstructed coverage evidence',
+        runner: 'vitest:fixture',
+      },
+    ])
+  })
+
+  test('reports a coverage-completeness disagreement with an empty difference list', () => {
+    const selective = graph()
+    selective.coverageComplete = false
+
+    const result = compareVerificationSnapshots(
+      snapshot('selective', selective),
+      snapshot('full', graph()),
+    )
+
+    expect(result.issues).toEqual([
+      {
+        code: 'coverage-mismatch',
+        differences: [],
+        message:
+          'selective and full phases produced different reconstructed coverage evidence',
+        runner: 'vitest:fixture',
+      },
+    ])
   })
 })
