@@ -14,6 +14,7 @@ import { afterEach, describe, expect, test } from 'vitest'
 
 import {
   nodeCheck,
+  runtimeChecks,
   selfCheck,
   writableCheck,
 } from '../../src/cli/doctor-checks.ts'
@@ -82,6 +83,63 @@ describe('nodeCheck', () => {
   })
 })
 
+describe('runtimeChecks', () => {
+  test('reports Node.js when no Bun version is injected', () => {
+    expect(runtimeChecks('v22.12.0', undefined)).toEqual([
+      {
+        detail: `v22.12.0 satisfies ${NODE_ENGINES}`,
+        id: 'node',
+        status: 'ok',
+        title: 'Node.js',
+      },
+    ])
+    expect(runtimeChecks('v22.12.0', '')).toEqual(
+      runtimeChecks('v22.12.0', undefined),
+    )
+  })
+
+  test('names Bun, then the Node.js compatibility engines check', () => {
+    expect(runtimeChecks('v26.3.0', '1.4.4')).toEqual([
+      {
+        detail: `1.4.4 (Node.js compatibility v26.3.0). The Vitest plugin under Bun (bunx --bun vitest run) is best-effort: it records and replays, and @effect/vitest fiber attribution needs Node.js.`,
+        id: 'bun',
+        status: 'ok',
+        title: 'Bun',
+      },
+      {
+        detail: `v26.3.0 satisfies ${NODE_ENGINES}`,
+        id: 'node',
+        status: 'ok',
+        title: 'Node.js compatibility',
+      },
+    ])
+  })
+
+  test('fails an unsupported Node.js compatibility version', () => {
+    const node = runtimeChecks('v20.0.0', '1.4.4')[1]
+    expect(node).toMatchObject({
+      detail: expect.stringContaining('does not satisfy'),
+      id: 'node',
+      status: 'fail',
+      title: 'Node.js compatibility',
+    })
+  })
+
+  test('renders Bun ahead of the Node.js compatibility row', () => {
+    const text = renderDoctor({
+      checks: runtimeChecks('v26.3.0', '1.4.4'),
+      ok: true,
+      tiacore: '2.0.1',
+    })
+    expect(text).toContain('ok    Bun')
+    expect(text).toContain('1.4.4 (Node.js compatibility v26.3.0)')
+    expect(text).toContain(
+      'The Vitest plugin under Bun (bunx --bun vitest run) is best-effort: it records and replays, and @effect/vitest fiber attribution needs Node.js.',
+    )
+    expect(text).toContain('ok    Node.js compatibility')
+  })
+})
+
 describe('writableCheck', () => {
   test('accepts an existing writable directory', async () => {
     const root = scratch()
@@ -125,6 +183,7 @@ describe('selfCheck', () => {
     writeFileSync(join(root, 'node_modules', 'vite', 'package.json'), '{oops')
     const checks = await run(
       selfCheck({
+        bunVersion: undefined,
         cacheDir: '.tia',
         cwd: nested,
         env: {},
@@ -143,6 +202,7 @@ describe('selfCheck', () => {
   test('lists the observability settings that are on', async () => {
     const checks = await run(
       selfCheck({
+        bunVersion: undefined,
         cacheDir: '.tia',
         cwd: scratch(),
         env: { TIACORE_OTLP_URL: 'http://collector:4318' },
@@ -151,6 +211,29 @@ describe('selfCheck', () => {
     )
     expect(checks.find((check) => check.id === 'observability')?.detail).toBe(
       'otlp=http://collector:4318',
+    )
+  })
+
+  test('places an injected Bun version ahead of Node.js', async () => {
+    const checks = await run(
+      selfCheck({
+        bunVersion: '1.4.4',
+        cacheDir: '.tia',
+        cwd: scratch(),
+        env: {},
+        nodeVersion: 'v26.3.0',
+      }),
+    )
+    const ids = checks.map((check) => check.id)
+    expect(ids.indexOf('bun')).toBe(ids.indexOf('tiacore') + 1)
+    expect(ids.indexOf('node')).toBe(ids.indexOf('bun') + 1)
+    expect(checks.find((check) => check.id === 'bun')).toMatchObject({
+      detail: expect.stringContaining('1.4.4 (Node.js compatibility v26.3.0)'),
+      status: 'ok',
+      title: 'Bun',
+    })
+    expect(checks.find((check) => check.id === 'node')?.title).toBe(
+      'Node.js compatibility',
     )
   })
 })

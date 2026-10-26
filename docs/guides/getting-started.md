@@ -13,6 +13,8 @@ command again to verify replay before adding CI restoration.
   Node.js 22.15 and newer.
 - Playwright requires version 1.46 or newer.
 - The Bun adapter is certified on Bun 1.3.
+- The Vitest plugin under Bun (`bunx --bun vitest run`) is best-effort: it
+  records and replays, and `@effect/vitest` fiber attribution needs Node.js.
 
 ## Install
 

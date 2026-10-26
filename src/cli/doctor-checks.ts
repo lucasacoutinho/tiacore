@@ -18,6 +18,7 @@ export interface DoctorCheck {
 }
 
 export interface DoctorOptions {
+  readonly bunVersion: string | undefined
   readonly cacheDir: string
   readonly cwd: string
   readonly env: Readonly<Record<string, string | undefined>>
@@ -50,18 +51,43 @@ const gitText = (args: readonly string[], cwd: string) =>
     Effect.orElseSucceed(() => null),
   )
 
-export function nodeCheck(nodeVersion: string): DoctorCheck {
+export function nodeCheck(
+  nodeVersion: string,
+  compatibility = false,
+): DoctorCheck {
+  const title = compatibility ? 'Node.js compatibility' : 'Node.js'
   const supported = satisfiesRange(nodeVersion, NODE_ENGINES)
   return supported === true
-    ? check('node', 'Node.js', 'ok', `${nodeVersion} satisfies ${NODE_ENGINES}`)
+    ? check('node', title, 'ok', `${nodeVersion} satisfies ${NODE_ENGINES}`)
     : supported === false
       ? check(
           'node',
-          'Node.js',
+          title,
           'fail',
           `${nodeVersion} does not satisfy ${NODE_ENGINES}; install a supported Node.js`,
         )
-      : check('node', 'Node.js', 'warn', `cannot compare ${nodeVersion}`)
+      : check('node', title, 'warn', `cannot compare ${nodeVersion}`)
+}
+
+const VITEST_ON_BUN =
+  'The Vitest plugin under Bun (bunx --bun vitest run) is best-effort: it records and replays, and @effect/vitest fiber attribution needs Node.js.'
+
+export function runtimeChecks(
+  nodeVersion: string,
+  bunVersion: string | undefined,
+): readonly DoctorCheck[] {
+  if (bunVersion === undefined || bunVersion === '') {
+    return [nodeCheck(nodeVersion)]
+  }
+  return [
+    check(
+      'bun',
+      'Bun',
+      'ok',
+      `${bunVersion} (Node.js compatibility ${nodeVersion}). ${VITEST_ON_BUN}`,
+    ),
+    nodeCheck(nodeVersion, true),
+  ]
 }
 
 const gitChecks = Effect.fnUntraced(function* (cwd: string) {
@@ -232,7 +258,7 @@ export const selfCheck = Effect.fnUntraced(function* (options: DoctorOptions) {
       'ok',
       `${VERSION} on ${process.platform}/${process.arch}`,
     ),
-    nodeCheck(options.nodeVersion),
+    ...runtimeChecks(options.nodeVersion, options.bunVersion),
     ...(yield* gitChecks(options.cwd)),
     ...(yield* peerChecks(options.cwd)),
     yield* writableCheck(
