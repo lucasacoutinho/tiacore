@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.0.2 - 2026-10-26
+
 ### Changed
 
 - Documented that Jest is not a supported runner. tiacore ships no Jest adapter.
