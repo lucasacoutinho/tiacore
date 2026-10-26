@@ -54,10 +54,28 @@ export const hashFile = (fs: FileSystem.FileSystem, path: string) =>
   )
 
 /**
+ * `node`, or `bun-<major>` when Bun sets `versions.bun`.
+ *
+ * Bun also reports a Node.js compatibility version in `versions.node`, so the
+ * Node major alone cannot tell a Bun graph from a Node.js graph. An empty
+ * `bun` is Node.js, the same rule `tiacore doctor` uses.
+ */
+export function fingerprintRuntime(
+  versions: Readonly<Record<string, string | undefined>> = process.versions,
+): string {
+  const bun = versions['bun']
+  if (bun === undefined || bun === '') return 'node'
+  const major = bun.split('.')[0]
+  if (major === '') return 'node'
+  return `bun-${major}`
+}
+
+/**
  * Digest of the project's structure: the plugin options, the platform, the
- * Node major version, tiacore's version and the hashes of the root directory's
- * structural files (package manifests, lock files, tsconfig, vite config) plus
- * `extraFiles`. A cache or artifact from another structure is never reused.
+ * Node major version, the JavaScript runtime (`node`, or `bun-<major>`),
+ * tiacore's version and the hashes of the root directory's structural files
+ * (package manifests, lock files, tsconfig, vite config) plus `extraFiles`.
+ * A cache or artifact from another structure or runtime is never reused.
  */
 export const projectFingerprint = Effect.fn('tia.baseline.fingerprint')(
   function* (
@@ -99,6 +117,7 @@ export const projectFingerprint = Effect.fn('tia.baseline.fingerprint')(
         onUnknownChange: options.onUnknownChange,
         platform: process.platform,
         plugin: VERSION,
+        runtime: fingerprintRuntime(),
         structural,
       }),
     )
