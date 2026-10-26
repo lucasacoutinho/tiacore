@@ -152,7 +152,13 @@ npx tiacore doctor --json
 The checks:
 
 - **tiacore.** Reports the version, the platform and the architecture.
-- **Node.js.** The version must satisfy `^22.12.0 || >=24.0.0`.
+- **Bun.** Present when `process.versions.bun` is set, ahead of the Node.js row.
+  It reads `1.4.4 (Node.js compatibility v26.3.0)`. The Vitest plugin under Bun
+  (`bunx --bun vitest run`) is best-effort: it records and replays, and
+  `@effect/vitest` fiber attribution needs Node.js. The engines row is then
+  titled Node.js compatibility.
+- **Node.js.** The version must satisfy `^22.12.0 || >=24.0.0`. Under Bun this
+  is Bun's Node.js compatibility version.
 - **git.** Reports the version. Without git, tiacore falls back to file
   snapshots, which are slower.
 - **Git repository.** Is the current directory in a git work tree? If not, this

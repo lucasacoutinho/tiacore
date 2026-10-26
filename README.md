@@ -109,7 +109,9 @@ test-case boundary, or run outside tiacore. See the
 [capability contract](docs/architecture/capability-contract.md#unsupported-runners).
 
 The package needs Node.js `^22.12.0 || >=24.0.0`. Its peers are optional:
-`vitest` >=4.1 <6, `vite` >=6 <9, and `@playwright/test` >=1.46 <2. See the
+`vitest` >=4.1 <6, `vite` >=6 <9, and `@playwright/test` >=1.46 <2. The Vitest
+plugin under Bun (`bunx --bun vitest run`) is best-effort: it records and
+replays, and `@effect/vitest` fiber attribution needs Node.js. See the
 [compatibility contract](docs/architecture/capability-contract.md) for adapter
 claims and certification levels.
 

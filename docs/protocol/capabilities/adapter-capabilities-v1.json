@@ -15,7 +15,8 @@
       "baselines": ["filesystem", "git"],
       "boundaries": [
         "watch mode and explicit Vitest selection remain Vitest-owned",
-        "separate subprocesses require an explicit subprocess ownership mapping"
+        "separate subprocesses require an explicit subprocess ownership mapping",
+        "Vitest under Bun (bunx --bun vitest run) is best-effort: it records and replays, and @effect/vitest fiber attribution needs Node.js"
       ]
     },
     {

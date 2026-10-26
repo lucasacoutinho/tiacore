@@ -81,7 +81,9 @@ file is the machine-readable contract. Its schema is
 Capability claims are exercised at their native boundary:
 
 - Vitest runs Node, jsdom, React Testing Library, Browser Mode, coverage,
-  reporters, shards, and concurrent-worker fixtures.
+  reporters, shards, and concurrent-worker fixtures. The Vitest plugin under Bun
+  (`bunx --bun vitest run`) is best-effort: it records and replays, and
+  `@effect/vitest` fiber attribution needs Node.js.
 - Playwright installs and runs Chromium against lazy browser modules,
   cross-process evidence, workers, selective files, failed-case persistence, and
   recovery.

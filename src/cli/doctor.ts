@@ -121,6 +121,7 @@ export const doctorCommand = Command.make(
       return
     }
     const checks = yield* selfCheck({
+      bunVersion: process.versions.bun,
       cacheDir: options.cacheDir,
       cwd: process.cwd(),
       env: process.env,
