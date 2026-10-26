@@ -197,6 +197,17 @@ discovers pytest files, local imports, and `conftest.py` dependencies, executes
 selected files, and writes a protocol-v1 graph. It is a static-impact adapter
 and does not claim runtime coverage or cached pytest outcomes.
 
+## Jest
+
+Jest is not supported. tiacore ships no Jest adapter. A `jest` or `jest-expo`
+suite stays outside the runners on this page.
+
+A custom adapter through `@lucasacoutinho/tiacore/adapter` is the supported
+boundary for a JavaScript or TypeScript runner that records runtime test cases
+and cached outcomes. See the [TypeScript adapter contract](custom-adapters.md).
+With no adapter, run Jest outside tiacore. A workspace lane that invokes Jest
+schedules that command and leaves selection to Jest.
+
 ## Workspace orchestration
 
 Use the workspace adapter to run independent lanes concurrently while preserving

@@ -47,6 +47,18 @@ graph, follows transitive local imports, and delegates affected packages to
 content-addressed build and test cache. tiacore neither stores nor replays those
 native outcomes.
 
+## Unsupported runners
+
+Jest is not supported. tiacore ships no Jest adapter, and the capability levels
+above do not apply to a Jest run.
+
+A JavaScript or TypeScript runner can implement runtime test-case selection and
+cached outcomes through `@lucasacoutinho/tiacore/adapter`. Certification remains
+required before an adapter may claim Runtime TIA; using the API alone is not
+certification. With no adapter, run the Jest suite outside tiacore. Version 1 of
+the adapter contract does not cover observed-file selection or static impact
+planning. See the [TypeScript adapter contract](../guides/custom-adapters.md).
+
 ## Rules shared by every level
 
 - An unknown executable change selects the full authorized suite by default.
