@@ -20,6 +20,7 @@ export interface InstrumentationMatchers {
  */
 export interface TiaRuntime {
   active: boolean
+  repositoryRoot: string
   coverage: TiaCoverageRuntime
   coverageTemplates: CoverageTemplates
   instrumenter: Instrumenter | null
@@ -41,6 +42,7 @@ export function initialRuntime(
 ): TiaRuntime {
   return {
     active: false,
+    repositoryRoot: root,
     coverage: coverageRuntime(root, false, null),
     coverageTemplates: new CoverageTemplates(),
     instrumenter: null,

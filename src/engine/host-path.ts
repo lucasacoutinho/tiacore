@@ -59,6 +59,26 @@ export function resolveCacheDir(root: string, cacheDir: string): string {
     : api.resolve(root, cacheDir)
 }
 
+export function trackedFile(
+  root: string,
+  path: string,
+  repositoryRoot = root,
+): string | null {
+  if (!isInside(repositoryRoot, path)) return null
+  const api = pathApi(root, path, repositoryRoot)
+  if (api.relative(repositoryRoot, path) === '') return null
+  const relative = slash(api.relative(root, path))
+  if (
+    relative === '' ||
+    relative === '.' ||
+    relative.split('/').every((segment) => segment === '..')
+  ) {
+    return null
+  }
+  if (api.isAbsolute(relative)) return null
+  return relative
+}
+
 /** True for the same path and its descendants; false for `..` escapes and sibling prefixes. */
 export function isInside(parent: string, child: string): boolean {
   const api = pathApi(parent, child)

@@ -22,7 +22,7 @@ import { writeCoverageReports } from '../../engine/coverage/report.ts'
 import type { TiaCoverageCounterMap } from '../../engine/coverage/types.ts'
 import { resolveFrameworkEdges } from '../../engine/edges/resolve.ts'
 import { formatRunPlanDetails } from '../../engine/explain.ts'
-import { projectRelative } from '../../engine/host-path.ts'
+import { projectRelative, trackedFile } from '../../engine/host-path.ts'
 import { EngineLive } from '../../engine/layers.ts'
 import { commitRun, type CommitSkipped } from '../../engine/lifecycle.ts'
 import { notifyRunComplete, notifyRunStart } from '../../engine/replay.ts'
@@ -147,12 +147,20 @@ export class TiaReporter implements Reporter {
       value.collectionCoverage,
     )
     for (const file of value.files) {
-      const dependency = projectRelative(this.runtime.root, file)
-      if (dependency !== null && dependency !== '') dependencies.add(dependency)
+      const dependency = trackedFile(
+        this.runtime.root,
+        file,
+        this.runtime.repositoryRoot,
+      )
+      if (dependency !== null) dependencies.add(dependency)
     }
     for (const file of value.collectionFiles) {
-      const dependency = projectRelative(this.runtime.root, file)
-      if (dependency !== null && dependency !== '') shared.add(dependency)
+      const dependency = trackedFile(
+        this.runtime.root,
+        file,
+        this.runtime.repositoryRoot,
+      )
+      if (dependency !== null) shared.add(dependency)
     }
     const frameworkEdges = resolveFrameworkEdges(
       this.runtime.options.frameworkAdapters,
@@ -171,13 +179,19 @@ export class TiaReporter implements Reporter {
     if (module.viteEnvironment !== undefined) {
       const graph = module.viteEnvironment.moduleGraph
       const sharedAssets = new Set(
-        directlyImportedAssetFiles(graph, module.moduleId, this.runtime.root),
+        directlyImportedAssetFiles(
+          graph,
+          module.moduleId,
+          this.runtime.root,
+          this.runtime.repositoryRoot,
+        ),
       )
       for (const collectionFile of value.collectionFiles) {
         for (const asset of importedAssetFiles(
           graph,
           collectionFile,
           this.runtime.root,
+          this.runtime.repositoryRoot,
         )) {
           sharedAssets.add(asset)
         }
@@ -230,8 +244,12 @@ export class TiaReporter implements Reporter {
     }
     const dependencies = new Set<string>([file])
     for (const dependencyFile of meta.files) {
-      const dependency = projectRelative(this.runtime.root, dependencyFile)
-      if (dependency !== null && dependency !== '') dependencies.add(dependency)
+      const dependency = trackedFile(
+        this.runtime.root,
+        dependencyFile,
+        this.runtime.repositoryRoot,
+      )
+      if (dependency !== null) dependencies.add(dependency)
     }
     const frameworkEdges = resolveFrameworkEdges(
       this.runtime.options.frameworkAdapters,
@@ -272,6 +290,7 @@ export class TiaReporter implements Reporter {
             evidence.graph,
             resolve(this.runtime.root, dependency),
             this.runtime.root,
+            this.runtime.repositoryRoot,
           )) {
             files.add(asset)
             moduleEdges.add(asset)
@@ -292,6 +311,7 @@ export class TiaReporter implements Reporter {
     const unknown = this.runtime.coverageTemplates.unknownFiles(
       this.runtime.root,
       counters,
+      this.runtime.repositoryRoot,
     )
     if (unknown.length > 0 && !this.uninstrumentedCoverage) {
       this.uninstrumentedCoverage = true
@@ -302,7 +322,11 @@ export class TiaReporter implements Reporter {
     }
     target.set(
       key,
-      this.runtime.coverageTemplates.record(this.runtime.root, counters),
+      this.runtime.coverageTemplates.record(
+        this.runtime.root,
+        counters,
+        this.runtime.repositoryRoot,
+      ),
     )
   }
 

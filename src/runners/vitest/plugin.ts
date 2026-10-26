@@ -12,6 +12,7 @@ import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import * as Effect from 'effect/Effect'
+import { ChildProcessSpawner } from 'effect/process'
 import { createInstrumenter } from 'istanbul-lib-instrument'
 import type { Plugin } from 'vite'
 import type { TestProject, Vitest } from 'vitest/node'
@@ -19,12 +20,14 @@ import type { TestProject, Vitest } from 'vitest/node'
 import { VERSION } from '../../core/version.ts'
 import { runPromise } from '../../host/runtime.ts'
 import { projectFingerprint } from '../../engine/baseline/fingerprint.ts'
+import { makeGit } from '../../engine/baseline/git.ts'
 import { globMatcher } from '../../engine/glob.ts'
 import {
   isInside,
   projectRelative,
   resolveCacheDir,
   slash,
+  trackedFile,
 } from '../../engine/host-path.ts'
 import { EngineLive } from '../../engine/layers.ts'
 import { artifactRestore } from '../../engine/artifacts/restore-step.ts'
@@ -176,6 +179,29 @@ function affectedTestsForProject(
 }
 
 /**
+ * A `**` glob does not match a `..` segment, so a file outside the Vitest
+ * root is also matched on its repository-relative path.
+ */
+export function instrumentationName(
+  root: string,
+  repositoryRoot: string,
+  file: string,
+  include: (path: string) => boolean,
+  exclude: (path: string) => boolean,
+): string | null {
+  const rootRelative = trackedFile(root, file, repositoryRoot)
+  if (rootRelative === null) return null
+  if (isInside(root, file)) {
+    return include(rootRelative) && !exclude(rootRelative) ? rootRelative : null
+  }
+  const repositoryRelative = trackedFile(repositoryRoot, file, repositoryRoot)
+  if (repositoryRelative === null) return null
+  const included = include(repositoryRelative) || include(rootRelative)
+  const excluded = exclude(repositoryRelative) || exclude(rootRelative)
+  return included && !excluded ? rootRelative : null
+}
+
+/**
  * Plans the instance's run once: reads the stored graph, decides what runs and
  * adds the instance's reporter. Vitest starts the `configureVitest` hook of
  * every project at once, so the projects of one instance wait for this single
@@ -227,6 +253,11 @@ async function planInstance(
   const shard = vitest.config.shard
   current.run = await runPromise(
     Effect.gen(function* () {
+      const top = yield* makeGit(
+        yield* ChildProcessSpawner.ChildProcessSpawner,
+      ).repositoryTop(current.root)
+      current.repositoryRoot =
+        top !== null && isInside(top, current.root) ? top : current.root
       current.verification = yield* verificationTarget(process.env)
       const fingerprint = yield* projectFingerprint(
         current.root,
@@ -418,14 +449,15 @@ export function tia(options: TiaOptions = {}): Plugin {
         include: globMatcher(current.options.include),
       })
       const cleanId = id.split('?', 1)[0]
-      if (
-        cleanId === undefined ||
-        cleanId.startsWith('\0') ||
-        !isInside(current.root, cleanId)
+      if (cleanId === undefined || cleanId.startsWith('\0')) return
+      const relativeId = instrumentationName(
+        current.root,
+        current.repositoryRoot,
+        cleanId,
+        matchers.include,
+        matchers.exclude,
       )
-        return
-      const relativeId = slash(relative(current.root, cleanId))
-      if (!matchers.include(relativeId) || matchers.exclude(relativeId)) return
+      if (relativeId === null) return
 
       const instrumenter = (current.instrumenter ??= createInstrumenter({
         coverageVariable: '__coverage__',

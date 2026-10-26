@@ -200,6 +200,80 @@ test('b', async () => {
   return root
 }
 
+export function createSiblingWorkspace(): {
+  packageDir: string
+  repo: string
+} {
+  const repo = mkdtempSync(join(tmpdir(), 'tiacore-sibling-'))
+  temporaryDirectories.push(repo)
+  const packageDir = join(repo, 'packages', 'a')
+  const pluginSpecifier = pathToFileURL(
+    join(packageRoot, 'dist/entries/index.js'),
+  ).href
+
+  write(
+    join(repo, '.gitignore'),
+    'node_modules\n.tia/\ncoverage/\nexecutions.log\n',
+  )
+  write(join(repo, 'package.json'), '{"private":true,"type":"module"}\n')
+  write(join(repo, 'packages/b/src/value.ts'), 'export const value = () => 1\n')
+  write(
+    join(repo, 'packages/b/src/unused.ts'),
+    'export const unused = () => 0\n',
+  )
+  write(join(packageDir, 'package.json'), '{"private":true,"type":"module"}\n')
+  write(
+    join(packageDir, 'src/use.ts'),
+    "import { value } from '../../b/src/value'\nexport const use = () => value() + 1\n",
+  )
+  write(
+    join(packageDir, 'src/use.test.ts'),
+    `import { appendFileSync } from 'node:fs'
+import { expect, test } from 'vitest'
+import { use } from './use'
+
+test('use reaches the sibling package', () => {
+  appendFileSync(new URL('../executions.log', import.meta.url), 'use\\n')
+  expect(use()).toBe(2)
+})
+`,
+  )
+  write(
+    join(packageDir, 'src/other.test.ts'),
+    `import { appendFileSync } from 'node:fs'
+import { expect, test } from 'vitest'
+
+test('other stays inside the package', () => {
+  appendFileSync(new URL('../executions.log', import.meta.url), 'other\\n')
+  expect(1).toBe(1)
+})
+`,
+  )
+  write(
+    join(packageDir, 'vitest.config.ts'),
+    `import { defineConfig } from 'vitest/config'
+import { tia } from '${pluginSpecifier}'
+
+export default defineConfig({
+  plugins: [tia({ log: true })],
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
+})
+`,
+  )
+  symlinkSync(
+    join(packageRoot, 'node_modules'),
+    join(packageDir, 'node_modules'),
+  )
+  git(repo, ['init', '-q'])
+  git(repo, ['config', 'user.email', 'tia@example.test'])
+  git(repo, ['config', 'user.name', 'TIA'])
+  git(repo, ['add', '.'])
+  git(repo, ['commit', '-qm', 'baseline'])
+  return { packageDir, repo }
+}
+
 export function createFixtureProject(name: string): string {
   const source = resolve(fixtureRoot, name)
   if (!source.startsWith(`${fixtureRoot}/`) || !existsSync(source)) {

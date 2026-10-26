@@ -6,6 +6,7 @@ import {
   projectRelative,
   resolveCacheDir,
   slash,
+  trackedFile,
 } from '../../src/engine/host-path.ts'
 import { legacy } from '../support/legacy.ts'
 
@@ -20,6 +21,24 @@ const oracle = await legacy<{
 }>('shared/paths.js')
 
 describe('portable path handling', () => {
+  test('names a repository file outside the project root', () => {
+    const root = '/repo/packages/a'
+    const boundary = '/repo'
+    expect(trackedFile(root, '/repo/packages/b/src/value.ts', boundary)).toBe(
+      '../b/src/value.ts',
+    )
+    expect(trackedFile(root, '/repo/packages/a/src/use.ts', boundary)).toBe(
+      'src/use.ts',
+    )
+    expect(trackedFile(root, '/repo/packages/b/src/value.ts')).toBeNull()
+    expect(trackedFile(root, '/other/value.ts', boundary)).toBeNull()
+    expect(trackedFile(root, root, boundary)).toBeNull()
+    expect(trackedFile(root, boundary, boundary)).toBeNull()
+    expect(
+      trackedFile('/repo/packages/nested/a', boundary, boundary),
+    ).toBeNull()
+  })
+
   test('normalizes drive-letter and mixed-separator paths', () => {
     expect(
       projectRelative('C:\\work\\tiacore', 'c:/work/tiacore/src\\feature.ts'),
