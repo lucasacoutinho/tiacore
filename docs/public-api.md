@@ -244,9 +244,11 @@ Exports named `tia(options)`, `TiaVerifier`, and the verification receipt,
 snapshot, phase, runner, and issue types. The verifier executes the supplied
 command twice: once with normal selective behavior and once with `TIA_FRESH=1`.
 It compares complete outcomes and dependency graphs, plus coverage graphs when
-the runner declares complete coverage evidence. It independently derives the
-tests required by each change from the union of the before and after dependency
-graphs, and fails when the selective phase omitted any of them.
+the runner declares complete coverage evidence. A `coverage-mismatch` issue
+includes `differences`: the first 8 triples of test file, source file, and
+counter kind (`statement`, `function`, or `branch`). It independently derives
+the tests required by each change from the union of the before and after
+dependency graphs, and fails when the selective phase omitted any of them.
 
 Receipts include selection accuracy, per-runner phase metrics, and a performance
 summary with executed, replayed, and fallback counts, wall-time savings,

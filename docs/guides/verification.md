@@ -51,7 +51,10 @@ Coverage hit counts are reduced to covered or uncovered before comparison. Exact
 counters can vary with retries, polling, and worker scheduling while producing
 the same report and threshold result. Per-test shards may also vary without
 changing their merged report, so the gate compares the complete per-file
-reconstruction used by native coverage output.
+reconstruction used by native coverage output. When those topologies differ,
+`coverage-mismatch` includes `differences`: the first 8 triples of test file,
+source file, and counter kind (`statement`, `function`, or `branch`), in
+code-unit order.
 
 The selection audit is independent of the planner's selected IDs. It derives the
 required tests from the changed files and the dependency evidence in both
@@ -165,5 +168,6 @@ periodic workspace-wide gate. The full phase sets `TIA_FRESH=1`; adapters built
 on `TiaCore` inherit that behavior automatically.
 
 Snapshots use temporary storage by default and are removed after the receipt is
-created. Pass `artifactsDirectory` through the API when debugging a mismatch and
+created. To keep them while debugging a mismatch, pass
+`tiacore verify --artifacts <dir>` or the API option `artifactsDirectory`, and
 retain that directory as a CI diagnostic artifact.

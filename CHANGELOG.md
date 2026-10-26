@@ -13,6 +13,14 @@ follow Semantic Versioning.
 
 ### Fixed
 
+- `tiacore verify` names the files behind a `coverage-mismatch`. The issue's
+  `differences` list holds the first 8 triples of test file, source file, and
+  counter kind (`statement`, `function`, or `branch`), in code-unit order. Hit
+  counts that cover the same counters still agree. The field is optional, so
+  verification receipt version 2 stays as it was.
+- The verification guide documents `tiacore verify --artifacts <dir>` next to
+  the API `artifactsDirectory` option. The flag keeps the phase snapshots that
+  verification deletes by default.
 - `tiacore doctor` names Bun when `process.versions.bun` is set, ahead of the
   Node.js row. The row reads `Bun 1.4.4 (Node.js compatibility v26.3.0)` and
   says the Vitest plugin under Bun is best-effort, and that `@effect/vitest`

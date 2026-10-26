@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'vitest'
 
 import { emptyGraph } from '../../src/engine/state/update.ts'
-import type { TiaCoverageHits, TiaRuntimeGraph } from '../../src/core/runtime.ts'
+import type {
+  TiaCoverageHits,
+  TiaRuntimeGraph,
+} from '../../src/core/runtime.ts'
 import { compareVerificationSnapshots } from '../../src/assurance/verify/compare.ts'
 import type {
   TiaVerificationPhase,
