@@ -11,6 +11,8 @@ follow Semantic Versioning.
   A Jest suite can use a custom adapter through
   `@lucasacoutinho/tiacore/adapter`, or run outside tiacore.
 
+### Fixed
+
 - `tiacore doctor` names Bun when `process.versions.bun` is set, ahead of the
   Node.js row. The row reads `Bun 1.4.4 (Node.js compatibility v26.3.0)` and
   says the Vitest plugin under Bun is best-effort, and that `@effect/vitest`
