@@ -5,7 +5,11 @@ follow Semantic Versioning.
 
 ## Unreleased
 
-### Fixed
+### Changed
+
+- Documented that Jest is not a supported runner. tiacore ships no Jest adapter.
+  A Jest suite can use a custom adapter through
+  `@lucasacoutinho/tiacore/adapter`, or run outside tiacore.
 
 ## 2.0.1 - 2026-10-25
 

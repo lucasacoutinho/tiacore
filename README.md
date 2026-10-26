@@ -102,6 +102,12 @@ is never treated as portable application data.
 | pytest       | `sdks/python`                        | Test files and transitive local imports                                 |
 | Go           | `sdks/go`                            | Test and compile-only packages from the local package graph             |
 
+Jest is not supported. tiacore ships no Jest adapter. A Jest suite can use a
+custom adapter through
+[`@lucasacoutinho/tiacore/adapter`](docs/guides/custom-adapters.md), the runtime
+test-case boundary, or run outside tiacore. See the
+[capability contract](docs/architecture/capability-contract.md#unsupported-runners).
+
 The package needs Node.js `^22.12.0 || >=24.0.0`. Its peers are optional:
 `vitest` >=4.1 <6, `vite` >=6 <9, and `@playwright/test` >=1.46 <2. See the
 [compatibility contract](docs/architecture/capability-contract.md) for adapter
