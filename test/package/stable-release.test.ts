@@ -267,7 +267,7 @@ describe('stable release contract', () => {
     const packageJson = json<PackageManifest>('package.json')
 
     expect(packageJson.devDependencies).toMatchObject({
-      '@vitejs/plugin-react': '^6.1.2',
+      '@vitejs/plugin-react': '^6.2.1',
       typescript: '7.0.2',
       vite: '8.3.5',
     })
