@@ -72,15 +72,15 @@ theorem countP_lt_of_witness {α : Type} (p q : α → Bool) :
       have hia : p a = true → q a = true := himp a List.mem_cons_self
       rcases List.mem_cons.1 hx with rfl | hx'
       · rw [List.countP_cons, List.countP_cons, hq, hp]
-        simp only [Bool.false_eq_true, if_false, if_true]
+        simp only [Bool.false_eq_true, ite_false, ite_true]
         omega
       · have := countP_lt_of_witness p q l himp' ⟨x, hx', hq, hp⟩
         rw [List.countP_cons, List.countP_cons]
         cases hpa : p a <;> cases hqa : q a
-        · simp only [Bool.false_eq_true, if_false]; omega
-        · simp only [Bool.false_eq_true, if_false, if_true]; omega
+        · simp only [Bool.false_eq_true, ite_false]; omega
+        · simp only [Bool.false_eq_true, ite_false, ite_true]; omega
         · rw [hpa, hqa] at hia; exact absurd (hia rfl) (by decide)
-        · simp only [if_true]; omega
+        · simp only [ite_true]; omega
 
 /-- Number of items whose id is not yet in `s` (as a `countP`). -/
 def miss (items : List Item) (s : List Key) : Nat :=

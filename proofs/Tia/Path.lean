@@ -38,18 +38,18 @@ theorem pushSeg_clean (st : List String) (hst : ∀ s ∈ st, Clean s) (x : Stri
     (st' : List String) (h : pushSeg (some st) x = some st') : ∀ s ∈ st', Clean s := by
   unfold pushSeg at h
   by_cases h1 : x = "" ∨ x = "."
-  · simp only [h1, if_true, Option.some.injEq] at h
+  · simp only [h1, ite_true, Option.some.injEq] at h
     subst h; exact hst
-  · simp only [h1, if_false] at h
+  · simp only [h1, ite_false] at h
     by_cases h2 : x = ".."
-    · simp only [h2, if_true] at h
+    · simp only [h2, ite_true] at h
       cases st with
       | nil => simp at h
       | cons y t =>
         simp only [Option.some.injEq] at h
         subst h
         intro s hs; exact hst s (List.mem_cons_of_mem _ hs)
-    · simp only [h2, if_false, Option.some.injEq] at h
+    · simp only [h2, ite_false, Option.some.injEq] at h
       subst h
       intro s hs
       rcases List.mem_cons.1 hs with rfl | hs
@@ -119,7 +119,7 @@ theorem foldl_clean_push (ys : List String) (hy : ∀ s ∈ ys, Clean s) :
         intro h; rcases h with h | h
         · exact hc.1 h
         · exact hc.2.1 h
-      simp only [h1, if_false, hc.2.2, if_false]
+      simp only [h1, ite_false, hc.2.2, ite_false]
     simp only [List.foldl, hstep]
     rw [ih (fun s hs => hy s (List.mem_cons_of_mem _ hs))]
     simp

@@ -83,7 +83,7 @@ theorem unsigned_denied_by_default (t : Trust) (h1 : t.hasAttestation = false)
 theorem trusted_guards (t : Trust) (h1 : t.hasAttestation = true) (h : t.verdict = none) :
     t.signatureOk = true ∧ t.digestOk = true ∧ t.now < t.expiresAt ∧
       (t.requirePromoted = true → t.promoted = true) := by
-  simp only [Trust.verdict, h1, if_true] at h
+  simp only [Trust.verdict, h1, ite_true] at h
   have := (firstFail_none_iff _).1 h
   simp only [Trust.guards, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp,
     Bool.or_eq_true, Bool.not_eq_true', decide_eq_true_eq] at this
@@ -92,7 +92,7 @@ theorem trusted_guards (t : Trust) (h1 : t.hasAttestation = true) (h : t.verdict
 
 theorem trusted_of_guards (t : Trust) (h1 : t.hasAttestation = true)
     (hg : ∀ c ∈ t.guards, c.1 = true) : t.verdict = none := by
-  simp only [Trust.verdict, h1, if_true]
+  simp only [Trust.verdict, h1, ite_true]
   exact (firstFail_none_iff _).2 hg
 
 def goodTrust : Trust where

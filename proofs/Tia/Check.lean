@@ -21,11 +21,11 @@ theorem firstFail_some {α : Type} (cs : List (Bool × α)) (r : α) (h : firstF
     obtain ⟨ok, r'⟩ := c
     cases ok with
     | true =>
-      simp only [firstFail, if_true] at h
+      simp only [firstFail, ite_true] at h
       obtain ⟨c, hc, h1, h2⟩ := ih h
       exact ⟨c, List.mem_cons_of_mem _ hc, h1, h2⟩
     | false =>
-      simp only [firstFail, Bool.false_eq_true, if_false, Option.some.injEq] at h
+      simp only [firstFail, Bool.false_eq_true, ite_false, Option.some.injEq] at h
       exact ⟨(false, r'), List.mem_cons_self, rfl, h⟩
 
 /-- Every failing guard is reported by the all-issues variant used by `verify`. -/

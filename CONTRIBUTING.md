@@ -6,10 +6,11 @@ skip possibly affected tests.
 
 ## Development setup
 
-Use Node 24 for the complete local suite. Install Bun 1.3 and Chromium
-(`npx playwright install chromium`) to run the Bun and Playwright suites; they
-skip without them. The differential tests compare against the published 1.2.1,
-installed as the `tiacore-v1` development dependency.
+Use Node 24 or Node 26 for the complete local suite. Publish runs on Node 26.
+Install Bun 1.4 and Chromium (`npx playwright install chromium`) to run the Bun
+and Playwright suites; they skip without them. The differential tests compare
+against the published 1.2.1, installed as the `tiacore-v1` development
+dependency.
 
 ```sh
 npm ci
