@@ -29,7 +29,7 @@ theorem find_none (r : Rec) (k : Key) : find r k = none → ∀ v, (k, v) ∉ r 
     simp only [find] at h
     by_cases hk : k' == k
     · simp [hk] at h
-    · simp only [hk, Bool.false_eq_true, if_false] at h
+    · simp only [hk, Bool.false_eq_true, ite_false] at h
       rcases List.mem_cons.1 hm with e | e
       · simp at e; exact hk (by simp [e.1])
       · exact ih h v e
@@ -42,10 +42,10 @@ theorem find_some (r : Rec) (k : Key) (v : Nat) : find r k = some v → (k, v) �
     intro h
     simp only [find] at h
     by_cases hk : k' == k
-    · simp only [hk, if_true, Option.some.injEq] at h
+    · simp only [hk, ite_true, Option.some.injEq] at h
       have : k' = k := by simpa using hk
       subst this; subst h; exact List.mem_cons_self
-    · simp only [hk, Bool.false_eq_true, if_false] at h
+    · simp only [hk, Bool.false_eq_true, ite_false] at h
       exact List.mem_cons_of_mem _ (ih h)
 
 theorem addRec_spec (acc : Rec) (kv : Key × Nat) (r : Rec) (h : addRec acc kv = some r)
@@ -74,12 +74,12 @@ theorem addRec_spec (acc : Rec) (kv : Key × Nat) (r : Rec) (h : addRec acc kv =
   | some v' =>
     rw [hfd] at h
     by_cases he : (v' == v) = true
-    · simp only [he, if_true, Option.some.injEq] at h
+    · simp only [he, ite_true, Option.some.injEq] at h
       subst h
       have : v' = v := by simpa using he
       subst this
       exact ⟨hf, fun q hq => hq, find_some acc k v' hfd, fun q hq => Or.inl hq⟩
-    · simp only [he, Bool.false_eq_true, if_false] at h
+    · simp only [he, Bool.false_eq_true, ite_false] at h
       exact absurd h (by simp)
 
 theorem foldl_spec :
@@ -181,7 +181,7 @@ theorem merge_complete (fs : List Frag) (m : Merged) (h : mergeFrags fs = some m
     by_cases hb : (ambiguous ((f0 :: rest).filter (accepts f0)) ||
         !coversAll ((f0 :: rest).filter (accepts f0)) f0.total) = true
     · simp [hb] at h
-    · simp only [hb, Bool.false_eq_true, if_false] at h
+    · simp only [hb, Bool.false_eq_true, ite_false] at h
       cases he : mergeAll (((f0 :: rest).filter (accepts f0)).flatMap (·.edges)) with
       | none => rw [he] at h; simp at h
       | some e =>

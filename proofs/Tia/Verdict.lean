@@ -133,7 +133,7 @@ theorem outcomesEq_iff (s f : SuitePhase) : outcomesEq s f = true ↔
 /-- A suite the plan did not run stands for the baseline: it passed when the plan covered it. -/
 theorem effective_unrun (p : SuitePhase) (k : Key) (hn : k ∉ p.executed) :
     p.effective k = if p.scope.contains k then some .passed else none := by
-  rw [SuitePhase.effective, if_neg (by simpa using hn)]
+  rw [SuitePhase.effective, ite_eq_right (by simpa using hn)]
 
 /-- A suite the selective phase did not run is carried as passed, so it cannot hide a failure:
 a suite that fails in the full phase makes the outcomes differ. -/

@@ -95,7 +95,7 @@ theorem closure_spec (p : Problem) (seed s : List Key) (h : p.closure seed = som
     s = close p.items (p.items.length + 2) seed ∧ closedB p.items s = true := by
   unfold Problem.closure at h
   by_cases hc : closedB p.items (close p.items (p.items.length + 2) seed) = true
-  · simp only [hc, if_true, Option.some.injEq] at h
+  · simp only [hc, ite_true, Option.some.injEq] at h
     subst h
     exact ⟨rfl, hc⟩
   · simp only [hc] at h
