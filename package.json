@@ -151,7 +151,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@effect/platform-node": "4.0.6",
-    "@effect/tsgo": "0.69.0",
+    "@effect/tsgo": "0.73.4",
     "@effect/vitest": "4.0.6",
     "@lucasacoutinho/archer": "0.3.0",
     "@playwright/test": "^1.65.1",
@@ -162,15 +162,15 @@
     "@types/node": "24.19.2",
     "@types/picomatch": "4.0.3",
     "@vitejs/plugin-react": "^6.3.0",
-    "@vitest/browser-playwright": "5.1.0",
-    "@vitest/coverage-v8": "5.1.0",
+    "@vitest/browser-playwright": "5.1.1",
+    "@vitest/coverage-v8": "5.1.1",
     "ajv": "8.20.0",
     "effect": "4.0.6",
     "ejs": "^7.0.2",
     "esbuild": "0.28.2",
     "jsdom": "^30.1.3",
-    "oxfmt": "0.78.0",
-    "oxlint": "1.93.0",
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
     "playwright": "^1.65.1",
     "publint": "0.3.25",
     "react": "^19.3.1",
@@ -178,7 +178,7 @@
     "tiacore-v1": "npm:@lucasacoutinho/tiacore@1.2.1",
     "typescript": "7.0.2",
     "vite": "8.3.8",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.46.0 <2.0.0",
