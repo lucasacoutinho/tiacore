@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TiaVerifier, tia } from '../../src/entries/verification.ts'
 import { execute } from '../../src/cli/main.ts'
@@ -337,10 +337,18 @@ describe('tiacore verify', () => {
 
   test('exits 1 silently when the receipt reports failure', async () => {
     await phases({}, {})
-    expect(await execute(argv('--output', 'receipt.json'))).toEqual({
-      code: 1,
-      silent: true,
-    })
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    try {
+      expect(await execute(argv('--output', 'receipt.json'))).toEqual({
+        code: 1,
+        silent: true,
+      })
+      expect(stderr.mock.calls.map(([chunk]) => String(chunk))).toContain(
+        `TIA verification did not succeed; see ${join(root, 'receipt.json')}\n`,
+      )
+    } finally {
+      stderr.mockRestore()
+    }
     expect(existsSync(join(root, 'receipt.json'))).toBe(true)
   })
 

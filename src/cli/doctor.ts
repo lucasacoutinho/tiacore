@@ -5,7 +5,6 @@ import * as Option from 'effect/Option'
 
 import { VERSION } from '../core/version.ts'
 import { formatDuration } from '../host/span-render.ts'
-import { TiaFailed } from '../wire/errors.ts'
 import { output, outputPath, readGraph } from './adapters.ts'
 import {
   type CheckStatus,
@@ -13,7 +12,7 @@ import {
   selfCheck,
 } from './doctor-checks.ts'
 import type { PerfReport } from './doctor-perf.ts'
-import { emitJson } from './io.ts'
+import { emitJson, failedReceipt } from './io.ts'
 
 export interface DoctorReport {
   readonly checks: readonly DoctorCheck[]
@@ -157,10 +156,7 @@ export const doctorCommand = Command.make(
       process.stdout.write(renderDoctor(report))
     }
     if (!report.ok) {
-      return yield* new TiaFailed({
-        message: 'tiacore doctor found problems',
-        silent: true,
-      })
+      return yield* failedReceipt('tiacore doctor found problems', path)
     }
   }),
 ).pipe(

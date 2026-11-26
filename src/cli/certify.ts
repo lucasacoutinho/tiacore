@@ -5,11 +5,11 @@ import * as Option from 'effect/Option'
 import * as Schema from 'effect/Schema'
 
 import { certifyAdapterReceipt } from '../assurance/certify/parse.ts'
-import { executeCertification } from '../assurance/certify/execute.ts'
+import { runCertification } from '../assurance/certify/execute.ts'
 import { ExecutableSpec } from '../assurance/certify/spec.ts'
-import { TiaFailed, TiaInvalid } from '../wire/errors.ts'
+import { TiaInvalid } from '../wire/errors.ts'
 import { describeIssue } from '../wire/issue.ts'
-import { attempt, emitJson, readJson } from './io.ts'
+import { attempt, emitJson, failedReceipt, readJson } from './io.ts'
 
 const decodeSpec = (value: unknown) =>
   Schema.decodeUnknownEffect(ExecutableSpec)(value).pipe(
@@ -55,13 +55,20 @@ const execute = Command.make(
   },
   Effect.fn('tia.cli.certify.execute')(function* (options) {
     const spec = yield* decodeSpec(yield* readJson(options.spec))
-    const receipt = yield* executeCertification(spec)
-    yield* emitJson(receipt, Option.getOrUndefined(options.output))
+    const { diagnoses, receipt } = yield* runCertification(spec)
+    const output = Option.getOrUndefined(options.output)
+    yield* emitJson(receipt, output)
     // The receipt is written first so a failing run still leaves its evidence.
     yield* attempt(() => certifyAdapterReceipt(receipt)).pipe(
-      Effect.mapError(
-        (error) => new TiaFailed({ message: error.message, silent: true }),
-      ),
+      Effect.catchTag('TiaInvalid', (error) => {
+        const reasons = [...diagnoses]
+          .map(([id, reason]) => `${id} ${reason}`)
+          .join('; ')
+        return failedReceipt(
+          reasons === '' ? error.message : `${error.message} (${reasons})`,
+          output,
+        )
+      }),
     )
   }),
 ).pipe(

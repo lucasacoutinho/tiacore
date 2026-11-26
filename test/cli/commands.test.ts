@@ -1,8 +1,15 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterAll, afterEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 
 import { execute } from '../../src/cli/main.ts'
 import { disposeHost } from '../../src/host/runtime.ts'
@@ -47,6 +54,85 @@ function planInputs(root: string) {
     'project',
   ]
 }
+
+/** Runs the CLI with stdout and stderr captured. */
+async function captured(argv: readonly string[]) {
+  const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  const text = (spy: typeof stdout) =>
+    spy.mock.calls.map(([chunk]) => String(chunk)).join('')
+  try {
+    const outcome = await execute(argv)
+    return { outcome, stderr: text(stderr), stdout: text(stdout) }
+  } finally {
+    stdout.mockRestore()
+    stderr.mockRestore()
+  }
+}
+
+describe('a failure reported in a receipt', () => {
+  const failingLane =
+    "export default { lanes: [{ id: 'only', command: process.execPath, arguments: ['-e', 'process.exit(1)'] }] }"
+
+  test('tiacore run names the receipt file on stderr', async () => {
+    const root = scratch()
+    const config = join(root, 'tiacore.config.mjs')
+    const output = join(root, 'out', 'receipt.json')
+    writeFileSync(config, failingLane)
+    const result = await captured([
+      'run',
+      '--config',
+      config,
+      '--output',
+      output,
+    ])
+    expect(result.outcome).toEqual({ code: 1, silent: true })
+    expect(result.stderr).toBe(
+      `TIA workspace run did not succeed; see ${output}\n`,
+    )
+    expect(result.stdout).toBe('')
+    expect(JSON.parse(readFileSync(output, 'utf8')).success).toBe(false)
+  })
+
+  test('tiacore run stays silent when the receipt goes to stdout', async () => {
+    const root = scratch()
+    const config = join(root, 'tiacore.config.mjs')
+    writeFileSync(config, failingLane)
+    for (const extra of [[], ['--output', '-']]) {
+      const result = await captured(['run', '--config', config, ...extra])
+      expect(result.outcome).toEqual({ code: 1, silent: true })
+      expect(result.stderr).toBe('')
+      expect(JSON.parse(result.stdout).success).toBe(false)
+    }
+  })
+
+  test.skipIf(process.getuid?.() === 0)(
+    'tiacore doctor names the report file on stderr',
+    async () => {
+      const root = scratch()
+      const locked = join(root, 'locked')
+      mkdirSync(locked)
+      chmodSync(locked, 0o500)
+      const output = join(root, 'doctor.json')
+      try {
+        const result = await captured([
+          'doctor',
+          '--cache-dir',
+          join(locked, '.tia'),
+          '--output',
+          output,
+        ])
+        expect(result.outcome).toEqual({ code: 1, silent: true })
+        expect(result.stderr).toContain(
+          `tiacore doctor found problems; see ${output}\n`,
+        )
+        expect(JSON.parse(readFileSync(output, 'utf8')).ok).toBe(false)
+      } finally {
+        chmodSync(locked, 0o700)
+      }
+    },
+  )
+})
 
 describe('tiacore plan', () => {
   test('creates the directories of an --output path', async () => {
