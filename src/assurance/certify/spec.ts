@@ -5,7 +5,9 @@ import { CapabilityLevel, Feature, Granularity } from './receipt.ts'
 
 const Scenario = Schema.Struct({
   arguments: Schema.optionalKey(Schema.mutable(Schema.Array(Schema.String))),
-  assertions: Schema.optionalKey(Schema.Finite),
+  assertions: Schema.optionalKey(
+    Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  ),
   command: Schema.String,
   cwd: Schema.optionalKey(Schema.String),
   environment: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -438,6 +438,61 @@ describe('executable adapter certification', () => {
     ).rejects.toThrow(
       'invalid timeout for certification scenario baseline-full',
     )
+  })
+
+  test('rejects an invalid run before any scenario process starts', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'tiacore-upfront-'))
+    const marker = join(directory, 'ran')
+    const touch = {
+      arguments: [
+        '-e',
+        `require("fs").writeFileSync(${JSON.stringify(marker)}, "")`,
+      ],
+      command: process.execPath,
+      fixture: 'test/fixtures/x',
+      id: 'baseline-full',
+    }
+    const base = options()
+    try {
+      await expect(
+        executeAdapterCertification({
+          ...base,
+          scenarios: [touch, { ...touch, id: 'not-a-scenario' }],
+        }),
+      ).rejects.toThrow('is not a conformance scenario: not-a-scenario')
+      await expect(
+        executeAdapterCertification({ ...base, scenarios: [touch, touch] }),
+      ).rejects.toThrow('contains duplicate values')
+      await expect(
+        executeAdapterCertification({
+          ...base,
+          scenarios: [
+            touch,
+            { ...touch, assertions: -1, id: 'no-change-skip' },
+          ],
+        }),
+      ).rejects.toThrow(/assertions/u)
+      await expect(
+        executeAdapterCertification({
+          ...base,
+          capabilityLevel: 'runtime-tia',
+          scenarios: [touch],
+        }),
+      ).rejects.toThrow(
+        'runtime TIA certification requires test-case selection',
+      )
+      await expect(
+        executeAdapterCertification({
+          ...base,
+          scenarios: [touch, { ...touch, id: 'no-change-skip', timeoutMs: 0 }],
+        }),
+      ).rejects.toThrow(
+        'invalid timeout for certification scenario no-change-skip',
+      )
+      expect(existsSync(marker)).toBe(false)
+    } finally {
+      rmSync(directory, { force: true, recursive: true })
+    }
   })
 
   test('rejects the whole run when a command cannot start', async () => {
