@@ -73,15 +73,19 @@ export function emptyGraph(): TiaRuntimeGraph {
   }
 }
 
-function deleteFileRecords(graph: TiaRuntimeGraph, file: string): void {
+function deleteFileRecords(
+  graph: TiaRuntimeGraph,
+  files: ReadonlySet<string>,
+): void {
+  if (files.size === 0) return
   const ids = new Set([
     ...Object.keys(graph.results),
     ...Object.keys(graph.testEdges),
   ])
   for (const id of ids) {
     if (
-      graph.results[id]?.file === file ||
-      graph.testEdges[id]?.file === file
+      (graph.results[id] !== undefined && files.has(graph.results[id].file)) ||
+      (graph.testEdges[id] !== undefined && files.has(graph.testEdges[id].file))
     ) {
       delete graph.results[id]
       delete graph.testEdges[id]
@@ -150,6 +154,7 @@ function updateCollection(
   input: GraphUpdateInput,
   file: string,
   full: boolean,
+  edges: readonly TiaTestEdge[],
 ): void {
   const observedCoverage = input.collectionCoverage?.get(file) ?? {}
   if (input.collectionCoverage !== undefined) {
@@ -170,22 +175,21 @@ function updateCollection(
     return
   }
   graph.collectionFiles[file] = collection
-  for (const edge of Object.values(graph.testEdges)) {
-    if (edge.file === file) edge.files = union(edge.files, collection)
-  }
+  for (const edge of edges) edge.files = union(edge.files, collection)
 }
 
 function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
   const graph =
     input.previous === null ? emptyGraph() : cloneGraph(input.previous)
 
-  for (const file of input.fullyExecutedFiles) deleteFileRecords(graph, file)
+  const fully = new Set(input.fullyExecutedFiles)
+  deleteFileRecords(graph, fully)
 
   for (const [id, result] of input.results) {
-    graph.results[id] = structuredClone(result)
+    graph.results[id] = { ...result }
   }
   for (const [id, edge] of input.testEdges) {
-    graph.testEdges[id] = structuredClone(edge)
+    graph.testEdges[id] = { ...edge, files: [...edge.files] }
   }
   // Coverage records are owned by the caller's run and maps are immutable,
   // content-addressed values, so the graph adopts both without copying.
@@ -194,12 +198,19 @@ function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
     graph.testCoverage[id] = coverage
   }
 
-  const fully = new Set(input.fullyExecutedFiles)
-  for (const file of new Set(input.executedFiles)) {
-    updateCollection(graph, input, file, fully.has(file))
-    const dependencies = Object.values(graph.testEdges)
-      .filter((edge) => edge.file === file)
-      .flatMap((edge) => edge.files)
+  const executed = new Set(input.executedFiles)
+  if (executed.size === 0) return graph
+  const edgesByFile = new Map<string, TiaTestEdge[]>()
+  for (const edge of Object.values(graph.testEdges)) {
+    if (!executed.has(edge.file)) continue
+    const edges = edgesByFile.get(edge.file)
+    if (edges === undefined) edgesByFile.set(edge.file, [edge])
+    else edges.push(edge)
+  }
+  for (const file of executed) {
+    const edges = edgesByFile.get(file) ?? []
+    updateCollection(graph, input, file, fully.has(file), edges)
+    const dependencies = edges.flatMap((edge) => edge.files)
     graph.edges[file] =
       dependencies.length === 0
         ? [...(input.fallbackEdges?.get(file) ?? graph.edges[file] ?? [file])]
@@ -230,13 +241,15 @@ export const updateGraph = Effect.fnUntraced(function* (
         .pipe(Effect.orElseSucceed(() => false)),
     { concurrency: 16 },
   )
+  const missing = new Set<string>()
   for (const [index, file] of files.entries()) {
     if (present[index] === true) continue
     delete graph.edges[file]
     delete graph.collectionCoverage[file]
     delete graph.collectionFiles[file]
-    deleteFileRecords(graph, file)
+    missing.add(file)
   }
+  deleteFileRecords(graph, missing)
   pruneCoverageMaps(graph)
   const { header } = input
   graph.baseline = header.baseline

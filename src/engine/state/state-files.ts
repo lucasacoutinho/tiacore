@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import {
-  readFileSync,
+  closeSync,
+  constants,
+  fstatSync,
+  openSync,
+  readSync,
   renameSync,
   rmSync,
   utimesSync,
@@ -40,6 +44,10 @@ const OBJECT_RETENTION_MS = 24 * 60 * 60 * 1_000
 const TEMPORARY = /\.\d+\.[\da-f-]{36}\.tmp$/iu
 const OBJECT = /^([a-f0-9]{64})\.json$/u
 const GC_CONCURRENCY = 16
+const SEGMENTS_PER_TURN = 16
+
+const yieldToEventLoop = () =>
+  Effect.promise(() => new Promise<void>((resolve) => setImmediate(resolve)))
 
 export const NO_GRAPH: StoredGraph = { digest: null, graph: null }
 
@@ -62,16 +70,34 @@ function readSegmentSync(
   domain: SegmentDomain,
   reference: SegmentReference,
 ): Record<string, unknown> | null {
+  const bytes = readObject(
+    objectPath(cacheDir, reference.sha256),
+    reference.bytes,
+  )
+  return bytes === null
+    ? null
+    : parseSegment(bytes.toString('utf8'), domain, reference)
+}
+
+/** Read at most the validated manifest length, even if the cache file grows. */
+function readObject(path: string, length: number): Buffer | null {
+  let fd: number | undefined
   try {
-    // The manifest bounds `reference.bytes`; parseSegment rejects any object
-    // whose length differs, so no stat is needed before the read.
-    return parseSegment(
-      readFileSync(objectPath(cacheDir, reference.sha256), 'utf8'),
-      domain,
-      reference,
-    )
+    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+    const stat = fstatSync(fd)
+    if (!stat.isFile() || stat.size !== length) return null
+    const bytes = Buffer.allocUnsafe(length)
+    let offset = 0
+    while (offset < length) {
+      const count = readSync(fd, bytes, offset, length - offset, offset)
+      if (count === 0) return null
+      offset += count
+    }
+    return bytes
   } catch {
     return null
+  } finally {
+    if (fd !== undefined) closeSync(fd)
   }
 }
 
@@ -83,22 +109,15 @@ function readSegmentSync(
  */
 function storeObjectSync(cacheDir: string, segment: SerializedSegment): void {
   const path = objectPath(cacheDir, segment.reference.sha256)
-  try {
-    const current = readFileSync(path)
-    if (
-      current.byteLength === segment.reference.bytes &&
-      hashBytes(current) === segment.reference.sha256
-    ) {
-      const now = new Date()
-      try {
-        utimesSync(path, now, now)
-      } catch {
-        // Refreshing the retention time is best effort.
-      }
-      return
+  const current = readObject(path, segment.reference.bytes)
+  if (current !== null && hashBytes(current) === segment.reference.sha256) {
+    const now = new Date()
+    try {
+      utimesSync(path, now, now)
+    } catch {
+      // Refreshing the retention time is best effort.
     }
-  } catch {
-    // Missing or unreadable: write it below.
+    return
   }
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
   try {
@@ -153,19 +172,17 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
     const jobs = SEGMENT_DOMAINS.flatMap((domain) =>
       manifest.segments[domain].map((reference) => ({ domain, reference })),
     )
-    // A graph has hundreds of bucket objects. Node's asynchronous file reads
-    // cost four thread-pool round trips each (about 60 ms for 380 files here
-    // against 9 ms synchronously), so this per-file loop is plain TypeScript.
-    const loaded = yield* Effect.sync(() =>
-      jobs.map(({ domain, reference }) =>
-        readSegmentSync(cacheDir, domain, reference),
-      ),
-    )
     const records = {} as Record<SegmentDomain, Record<string, unknown>[]>
     for (const domain of SEGMENT_DOMAINS) records[domain] = []
-    for (const [index, segment] of loaded.entries()) {
+    // Synchronous reads avoid the per-file thread-pool overhead. Yield between
+    // batches so a large store does not monopolize the event loop.
+    for (const [index, { domain, reference }] of jobs.entries()) {
+      if (index > 0 && index % SEGMENTS_PER_TURN === 0) {
+        yield* yieldToEventLoop()
+      }
+      const segment = readSegmentSync(cacheDir, domain, reference)
       if (segment === null) return NO_GRAPH
-      records[jobs[index]!.domain].push(segment)
+      records[domain].push(segment)
     }
     const graph = parseRuntimeGraph(assembleGraph(manifest, records))
     if (graph === null) return NO_GRAPH
@@ -229,8 +246,13 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
       .pipe(Effect.mapError(ioError))
     const generator = serializeGraph(graph)
     let step = yield* nextSegment(generator)
+    let stored = 0
     while (step.done !== true) {
+      if (stored > 0 && stored % SEGMENTS_PER_TURN === 0) {
+        yield* yieldToEventLoop()
+      }
       yield* storeObject(cacheDir, step.value)
+      stored += 1
       step = yield* nextSegment(generator)
     }
     const manifest = step.value

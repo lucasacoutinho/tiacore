@@ -17,9 +17,13 @@ import {
 import {
   select,
   type ItemReason,
+  type SelectionGroup,
   type SelectionItem,
 } from '../../core/select.ts'
-import { parseImpactGraph } from '../../wire/decode.ts'
+import {
+  decodeImpactGraphForPlan,
+  parseImpactGraph,
+} from '../../wire/decode.ts'
 import { errorMessage } from '../../wire/errors.ts'
 import { globMatcher } from '../glob.ts'
 
@@ -106,15 +110,29 @@ function plural(count: number, noun: string): string {
 
 /** Plans which suites of a protocol v1 catalog must run for a change set. */
 export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
+  return plan(input, decodeImpactGraphForPlan)
+}
+
+/** The CLI already validated its graph file, including on forced full runs. */
+export function planValidatedGraph(input: TiaImpactPlanInput): TiaImpactPlan {
+  return plan(input, (graph) => graph)
+}
+
+function plan(
+  input: TiaImpactPlanInput,
+  decodeGraph: (graph: TiaImpactGraph) => TiaImpactGraph,
+): TiaImpactPlan {
   const suites = catalogSuites(input.catalog)
   const policy = input.policy ?? {}
-  const allowed = new Set(policy.allowedSuites ?? suites.keys())
-  for (const id of allowed) {
-    if (!suites.has(id))
-      throw new Error(`TIA policy allows unknown suite ${id}`)
-  }
-  for (const id of suites.keys()) {
-    if (!allowed.has(id)) suites.delete(id)
+  if (policy.allowedSuites !== undefined) {
+    const allowed = new Set(policy.allowedSuites)
+    for (const id of allowed) {
+      if (!suites.has(id))
+        throw new Error(`TIA policy allows unknown suite ${id}`)
+    }
+    for (const id of suites.keys()) {
+      if (!allowed.has(id)) suites.delete(id)
+    }
   }
 
   const changedFiles = normalizeProtocolPaths(input.changes.files)
@@ -126,7 +144,7 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
   }
   let graph: TiaImpactGraph
   try {
-    graph = parseImpactGraph(input.graph)
+    graph = decodeGraph(input.graph)
   } catch (error) {
     return planAll(
       suites,
@@ -170,39 +188,48 @@ export function createImpactPlan(input: TiaImpactPlanInput): TiaImpactPlan {
     if (match !== undefined) structural.set(path, match[0].reason)
   }
 
+  // Only changed paths can seed a selection. Evidence outside the authorized
+  // catalog still makes a path known, and every prerequisite must be reachable.
+  const changed = new Set(changes)
+  const known = new Set<string>()
+  for (const path of graph.knownSources ?? []) {
+    if (changed.has(path)) known.add(path)
+  }
   const deps = new Map<string, string[]>()
   for (const observation of graph.observations) {
+    if (!changed.has(observation.source)) continue
+    known.add(observation.source)
+    if (!suites.has(observation.suiteId)) continue
     const sources = deps.get(observation.suiteId)
     if (sources === undefined)
       deps.set(observation.suiteId, [observation.source])
     else sources.push(observation.source)
   }
-  const graphFiles = new Map(
-    graph.suites.map((suite) => [suite.id, suite.file]),
-  )
-  const items = [...suites.values()].map((suite): SelectionItem => ({
-    deps: deps.get(suite.id) ?? [],
-    group: suite.id,
-    id: suite.id,
-    needs: (suite.dependsOn ?? []).filter((id) => suites.has(id)),
-    rerun: false,
-  }))
-
+  const groups: SelectionGroup[] = []
+  for (const { id, file } of graph.suites) {
+    if (!changed.has(file)) continue
+    known.add(file)
+    if (!suites.has(id)) continue
+    groups.push({ coarse: [], exact: true, file, key: id, rerun: false })
+    if (!deps.has(id)) deps.set(id, [])
+  }
+  const items: SelectionItem[] = []
+  for (const suite of suites.values()) {
+    const sources = deps.get(suite.id)
+    if (sources === undefined && (suite.dependsOn?.length ?? 0) === 0) continue
+    items.push({
+      deps: sources ?? [],
+      group: suite.id,
+      id: suite.id,
+      needs: (suite.dependsOn ?? []).filter((id) => suites.has(id)),
+      rerun: false,
+    })
+  }
   const selection = select({
     changes,
-    groups: items.map((item) => ({
-      coarse: [],
-      exact: true,
-      file: graphFiles.get(item.id),
-      key: item.id,
-      rerun: false,
-    })),
+    groups,
     items,
-    known: [
-      ...(graph.knownSources ?? []),
-      ...graph.observations.map((observation) => observation.source),
-      ...graphFiles.values(),
-    ],
+    known,
     onUnknown: policy.onUnknownChange ?? 'full',
     structural,
   })

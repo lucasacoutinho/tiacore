@@ -27,7 +27,7 @@ Useful focused commands:
 npm run typecheck
 npm run check:architecture
 npm run check:package
-npm run check:perf     # timing budgets against 1.x, one file at a time
+npm run check:perf     # performance regression tests, one file at a time
 npm run bench          # performance numbers, no pass or fail (see Benchmarks)
 npm run check:proofs   # needs a Lean toolchain (elan)
 npm run check:python
@@ -40,9 +40,10 @@ declaration file.
 
 ## Benchmarks
 
-`npm run check:perf` only asserts two budgets against 1.x. To see where time
-goes and whether a change helps, run `npm run bench`. It builds, measures, and
-prints numbers; it asserts nothing and exits 0 unless a workload fails to run.
+`npm run check:perf` checks cold-start and planning budgets against 1.x. It also
+times graph updates with the same 4,096 cases spread across 16 and 512 files to
+catch repeated scans. To measure a change, run `npm run bench`. It prints the
+timing results and exits successfully when every workload runs.
 
 ```sh
 npm run bench                                   # every workload, 7 rounds

@@ -182,6 +182,24 @@ describe('runner-neutral TIA protocol', () => {
     })
   })
 
+  test('follows transitive prerequisites even when only a suite file changed', () => {
+    const previous = graph()
+    const root = { ...catalog[0]!, id: 'maestro:boot', file: 'e2e/boot.yaml' }
+    const suites = [root, { ...catalog[0]!, dependsOn: [root.id] }, catalog[1]!]
+    const plan = createImpactPlan({
+      catalog: suites,
+      changes: { files: ['e2e/settings.yaml'] },
+      currentEnvironmentFingerprint: previous.environmentFingerprint,
+      currentFingerprint: previous.fingerprint,
+      graph: { ...previous, suites },
+    })
+    expect(plan.reasons).toEqual({
+      'maestro:boot': ['dependency of maestro:login'],
+      'maestro:login': ['dependency of maestro:settings'],
+      'maestro:settings': ['suite file changed: e2e/settings.yaml'],
+    })
+  })
+
   test('merges compatible graph partitions deterministically', () => {
     const first = graph()
     first.suites = [catalog[0]!]

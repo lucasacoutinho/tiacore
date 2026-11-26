@@ -30,6 +30,7 @@ import { aggregateLocalPartitions } from '../../engine/state/partitions.ts'
 import { writeVerificationSnapshot } from '../../engine/verification-snapshot.ts'
 import { cachedTestCase } from './cached-test.ts'
 import {
+  assetLookup,
   directlyImportedAssetFiles,
   importedAssetFiles,
   type ModuleGraphLike,
@@ -273,6 +274,11 @@ export class TiaReporter implements Reporter {
    * its module.
    */
   private mergeModuleEvidence(): void {
+    const assetsFor = assetLookup(
+      this.runtime.root,
+      this.runtime.repositoryRoot,
+    )
+    const edgesByFile = new Map<string, Set<string>>()
     for (const [id, edge] of this.testEdges) {
       const evidence = this.modules.get(edge.file)
       if (evidence === undefined) continue
@@ -283,22 +289,24 @@ export class TiaReporter implements Reporter {
       }
       const files = new Set([...edge.files, ...evidence.shared])
       if (evidence.graph !== undefined) {
-        const moduleEdges = new Set(this.edges.get(edge.file))
+        let moduleEdges = edgesByFile.get(edge.file)
+        if (moduleEdges === undefined) {
+          moduleEdges = new Set(this.edges.get(edge.file))
+          edgesByFile.set(edge.file, moduleEdges)
+        }
         for (const dependency of edge.files) {
           if (dependency === edge.file) continue
-          for (const asset of importedAssetFiles(
-            evidence.graph,
-            resolve(this.runtime.root, dependency),
-            this.runtime.root,
-            this.runtime.repositoryRoot,
-          )) {
+          const path = resolve(this.runtime.root, dependency)
+          for (const asset of assetsFor(evidence.graph, path)) {
             files.add(asset)
             moduleEdges.add(asset)
           }
         }
-        this.edges.set(edge.file, [...moduleEdges].sort())
       }
       this.testEdges.set(id, { file: edge.file, files: [...files].sort() })
+    }
+    for (const [file, edges] of edgesByFile) {
+      this.edges.set(file, [...edges].sort())
     }
     this.modules.clear()
   }

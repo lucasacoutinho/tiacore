@@ -31,8 +31,14 @@ TIACORE_TRACE_FILE=trace.json TIACORE_METRICS_FILE=metrics.prom npx vitest run
 - A library call, such as the Vitest plugin or a runner's `run()`, flushes half
   a second after its last run. If the process ends first, it still writes the
   trace and metrics files on exit.
-- Each flush rewrites the trace file with every span the process has recorded so
-  far.
+- Each flush rewrites the trace file with the newest 10,000 spans recorded for
+  that path by the process. Each runtime flushes its files when it closes. At
+  process exit, active runtimes flush their files.
+- When a runtime reopens, the most recently closed trace stays in memory. Older
+  traces are read from their output files when they still contain this process's
+  history. Removing or overwriting an older trace file starts a new history for
+  that path. The trace JSON includes a `processInstance` identifier so a new
+  process can distinguish earlier runs.
 - OTLP export waits at most three seconds at exit. If the collector fails,
   tiacore stops sending for 60 seconds and drops what it held.
 - A process builds its exporters once. A `tiacore` command and the engine runs
@@ -70,6 +76,7 @@ A trace file looks like this:
 
 ```json
 {
+  "processInstance": "73926501-8e24-48bb-8e7b-51794066d10c",
   "spans": [
     {
       "name": "tia.prepare",

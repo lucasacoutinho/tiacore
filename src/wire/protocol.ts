@@ -7,6 +7,7 @@ import {
   TIA_PROTOCOL_LIMITS as LIMITS,
   TIA_PROTOCOL_VERSION,
 } from '../core/protocol.ts'
+import { suiteCycle } from './suite-cycle.ts'
 
 const atMost = (limit: number) =>
   Schema.isMaxLength(limit, { message: `exceeds the limit of ${limit}` })
@@ -129,24 +130,8 @@ function suiteChecks(graph: {
       }
     }
   }
-  const visiting = new Set<string>()
-  const visited = new Set<string>()
-  const cycleThrough = (id: string): string | undefined => {
-    if (visiting.has(id)) return id
-    if (visited.has(id)) return undefined
-    visiting.add(id)
-    for (const dependency of suites.get(id)?.dependsOn ?? []) {
-      const cycle = cycleThrough(dependency)
-      if (cycle !== undefined) return cycle
-    }
-    visiting.delete(id)
-    visited.add(id)
-    return undefined
-  }
-  for (const id of suites.keys()) {
-    const cycle = cycleThrough(id)
-    if (cycle !== undefined) return `suite dependency cycle includes ${cycle}`
-  }
+  const cycle = suiteCycle(suites)
+  if (cycle !== undefined) return `suite dependency cycle includes ${cycle}`
   const unknown = graph.observations.find(
     (observation) => !suites.has(observation.suiteId),
   )

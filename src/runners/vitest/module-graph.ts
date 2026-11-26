@@ -44,19 +44,13 @@ export function importedAssetFiles(
   root: string,
   repositoryRoot = root,
 ): string[] {
-  const queue = entryModules(graph, moduleId)
-  const visited = new Set<ModuleNodeLike>()
+  const modules = new Set(entryModules(graph, moduleId))
   const assets = new Set<string>()
 
-  while (queue.length > 0) {
-    const current = queue.shift()
-    if (current === undefined || visited.has(current)) {
-      continue
-    }
-    visited.add(current)
-
+  // Set iteration also visits modules discovered during the walk, once each.
+  for (const current of modules) {
     for (const imported of current.importedModules) {
-      queue.push(imported)
+      modules.add(imported)
 
       const file = moduleFile(imported)
       if (file === null || EXECUTABLE_SOURCE_PATTERN.test(file)) {
@@ -71,6 +65,32 @@ export function importedAssetFiles(
   }
 
   return [...assets].sort()
+}
+
+const MAX_CACHED_PATHS = 1_024
+const MAX_CACHED_ASSETS = 50_000
+
+/** Reuse transitive asset walks while merging one completed Vitest run. */
+export function assetLookup(root: string, repositoryRoot: string) {
+  const byGraph = new Map<ModuleGraphLike, Map<string, string[]>>()
+  let cachedPaths = 0
+  let cachedAssets = 0
+  return (graph: ModuleGraphLike, path: string): string[] => {
+    const paths = byGraph.get(graph)
+    const cached = paths?.get(path)
+    if (cached !== undefined) return cached
+    const assets = importedAssetFiles(graph, path, root, repositoryRoot)
+    if (
+      cachedPaths < MAX_CACHED_PATHS &&
+      cachedAssets + assets.length <= MAX_CACHED_ASSETS
+    ) {
+      if (paths === undefined) byGraph.set(graph, new Map([[path, assets]]))
+      else paths.set(path, assets)
+      cachedPaths += 1
+      cachedAssets += assets.length
+    }
+    return assets
+  }
 }
 
 export function directlyImportedAssetFiles(

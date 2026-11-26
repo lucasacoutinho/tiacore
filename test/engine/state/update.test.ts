@@ -246,7 +246,7 @@ layer(EngineLive, { excludeTestServices: true })(
           header,
           ...outerOnly,
           collectionFiles: new Map([['test/a.test.ts', ['src/setup.ts']]]),
-          fullyExecutedFiles: ['test/a.test.ts'],
+          fullyExecutedFiles: ['test/a.test.ts'].values(),
           previous: layered(),
           root,
         })

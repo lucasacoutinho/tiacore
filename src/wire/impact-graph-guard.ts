@@ -19,6 +19,7 @@ import {
   type TiaSuiteDescriptor,
 } from '../core/protocol.ts'
 import { isRecord } from '../core/record.ts'
+import { suiteCycle } from './suite-cycle.ts'
 
 const EDGE_KINDS: ReadonlySet<unknown> = new Set([
   'capability',
@@ -171,49 +172,78 @@ function invalidator(value: unknown): TiaInvalidator {
   return { pattern: text(value['pattern']), reason: text(value['reason']) }
 }
 
-function distinctBy<T>(values: readonly T[], key: (value: T) => string): T[] {
+function distinctBy<T>(values: T[], key: (value: T) => string): T[] {
   const seen = new Set<string>()
   for (const value of values) {
     const valueKey = key(value)
     if (seen.has(valueKey)) throw reject
     seen.add(valueKey)
   }
-  return values as T[]
+  return values
+}
+
+// Paths reject NUL and the edge fields are literals, so the Schema's joined
+// observation keys can collide only within the same suite, even if its id
+// contains NUL. Keep small groups as direct comparisons and bound large ones.
+function distinctObservations(
+  values: TiaDependencyObservation[],
+): TiaDependencyObservation[] {
+  const bySuite = new Map<string, TiaDependencyObservation[] | Set<string>>()
+  for (const value of values) {
+    const previous = bySuite.get(value.suiteId)
+    if (previous === undefined) {
+      bySuite.set(value.suiteId, [value])
+      continue
+    }
+    if (previous instanceof Set) {
+      const key = observationKey(value)
+      if (previous.has(key)) throw reject
+      previous.add(key)
+      continue
+    }
+    for (const item of previous) {
+      if (
+        item.source === value.source &&
+        item.kind === value.kind &&
+        item.confidence === value.confidence
+      )
+        throw reject
+    }
+    if (previous.length < 4) {
+      previous.push(value)
+    } else {
+      const keys = new Set(previous.map(observationKey))
+      keys.add(observationKey(value))
+      bySuite.set(value.suiteId, keys)
+    }
+  }
+  return values
 }
 
 /** The ImpactGraph Schema's cross-record rules. */
 function checkReferences(graph: TiaImpactGraph): void {
-  const suites = new Map(graph.suites.map((item) => [item.id, item]))
+  const suites = new Map<string, TiaSuiteDescriptor>()
+  let hasDependencies = false
   for (const item of graph.suites) {
-    for (const dependency of item.dependsOn ?? []) {
-      if (!suites.has(dependency)) throw reject
-    }
+    if (suites.has(item.id)) throw reject
+    suites.set(item.id, item)
+    if (item.dependsOn !== undefined && item.dependsOn.length > 0)
+      hasDependencies = true
   }
-  const visiting = new Set<string>()
-  const visited = new Set<string>()
-  const acyclic = (id: string): boolean => {
-    if (visiting.has(id)) return false
-    if (visited.has(id)) return true
-    visiting.add(id)
-    for (const dependency of suites.get(id)?.dependsOn ?? []) {
-      if (!acyclic(dependency)) return false
+  if (hasDependencies) {
+    for (const item of graph.suites) {
+      for (const dependency of item.dependsOn ?? []) {
+        if (!suites.has(dependency)) throw reject
+      }
     }
-    visiting.delete(id)
-    visited.add(id)
-    return true
-  }
-  for (const id of suites.keys()) {
-    if (!acyclic(id)) throw reject
+    if (suiteCycle(suites) !== undefined) throw reject
   }
   for (const item of graph.observations) {
     if (!suites.has(item.suiteId)) throw reject
   }
 }
 
-/**
- * What the ImpactGraph Schema decodes `value` to, or null when this guard does
- * not vouch for it (the Schema then decides).
- */
+/** What the Schema decodes `value` to, or null for the Schema to decide. */
 export function acceptImpactGraph(value: unknown): TiaImpactGraph | null {
   try {
     if (!isRecord(value)) return null
@@ -235,15 +265,11 @@ export function acceptImpactGraph(value: unknown): TiaImpactGraph | null {
       fingerprint: text(value['fingerprint']),
       ...(invalidators === undefined ? {} : { invalidators }),
       ...(knownSources === undefined ? {} : { knownSources }),
-      observations: distinctBy(
+      observations: distinctObservations(
         array(value['observations'], LIMITS.observations).map(observation),
-        observationKey,
       ),
       protocolVersion: TIA_PROTOCOL_VERSION,
-      suites: distinctBy(
-        array(value['suites'], LIMITS.suites).map(suite),
-        (item) => item.id,
-      ),
+      suites: array(value['suites'], LIMITS.suites).map(suite),
     }
     checkReferences(graph)
     return graph

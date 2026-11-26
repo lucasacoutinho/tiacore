@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 import * as Effect from 'effect/Effect'
@@ -10,11 +11,13 @@ import { GraphStore } from '../../../src/engine/ports.ts'
 import {
   bucketFor,
   graphDigest,
+  serializeGraph,
   TIA_RUNTIME_STORE_BUCKETS,
   TIA_RUNTIME_STORE_VERSION,
 } from '../../../src/engine/state/segments.ts'
 import { baseGraph, coverageGraph, largeGraph } from '../support/graphs.ts'
 import { EngineLive, tempDirectory } from '../support/layers.ts'
+import { makeStateFiles } from '../../../src/engine/state/state-files.ts'
 
 type Domain =
   | 'collectionCoverage'
@@ -88,6 +91,65 @@ const rewriteManifest = (
 layer(EngineLive, { excludeTestServices: true })(
   'segmented runtime state',
   (it) => {
+    it.effect('yields to the event loop while reading many buckets', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        const graph = largeGraph(1_000)
+        yield* write(cacheDir, graph)
+        let finished = false
+        let observed = false
+        const observingFs: FileSystem.FileSystem = {
+          ...fs,
+          readFile: (path) =>
+            fs.readFile(path).pipe(
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  setImmediate(() => {
+                    observed = !finished
+                  })
+                }),
+              ),
+            ),
+        }
+        const stored = yield* makeStateFiles(observingFs).read(cacheDir)
+        finished = true
+        expect(observed).toBe(true)
+        expect(stored.graph).toEqual(graph)
+      }),
+    )
+
+    it.effect('yields to the event loop while storing many buckets', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-seg-')
+        const graph = largeGraph(1_000)
+        const total = [...serializeGraph(graph)].length
+        const directory = join(cacheDir, 'objects')
+        yield* fs.makeDirectory(directory, { recursive: true })
+        let finished = false
+        let sawPartial = false
+        const observe = () => {
+          if (finished) return
+          const count = readdirSync(directory).length
+          if (count > 0 && count < total) sawPartial = true
+          setImmediate(observe)
+        }
+        setImmediate(observe)
+        yield* makeStateFiles(fs)
+          .write(cacheDir, graph)
+          .pipe(
+            Effect.ensuring(
+              Effect.sync(() => {
+                finished = true
+              }),
+            ),
+          )
+        expect(sawPartial).toBe(true)
+        expect(yield* readGraph(cacheDir)).toEqual(graph)
+      }),
+    )
+
     it.effect(
       'persists a large graph behind a bounded atomic manifest',
       () =>
