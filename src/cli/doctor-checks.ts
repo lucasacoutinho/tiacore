@@ -235,10 +235,14 @@ export const writableCheck = Effect.fnUntraced(function* (
 const observabilityCheck = (
   env: Readonly<Record<string, string | undefined>>,
 ): DoctorCheck => {
-  const config = observeConfig(env)
-  const active = Object.entries(config).map(
-    ([key, value]) => `${key}=${redactUrl(value)}`,
-  )
+  const { otlpHeaders, ...urls } = observeConfig(env)
+  // Header values are credentials; only their names are shown.
+  const active = [
+    ...Object.entries(urls).map(([key, value]) => `${key}=${redactUrl(value)}`),
+    ...(otlpHeaders === undefined
+      ? []
+      : [`otlpHeaders=${Object.keys(otlpHeaders).join(' ')}`]),
+  ]
   return active.length === 0
     ? check(
         'observability',

@@ -62,6 +62,38 @@ describe('observeConfig', () => {
       }),
     ).toEqual({ metricsFile: 'm.prom', otlp: 'http://collector:4318' })
   })
+
+  test('reads OTLP headers as comma-separated, percent-encoded pairs', () => {
+    expect(
+      observeConfig({
+        TIACORE_OTLP_HEADERS:
+          ' Authorization = Basic%20dTpw ,x-tenant=a%2Cb,,broken,=nokey,bad=%E0%A4%A',
+        TIACORE_OTLP_URL: 'http://collector:4318',
+      }),
+    ).toEqual({
+      otlp: 'http://collector:4318',
+      otlpHeaders: { Authorization: 'Basic dTpw', 'x-tenant': 'a,b' },
+    })
+  })
+
+  test('ignores OTLP headers without a collector URL or any valid pair', () => {
+    expect(observeConfig({ TIACORE_OTLP_HEADERS: 'a=b' })).toEqual({})
+    expect(
+      observeConfig({
+        TIACORE_OTLP_HEADERS: 'broken',
+        TIACORE_OTLP_URL: 'http://collector:4318',
+      }),
+    ).toEqual({ otlp: 'http://collector:4318' })
+  })
+
+  test('does not read the generic OpenTelemetry header variable', () => {
+    expect(
+      observeConfig({
+        OTEL_EXPORTER_OTLP_HEADERS: 'authorization=Bearer other-vendor',
+        TIACORE_OTLP_URL: 'http://collector:4318',
+      }),
+    ).toEqual({ otlp: 'http://collector:4318' })
+  })
 })
 
 describe('redactUrl', () => {

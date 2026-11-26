@@ -234,6 +234,24 @@ describe('selfCheck', () => {
     expect(detail).not.toMatch(/secret|user|ops/u)
   })
 
+  test('names the OTLP headers without their values', async () => {
+    const checks = await run(
+      selfCheck({
+        bunVersion: undefined,
+        cacheDir: '.tia',
+        cwd: scratch(),
+        env: {
+          TIACORE_OTLP_HEADERS: 'authorization=Bearer%20secret,x-tenant=a',
+          TIACORE_OTLP_URL: 'http://collector:4318',
+        },
+        nodeVersion: 'v22.12.0',
+      }),
+    )
+    expect(checks.find((check) => check.id === 'observability')?.detail).toBe(
+      'otlp=http://collector:4318, otlpHeaders=authorization x-tenant',
+    )
+  })
+
   test('places an injected Bun version ahead of Node.js', async () => {
     const checks = await run(
       selfCheck({
