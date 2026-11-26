@@ -103,9 +103,9 @@ follow Semantic Versioning.
   identity.
 - Gradle: tests depend on same-package classes, `pkg.*` imports, records and
   enums, every type in a file, Kotlin top-level declarations and `src/test`
-  helpers. A change under `buildSrc` runs every test, `@Nested` classes no
-  longer fail the run with missing reports, and paths with parentheses keep
-  their dependencies.
+  helpers. A change under `buildSrc` counts as an unknown change (a full run by
+  default) instead of selecting nothing, `@Nested` classes no longer fail the
+  run with missing reports, and paths with parentheses keep their dependencies.
 - k6: `allowedProfiles` rejects an unknown profile hidden behind a profile two
   scripts share. Maestro: a flow depends on flows it reaches through
   tag-excluded helper flows. k6, Maestro and Gradle runs in one process that
