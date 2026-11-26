@@ -1,7 +1,11 @@
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, test } from 'vitest'
 
-import type { TiaArtifactProvider } from '../../src/core/artifacts.ts'
+import type {
+  TiaArtifactCandidate,
+  TiaArtifactProvider,
+} from '../../src/core/artifacts.ts'
+import type { TiaRuntimeGraph } from '../../src/core/runtime.ts'
 import {
   archive as archiveOf,
   archiveGraph,
@@ -162,6 +166,118 @@ describe('artifact restore policy', () => {
         runner: '../escape',
       }),
     ).rejects.toThrow('TIA artifact runner must be a safe relative path')
+  })
+})
+
+// A provider that names no group, as a custom one or a manifest entry may.
+
+function part(
+  group: string,
+  index: number,
+  overrides: Partial<TiaRuntimeGraph> = {},
+): TiaRuntimeGraph {
+  return graph('parts', {
+    complete: false,
+    partition: { group, index, total: 2 },
+    ...overrides,
+  })
+}
+
+function restoreParts(
+  candidates: TiaArtifactCandidate[],
+  options: { commits?: string[]; coverageRequested?: boolean } = {},
+) {
+  return restore(
+    {
+      cacheDir: cacheDirectory(),
+      ...(options.coverageRequested === undefined
+        ? {}
+        : { coverageRequested: options.coverageRequested }),
+      fingerprint: 'parts',
+      log: false,
+      providers: [provider('shards', candidates)],
+      trust: unsigned,
+    },
+    options.commits,
+  )
+}
+
+describe('partition restore', () => {
+  test('a fragment of another partition group listed first does not block a complete set', async () => {
+    const result = await restoreParts([
+      { graph: part('run-b', 2), id: 'b2' },
+      { graph: part('run-a', 1), id: 'a1' },
+      { graph: part('run-a', 2), id: 'a2' },
+    ])
+    expect(result).toMatchObject({ artifactId: ['a1', 'a2'], restored: true })
+  })
+
+  test('a stale fragment listed first does not block a complete set', async () => {
+    const staleBaseline = part('run-a', 1, {
+      baseline: { sha: 'old', workingTree: {} },
+    })
+    const staleTotal = part('run-a', 1, {
+      partition: { group: 'run-a', index: 1, total: 3 },
+    })
+    for (const stale of [staleBaseline, staleTotal]) {
+      const result = await restoreParts(
+        [
+          { graph: stale, id: 'stale' },
+          { graph: part('run-a', 1), id: 'a1' },
+          { graph: part('run-a', 2), id: 'a2' },
+        ],
+        { commits: ['old', 'abc'] },
+      )
+      expect(result).toMatchObject({
+        artifactId: ['a1', 'a2'],
+        restored: true,
+      })
+    }
+  })
+
+  test('reports only the fragments the merge used', async () => {
+    const result = await restoreParts([
+      { graph: part('run-a', 1), id: 'a1' },
+      { graph: part('run-a', 2), id: 'a2' },
+      { graph: part('run-b', 2), id: 'b2' },
+    ])
+    expect(result).toMatchObject({ artifactId: ['a1', 'a2'], restored: true })
+  })
+
+  test('a merged set without the requested coverage does not block a later one', async () => {
+    const partial = { coverageComplete: false }
+    const result = await restoreParts(
+      [
+        { graph: part('run-c', 1, partial), id: 'c1' },
+        { graph: part('run-c', 2, partial), id: 'c2' },
+        { graph: part('run-a', 1), id: 'a1' },
+        { graph: part('run-a', 2), id: 'a2' },
+      ],
+      { coverageRequested: true },
+    )
+    expect(result).toMatchObject({ artifactId: ['a1', 'a2'], restored: true })
+  })
+
+  test('a provider group of any value, even one JSON cannot encode, still merges', async () => {
+    const group = 1n as unknown as number
+    const result = await restoreParts([
+      { graph: part('run-a', 1), group, id: 'a1' },
+      { graph: part('run-a', 2), group, id: 'a2' },
+    ])
+    expect(result).toMatchObject({ artifactId: ['a1', 'a2'], restored: true })
+  })
+
+  test('fragments a provider puts in different groups never merge', async () => {
+    for (const [first, second] of [
+      [10, 20],
+      [1, '1'],
+    ] as const) {
+      const result = await restoreParts([
+        { graph: part('run-a', 1), group: first, id: 'a1' },
+        { graph: part('run-a', 2), group: second, id: 'a2' },
+      ])
+      expect(result.restored).toBe(false)
+    }
   })
 })
 
