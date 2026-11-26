@@ -59,14 +59,16 @@ structure Trust where
   producerOk : Bool
   sourceOk : Bool
 
+/-- The order of `verifyArtifactAttestation` in `src/engine/artifacts/trust.ts`: key,
+signature, graph digest, identity and runner, then the validity window, then policy. -/
 def Trust.guards (t : Trust) : List (Bool × Untrusted) :=
   [ (t.keyKnown, .keyUntrusted), (t.keyUsable, .keyInvalid), (t.signatureOk, .badSignature),
+    (t.digestOk, .digestMismatch), (t.identityOk, .identityMismatch), (t.runnerOk, .runnerMismatch),
     (decide (t.issuedAt ≤ t.now + t.skew), .notYetValid),
     (decide (t.now < t.expiresAt), .expired),
     (decide (t.issuedAt < t.expiresAt), .badWindow),
     (t.maxAge.all fun m => decide (t.now - t.issuedAt ≤ m), .tooOld),
     (t.notBefore.all fun n => decide (n ≤ t.issuedAt), .predatesPolicy),
-    (t.digestOk, .digestMismatch), (t.identityOk, .identityMismatch), (t.runnerOk, .runnerMismatch),
     (!t.requirePromoted || t.promoted, .notPromoted),
     (t.producerOk, .producerUntrusted), (t.sourceOk, .sourceUntrusted) ]
 
@@ -87,13 +89,20 @@ theorem trusted_guards (t : Trust) (h1 : t.hasAttestation = true) (h : t.verdict
   have := (firstFail_none_iff _).1 h
   simp only [Trust.guards, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp,
     Bool.or_eq_true, Bool.not_eq_true', decide_eq_true_eq] at this
-  obtain ⟨_, _, hs, _, he, _, _, _, hd, _, _, hp, _⟩ := this
+  obtain ⟨_, _, hs, hd, _, _, _, he, _, _, _, hp, _⟩ := this
   exact ⟨hs, hd, he, fun r => by simpa [r] using hp⟩
 
 theorem trusted_of_guards (t : Trust) (h1 : t.hasAttestation = true)
     (hg : ∀ c ∈ t.guards, c.1 = true) : t.verdict = none := by
   simp only [Trust.verdict, h1, ite_true]
   exact (firstFail_none_iff _).2 hg
+
+/-- Integrity outranks freshness: under a known, usable key with a valid signature, an
+artifact whose graph digest does not match is reported as such, whatever its window. -/
+theorem digest_mismatch_first (t : Trust) (h1 : t.hasAttestation = true)
+    (hk : t.keyKnown = true) (hu : t.keyUsable = true) (hs : t.signatureOk = true)
+    (hd : t.digestOk = false) : t.verdict = some .digestMismatch := by
+  simp [Trust.verdict, Trust.guards, firstFail, h1, hk, hu, hs, hd]
 
 def goodTrust : Trust where
   hasAttestation := true
@@ -120,5 +129,16 @@ example : goodTrust.verdict = none := by decide
 
 /-- An expired attestation is denied even when every other guard holds. -/
 example : ({ goodTrust with now := 25 } : Trust).verdict = some .expired := by decide
+
+/-- As in `trust.ts`, the graph digest, identity and runner are checked before the
+validity window: an expired attestation of another graph reports the mismatch. -/
+example : ({ goodTrust with now := 25, digestOk := false } : Trust).verdict =
+    some .digestMismatch := by decide
+
+example : ({ goodTrust with issuedAt := 15, identityOk := false } : Trust).verdict =
+    some .identityMismatch := by decide
+
+example : ({ goodTrust with now := 25, runnerOk := false } : Trust).verdict =
+    some .runnerMismatch := by decide
 
 end Tia
