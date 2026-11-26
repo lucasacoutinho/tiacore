@@ -41,6 +41,18 @@ describe('runPromise', () => {
     }
   })
 
+  test('writes no crash report when the program is only interrupted', async () => {
+    const crashes = mkdtempSync(join(tmpdir(), 'tiacore-crash-'))
+    process.env['TIACORE_CRASH_DIR'] = crashes
+    try {
+      await expect(runPromise(Effect.interrupt)).rejects.toBeDefined()
+      expect(readdirSync(crashes)).toEqual([])
+    } finally {
+      delete process.env['TIACORE_CRASH_DIR']
+      rmSync(crashes, { force: true, recursive: true })
+    }
+  })
+
   test('retains no memory across many runs', async () => {
     const success = await assertNoLeak(
       () => runPromise(Effect.succeed({ value: 'x'.repeat(64) })),
