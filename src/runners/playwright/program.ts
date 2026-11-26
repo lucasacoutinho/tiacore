@@ -5,6 +5,7 @@ import { basename, relative, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 
+import { byCodeUnit } from '../../core/canonical.ts'
 import type { RunPlan } from '../../core/runtime.ts'
 import {
   TIA_EVIDENCE_DIRECTORY_ENV,
@@ -18,6 +19,10 @@ import {
 import { resolveFrameworkEdges } from '../../engine/edges/resolve.ts'
 import { formatRunPlanDetails } from '../../engine/explain.ts'
 import { slash } from '../../engine/host-path.ts'
+import {
+  skippedCommitMessage,
+  type CommitOutcome,
+} from '../../engine/lifecycle.ts'
 import { runAttached } from '../../engine/process.ts'
 import { replayedResults } from '../../engine/replay.ts'
 import { errorMessage, TiaInvalid, TiaIo } from '../../wire/errors.ts'
@@ -31,6 +36,7 @@ import {
   PLAYWRIGHT_ROOT_ENV,
   PLAYWRIGHT_SESSION_ENV,
   type PlaywrightObservation,
+  type PlaywrightRunReport,
 } from './protocol.ts'
 import { evidenceProblems, readReport } from './report.ts'
 import type { TiaPlaywrightOptions, TiaPlaywrightResult } from './types.ts'
@@ -136,6 +142,35 @@ export function runnerFingerprint(
       }),
     )
     .digest('hex')
+}
+
+/**
+ * The specs a commit may treat as fully executed, so that a cached test that
+ * one of them did not report is dropped as deleted: every spec that reported a
+ * test, unless the run can split a spec. A shard (under fullyParallel or a
+ * parallel describe) and `--last-failed` run part of a spec, and the tests
+ * they leave out still exist.
+ */
+export function fullyExecutedSpecs(
+  report: PlaywrightRunReport,
+  runArguments: readonly string[],
+): string[] {
+  if (report.sharded || runArguments.includes('--last-failed')) return []
+  return [...new Set(report.observations.map((entry) => entry.file))].sort(
+    byCodeUnit,
+  )
+}
+
+/** Warns about a skipped commit and keeps the warning among the run's notes. */
+function reportCommit(
+  outcome: CommitOutcome,
+  notes: string[],
+  log: boolean,
+): void {
+  if (outcome._tag === 'Committed') return
+  const message = skippedCommitMessage(outcome)
+  notes.push(message)
+  if (log) console.warn(message)
 }
 
 interface Resolved {
@@ -262,7 +297,7 @@ export const run = Effect.fn('tia.playwright.run')(function* (
   const notes: string[] = []
 
   if (plan.mode === 'replay' && plan.affectedTests.length === 0) {
-    yield* core.commit([], [])
+    reportCommit(yield* core.commitOutcome([], []), notes, settings.log)
     return {
       notes,
       plan,
@@ -346,9 +381,14 @@ export const run = Effect.fn('tia.playwright.run')(function* (
         'TIA graph was not updated because a Playwright framework edge adapter failed.',
       )
     }
-    yield* core.commit(edges.observations, [
-      ...new Set(edges.observations.map((entry) => entry.file)),
-    ])
+    reportCommit(
+      yield* core.commitOutcome(
+        edges.observations,
+        fullyExecutedSpecs(report, runArguments),
+      ),
+      notes,
+      settings.log,
+    )
     return { notes, plan, status, success: status === 0 }
   }).pipe(
     Effect.ensuring(

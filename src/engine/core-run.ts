@@ -25,6 +25,7 @@ import {
   commitRun,
   snapshotProject,
   type BegunRun,
+  type CommitOutcome,
 } from './lifecycle.ts'
 import { notifyRunComplete, notifyRunStart, replayedResults } from './replay.ts'
 import {
@@ -122,6 +123,18 @@ export class CoreRun {
     observations: TiaObservation[],
     wholeTestFiles: string[],
   ): Effect.Effect<TiaRuntimeGraph | null, TiaError, HostServices> {
+    return this.commitOutcome(observations, wholeTestFiles).pipe(
+      Effect.map((outcome) =>
+        outcome._tag === 'Committed' ? outcome.graph : null,
+      ),
+    )
+  }
+
+  /** The committed graph, or why the commit was skipped. */
+  commitOutcome(
+    observations: TiaObservation[],
+    wholeTestFiles: string[],
+  ): Effect.Effect<CommitOutcome, TiaError, HostServices> {
     const { run, verification } = this.preparedRun()
     const touchedFiles = new Set([
       ...wholeTestFiles,
@@ -158,7 +171,7 @@ export class CoreRun {
           testEdges,
         },
       })
-      if (outcome._tag !== 'Committed') return null
+      if (outcome._tag !== 'Committed') return outcome
       yield* writeVerificationSnapshot({
         executedTestIds: observations.map((observation) => observation.id),
         graph: outcome.graph,
@@ -177,7 +190,7 @@ export class CoreRun {
           console.warn,
         ),
       )
-      return outcome.graph
+      return outcome
     }).pipe(Effect.provide(EngineLive))
   }
 

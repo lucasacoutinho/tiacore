@@ -11,5 +11,7 @@ export interface PlaywrightObservation extends TiaObservation {
 export interface PlaywrightRunReport {
   configuredTestIds: string[]
   observations: PlaywrightObservation[]
+  /** Playwright ran one shard (`--shard` or the config's `shard`). */
+  sharded: boolean
   status: 'failed' | 'interrupted' | 'passed' | 'timedout'
 }

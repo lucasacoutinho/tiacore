@@ -42,6 +42,8 @@ function runReport(value: unknown): value is PlaywrightRunReport {
     'observations' in value &&
     Array.isArray(value.observations) &&
     value.observations.every(observation) &&
+    'sharded' in value &&
+    typeof value.sharded === 'boolean' &&
     'status' in value &&
     typeof value.status === 'string' &&
     STATUSES.has(value.status)
