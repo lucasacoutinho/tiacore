@@ -1,6 +1,5 @@
 // Runtime graph of the runner adapters (Vitest, Node, Bun, Playwright and the
 // generic adapter). src/wire/runtime-graph.ts validates stored graphs against it.
-import type { FileCoverageData } from 'istanbul-lib-coverage'
 
 /** The runtime graph layout; a graph of another version is rebuilt. */
 export const GRAPH_SCHEMA_VERSION = 6
@@ -21,8 +20,40 @@ export interface Baseline {
   workingTree: Record<string, string>
 }
 
-/** Static maps and zeroed counters of one instrumented file. */
-export type TiaCoverageTemplate = Omit<FileCoverageData, 'path'>
+interface CoveragePosition {
+  column: number
+  line: number
+}
+
+interface CoverageRange {
+  end: CoveragePosition
+  start: CoveragePosition
+}
+
+/**
+ * Static maps and zeroed counters of one instrumented file: Istanbul's
+ * `FileCoverageData` without `path`, written out so the public declarations
+ * need no Istanbul types.
+ */
+export interface TiaCoverageTemplate {
+  b: Record<string, number[]>
+  branchMap: Record<
+    string,
+    {
+      line: number
+      loc: CoverageRange
+      locations: CoverageRange[]
+      type: string
+    }
+  >
+  f: Record<string, number>
+  fnMap: Record<
+    string,
+    { decl: CoverageRange; line: number; loc: CoverageRange; name: string }
+  >
+  s: Record<string, number>
+  statementMap: Record<string, CoverageRange>
+}
 
 /**
  * Counters one test or collection window advanced in one file. Only nonzero
