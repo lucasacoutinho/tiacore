@@ -140,6 +140,11 @@ export interface TiaVerificationPerformance {
 
 export interface TiaVerificationReceipt {
   accuracy: TiaVerificationAccuracy
+  /**
+   * The directory that holds the phase snapshots, when they were kept
+   * (`keepArtifacts` or `artifactsDirectory`); absent when they were removed.
+   */
+  artifactsDirectory?: string
   command: string[]
   completedAt: string
   duration: number

@@ -120,6 +120,7 @@ describe('TiaVerifier', () => {
     expect(log.map((entry) => entry.fresh)).toEqual([null, '1'])
     expect(log[0]?.dir).toBe(log[1]?.dir)
     expect(existsSync(log[0]?.dir ?? root)).toBe(false)
+    expect(receipt).not.toHaveProperty('artifactsDirectory')
     expect(
       JSON.parse(readFileSync(join(root, 'out/receipt.json'), 'utf8')),
     ).toEqual(receipt)
@@ -271,9 +272,10 @@ describe('TiaVerifier', () => {
   test('an artifacts directory keeps the phase snapshots', async () => {
     const { full, selective } = pair()
     await phases(selective, full)
-    await verifier({ artifactsDirectory: 'kept' }).run()
+    const receipt = await verifier({ artifactsDirectory: 'kept' }).run()
     const [run] = readdirSync(join(root, 'kept'))
     expect(run).toMatch(/^run-/u)
+    expect(receipt.artifactsDirectory).toBe(join(root, 'kept', run ?? ''))
     expect(readdirSync(join(root, 'kept', run ?? '', 'selective'))).toEqual([
       'a.json',
     ])
@@ -285,11 +287,12 @@ describe('TiaVerifier', () => {
   test('keepArtifacts leaves the temporary directory', async () => {
     const { full, selective } = pair()
     await phases(selective, full)
-    await verifier({ keepArtifacts: true }).run()
+    const receipt = await verifier({ keepArtifacts: true }).run()
     const { dir } = environmentLog()[0] ?? { dir: '' }
     try {
       expect(existsSync(dir)).toBe(true)
       expect(dir).toContain('tiacore-verify-')
+      expect(receipt.artifactsDirectory).toBe(dir)
     } finally {
       await rm(dir, { force: true, recursive: true })
     }
