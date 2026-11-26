@@ -5,7 +5,10 @@ import * as Option from 'effect/Option'
 import * as Schema from 'effect/Schema'
 
 import { certifyAdapterReceipt } from '../assurance/certify/parse.ts'
-import { runCertification } from '../assurance/certify/execute.ts'
+import {
+  checkCertification,
+  runCertification,
+} from '../assurance/certify/execute.ts'
 import { ExecutableSpec } from '../assurance/certify/spec.ts'
 import { TiaInvalid } from '../wire/errors.ts'
 import { describeIssue } from '../wire/issue.ts'
@@ -55,6 +58,7 @@ const execute = Command.make(
   },
   Effect.fn('tia.cli.certify.execute')(function* (options) {
     const spec = yield* decodeSpec(yield* readJson(options.spec))
+    yield* checkCertification(spec)
     const { diagnoses, receipt } = yield* runCertification(spec)
     const output = Option.getOrUndefined(options.output)
     yield* emitJson(receipt, output)

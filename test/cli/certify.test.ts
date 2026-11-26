@@ -73,6 +73,45 @@ async function certify(args: readonly string[]) {
 }
 
 describe('tiacore certify execute', () => {
+  test.each([
+    [
+      { scenarios: ['baseline-full', 'not-a-scenario'] },
+      'TIA adapter certification receipt scenarios[1].id is not a conformance scenario: not-a-scenario',
+    ],
+    [
+      { scenarios: ['baseline-full', 'baseline-full'] },
+      'TIA adapter certification receipt scenarios contains duplicate values',
+    ],
+    [
+      { capabilityLevel: 'runtime-tia', scenarios: ['baseline-full'] },
+      'TIA adapter certification receipt runtime TIA certification requires test-case selection',
+    ],
+  ])(
+    'rejects a spec its receipt could not hold before running anything: %j',
+    async ({ scenarios, ...rest }, message) => {
+      const root = scratch()
+      const path = join(root, 'spec.json')
+      const marker = join(root, 'ran')
+      const base = spec({
+        arguments: [
+          '-e',
+          `require("fs").writeFileSync(${JSON.stringify(marker)}, "")`,
+        ],
+      })
+      writeFileSync(
+        path,
+        JSON.stringify({
+          ...base,
+          ...rest,
+          scenarios: scenarios.map((id) => ({ ...base.scenarios[0], id })),
+        }),
+      )
+      const outcome = await execute(['certify', 'execute', '--spec', path])
+      expect(outcome).toEqual({ code: 1, message })
+      expect(() => readFileSync(marker)).toThrow(/ENOENT/u)
+    },
+  )
+
   test('says on stderr why scenarios failed when the receipt goes to a file', async () => {
     const root = scratch()
     const path = join(root, 'spec.json')
