@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
 
 import {
+  MAX_SOURCE_MAP_BYTES,
   SOURCE_MAP_CACHE_LIMIT,
   clearSourceMapCaches,
   coveredSourceMapFiles,
@@ -297,6 +298,45 @@ describe('whole-script attribution over HTTP', () => {
     expect(requests).toEqual(['/app.map'])
   })
 
+  test('without a directive, tries the sibling map, then the suffix swap', async () => {
+    const root = project({ 'src/a.ts': '', 'src/b.ts': '' })
+    routes.set('/app.js', { body: 'a();\n' })
+    routes.set('/app.js.map', { body: mapJson(['src/a.ts']) })
+    await expect(sourceMapFiles(`${origin}/app.js`, root)).resolves.toEqual([
+      'src/a.ts',
+    ])
+    expect(requests).toEqual(['/app.js', '/app.js.map'])
+
+    // A server that answers every path with its page is not serving a map.
+    routes.set('/old.mjs', { body: 'b();\n' })
+    routes.set('/old.mjs.map', { body: '<!doctype html>' })
+    routes.set('/old.map', { body: mapJson(['src/b.ts']) })
+    await expect(sourceMapFiles(`${origin}/old.mjs`, root)).resolves.toEqual([
+      'src/b.ts',
+    ])
+  })
+
+  test('the coverage path guesses the same sibling map', async () => {
+    const root = project({ 'src/a.ts': '' })
+    routes.set('/app.js.map', {
+      body: JSON.stringify({
+        mappings: 'AAAA',
+        names: [],
+        sources: ['src/a.ts'],
+        version: 3,
+      }),
+    })
+    const script = 'a();\n'
+    await expect(
+      coveredSourceMapFiles(
+        `${origin}/app.js`,
+        script,
+        everything(script),
+        root,
+      ),
+    ).resolves.toEqual(['src/a.ts'])
+  })
+
   test('a script URL with an unmappable suffix has no map', async () => {
     const root = project({ 'src/a.ts': '', 'static/app.css': '' })
     routes.set('/static/app.css', { body: 'a{}' })
@@ -428,6 +468,31 @@ describe('source names', () => {
     ).resolves.toEqual(['src/a.ts'])
   })
 
+  test('accepts Turbopack project names and no other Turbopack root', async () => {
+    const root = project({
+      'browser/runtime.ts': '',
+      'node_modules/dep/index.js': '',
+      'src/a.ts': '',
+      'src/app/[slug]/page.tsx': '',
+    })
+    await expect(
+      attribute(root, 'turbopack:///[project]/src/a.ts'),
+    ).resolves.toEqual(['src/a.ts'])
+    await expect(
+      attribute(root, 'turbopack:///[project]/src/app/[slug]/page.tsx?x#y'),
+    ).resolves.toEqual(['src/app/[slug]/page.tsx'])
+    // Older releases wrote the form without the empty host, not a valid URL.
+    await expect(
+      attribute(root, 'turbopack://[project]/src/a.ts'),
+    ).resolves.toEqual(['src/a.ts'])
+    await expect(
+      attribute(root, 'turbopack:///[turbopack]/browser/runtime.ts'),
+    ).resolves.toEqual([])
+    await expect(
+      attribute(root, 'turbopack:///[project]/node_modules/dep/index.js'),
+    ).resolves.toEqual([])
+  })
+
   test('rejects other schemes, missing files and anything outside the root', async () => {
     const root = project({ 'src/a.ts': '' })
     await expect(attribute(root, 'https://cdn.test/src/a.ts')).resolves.toEqual(
@@ -461,5 +526,46 @@ describe('source names', () => {
       attribute(root, 'webpack:///./packages/app/node_modules/dep/index.js'),
     ).resolves.toEqual([])
     await expect(attribute(root, 'src/a.ts')).resolves.toEqual(['src/a.ts'])
+  })
+})
+
+describe('bounded downloads', () => {
+  test('stops reading a body without a length once it passes the cap', async () => {
+    const total = MAX_SOURCE_MAP_BYTES * 3
+    let sent = 0
+    const server = createServer((request, response) => {
+      if (request.url !== '/big.js') {
+        response.writeHead(404)
+        response.end()
+        return
+      }
+      // Without a content-length the body arrives chunked, so only the reader
+      // can bound it.
+      response.writeHead(200, { 'content-type': 'text/javascript' })
+      const chunk = Buffer.alloc(1024 * 1024, 0x20)
+      const pump = (): void => {
+        while (sent < total && !response.destroyed) {
+          sent += chunk.length
+          if (!response.write(chunk)) {
+            response.once('drain', pump)
+            return
+          }
+        }
+        response.end()
+      }
+      pump()
+    })
+    await new Promise<void>((ready) => server.listen(0, '127.0.0.1', ready))
+    try {
+      const { port } = server.address() as AddressInfo
+      const root = project({ 'big.js': '' })
+      await expect(
+        sourceMapFiles(`http://127.0.0.1:${port}/big.js`, root),
+      ).resolves.toEqual(['big.js'])
+      expect(sent).toBeLessThan(total)
+    } finally {
+      server.closeAllConnections()
+      await new Promise((closed) => server.close(closed))
+    }
   })
 })
