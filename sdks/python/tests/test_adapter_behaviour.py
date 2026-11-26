@@ -316,7 +316,7 @@ class ImplicitImportTests(ProjectCase):
 class GraphShapeTests(ProjectCase):
     files = {"tests/test_a.py": "def test_a(): pass\n"}
 
-    def test_graph_carries_the_six_fixed_invalidators_and_no_known_sources(
+    def test_graph_carries_the_fixed_invalidators_and_no_known_sources(
         self,
     ) -> None:
         graph = create_pytest_graph(self.options(), discover_pytest_suites(self.options()))
@@ -334,6 +334,12 @@ class GraphShapeTests(ProjectCase):
                     "tox.ini",
                     "uv.lock",
                     "requirements*.txt",
+                    "poetry.lock",
+                    "pdm.lock",
+                    "Pipfile",
+                    "Pipfile.lock",
+                    "pylock.toml",
+                    "pylock.*.toml",
                 )
             ],
         )
@@ -348,9 +354,22 @@ class GraphShapeTests(ProjectCase):
 
     def test_configuration_changes_trip_the_invalidators(self) -> None:
         self.assertTrue(tia(self.options()).run().success)
-        for change in ("pyproject.toml", "requirements-dev.txt", "uv.lock"):
+        for change in (
+            "pyproject.toml",
+            "requirements-dev.txt",
+            "uv.lock",
+            "poetry.lock",
+            "pdm.lock",
+            "Pipfile",
+            "Pipfile.lock",
+            "pylock.toml",
+            "pylock.dev.toml",
+        ):
             with self.subTest(change):
-                result = tia(self.options(changes=(change,))).run()
+                # The invalidator applies even when unknown changes are ignored.
+                result = tia(
+                    self.options(changes=(change,), on_unknown_change="ignore")
+                ).run()
                 self.assertEqual(result.plan["mode"], "full")
                 self.assertEqual(
                     result.plan["reason"],

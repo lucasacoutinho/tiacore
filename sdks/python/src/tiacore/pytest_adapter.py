@@ -24,6 +24,22 @@ from .verification import (
     write_snapshot,
 )
 
+# Files whose change can alter how pytest runs or which packages it imports.
+CONFIGURATION_INVALIDATORS = (
+    "pyproject.toml",
+    "pytest.ini",
+    "setup.cfg",
+    "tox.ini",
+    "uv.lock",
+    "requirements*.txt",
+    "poetry.lock",
+    "pdm.lock",
+    "Pipfile",
+    "Pipfile.lock",
+    "pylock.toml",
+    "pylock.*.toml",
+)
+
 EXCLUDED_DIRECTORIES = {
     ".git",
     ".mypy_cache",
@@ -302,14 +318,7 @@ def create_pytest_graph(
                 "pattern": pattern,
                 "reason": "Python test configuration changed",
             }
-            for pattern in (
-                "pyproject.toml",
-                "pytest.ini",
-                "setup.cfg",
-                "tox.ini",
-                "uv.lock",
-                "requirements*.txt",
-            )
+            for pattern in CONFIGURATION_INVALIDATORS
         ],
         "knownSources": [],
         "observations": sorted(
