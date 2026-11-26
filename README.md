@@ -209,7 +209,8 @@ then `npm audit` and `npm pack --dry-run`.
 [Archer](https://github.com/lucasacoutinho/archer) over `src/` with the rules in
 `archer.config.ts`: no import cycles, resolvable imports, strict equality, the
 layer table, no imports of `src/entries/`, and files under 800 lines. It needs
-Node.js 22.18 or newer, so the Node.js 22.12 CI job skips it.
+Node.js 22.18 or newer. CI runs it, with the format, lint, type and package
+checks, once on Node.js 26; the tests run on every supported Node.js version.
 
 Source code is grouped by layer under `src/`, as
 [effect-conventions.md](docs/architecture/effect-conventions.md) describes.
