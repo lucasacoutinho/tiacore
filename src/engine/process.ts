@@ -137,6 +137,8 @@ export const runProcess = Effect.fnUntraced(function* (spec: ProcessSpec) {
     ? attempt.pipe(Effect.asSome)
     : attempt.pipe(Effect.timeoutOption(spec.timeoutMs))
   const code = Option.getOrElse(result, (): number | null => null)
+  // A stream that ends inside a UTF-8 sequence leaves bytes in the decoder.
+  output += decoder.decode()
   const outcome: ProcessOutcome = {
     code,
     output,
