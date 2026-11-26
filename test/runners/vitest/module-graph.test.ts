@@ -29,6 +29,40 @@ function node(file: string | null, id = file): FakeNode {
 }
 
 describe('Vite module graph assets', () => {
+  test('tracks a script imported as data, a URL or a worker as an asset', () => {
+    const root = resolve('/project')
+    const testFile = node(resolve(root, 'test/raw.test.ts'))
+    const raw = node(
+      resolve(root, 'src/template.ts'),
+      `${resolve(root, 'src/template.ts')}?raw`,
+    )
+    const url = node(
+      resolve(root, 'src/worker.js'),
+      `${resolve(root, 'src/worker.js')}?url`,
+    )
+    const worker = node(
+      resolve(root, 'src/job.ts'),
+      `${resolve(root, 'src/job.ts')}?worker&inline`,
+    )
+    const versioned = node(
+      resolve(root, 'src/run.ts'),
+      `${resolve(root, 'src/run.ts')}?v=123`,
+    )
+    for (const imported of [raw, url, worker, versioned]) {
+      testFile.importedModules.add(imported)
+    }
+    const graph: ModuleGraphLike = {
+      getModuleById: (id) => (id === testFile.id ? testFile : undefined),
+      getModulesByFile: () => undefined,
+    }
+
+    const expected = ['src/job.ts', 'src/template.ts', 'src/worker.js']
+    expect(importedAssetFiles(graph, testFile.id!, root)).toEqual(expected)
+    expect(directlyImportedAssetFiles(graph, testFile.id!, root)).toEqual(
+      expected,
+    )
+  })
+
   test('collects nested project assets without replacing runtime JS edges', () => {
     const root = resolve('/project')
     const testFile = node(resolve(root, 'test/button.test.tsx'))
