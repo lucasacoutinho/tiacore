@@ -62,6 +62,8 @@ const result = await build({
   outdir: 'dist/entries',
   platform: 'node',
   sourcemap: 'linked',
+  // The package does not ship src/, so the maps carry positions only.
+  sourcesContent: false,
   splitting: true,
   target: 'node22.12',
 })

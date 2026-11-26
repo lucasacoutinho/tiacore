@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -7,6 +7,12 @@ import { describe, expect, test } from 'vitest'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const dist = join(root, 'dist')
+
+function distFiles(suffix: string): string[] {
+  return readdirSync(dist, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(suffix))
+    .map((entry) => join(entry.parentPath, entry.name))
+}
 
 function traceMap(script: string): TraceMap {
   const map = `${script}.map`
@@ -38,5 +44,25 @@ describe('built source maps', () => {
     const line =
       readFileSync(source, 'utf8').split('\n')[(original.line ?? 0) - 1] ?? ''
     expect(line.slice(original.column ?? 0)).toMatch(/^'--version'/u)
+  })
+
+  // The package ships dist/ but not src/: a declaration map or embedded
+  // source would only add size.
+  test('maps every script by position only and ships no declaration maps', () => {
+    const scripts = distFiles('.js')
+    expect(scripts.length).toBeGreaterThan(0)
+    for (const script of scripts) {
+      const map: { sourcesContent?: unknown } = JSON.parse(
+        readFileSync(`${script}.map`, 'utf8'),
+      )
+      expect(map.sourcesContent, script).toBeUndefined()
+    }
+    expect(distFiles('.d.ts.map')).toEqual([])
+    expect(
+      distFiles('.d.ts').filter((declaration) =>
+        readFileSync(declaration, 'utf8').includes('sourceMappingURL'),
+      ),
+    ).toEqual([])
+    expect(existsSync(join(dist, 'entries/index.d.ts'))).toBe(true)
   })
 })
