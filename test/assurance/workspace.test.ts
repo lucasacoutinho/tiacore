@@ -215,6 +215,25 @@ describe('workspace lanes', () => {
     expect(result.lanes[0]).not.toHaveProperty('result')
   })
 
+  test('records a lane whose process cannot be spawned as failed', async () => {
+    const ok = { run: async () => ({ success: true }) }
+    const result = await tia({
+      lanes: [
+        { arguments: ['a\0b'], command: process.execPath, id: 'arguments' },
+        { command: 'a\0b', id: 'command' },
+        { dependsOn: ['arguments'], id: 'after', runner: ok },
+      ],
+    }).run()
+    expect(result.success).toBe(false)
+    expect(result.lanes.map((lane) => lane.status)).toEqual([
+      'failed',
+      'failed',
+      'blocked',
+    ])
+    expect(result.lanes[0]?.error).toMatch(/null bytes/u)
+    expect(result.lanes[1]?.error).toMatch(/null bytes/u)
+  })
+
   test('accepts runners of any class, structurally', async () => {
     class Foreign {
       run() {

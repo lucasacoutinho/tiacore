@@ -1,7 +1,9 @@
 import { resolve } from 'node:path'
 
+import * as Cause from 'effect/Cause'
 import * as Effect from 'effect/Effect'
 import * as Fiber from 'effect/Fiber'
+import * as Option from 'effect/Option'
 import * as Predicate from 'effect/Predicate'
 
 import type {
@@ -11,7 +13,7 @@ import type {
   TiaWorkspaceResult,
 } from '../../core/workspace.ts'
 import { runPromise } from '../../host/runtime.ts'
-import { errorMessage, TiaFailed, type TiaError } from '../../wire/errors.ts'
+import { errorMessage, TiaFailed } from '../../wire/errors.ts'
 import { inheritedEnvironment, runProcess } from '../../engine/process.ts'
 import { decodeWorkspaceOptions } from './options.ts'
 import { normalizedConcurrency } from '../../engine/scheduling.ts'
@@ -96,7 +98,7 @@ const schedule = Effect.fnUntraced(function* (options: TiaWorkspaceOptions) {
   const settle =
     (lane: TiaWorkspaceLane, started: number) =>
     (outcome: {
-      readonly error?: TiaError
+      readonly error?: string
       readonly ok: boolean
       readonly result?: unknown
     }) =>
@@ -106,7 +108,7 @@ const schedule = Effect.fnUntraced(function* (options: TiaWorkspaceOptions) {
           failed = true
           results.set(lane.id, {
             duration,
-            error: outcome.error?.message ?? '',
+            error: outcome.error ?? '',
             id: lane.id,
             status: 'failed',
           })
@@ -128,8 +130,17 @@ const schedule = Effect.fnUntraced(function* (options: TiaWorkspaceOptions) {
     const started = performance.now()
     const record = settle(lane, started)
     const task = executeLane(lane, root).pipe(
-      Effect.matchEffect({
-        onFailure: (error) => record({ error, ok: false }),
+      // A defect fails the lane too, for example a command Node refuses to
+      // spawn, so every lane that ran ends with a result.
+      Effect.matchCauseEffect({
+        onFailure: (cause) =>
+          record({
+            error: Option.match(Cause.findErrorOption(cause), {
+              onNone: () => errorMessage(Cause.squash(cause)),
+              onSome: (error) => error.message,
+            }),
+            ok: false,
+          }),
         onSuccess: (result) => record({ ok: true, result }),
       }),
       Effect.ensuring(
