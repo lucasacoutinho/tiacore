@@ -59,11 +59,11 @@ inert unless a directory is configured by the runner or application.
 ## `@lucasacoutinho/tiacore/gradle`
 
 Exports named `tia(options)`, returning a `TiaGradleRunner`. The adapter
-discovers Java and Kotlin test classes, follows transitive imports to local
-production sources, selects affected classes, delegates their execution to one
-native Gradle invocation, and validates that selected classes appear in JUnit
-XML. Gradle continues to own task caching, workers, forks, and connected
-devices.
+discovers Java and Kotlin test classes, follows transitive imports and
+same-package references to local production sources and test helpers, selects
+affected classes, delegates their execution to one native Gradle invocation, and
+validates that selected classes appear in JUnit XML. Gradle continues to own
+task caching, workers, forks, and connected devices.
 
 ## `@lucasacoutinho/tiacore/playwright`
 

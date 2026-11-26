@@ -227,6 +227,15 @@ provider accepts an `artifactName` pattern; other systems can download all
 fragment directories and use the filesystem provider. Custom providers must
 assign the same `group` to candidates from one partition set.
 
+## Playwright shards
+
+Playwright does not yet write shard fragments. Do not pass `--shard`,
+`--last-failed` or `--only-changed` to a Playwright lane that tiacore manages.
+Playwright applies those options after tiacore selects the affected specs, so a
+shard can run none of the specs selected for it and still save the graph. The
+skipped specs are then not selected again. Split Playwright work across lanes
+with separate `--cache-dir` and `--runner` values instead.
+
 ## Runner and lane parallelism
 
 - Vitest retains its native threads or forks.
