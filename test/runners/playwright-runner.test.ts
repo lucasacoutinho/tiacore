@@ -14,12 +14,18 @@ import {
   cachedTestCount,
   planFilters,
   run,
+  runnerFingerprint,
 } from '../../src/runners/playwright/program.ts'
+import {
+  frameworkAdapters,
+  frameworkFingerprint,
+} from '../../src/engine/edges/index.ts'
 import {
   evidenceProblems,
   readReport,
 } from '../../src/runners/playwright/report.ts'
 import type { PlaywrightRunReport } from '../../src/runners/playwright/protocol.ts'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -118,6 +124,38 @@ describe('path filters', () => {
     const selected = planFilters(plan({ affectedTests: [name] }), '/p')
     expect(selected.filters.join('')).toHaveLength(MAX_FILTER_CHARACTERS)
     expect(selected.note).toBeUndefined()
+  })
+})
+
+describe('graph identity', () => {
+  const adapters = frameworkAdapters(undefined)
+  const identity = (runArguments: string[]) =>
+    runnerFingerprint('config', adapters, undefined, undefined, runArguments)
+
+  test('swapped option values are different lanes', () => {
+    // The engine sorts the files it fingerprints, run arguments included, so
+    // both lists below reach it as the same sorted list.
+    expect(identity(['--grep', 'a', '--grep-invert', 'b'])).not.toBe(
+      identity(['--grep', 'b', '--grep-invert', 'a']),
+    )
+    expect(identity(['--workers=1', '--retries=2'])).not.toBe(
+      identity(['--retries=2', '--workers=1']),
+    )
+  })
+
+  test('a lane without run arguments keeps the identity earlier releases gave it', () => {
+    const earlier = createHash('sha256')
+      .update('config')
+      .update(frameworkFingerprint(adapters))
+      .update(
+        JSON.stringify({
+          correlatedEvidence: 0,
+          evidenceHeader: '',
+          version: 1,
+        }),
+      )
+      .digest('hex')
+    expect(identity([])).toBe(earlier)
   })
 })
 
