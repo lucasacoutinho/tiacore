@@ -72,9 +72,21 @@ export function mergeFamilies(
   )
 }
 
-export function mergePartitionedGraphs(
+/** A partition merge and which of its fragments it used. */
+export interface PartitionMerge {
+  graph: TiaRuntimeGraph
+  /** Positions in the input of the fragments merged, by partition index. */
+  used: number[]
+}
+
+/**
+ * `mergePartitionedGraphs`, also naming the fragments the merge used. A
+ * fragment that does not join the merge is not among them, nor is one whose
+ * index a later fragment of equal generation holds.
+ */
+export function mergePartitionedFragments(
   fragments: readonly TiaRuntimeGraph[],
-): TiaRuntimeGraph | null {
+): PartitionMerge | null {
   const first = fragments[0]
   if (first?.partition === undefined) return null
 
@@ -82,9 +94,12 @@ export function mergePartitionedGraphs(
   if (!Number.isInteger(total) || total < 1) return null
   const baseline = JSON.stringify(first.baseline)
   const fingerprint = first.fingerprint
-  const partitions = new Map<number, TiaRuntimeGraph>()
+  const partitions = new Map<
+    number,
+    { fragment: TiaRuntimeGraph; position: number }
+  >()
 
-  for (const fragment of fragments) {
+  for (const [position, fragment] of fragments.entries()) {
     const partition = fragment.partition
     if (
       partition === undefined ||
@@ -103,11 +118,11 @@ export function mergePartitionedGraphs(
     const existing = partitions.get(partition.index)
     if (
       existing !== undefined &&
-      graphGeneration(existing) !== graphGeneration(fragment)
+      graphGeneration(existing.fragment) !== graphGeneration(fragment)
     ) {
       return null
     }
-    partitions.set(partition.index, fragment)
+    partitions.set(partition.index, { fragment, position })
   }
 
   if (partitions.size !== total) return null
@@ -121,18 +136,27 @@ export function mergePartitionedGraphs(
     schema: first.schema,
   }
 
+  const used: number[] = []
   for (let index = 1; index <= total; index += 1) {
-    const fragment = partitions.get(index)
-    if (fragment === undefined || !mergeFamilies(null, merged, fragment)) {
+    const held = partitions.get(index)
+    if (held === undefined || !mergeFamilies(null, merged, held.fragment)) {
       return null
     }
+    const { fragment } = held
     Object.assign(merged.coverageMaps, fragment.coverageMaps)
     merged.coverageComplete &&= fragment.coverageComplete
     if (fragment.updatedAt > merged.updatedAt) {
       merged.updatedAt = fragment.updatedAt
     }
+    used.push(held.position)
   }
 
   pruneCoverageMaps(merged)
-  return merged
+  return { graph: merged, used }
+}
+
+export function mergePartitionedGraphs(
+  fragments: readonly TiaRuntimeGraph[],
+): TiaRuntimeGraph | null {
+  return mergePartitionedFragments(fragments)?.graph ?? null
 }

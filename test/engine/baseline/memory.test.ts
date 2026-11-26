@@ -44,6 +44,21 @@ describe('in-memory baselines follow the live algorithm', () => {
     })
   })
 
+  test('a temporary tool file never enters a capture, as change detection never compares it', async () => {
+    const vite = 'vitest.config.mts.timestamp-1700000000-abc123.mjs'
+    const bun = 'apps/.18c767bfb8edfdfd-00000000.bun-build'
+    const p = project()
+    p.files['a.ts'] = 'dirty'
+    const projects = new Map([['/p', p]])
+    const before = await run(projects, (b) => b.capture('/p', []))
+    // Vite and Bun write these while a run is under way and delete them after.
+    p.files = { ...p.files, [bun]: 'b1', [vite]: 'v1' }
+    p.untracked = [bun, vite]
+    const during = await run(projects, (b) => b.capture('/p', []))
+    expect(during).toEqual(before)
+    expect(during?.workingTree).toEqual({ 'a.ts': 'dirty' })
+  })
+
   test('changedSince compares against the recorded tree', async () => {
     const p = project()
     const projects = new Map([['/p', p]])

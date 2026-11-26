@@ -423,6 +423,35 @@ describe('verification order and verdicts', () => {
     ).toBe('artifact attestation has an invalid validity window')
   })
 
+  test('an invalid clock fails closed instead of skipping the validity window', () => {
+    const expired = claim(value, {
+      expiresAt: iso(-hour),
+      issuedAt: iso(-2 * hour),
+    })
+    expect(
+      verifyArtifactAttestation({
+        attestation: sign(expired),
+        graph: value,
+        graphSha256: digestOf(value),
+        now: new Date(Number.NaN),
+        policy: trust(),
+        runner: 'node',
+      }),
+    ).toMatchObject({
+      reason: 'artifact attestation is not valid yet',
+      trusted: false,
+    })
+  })
+
+  test('a maximum age that is not a number rejects every artifact', () => {
+    expect(
+      verifyClaim(claim(value), trust({ maxAgeSeconds: Number.NaN })),
+    ).toMatchObject({
+      reason: 'artifact attestation exceeds the allowed age',
+      trusted: false,
+    })
+  })
+
   test('notBefore rejects older issuances; an unparseable value rejects all', () => {
     expect(verifyClaim(claim(value), trust({ notBefore: iso(0) })).reason).toBe(
       'artifact predates the trust policy',

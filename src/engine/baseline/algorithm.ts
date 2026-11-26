@@ -169,7 +169,7 @@ export function makeBaselines(probe: Probe): Baselines['Service'] {
     if (tracked === null || untracked === null) return null
     const trackedSet = new Set(tracked)
     const candidates = unique([...tracked, ...untracked]).filter(
-      (file) => !isIgnored(file, ignoredPrefixes),
+      (file) => !isIgnored(file, ignoredPrefixes) && !isTemporaryToolFile(file),
     )
     // An untracked file that vanished before it could be hashed is skipped;
     // a tracked one that was deleted is recorded as `<deleted>`.

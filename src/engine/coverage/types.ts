@@ -1,4 +1,4 @@
-import type { FileCoverageData } from 'istanbul-lib-coverage'
+import type { TiaCoverageTemplate } from '../../core/runtime.ts'
 
 export type TiaCoverageReporter =
   | 'clover'
@@ -89,7 +89,11 @@ export interface TiaCoverageReporterRuntime {
   options: Record<string, unknown>
 }
 
-export type TiaCoverageMap = Record<string, FileCoverageData>
+/** Istanbul file coverage by absolute path. */
+export type TiaCoverageMap = Record<
+  string,
+  TiaCoverageTemplate & { path: string }
+>
 
 /** Counters a window advanced in one file; the probe produces them. */
 export type { ProbeCounterMap as TiaCoverageCounterMap } from '../../probe/types.ts'

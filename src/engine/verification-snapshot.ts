@@ -133,8 +133,14 @@ const persistSnapshot = Effect.fnUntraced(function* (input: {
         yield* file.writeAll(encoder.encode(chunk))
       }
     }),
-  ).pipe(Effect.mapError(asIo))
-  yield* fs.rename(temporary, target).pipe(Effect.mapError(asIo))
+  ).pipe(
+    Effect.andThen(fs.rename(temporary, target)),
+    Effect.mapError(asIo),
+    // A write that fails or is interrupted leaves no partial file behind.
+    Effect.onError(() =>
+      fs.remove(temporary, { force: true }).pipe(Effect.ignore),
+    ),
+  )
 })
 
 /** Writes the run's verification snapshot to `target`, if there is one. */

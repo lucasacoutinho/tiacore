@@ -32,7 +32,7 @@ export function viewEdges(
   )
   const roots = options.roots ?? DEFAULT_ROOTS
   const literalPattern = new RegExp(
-    `["'\`]([^"'\\n]+(?:${escapedExtensions(extensions)}))["'\`]`,
+    `["'\`]([^"'\`\\n]+(?:${escapedExtensions(extensions)}))["'\`]`,
     'g',
   )
   const callPattern =

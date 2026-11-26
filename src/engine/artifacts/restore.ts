@@ -12,10 +12,13 @@ import {
   type TiaArtifactProvider,
   type TiaArtifactSource,
 } from '../../core/artifacts.ts'
-import type { TiaRuntimeGraph } from '../../core/runtime.ts'
+import type {
+  TiaRuntimeGraph,
+  TiaRuntimeGraphPartition,
+} from '../../core/runtime.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
 import { Baselines, GraphStore } from '../ports.ts'
-import { mergePartitionedGraphs } from '../state/merge.ts'
+import { mergePartitionedFragments } from '../state/merge.ts'
 import { createFilesystemArtifactProvider } from './filesystem.ts'
 import { createGitHubActionsArtifactProvider } from './github-actions.ts'
 import { createGitLabCiArtifactProvider } from './gitlab-ci.ts'
@@ -35,6 +38,22 @@ interface Trusted {
   group: ArtifactId | undefined
   id: ArtifactId
   trust: TiaArtifactTrustResult
+}
+
+/**
+ * What the partition merge compares, as a key: within one provider group,
+ * fragments with different keys never merge, so each key is tried on its own.
+ */
+function mergeSetKey(
+  graph: TiaRuntimeGraph,
+  partition: TiaRuntimeGraphPartition,
+): string {
+  return JSON.stringify([
+    partition.group ?? null,
+    partition.total,
+    graph.baseline,
+    graph.fingerprint,
+  ])
 }
 
 function isProvider(source: TiaArtifactSource): source is TiaArtifactProvider {
@@ -107,7 +126,11 @@ const loadCandidates = (
  * fingerprint, and, unless its baseline came from a file snapshot, ancestry:
  * its baseline commit must be an ancestor of HEAD. A graph whose baseline is
  * not reachable from HEAD could only force a full run, so it is not
- * committed. A provider that fails is skipped; restoring is an optimisation.
+ * committed. Without a complete graph, partition fragments are merged one set
+ * at a time: the fragments their provider put in one group (a CI run, say)
+ * that share a `mergeSetKey`. A stray fragment never blocks a complete set,
+ * and only the fragments merged are reported. A provider that fails is
+ * skipped; restoring is an optimisation.
  */
 export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
   input: RestoreArtifactsInput,
@@ -190,21 +213,31 @@ export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
     let artifactTrust = chosen?.trust
     let ids: ArtifactId | ArtifactId[] = chosen?.id ?? []
     if (graph === null) {
-      const groups = new Map<ArtifactId | undefined, Trusted[]>()
+      const groups = new Map<ArtifactId | undefined, Map<string, Trusted[]>>()
       for (const item of trusted) {
-        if (item.graph.partition === undefined) continue
+        const partition = item.graph.partition
+        if (partition === undefined) continue
         if (!(yield* reachable(item.graph))) continue
-        const group = groups.get(item.group) ?? []
-        group.push(item)
-        groups.set(item.group, group)
+        const sets = groups.get(item.group) ?? new Map<string, Trusted[]>()
+        const key = mergeSetKey(item.graph, partition)
+        sets.set(key, [...(sets.get(key) ?? []), item])
+        groups.set(item.group, sets)
       }
-      for (const group of groups.values()) {
-        graph = mergePartitionedGraphs(group.map((item) => item.graph))
-        if (graph !== null) {
-          ids = group.map((item) => item.id)
-          artifactTrust = group[0]?.trust
-          break
+      const sets = [...groups.values()].flatMap((byKey) => [...byKey.values()])
+      for (const set of sets) {
+        const merge = mergePartitionedFragments(set.map((item) => item.graph))
+        if (
+          merge === null ||
+          !usableGraph(merge.graph, input.fingerprint, coverageRequested)
+        ) {
+          continue
         }
+        const used = new Set(merge.used)
+        const merged = set.filter((_, position) => used.has(position))
+        graph = merge.graph
+        ids = merged.map((item) => item.id)
+        artifactTrust = merged[0]?.trust
+        break
       }
     }
     if (!usableGraph(graph, input.fingerprint, coverageRequested)) return null

@@ -452,6 +452,18 @@ describe('view edges', () => {
     ])
   })
 
+  it('reads views named in neighbouring template literals one by one', () => {
+    const root = project({
+      'src/page.ts': 'const views = [`home.ejs`, `layouts/main.njk`]',
+      'src/views/layouts/main.njk': '',
+      'views/home.ejs': '',
+    })
+    expect(viewEdges(true).resolve(context(root, ['src/page.ts']))).toEqual([
+      'src/views/layouts/main.njk',
+      'views/home.ejs',
+    ])
+  })
+
   it('normalizes configured extensions into the fingerprint', () => {
     const adapter = viewEdges({ extensions: ['md', '.mdx'], roots: ['docs'] })
     expect(JSON.parse(adapter.fingerprint ?? '')).toEqual({

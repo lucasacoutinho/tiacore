@@ -43,6 +43,13 @@ describe('runProcess outcome', () => {
     })
   })
 
+  test('keeps a UTF-8 sequence cut off at the end of the output', async () => {
+    const outcome = await run(
+      'process.stdout.write(Buffer.from([0x61, 0xe2, 0x82]))',
+    )
+    expect(outcome.output).toBe('a\uFFFD')
+  })
+
   test('maps a signal to status 128 and no code', async () => {
     const outcome = await run("process.kill(process.pid, 'SIGKILL')")
     expect(outcome).toMatchObject({ code: null, status: 128, timedOut: false })

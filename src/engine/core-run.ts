@@ -58,7 +58,7 @@ export class CoreRun {
   private readonly runnerFiles: string[]
   private readonly runnerTestFiles: string[] | undefined
 
-  /** `env` is where TIA_VERIFICATION_DIRECTORY and TIA_VERIFICATION_PHASE are read from. */
+  /** `env` is where TIA_FRESH, TIA_VERIFICATION_DIRECTORY and TIA_VERIFICATION_PHASE are read from. */
   constructor(
     options: TiaCoreOptions,
     private readonly env: Readonly<
@@ -66,7 +66,7 @@ export class CoreRun {
     > = process.env,
   ) {
     this.root = resolve(options.root ?? process.cwd())
-    this.options = normalizedOptions(this.root, options)
+    this.options = normalizedOptions(this.root, options, env)
     this.cacheDir = resolve(this.options.cacheDir, options.runner)
     this.runner = options.runner
     this.runnerFingerprint = options.fingerprint ?? ''

@@ -5,7 +5,10 @@ import { describe, expect, test } from 'vitest'
 
 import {
   MAX_ARCHIVE_ENTRIES,
+  MAX_ARTIFACT_ARCHIVE_BYTES,
+  MAX_ARTIFACT_GRAPH_BYTES,
   MAX_NESTED_ARCHIVES,
+  readArchiveAttestation,
   readArtifactArchive,
 } from '../../src/engine/artifacts/archive.ts'
 import { graph, sha256 } from './support.ts'
@@ -200,6 +203,173 @@ describe('expansion limits', () => {
     }
     expect(readArtifactArchive(archive, undefined)?.graph.fingerprint).toBe(
       'current',
+    )
+  })
+})
+
+// The central directory declares each entry's sizes, and fflate trusts it: a
+// stored entry is sliced by its compressed size whatever it declares.
+
+const CENTRAL_RECORD = 0x02014b50
+const END_OF_DIRECTORY = 0x06054b50
+
+/**
+ * Rebuilds `archive` with the central directory records `edit` returns, so a
+ * test can forge a record's sizes or point several records at one entry. The
+ * entries themselves are left as they are.
+ */
+function rewriteCentralDirectory(
+  archive: Uint8Array,
+  edit: (records: Uint8Array[]) => Uint8Array[],
+): Uint8Array {
+  const view = new DataView(archive.buffer, archive.byteOffset)
+  const end = archive.byteLength - 22
+  if (view.getUint32(end, true) !== END_OF_DIRECTORY) {
+    throw new Error('fixture archive has a comment')
+  }
+  const records: Uint8Array[] = []
+  let at = view.getUint32(end + 16, true)
+  const start = at
+  for (let index = 0; index < view.getUint16(end + 10, true); index += 1) {
+    if (view.getUint32(at, true) !== CENTRAL_RECORD) {
+      throw new Error('fixture archive has a broken central directory')
+    }
+    const length =
+      46 +
+      view.getUint16(at + 28, true) +
+      view.getUint16(at + 30, true) +
+      view.getUint16(at + 32, true)
+    records.push(archive.slice(at, at + length))
+    at += length
+  }
+
+  const edited = edit(records)
+  const size = edited.reduce((total, record) => total + record.byteLength, 0)
+  const out = new Uint8Array(start + size + 22)
+  out.set(archive.subarray(0, start))
+  let cursor = start
+  for (const record of edited) {
+    out.set(record, cursor)
+    cursor += record.byteLength
+  }
+  out.set(archive.subarray(end), cursor)
+  const tail = new DataView(out.buffer, cursor)
+  tail.setUint16(8, edited.length, true)
+  tail.setUint16(10, edited.length, true)
+  tail.setUint32(12, size, true)
+  return out
+}
+
+const recordName = (record: Uint8Array) =>
+  new TextDecoder().decode(
+    record.subarray(46, 46 + (record[28]! | (record[29]! << 8))),
+  )
+
+/** A copy of a central directory record that declares `originalSize`. */
+function declaring(record: Uint8Array, originalSize: number): Uint8Array {
+  const copy = record.slice()
+  new DataView(copy.buffer).setUint32(24, originalSize, true)
+  return copy
+}
+
+const stored = (bytes: Uint8Array): [Uint8Array, { level: 0 }] => [
+  bytes,
+  { level: 0 },
+]
+
+function wellFormedAttestation(fingerprint: string) {
+  return {
+    algorithm: 'Ed25519',
+    claim: {
+      expiresAt: '2030-01-01T00:00:00.000Z',
+      fingerprint,
+      graphSha256: 'a'.repeat(64),
+      issuedAt: '2026-01-01T00:00:00.000Z',
+      lineage: {
+        baseline: { sha: 'abc' },
+        parents: [],
+        producedAt: '2026-01-01T00:00:00.000Z',
+        runId: 'r',
+      },
+      promoted: false,
+    },
+    keyId: 'forged',
+    signature: 'A'.repeat(86),
+    version: 1,
+  }
+}
+
+/** An archive whose `records` directory records all name one stored graph. */
+function sharedEntry(records: number): Uint8Array {
+  return rewriteCentralDirectory(
+    zipSync({ 'graph.json': stored(padded(17 * 1024 * 1024)) }),
+    ([record]) => Array.from({ length: records }, () => declaring(record!, 0)),
+  )
+}
+
+describe('declared entry sizes', () => {
+  test('a stored entry that declares no size is still held to the entry limit', () => {
+    const attestation = strToU8(
+      `${JSON.stringify(wellFormedAttestation('forged'))}${' '.repeat(
+        MAX_ARTIFACT_GRAPH_BYTES,
+      )}`,
+    )
+    const forged = rewriteCentralDirectory(
+      zipSync({
+        'attestation.json': stored(attestation),
+        'graph.json': json(graph('forged')),
+      }),
+      (records) =>
+        records.map((record) =>
+          recordName(record) === 'attestation.json'
+            ? declaring(record, 0)
+            : record,
+        ),
+    )
+    expect(forged.byteLength).toBeLessThan(MAX_ARTIFACT_ARCHIVE_BYTES)
+
+    expect(readArchiveAttestation(forged)).toBeNull()
+    const read = readArtifactArchive(forged, undefined)
+    expect(read?.graph.fingerprint).toBe('forged')
+    expect(read?.attestation).toBeUndefined()
+  })
+
+  test('records sharing one stored entry are each charged its real size', () => {
+    // Three records fit the 64 MiB budget, four do not.
+    expect(
+      readArtifactArchive(sharedEntry(3), undefined)?.graph.fingerprint,
+    ).toBe('padded')
+    const four = sharedEntry(4)
+    expect(four.byteLength).toBeLessThan(MAX_ARTIFACT_ARCHIVE_BYTES)
+    expect(readArtifactArchive(four, undefined)).toBeNull()
+  })
+
+  test('a deflated entry inflates to no more than its declared size', () => {
+    // fflate cuts the output at the declared size rather than growing it, so
+    // the declared size bounds a deflated entry as the stored size bounds a
+    // stored one. The digest covers the bytes actually read.
+    const exact = json(graph('padded'))
+    const forged = rewriteCentralDirectory(
+      zipSync({ 'graph.json': padded(1024 * 1024) }),
+      ([record]) => [declaring(record!, exact.byteLength)],
+    )
+    const read = readArtifactArchive(forged, undefined)
+    expect(read?.graph.fingerprint).toBe('padded')
+    expect(read?.graphSha256).toBe(sha256(exact))
+  })
+
+  test('a wrapped publisher archive may be as large as one read directly', () => {
+    const inner = zipSync({
+      'graph.json': json(graph('wrapped')),
+      'padding.bin': stored(new Uint8Array(MAX_ARTIFACT_GRAPH_BYTES + 1024)),
+    })
+    expect(inner.byteLength).toBeGreaterThan(MAX_ARTIFACT_GRAPH_BYTES)
+    expect(readArtifactArchive(inner, undefined)?.graph.fingerprint).toBe(
+      'wrapped',
+    )
+    const outer = zipSync({ [NESTED]: stored(inner) })
+    expect(readArtifactArchive(outer, undefined)?.graph.fingerprint).toBe(
+      'wrapped',
     )
   })
 })
