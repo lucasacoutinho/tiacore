@@ -241,6 +241,23 @@ export const createGraph = Effect.fnUntraced(function* (
   return graphFromScans(scans, options, true)
 })
 
+/**
+ * Whether every profile a lane names belongs to exactly one suite. Counting
+ * each name on its own keeps an unknown profile from hiding behind one that
+ * two scripts share; naming a profile twice is harmless.
+ */
+function namesOneSuiteEach(
+  profiles: readonly string[],
+  suites: readonly K6Suite[],
+): boolean {
+  const counts = new Map(profiles.map((profile) => [profile, 0]))
+  for (const suite of suites) {
+    const count = counts.get(suite.profile)
+    if (count !== undefined) counts.set(suite.profile, count + 1)
+  }
+  return [...counts.values()].every((count) => count === 1)
+}
+
 export const planSuites = Effect.fnUntraced(function* (
   suites: readonly K6Suite[],
   options: PlanK6Options,
@@ -254,7 +271,7 @@ export const planSuites = Effect.fnUntraced(function* (
           .map((suite) => suite.id)
   if (
     allowedProfiles !== undefined &&
-    allowed?.length !== new Set(allowedProfiles).size
+    !namesOneSuiteEach(allowedProfiles, suites)
   ) {
     return yield* new TiaInvalid({
       message: 'k6 policy names an unknown or duplicate profile',
