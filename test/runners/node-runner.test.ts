@@ -227,6 +227,25 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
 })
 
 describe('node discovery mode', () => {
+  test('a test file that never finishes loading is a module failure', async () => {
+    const root = project({
+      'test/stuck.test.mjs': `import test from 'node:test'
+
+setInterval(() => {}, 1_000)
+await new Promise(() => {})
+test('never reached', () => {})
+`,
+    })
+    const observed = await runPromise(
+      observeNodeFiles(context(root, { timeoutMs: 1_500 }), [
+        join(root, 'test/stuck.test.mjs'),
+      ]),
+    )
+    expect(observed.observations.map((item) => [item.id, item.state])).toEqual([
+      ['module:test/stuck.test.mjs', 'failed'],
+    ])
+  }, 20_000)
+
   test('a case whose test process dies after it passed is recorded as failed', async () => {
     const root = project({
       'src/value.mjs': 'export const value = 1\n',

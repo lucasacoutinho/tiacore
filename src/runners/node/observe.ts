@@ -146,12 +146,15 @@ const discoverFile = Effect.fnUntraced(function* (
   file: string,
   output: string,
 ) {
+  // Loading a test file can hang (a top-level await, a handle that only an
+  // `after` hook closes); past the execution limit it is a module failure.
   const outcome = yield* runProcess({
     args: ['--import', pathToFileURL(context.helpers.register).href, file],
     command: process.execPath,
     cwd: context.root,
     env: childEnvironment({ TIACORE_NODE_DISCOVERY_FILE: output }),
     stdio: context.log ? 'forward' : 'discard',
+    timeoutMs: context.timeoutMs ?? EXECUTION_TIMEOUT_MS,
   }).pipe(Effect.orElseSucceed(() => ({ code: null })))
   return outcome.code === 0 ? null : slash(relative(context.root, file))
 })
@@ -171,17 +174,24 @@ const discoverWithHooks = (
       const temporary = yield* fs.makeTempDirectoryScoped({
         prefix: 'tiacore-node-discovery-',
       })
-      const output = join(temporary, 'cases.jsonl')
-      yield* fs.writeFileString(output, '')
-      const failed = yield* Effect.forEach(
+      // One record file per child: a child killed mid-write cannot leave a
+      // partial line that swallows another file's record.
+      const discovered = yield* Effect.forEach(
         files,
-        (file) => discoverFile(context, file, output),
+        (file, index) =>
+          Effect.gen(function* () {
+            const output = join(temporary, `${index}.jsonl`)
+            yield* fs.writeFileString(output, '')
+            const failure = yield* discoverFile(context, file, output)
+            return { failure, records: yield* fs.readFileString(output) }
+          }),
         { concurrency: context.concurrency },
       )
-      const moduleFailures = failed.filter((file) => file !== null)
-      const cases = parseNodeDiscoveryRecords(
-        context.root,
-        yield* fs.readFileString(output),
+      const moduleFailures = discovered.flatMap(({ failure }) =>
+        failure === null ? [] : [failure],
+      )
+      const cases = discovered.flatMap(({ records }) =>
+        parseNodeDiscoveryRecords(context.root, records),
       )
       if (cases.length === 0 && moduleFailures.length === 0) return null
       return {
