@@ -15,6 +15,7 @@ import {
   groupBy,
   moduleFailureObservation,
   observationOf,
+  withSingleModuleFailures,
 } from '../shared/observations.ts'
 import type { FileObservations } from '../shared/run.ts'
 import {
@@ -404,6 +405,6 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
   )
   return {
     complete: true,
-    observations: perFile.flat(),
+    observations: withSingleModuleFailures(perFile.flat()),
   } satisfies FileObservations
 })

@@ -3,7 +3,7 @@ import { join, relative, resolve } from 'node:path'
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 
-import { isModuleFailureId, type CachedTestResult } from '../../core/runtime.ts'
+import type { CachedTestResult } from '../../core/runtime.ts'
 import type { TiaObservation } from '../../engine/core.ts'
 import { slash } from '../../engine/host-path.ts'
 import { runProcess } from '../../engine/process.ts'
@@ -13,6 +13,7 @@ import {
   groupBy,
   moduleFailureObservation,
   observationOf,
+  withSingleModuleFailures,
 } from '../shared/observations.ts'
 import type { FileObservations } from '../shared/run.ts'
 import { parseBunJunit, parseBunLcov, type BunCase } from './report.ts'
@@ -123,19 +124,6 @@ function selectedCaseObservation(
     return moduleFailureObservation(selected.file)
   }
   return observationOf(result, [selected.file, ...execution.coverageFiles])
-}
-
-/** `observations` with each module failure once: every case of a broken file reports it. */
-function withSingleModuleFailures(
-  observations: readonly TiaObservation[],
-): TiaObservation[] {
-  const reported = new Set<string>()
-  return observations.filter((observation) => {
-    if (!isModuleFailureId(observation.id)) return true
-    if (reported.has(observation.id)) return false
-    reported.add(observation.id)
-    return true
-  })
 }
 
 const observeCandidate = Effect.fnUntraced(function* (
