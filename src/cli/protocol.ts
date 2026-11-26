@@ -29,13 +29,16 @@ const Policy = Schema.Struct({
   onUnknownChange: Schema.optionalKey(Schema.Literals(['full', 'ignore'])),
 })
 
-function decodeWith<S extends Schema.Top>(schema: S, message: string) {
-  const decode = Schema.decodeUnknownEffect(schema)
-  return (value: unknown) =>
-    decode(value).pipe(Effect.mapError(() => new TiaInvalid({ message })))
-}
-
-const decodePolicy = decodeWith(Policy, 'TIA execution policy is invalid')
+const decodePolicyValue = Schema.decodeUnknownEffect(Policy)
+const decodePolicy = (value: unknown) =>
+  decodePolicyValue(value).pipe(
+    Effect.mapError(
+      (error) =>
+        new TiaInvalid({
+          message: describeIssue('TIA execution policy', error.issue),
+        }),
+    ),
+  )
 const decodeSuites = Schema.decodeUnknownEffect(
   Schema.mutable(Schema.Array(SuiteDescriptor)),
 )
