@@ -185,6 +185,7 @@ class ImportGraphTests(ProjectCase):
             self.sources("tests/test_a.py"),
             [
                 "conftest.py",
+                "src/other.py",
                 "src/pkg/__init__.py",
                 "src/pkg/core.py",
                 "src/pkg/helpers.py",
@@ -195,7 +196,7 @@ class ImportGraphTests(ProjectCase):
             ],
         )
 
-    def test_conftest_imports_are_not_followed_and_nested_conftests_count(
+    def test_conftest_imports_are_followed_and_nested_conftests_count(
         self,
     ) -> None:
         sources = self.sources("tests/inner/test_d.py")
@@ -203,6 +204,7 @@ class ImportGraphTests(ProjectCase):
             sources,
             [
                 "conftest.py",
+                "src/other.py",
                 "tests/conftest.py",
                 "tests/inner/conftest.py",
                 "tests/inner/test_d.py",
@@ -212,18 +214,24 @@ class ImportGraphTests(ProjectCase):
     def test_unparseable_modules_contribute_no_imports(self) -> None:
         self.assertEqual(
             self.sources("tests/test_c.py"),
-            ["conftest.py", "src/broken.py", "tests/conftest.py", "tests/test_c.py"],
+            [
+                "conftest.py",
+                "src/broken.py",
+                "src/other.py",
+                "tests/conftest.py",
+                "tests/test_c.py",
+            ],
         )
 
     def test_src_prefixed_and_plain_names_resolve_to_the_first_sorted_file(
         self,
     ) -> None:
-        write(self.root, {"pkg/core.py": "# shadow\n"})
+        write(self.root, {"other.py": "# shadow\n"})
         suites = discover_pytest_suites(self.options())
         suite = next(s for s in suites if s["file"] == "tests/test_a.py")
         sources = _dependencies(self.root.resolve(), self.root.resolve() / suite["file"])
-        self.assertIn("pkg/core.py", sources)
-        self.assertNotIn("src/pkg/core.py", sources)
+        self.assertIn("other.py", sources)
+        self.assertNotIn("src/other.py", sources)
 
     def test_kind_marks_the_suite_file_as_configuration(self) -> None:
         suites = discover_pytest_suites(self.options())
@@ -240,6 +248,68 @@ class ImportGraphTests(ProjectCase):
         )
         self.assertTrue(
             all(item["confidence"] == "exact" for item in graph["observations"])
+        )
+
+
+class ImplicitImportTests(ProjectCase):
+    """Files Python runs for a test without the test file importing them."""
+
+    files = {
+        "src/shared.py": "VALUE = 1\n",
+        "src/app/__init__.py": "",
+        "src/app/sub/__init__.py": "SETTING = 1\n",
+        "src/app/sub/mod.py": "VALUE = 1\n",
+        "tests/test_direct.py": (
+            "import shared\nfrom app import sub\nimport tests.grouped\n"
+        ),
+        "tests/test_deep.py": "import app.sub.mod\n",
+        "tests/fixtures/conftest.py": "import shared\n",
+        "tests/fixtures/test_fixture.py": "def test_fixture(): pass\n",
+        "tests/grouped/__init__.py": "MARKER = 1\n",
+        "tests/grouped/test_grouped.py": "def test_grouped(): pass\n",
+    }
+
+    def selected_after(self, change: str) -> list[str]:
+        self.assertTrue(tia(self.options()).run().success)
+        plan = tia(self.options(changes=(change,))).run().plan
+        self.assertEqual(plan["mode"], "selective")
+        return plan["selected"]
+
+    def test_a_module_imported_by_a_conftest_selects_the_tests_it_serves(
+        self,
+    ) -> None:
+        self.assertEqual(
+            self.selected_after("src/shared.py"),
+            [
+                "pytest:pytest:tests/fixtures/test_fixture.py",
+                "pytest:pytest:tests/test_direct.py",
+            ],
+        )
+
+    def test_a_parent_package_init_selects_tests_importing_a_submodule(
+        self,
+    ) -> None:
+        self.assertEqual(
+            self.selected_after("src/app/sub/__init__.py"),
+            [
+                "pytest:pytest:tests/test_deep.py",
+                "pytest:pytest:tests/test_direct.py",
+            ],
+        )
+        self.assertIn(
+            "pytest:pytest:tests/test_deep.py",
+            tia(self.options(changes=("src/app/__init__.py",))).run().plan[
+                "selected"
+            ],
+        )
+
+    def test_the_package_init_of_a_test_file_selects_that_test(self) -> None:
+        self.assertEqual(
+            self.selected_after("tests/grouped/__init__.py"),
+            [
+                "pytest:pytest:tests/grouped/test_grouped.py",
+                "pytest:pytest:tests/test_direct.py",
+            ],
         )
 
 

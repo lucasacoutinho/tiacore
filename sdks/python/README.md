@@ -38,6 +38,9 @@ it returns matches the TypeScript planner field for field.
 - A graph file that is missing, unreadable, not UTF-8 or not valid JSON counts
   as no graph and yields a full run. Symlinks that leave the project are
   skipped, and relative imports are followed.
+- A test file depends on what it imports, on every `conftest.py` pytest loads
+  for it and what those import, and on the `__init__.py` of each package that an
+  import, the test file or a `conftest.py` passes through.
 
 ## Verification snapshots
 
