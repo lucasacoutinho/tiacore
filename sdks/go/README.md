@@ -32,6 +32,9 @@ path identity and those values change without changing test behavior.
 Use `--packages` more than once to replace the default `./...` pattern,
 `--force` or `TIA_FRESH=1` for a full run, and `--json` for a machine-readable
 plan. Flags after `--` are passed to `go test` before the selected package list.
+The build flags among them that change which files and packages make up the
+build (`-tags`, `-race`, `-msan`, `-asan`, `-mod`, `-modfile` and `-overlay`)
+also reach `go list`, so discovery sees the files `go test` compiles.
 
 The library API keeps the same boundary:
 

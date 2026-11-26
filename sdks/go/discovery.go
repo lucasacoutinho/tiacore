@@ -54,7 +54,8 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 	if len(patterns) == 0 {
 		patterns = []string{"./..."}
 	}
-	arguments := append([]string{"list", "-json"}, patterns...)
+	arguments := append([]string{"list", "-json"}, goListBuildFlags(options.TestArguments)...)
+	arguments = append(arguments, patterns...)
 	command := exec.CommandContext(ctx, options.GoBinary, arguments...)
 	command.Dir = root
 	command.Env = commandEnvironment(options.Environment)
@@ -174,6 +175,35 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 		},
 		SuitePackages: suitePackages,
 	}, nil
+}
+
+// goListBuildFlags returns the go test arguments that change which files and
+// packages make up the build, so go list discovers the build go test runs.
+// Build tags (also those -race, -msan and -asan set) select files; -mod,
+// -modfile and -overlay change how packages resolve. Scanning stops at -args.
+func goListBuildFlags(arguments []string) []string {
+	flags := make([]string, 0)
+	for index := 0; index < len(arguments); index++ {
+		argument := arguments[index]
+		if argument == "-args" || argument == "--args" {
+			break
+		}
+		if !strings.HasPrefix(argument, "-") {
+			continue
+		}
+		name, _, hasValue := strings.Cut(strings.TrimPrefix(argument[1:], "-"), "=")
+		switch name {
+		case "race", "msan", "asan":
+			flags = append(flags, argument)
+		case "tags", "mod", "modfile", "overlay":
+			flags = append(flags, argument)
+			if !hasValue && index+1 < len(arguments) {
+				index++
+				flags = append(flags, arguments[index])
+			}
+		}
+	}
+	return flags
 }
 
 func packageFiles(item goPackage) []string {
