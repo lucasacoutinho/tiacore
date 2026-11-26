@@ -84,6 +84,10 @@ follow Semantic Versioning.
   built, and a lane whose process cannot be spawned is recorded as failed.
 - Evidence: collecting with `remove: true` no longer deletes an event another
   process is still writing, and a failed write leaves no temporary file.
+- Vitest: with `resolve.preserveSymlinks` and a project root reached through a
+  symbolic link, a file in another package of the repository is recorded as a
+  dependency. Before, editing it ran the full suite, or no test with
+  `onUnknownChange: 'ignore'`.
 - Vitest: flag values such as `--outputFile report.json` no longer bypass
   tiacore, and every positional filter does bypass it, so `vitest run auth` can
   no longer save stale results for affected tests it skipped. A retried or
