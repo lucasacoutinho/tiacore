@@ -5,6 +5,121 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Security
+
+- Artifact downloads no longer forward request headers, such as GitLab's
+  `JOB-TOKEN` or `PRIVATE-TOKEN`, to a redirect target on another origin. At
+  most five redirects are followed.
+- Archive reads charge each entry its real size, so an entry that declares a
+  smaller size can no longer pass the 20 MiB entry limit or the 64 MiB expansion
+  limit.
+- Artifact verification rejects an attestation when the clock is an invalid date
+  or `maxAgeSeconds` is `NaN`, instead of skipping the check.
+- `tiacore doctor` and the devtools notice no longer print user names or
+  passwords from `TIACORE_OTLP_URL` or `TIACORE_DEVTOOLS`.
+
+### Added
+
+- `TIACORE_OTLP_HEADERS` sends headers, such as `Authorization`, with every OTLP
+  export. `tiacore doctor` lists the header names only.
+- The verification receipt includes `artifactsDirectory` whenever the phase
+  snapshots are kept.
+- `tiacore-pytest` accepts `--ignore-change`, `--on-unknown-change` and
+  `--command`. The Go SDK adds `Options.IgnoreChanges`,
+  `Options.OnUnknownChange` and the `tiacore-go` flags `-ignore-change` and
+  `-on-unknown-change`.
+
+### Changed
+
+- The npm package is about a third of its former size (756 KB packed, 4.1 MB
+  unpacked). Source maps keep positions but no longer embed the sources, and
+  declaration maps are no longer published.
+- Public type declarations no longer reference `istanbul-lib-coverage`, and
+  `@types/istanbul-lib-coverage` is no longer a runtime dependency.
+- `--output` creates the file's directory when it does not exist.
+- When `verify`, `run`, `doctor` or `certify execute` write a failing receipt to
+  a file, they print one line on stderr naming the failure and the file.
+- `tiacore plan --policy` errors name the invalid field.
+- `tiacore doctor` compares prerelease versions by SemVer precedence, so
+  `4.1.0-beta.1` no longer satisfies `>=4.1.0`.
+- The devtools view shows metrics for each connected client, and its error count
+  includes every failed span.
+- `tiacore-pytest` no longer accepts abbreviated flags, and both SDKs reject an
+  `onUnknownChange` other than `full` or `ignore`.
+- Playwright lanes that pass run arguments, Playwright configs whose import
+  resolution changed, Node tests defined after an `await` in `describe`, and
+  projects reached through a symbolic link or listed without git re-record once.
+- Proofs: `MonotoneInChanges` is restated (more changes either cause a full run
+  or select a superset) and proved; the earlier statement was false.
+
+### Fixed
+
+- Commit lock: a release can no longer delete a lock another process published
+  meanwhile, a waiter no longer spins while another process reclaims a stale
+  lock, an `owner.json` with an impossible pid or creation time no longer keeps
+  a lock forever, and a lock left renamed aside by a crashed release is deleted.
+- Partition restore merges a complete set of fragments even when a fragment from
+  another shard group or a stale fragment comes first, and `artifactId` lists
+  only the fragments merged. A publisher archive between 20 and 25 MiB is
+  restored when a CI service wraps it in another zip.
+- The filesystem artifact provider treats only files named `state.json` as graph
+  stores.
+- Change detection reports project-relative paths when the project root is
+  reached through a symbolic link. Vite and Bun temporary build files no longer
+  stop a run from saving its graph.
+- Outside a git repository, a directory-only `.gitignore` rule such as `build/`
+  no longer hides a file named `build`, a file deleted during the walk no longer
+  makes change detection unavailable, and the walk keeps at most eight file
+  system calls in flight.
+- `TIA_FRESH` is read from the environment a run is given. Captured process
+  output keeps a UTF-8 character cut off at the end of the stream. View edges
+  find views named in neighbouring template literals. A failed verification
+  snapshot leaves no temporary file, and the stored manifest is never read past
+  its limit.
+- An interrupted run no longer writes a crash report.
+- `certify execute` rejects a spec with unknown or repeated scenario ids, an
+  invalid assertion count, or a level that does not fit the granularity, before
+  running any scenario.
+- A workspace lane with an empty command is rejected when the workspace is
+  built, and a lane whose process cannot be spawned is recorded as failed.
+- Evidence: collecting with `remove: true` no longer deletes an event another
+  process is still writing, and a failed write leaves no temporary file.
+- Vitest: flag values such as `--outputFile report.json` no longer bypass
+  tiacore, and every positional filter does bypass it, so `vitest run auth` can
+  no longer save stale results for affected tests it skipped. A retried or
+  repeated test keeps the dependencies of every attempt. Scripts imported with
+  `?raw`, `?url`, `?inline` or `?worker` are tracked. Two Vitest processes
+  starting on one project no longer crash on the shared setup module.
+- Node: a run whose test process crashed no longer saves a graph or reports
+  success, discovery no longer hangs on a file that never finishes loading, and
+  tests defined after an `await` in `describe` keep their describe names.
+- Bun: `<error>` counts as a failure, names with tab or newline characters are
+  matched, and a failing test inside `describe` can no longer pass the run.
+- Bun and Node: each module failure is listed once.
+- Playwright: imports resolve the way Playwright loads them, `app.js.map` maps
+  and Turbopack source names are found, streamed responses are capped at 32 MiB,
+  fixture listeners are removed after each test, evidence paths outside the
+  project are ignored, and the order of run arguments is part of the graph
+  identity.
+- Gradle: tests depend on same-package classes, `pkg.*` imports, records and
+  enums, every type in a file, Kotlin top-level declarations and `src/test`
+  helpers. A change under `buildSrc` runs every test, `@Nested` classes no
+  longer fail the run with missing reports, and paths with parentheses keep
+  their dependencies.
+- k6: `allowedProfiles` rejects an unknown profile hidden behind a profile two
+  scripts share. Maestro: a flow depends on flows it reaches through
+  tag-excluded helper flows. k6, Maestro and Gradle runs in one process that
+  share a graph file no longer fail with ENOENT.
+- pytest SDK: modules a `conftest.py` imports and the package `__init__.py`
+  files of imported modules count as dependencies, and changing `poetry.lock`,
+  `pdm.lock`, `Pipfile`, `Pipfile.lock` or `pylock*.toml` forces a full run.
+- Go SDK: build flags in the `go test` arguments (`-tags`, `-race` and others)
+  reach `go list`, and in a multi-module `go.work` workspace the default project
+  name is stable across runs.
+- The `tiacore` CLI source map lines up with `dist/entries/cli.js`.
+- Proofs: the artifact trust model checks digest, identity and runner before the
+  validity window, as `verifyArtifactAttestation` does.
+
 ## 2.0.4 - 2026-11-26
 
 ### Changed
