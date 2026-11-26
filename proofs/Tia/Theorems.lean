@@ -237,16 +237,7 @@ theorem certain_is_select (a : Admission) (h : a.trusted = true) :
     plan a = a.problem.select := by
   unfold plan; simp [h]
 
-/-! ## Pending obligations (stated, not proved) -/
-
-/-- Progress: the fuelled closure always converges, so `none` never occurs. -/
-def Progress : Prop :=
-  ∀ (p : Problem) (seed : List Key), (p.closure seed).isSome = true
-
-/-- Monotonicity in the change set (needs `Progress`). -/
-def MonotoneInChanges : Prop :=
-  ∀ (p q : Problem), p.items = q.items → p.groups = q.groups → p.known = q.known →
-    p.structural = q.structural → p.onUnknown = q.onUnknown → p.changes ⊆ q.changes →
-    ∀ is gs, p.select = .only is gs → ∃ is' gs', q.select = .only is' gs' ∧ is ⊆ is' ∧ gs ⊆ gs'
+/-! Progress (the closure always converges) is proved in `Tia.Progress`, and monotonicity
+in the change set in `Tia.Monotone`. -/
 
 end Tia
