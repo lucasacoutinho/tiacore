@@ -234,6 +234,53 @@ function suitesOf(
   return suites.sort((left, right) => byCodeUnit(left.id, right.id))
 }
 
+/**
+ * The files each suite uses beyond the suites it runs, which the graph already
+ * links: the flows it reaches that are not suites, and the scripts and media of
+ * every flow it reaches.
+ */
+function usedFiles(
+  suites: readonly MaestroSuite[],
+  flows: ReadonlyMap<string, Flow>,
+): TiaDependencyObservation[] {
+  const observations: TiaDependencyObservation[] = []
+  for (const suite of suites) {
+    const used = new Set<string>()
+    const seen = new Set<string>()
+    const pending = [suite.file]
+    while (pending.length > 0) {
+      const file = pending.pop()
+      const flow = file === undefined ? undefined : flows.get(file)
+      if (file === undefined || flow === undefined || seen.has(file)) continue
+      seen.add(file)
+      if (!flow.included) used.add(file)
+      for (const path of flow.uses) used.add(path)
+      pending.push(...flow.runs)
+    }
+    for (const file of seen) {
+      if (flows.get(file)?.included === true) used.delete(file)
+    }
+    for (const source of [...used].sort(byCodeUnit)) {
+      observations.push({
+        confidence: 'exact',
+        kind: 'fixture',
+        source,
+        suiteId: suite.id,
+      })
+    }
+  }
+  return observations
+}
+
+/** The suites, and what they use that a graph of suites alone cannot know. */
+export const discoverFlows = Effect.fnUntraced(function* (
+  options: DiscoverMaestroOptions,
+) {
+  const flows = yield* readFlows(options)
+  const suites = suitesOf(flows, options.project)
+  return { observations: usedFiles(suites, flows), suites }
+})
+
 export const discover = Effect.fnUntraced(function* (
   options: DiscoverMaestroOptions,
 ) {
@@ -305,7 +352,7 @@ export const run = Effect.fn('tia.maestro.run')(function* (
     name: 'maestro',
     options,
     prepare: Effect.fnUntraced(function* (graph) {
-      const suites = yield* discover(options)
+      const { observations, suites } = yield* discoverFlows(options)
       const plan = yield* planSuites(suites, { ...planning, graph })
       return {
         plan,
@@ -315,6 +362,7 @@ export const run = Effect.fn('tia.maestro.run')(function* (
             ...(options.currentFingerprint === undefined
               ? {}
               : { fingerprint: options.currentFingerprint }),
+            observations,
             suites,
           }),
         suites,
