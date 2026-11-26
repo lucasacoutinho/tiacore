@@ -67,6 +67,11 @@ const FILES = {
 }
 
 interface Scenario {
+  /**
+   * Files the 1.x capture records and this one leaves out: change detection
+   * never compares them, so a run's two captures must not differ over them.
+   */
+  notRecorded?: readonly string[]
   quiet?: boolean
   mutate?: (root: string) => void
   name: string
@@ -128,6 +133,10 @@ const scenarios: Scenario[] = [
   },
   {
     name: 'temporary tool files created by Vite and Bun',
+    notRecorded: [
+      '.abc-123.bun-build',
+      'vitest.config.ts.timestamp-1700000000-abc123.mjs',
+    ],
     quiet: true,
     prepare: (root) => {
       put(root, 'vitest.config.ts.timestamp-1700000000-abc123.mjs')
@@ -146,13 +155,35 @@ const scenarios: Scenario[] = [
   },
 ]
 
+/** The 1.x capture without the files this one does not record. */
+function captured(
+  baseline: Baseline | null,
+  notRecorded: readonly string[] = [],
+): Baseline | null {
+  if (baseline === null) return null
+  for (const file of notRecorded) {
+    expect(Object.keys(baseline.workingTree)).toContain(file)
+  }
+  return {
+    ...baseline,
+    workingTree: Object.fromEntries(
+      Object.entries(baseline.workingTree).filter(
+        ([file]) => !notRecorded.includes(file),
+      ),
+    ),
+  }
+}
+
 describe('git baselines match 1.x', () => {
   for (const scenario of scenarios) {
     test(`${scenario.name}`, async () => {
       const root = repository(FILES)
       scenario.prepare?.(root)
       const ignored = scenario.ignored ?? []
-      const expected = oracle.captureBaseline(root, ignored)
+      const expected = captured(
+        oracle.captureBaseline(root, ignored),
+        scenario.notRecorded,
+      )
       expect(await capture(root, ignored)).toEqual(expected)
       expect(expected?.source).toBe('git')
       if (expected === null) return
@@ -165,7 +196,7 @@ describe('git baselines match 1.x', () => {
       const after = await changedSince(root, expected, ignored)
       expect(after).toEqual(oracle.changedFilesSince(root, expected, ignored))
       expect(await capture(root, ignored)).toEqual(
-        oracle.captureBaseline(root, ignored),
+        captured(oracle.captureBaseline(root, ignored), scenario.notRecorded),
       )
       if (scenario.mutate !== undefined && scenario.quiet !== true) {
         expect(after).not.toEqual([])
