@@ -27,7 +27,7 @@ import {
   replayRunEvent,
 } from '../../src/engine/replay.ts'
 import { runPromise } from '../../src/host/runtime.ts'
-import { beginRun } from '../../src/engine/lifecycle.ts'
+import { beginRun, skippedCommitMessage } from '../../src/engine/lifecycle.ts'
 import { initRepository } from '../support/runner-project.ts'
 import { EngineLive } from './support/layers.ts'
 import { baseGraph } from './support/graphs.ts'
@@ -620,6 +620,89 @@ describe('TiaCore options and lifecycle', () => {
       mode: 'record',
       reason: 'fresh graph requested',
     })
+  })
+})
+
+/** A project whose graph holds a passing a-case and b-case. */
+async function recorded(): Promise<string> {
+  const root = project()
+  const recording = new TiaCore({ ...OPTIONS, root })
+  await recording.prepare()
+  await recording.commit(
+    [observation('a'), observation('b')],
+    ['test/a.test.ts', 'test/b.test.ts'],
+  )
+  return root
+}
+
+// A filter or a shard can keep a runner from running a test tiacore selected.
+// Committing that run would keep the test's old result under the new baseline,
+// and the next run would not select it again.
+describe('a selected test without a result', () => {
+  test('an affected case that did not run leaves the graph for the next run', async () => {
+    const root = await recorded()
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 2\n')
+    const filtered = new TiaCore({ ...OPTIONS, root })
+    expect((await filtered.prepare()).affectedTestIds).toEqual(['a-case'])
+
+    expect(await filtered.commit([], [])).toBeNull()
+
+    const next = await new TiaCore({ ...OPTIONS, root }).prepare()
+    expect(next.affectedTestIds).toEqual(['a-case'])
+    expect(next.affectedTests).toEqual(['test/a.test.ts'])
+  })
+
+  test('a whole-file fallback that did not run leaves the graph for the next run', async () => {
+    const root = await recorded()
+    writeFileSync(join(root, 'test/a.test.ts'), '// a, changed\n')
+    const filtered = new TiaCore({ ...OPTIONS, root })
+    expect((await filtered.prepare()).wholeTestFiles).toEqual([
+      'test/a.test.ts',
+    ])
+
+    expect(await filtered.commit([observation('b')], [])).toBeNull()
+
+    const next = await new TiaCore({ ...OPTIONS, root }).prepare()
+    expect(next.wholeTestFiles).toEqual(['test/a.test.ts'])
+  })
+
+  test('a file the run declares fully executed drops the result of a case that no longer exists', async () => {
+    const root = await recorded()
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 2\n')
+    const replaying = new TiaCore({ ...OPTIONS, root })
+    expect((await replaying.prepare()).affectedTestIds).toEqual(['a-case'])
+
+    const saved = await replaying.commit([], ['test/a.test.ts'])
+
+    expect(saved?.results).not.toHaveProperty('a-case')
+    expect(saved?.results).toHaveProperty('b-case')
+  })
+
+  test('a changed test file without cached results needs no result', async () => {
+    const root = await recorded()
+    mkdirSync(join(root, 'e2e'))
+    writeFileSync(join(root, 'e2e/other.spec.ts'), '// another runner\n')
+    const replaying = new TiaCore({ ...OPTIONS, root })
+    expect((await replaying.prepare()).wholeTestFiles).toEqual([
+      'e2e/other.spec.ts',
+    ])
+
+    expect(await replaying.commit([], [])).not.toBeNull()
+  })
+
+  test('the skip names the missing tests, ten at most', () => {
+    expect(
+      skippedCommitMessage({
+        _tag: 'SelectionUnobserved',
+        missing: ['a case'],
+      }),
+    ).toBe(
+      'TIA graph was not updated because 1 selected test reported no result; the next run selects it again. Missing: a case.',
+    )
+    const missing = Array.from({ length: 11 }, (_, index) => `case ${index}`)
+    expect(skippedCommitMessage({ _tag: 'SelectionUnobserved', missing })).toBe(
+      `TIA graph was not updated because 11 selected tests reported no result; the next run selects them again. Missing: ${missing.slice(0, 10).join(', ')}, ….`,
+    )
   })
 })
 

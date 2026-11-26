@@ -44,8 +44,9 @@ interface Prepared {
  * The runner-neutral core that the Node, Bun, Playwright and generic adapters
  * share, as Effects: prepare plans the run from the stored graph, commit
  * records what the run observed. A commit is skipped when the project changed
- * during the run or another writer committed an incompatible graph. `TiaCore`
- * is the public Promise form; runners written as Effects use this directly.
+ * during the run, another writer committed an incompatible graph, or a selected
+ * test reported no result. `TiaCore` is the public Promise form; runners
+ * written as Effects use this directly.
  */
 export class CoreRun {
   readonly cacheDir: string

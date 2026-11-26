@@ -2,7 +2,6 @@ import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
-import * as Match from 'effect/Match'
 import type {
   Reporter,
   TestCase,
@@ -24,7 +23,7 @@ import { resolveFrameworkEdges } from '../../engine/edges/resolve.ts'
 import { formatRunPlanDetails } from '../../engine/explain.ts'
 import { projectRelative, trackedFile } from '../../engine/host-path.ts'
 import { EngineLive } from '../../engine/layers.ts'
-import { commitRun, type CommitSkipped } from '../../engine/lifecycle.ts'
+import { commitRun, skippedCommitMessage } from '../../engine/lifecycle.ts'
 import { notifyRunComplete, notifyRunStart } from '../../engine/replay.ts'
 import { aggregateLocalPartitions } from '../../engine/state/partitions.ts'
 import { writeVerificationSnapshot } from '../../engine/verification-snapshot.ts'
@@ -45,24 +44,6 @@ import {
 import type { TiaRuntime } from './state.ts'
 import { errorMessage } from '../../wire/errors.ts'
 import { isModuleFailureId, moduleFailureResult } from '../../core/runtime.ts'
-
-/** The warning for a commit that left the stored graph untouched. */
-function skippedCommitWarning(skipped: CommitSkipped): string {
-  return Match.valueTags(skipped, {
-    BaselineUnavailable: () =>
-      'TIA graph was not updated because the Git baseline is unavailable.',
-    Conflict: () =>
-      'TIA graph was not updated because another process committed a conflicting graph.',
-    FilesChanged: ({ changed }) =>
-      `TIA graph was not updated because project files changed during the run.${
-        changed.length === 0
-          ? ''
-          : ` Changed: ${changed.slice(0, 10).join(', ')}${changed.length > 10 ? ', …' : ''}.`
-      }`,
-    FingerprintChanged: () =>
-      'TIA graph was not updated because project structure changed during the run.',
-  })
-}
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
@@ -437,7 +418,7 @@ export class TiaReporter implements Reporter {
         },
       })
       if (outcome._tag !== 'Committed') {
-        this.warn(skippedCommitWarning(outcome))
+        this.warn(skippedCommitMessage(outcome))
         return undefined
       }
       const saved =
