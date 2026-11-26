@@ -2,6 +2,7 @@ import Tia.Model
 import Tia.Theorems
 import Tia.Examples
 import Tia.Progress
+import Tia.Monotone
 import Tia.Check
 import Tia.Gate
 import Tia.Window

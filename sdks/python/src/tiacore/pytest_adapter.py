@@ -24,6 +24,22 @@ from .verification import (
     write_snapshot,
 )
 
+# Files whose change can alter how pytest runs or which packages it imports.
+CONFIGURATION_INVALIDATORS = (
+    "pyproject.toml",
+    "pytest.ini",
+    "setup.cfg",
+    "tox.ini",
+    "uv.lock",
+    "requirements*.txt",
+    "poetry.lock",
+    "pdm.lock",
+    "Pipfile",
+    "Pipfile.lock",
+    "pylock.toml",
+    "pylock.*.toml",
+)
+
 EXCLUDED_DIRECTORIES = {
     ".git",
     ".mypy_cache",
@@ -157,17 +173,51 @@ def _imported_modules(root: Path, path: Path) -> set[str]:
     return modules
 
 
-def _resolve_module(
-    module: str,
-    modules: Mapping[str, Path],
-) -> Path | None:
-    candidate = module
-    while candidate:
-        path = modules.get(candidate)
-        if path is not None:
-            return path
-        candidate = candidate.rpartition(".")[0]
-    return None
+def _module_files(module: str, modules: Mapping[str, Path]) -> list[Path]:
+    """Return the project files Python runs to import a dotted module.
+
+    Importing ``a.b.c`` runs ``a/__init__.py`` and ``a/b/__init__.py`` before
+    the module itself, so every prefix that names a project file counts.
+    """
+    parts = module.split(".")
+    return [
+        path
+        for end in range(1, len(parts) + 1)
+        if (path := modules.get(".".join(parts[:end]))) is not None
+    ]
+
+
+def _conftests(root: Path, test_file: Path) -> list[Path]:
+    """Return the conftest.py files pytest loads for a test file."""
+    found: list[Path] = []
+    parent = test_file.parent
+    while parent == root or root in parent.parents:
+        conftest = _inside_root(root, parent / "conftest.py")
+        if conftest is not None and conftest.is_file():
+            found.append(conftest)
+        if parent == root:
+            break
+        parent = parent.parent
+    return found
+
+
+def _package_inits(root: Path, path: Path) -> list[Path]:
+    """Return the __init__.py files of the packages that contain path.
+
+    pytest imports a test file or conftest.py inside a package under its
+    package name, which runs the __init__.py of every enclosing package.
+    """
+    found: list[Path] = []
+    parent = path.parent
+    while parent == root or root in parent.parents:
+        init = _inside_root(root, parent / "__init__.py")
+        if init is None or not init.is_file():
+            break
+        found.append(init)
+        if parent == root:
+            break
+        parent = parent.parent
+    return found
 
 
 def _dependencies(
@@ -177,26 +227,19 @@ def _dependencies(
 ) -> list[str]:
     if modules is None:
         modules = _module_index(root)
+    entries = [test_file, *_conftests(root, test_file)]
+    pending = [
+        *entries,
+        *(init for entry in entries for init in _package_inits(root, entry)),
+    ]
     visited: set[Path] = set()
-    pending = [test_file]
     while pending:
         path = pending.pop()
         if path in visited:
             continue
         visited.add(path)
         for module in _imported_modules(root, path):
-            imported = _resolve_module(module, modules)
-            if imported is not None and imported not in visited:
-                pending.append(imported)
-
-    parent = test_file.parent
-    while parent == root or root in parent.parents:
-        conftest = _inside_root(root, parent / "conftest.py")
-        if conftest is not None and conftest.is_file():
-            visited.add(conftest)
-        if parent == root:
-            break
-        parent = parent.parent
+            pending.extend(_module_files(module, modules))
     return sorted_utf16(_relative(root, path) for path in visited)
 
 
@@ -275,14 +318,7 @@ def create_pytest_graph(
                 "pattern": pattern,
                 "reason": "Python test configuration changed",
             }
-            for pattern in (
-                "pyproject.toml",
-                "pytest.ini",
-                "setup.cfg",
-                "tox.ini",
-                "uv.lock",
-                "requirements*.txt",
-            )
+            for pattern in CONFIGURATION_INVALIDATORS
         ],
         "knownSources": [],
         "observations": sorted(

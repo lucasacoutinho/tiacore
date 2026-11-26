@@ -19,7 +19,7 @@ func (values *repeatedFlag) Set(value string) error {
 }
 
 func main() {
-	var patterns repeatedFlag
+	var patterns, ignoreChanges repeatedFlag
 	root := flag.String("root", ".", "Go project root")
 	cacheDirectory := flag.String("cache-dir", ".tia/go", "project-relative tiacore state directory")
 	goBinary := flag.String("go", "go", "Go command")
@@ -27,11 +27,18 @@ func main() {
 	force := flag.Bool("force", false, "run the full package set")
 	jsonPlan := flag.Bool("json", false, "print the plan as JSON")
 	flag.Var(&patterns, "packages", "Go package pattern; repeat for multiple patterns")
+	flag.Var(&ignoreChanges, "ignore-change", "glob of changed files that never select a package; repeat for multiple globs")
+	onUnknownChange := flag.String("on-unknown-change", "full", "what a change the stored graph does not know triggers: full or ignore")
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "usage: tiacore-go [adapter flags] [-- go-test-flags]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+	if *onUnknownChange != "full" && *onUnknownChange != "ignore" {
+		fmt.Fprintf(flag.CommandLine.Output(), "invalid value %q for flag -on-unknown-change: must be full or ignore\n", *onUnknownChange)
+		flag.Usage()
+		os.Exit(2)
+	}
 
 	result := tiacore.New(tiacore.Options{
 		Root:            *root,
@@ -41,6 +48,8 @@ func main() {
 		Project:         *project,
 		TestArguments:   flag.Args(),
 		ForceFull:       *force,
+		IgnoreChanges:   ignoreChanges,
+		OnUnknownChange: *onUnknownChange,
 		JSONPlan:        *jsonPlan,
 		Stdout:          os.Stdout,
 		Stderr:          os.Stderr,
