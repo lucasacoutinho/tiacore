@@ -346,17 +346,20 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
 ) {
   if (!nodeDiscoveryHooksSupported()) {
     const files = [...new Set(cached.map((result) => result.file))]
-    const { observations } = yield* observeFilesWhole(
+    const { complete, observations } = yield* observeFilesWhole(
       context,
       files.map((file) => resolve(context.root, file)),
     )
     const observed = new Set(observations.map((item) => item.file))
-    return [
-      ...observations,
-      ...files
-        .filter((file) => !observed.has(file))
-        .map(moduleFailureObservation),
-    ]
+    return {
+      complete,
+      observations: [
+        ...observations,
+        ...files
+          .filter((file) => !observed.has(file))
+          .map(moduleFailureObservation),
+      ],
+    } satisfies FileObservations
   }
   const groups = groupBy(cached, (result) => result.file)
   const perFile = yield* Effect.forEach(
@@ -371,5 +374,8 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
       }),
     { concurrency: context.concurrency },
   )
-  return perFile.flat()
+  return {
+    complete: true,
+    observations: perFile.flat(),
+  } satisfies FileObservations
 })

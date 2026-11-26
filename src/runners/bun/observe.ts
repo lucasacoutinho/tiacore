@@ -228,5 +228,8 @@ export const observeBunCachedCases = Effect.fnUntraced(function* (
       }),
     { concurrency: context.concurrency },
   )
-  return perFile.flat()
+  return {
+    complete: true,
+    observations: perFile.flat(),
+  } satisfies FileObservations
 })

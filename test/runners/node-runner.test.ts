@@ -175,6 +175,38 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
     )
   })
 
+  test('a replay whose affected file dies after its cases saves no graph', async () => {
+    vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
+    const root = project({
+      'src/value.mjs': 'export const value = 1\n',
+      'test/good.test.mjs': `import assert from 'node:assert/strict'
+import test from 'node:test'
+import { value } from '../src/value.mjs'
+
+test('good case', () => {
+  assert.equal(value, 1)
+})
+// The test process dies after reporting its case, before writing coverage.
+if (process.env.TIA_TEST_CRASH === '1') {
+  setTimeout(() => process.kill(process.pid, 'SIGKILL'), 100)
+}
+`,
+    })
+    const runner = () =>
+      tia({ files: ['test/**/*.test.mjs'], log: false, root }).run()
+    expect((await runner()).graphSaved).toBe(true)
+
+    vi.stubEnv('TIA_TEST_CRASH', '1')
+    writeFileSync(
+      join(root, 'src/value.mjs'),
+      'export const value = 1 // changed\n',
+    )
+    const replay = await runner()
+    expect(replay.plan.mode).toBe('replay')
+    expect(replay.success).toBe(false)
+    expect(replay.graphSaved).toBe(false)
+  })
+
   test('a run with a module failure neither succeeds nor saves a graph', async () => {
     vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
     const root = project({
