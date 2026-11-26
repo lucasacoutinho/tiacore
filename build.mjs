@@ -67,6 +67,5 @@ const result = await build({
 })
 writeFileSync('.build/meta.json', JSON.stringify(result.metafile))
 
-const cli = 'dist/entries/cli.js'
-writeFileSync(cli, `#!/usr/bin/env node\n${readFileSync(cli, 'utf8')}`)
-chmodSync(cli, 0o755)
+// esbuild keeps the hashbang of src/entries/cli.ts, so the map stays aligned.
+chmodSync('dist/entries/cli.js', 0o755)
