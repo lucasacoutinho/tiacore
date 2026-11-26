@@ -34,11 +34,15 @@ workspace with several main modules, to the module of the first discovered
 package in import-path order.
 
 Use `--packages` more than once to replace the default `./...` pattern,
-`--force` or `TIA_FRESH=1` for a full run, and `--json` for a machine-readable
-plan. Flags after `--` are passed to `go test` before the selected package list.
-The build flags among them that change which files and packages make up the
-build (`-tags`, `-race`, `-msan`, `-asan`, `-mod`, `-modfile` and `-overlay`)
-also reach `go list`, so discovery sees the files `go test` compiles.
+`--ignore-change` (repeatable) for globs of changed files that never select a
+package, `--on-unknown-change ignore` to stop a change the stored graph does not
+know from forcing a full run (`Options.IgnoreChanges` and
+`Options.OnUnknownChange` in the library), `--force` or `TIA_FRESH=1` for a full
+run, and `--json` for a machine-readable plan. Flags after `--` are passed to
+`go test` before the selected package list. The build flags among them that
+change which files and packages make up the build (`-tags`, `-race`, `-msan`,
+`-asan`, `-mod`, `-modfile` and `-overlay`) also reach `go list`, so discovery
+sees the files `go test` compiles.
 
 The library API keeps the same boundary:
 

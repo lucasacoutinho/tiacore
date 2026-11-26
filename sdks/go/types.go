@@ -71,9 +71,14 @@ type Options struct {
 	Environment                  map[string]string
 	EnvironmentFingerprintSuffix string
 	ForceFull                    bool
-	JSONPlan                     bool
-	Stdout                       io.Writer
-	Stderr                       io.Writer
+	// IgnoreChanges lists globs of changed files that never select a package.
+	IgnoreChanges []string
+	// OnUnknownChange is what a changed file the stored graph does not know
+	// triggers: "full" (also the empty default) or "ignore".
+	OnUnknownChange string
+	JSONPlan        bool
+	Stdout          io.Writer
+	Stderr          io.Writer
 }
 
 type Runner struct {
