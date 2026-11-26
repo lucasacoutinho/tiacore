@@ -63,6 +63,36 @@ function project(): string {
 }
 
 describe.skipIf(!hooks)('node:test discovery shim', () => {
+  test('keeps the describe names of tests defined after an await', () => {
+    const root = project()
+    const file = join(root, 'async.test.mjs')
+    writeFileSync(
+      file,
+      `import { describe, test } from 'node:test'
+describe('outer', async () => {
+  test('before await', () => {})
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  test('after await', () => {})
+  describe('nested', async () => {
+    await Promise.resolve()
+    test('deep', () => {})
+  })
+})
+describe('second', () => {
+  test('plain', () => {})
+})
+`,
+    )
+    const { cases, status } = discover(root, file)
+    expect(status).toBe(0)
+    expect(cases.map((item) => item.fullName).sort()).toEqual([
+      'outer after await',
+      'outer before await',
+      'outer nested deep',
+      'second plain',
+    ])
+  })
+
   test('records ESM tests without running their bodies, with real skip and todo', () => {
     const root = project()
     const file = join(root, 'esm.test.mjs')
