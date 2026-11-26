@@ -17,6 +17,7 @@ import {
   observeConfig,
   observeLayer,
   recordingTracer,
+  redactUrl,
   TRACE_FILE_SPAN_LIMIT,
 } from '../../src/host/observe.ts'
 import { assertNoLeak } from '../support/leak.ts'
@@ -63,7 +64,45 @@ describe('observeConfig', () => {
   })
 })
 
+describe('redactUrl', () => {
+  test('hides the user information and keeps the rest as written', () => {
+    expect(redactUrl('http://collector:4318')).toBe('http://collector:4318')
+    expect(redactUrl('https://user:p@ss@collector:4318/v1?q=1')).toBe(
+      'https://<redacted>@collector:4318/v1?q=1',
+    )
+    expect(redactUrl('ws://token@localhost:1')).toBe(
+      'ws://<redacted>@localhost:1',
+    )
+    expect(redactUrl('http://host/path@segment')).toBe(
+      'http://host/path@segment',
+    )
+    expect(redactUrl('not a url')).toBe('not a url')
+  })
+})
+
 describe('observeLayer', () => {
+  test('names an absent devtools server without its credentials', async () => {
+    const written: string[] = []
+    const write = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk: string | Uint8Array) => {
+      written.push(String(chunk))
+      return true
+    }
+    try {
+      const runtime = ManagedRuntime.make(
+        observeLayer({ devtools: 'ws://ops:devtools-secret@localhost:1' }),
+      )
+      await runtime.runPromise(Effect.void)
+      await runtime.dispose()
+    } finally {
+      process.stderr.write = write
+    }
+    expect(written.join('')).toContain(
+      'no devtools server at ws://<redacted>@localhost:1',
+    )
+    expect(written.join('')).not.toContain('devtools-secret')
+  })
+
   test('writes finished spans to the trace file when the runtime is disposed', async () => {
     const traceFile = join(directory(), 'trace.json')
     const runtime = ManagedRuntime.make(observeLayer({ traceFile }))

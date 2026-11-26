@@ -5,7 +5,7 @@ import * as FileSystem from 'effect/FileSystem'
 
 import { NODE_ENGINES, PEER_RANGES, VERSION } from '../core/version.ts'
 import { inheritedEnvironment, runProcess } from '../engine/process.ts'
-import { observeConfig } from '../host/observe.ts'
+import { observeConfig, redactUrl } from '../host/observe.ts'
 import { satisfiesRange } from './semver-range.ts'
 
 export type CheckStatus = 'fail' | 'info' | 'ok' | 'warn'
@@ -236,7 +236,9 @@ const observabilityCheck = (
   env: Readonly<Record<string, string | undefined>>,
 ): DoctorCheck => {
   const config = observeConfig(env)
-  const active = Object.entries(config).map(([key, value]) => `${key}=${value}`)
+  const active = Object.entries(config).map(
+    ([key, value]) => `${key}=${redactUrl(value)}`,
+  )
   return active.length === 0
     ? check(
         'observability',

@@ -214,6 +214,26 @@ describe('selfCheck', () => {
     )
   })
 
+  test('hides credentials in the observability URLs it lists', async () => {
+    const checks = await run(
+      selfCheck({
+        bunVersion: undefined,
+        cacheDir: '.tia',
+        cwd: scratch(),
+        env: {
+          TIACORE_DEVTOOLS: 'wss://ops:devtools-secret@devtools.example:443',
+          TIACORE_OTLP_URL: 'https://user:p@ss-secret@collector:4318/otel',
+        },
+        nodeVersion: 'v22.12.0',
+      }),
+    )
+    const detail = checks.find((check) => check.id === 'observability')?.detail
+    expect(detail).toBe(
+      'devtools=wss://<redacted>@devtools.example:443, otlp=https://<redacted>@collector:4318/otel',
+    )
+    expect(detail).not.toMatch(/secret|user|ops/u)
+  })
+
   test('places an injected Bun version ahead of Node.js', async () => {
     const checks = await run(
       selfCheck({

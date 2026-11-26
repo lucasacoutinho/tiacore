@@ -253,6 +253,14 @@ const traceFileLayer = (path: string) =>
     }),
   )
 
+/**
+ * `url` with its user name and password replaced, for output a person may
+ * share. Anything else in the text stays as it was written.
+ */
+export function redactUrl(url: string): string {
+  return url.replace(/^([a-z][a-z\d+.-]*:\/\/)[^/?#]*@/iu, '$1<redacted>@')
+}
+
 /** Whether something accepts connections at the host and port of a WebSocket URL. */
 export function serverReachable(
   url: string,
@@ -289,7 +297,7 @@ const devtoolsLayer = (url: string): Layer.Layer<never> =>
     Effect.promise(async () => {
       if (!(await serverReachable(url))) {
         process.stderr.write(
-          `tiacore: no devtools server at ${url}; spans are not sent. Start one with \`tiacore devtools\`.\n`,
+          `tiacore: no devtools server at ${redactUrl(url)}; spans are not sent. Start one with \`tiacore devtools\`.\n`,
         )
         return Layer.empty
       }
