@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -635,6 +636,53 @@ class CommandLineTests(ProjectCase):
             ["pytest:demo:extra/check_test.py", "pytest:demo:tests/test_a.py"],
         )
         self.assertTrue((self.root / "custom/graph.json").is_file())
+
+    def test_ignore_change_and_on_unknown_change_shape_the_plan(self) -> None:
+        write(self.root, {"pytest.py": FAKE_PYTEST})
+        self.assertEqual(self.cli(*self.base_arguments()).returncode, 0)
+
+        def mode(*arguments: str) -> str:
+            result = self.cli(*self.base_arguments(), *arguments)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout.splitlines()[-1])["mode"]
+
+        changed = ("--change", "src/lib.py")
+        self.assertEqual(mode(*changed), "selective")
+        self.assertEqual(
+            mode(*changed, "--ignore-change", "docs/**", "--ignore-change", "src/*.py"),
+            "skip",
+        )
+        readme = ("--change", "README.md")
+        self.assertEqual(mode(*readme, "--on-unknown-change", "ignore"), "skip")
+        self.assertEqual(mode(*readme, "--on-unknown-change", "full"), "full")
+        invalid = self.cli(*self.base_arguments(), "--on-unknown-change", "maybe")
+        self.assertEqual(invalid.returncode, 2)
+        self.assertIn("--on-unknown-change", invalid.stderr)
+        for command in ("", "'unbalanced"):
+            with self.subTest(command=command):
+                rejected = self.cli(*self.base_arguments(), "--command", command)
+                self.assertEqual(rejected.returncode, 2)
+                self.assertIn("--command", rejected.stderr)
+
+    def test_command_replaces_pytest_and_pytest_flags_are_never_abbreviations(
+        self,
+    ) -> None:
+        write(
+            self.root,
+            {
+                "probe.py": "import os, pathlib, sys\n"
+                "pathlib.Path(os.environ['TIA_LOG'])"
+                ".write_text('\\n'.join(sys.argv[1:]))\n"
+            },
+        )
+        command = shlex.join([sys.executable, str(self.root / "probe.py"), "--probe"])
+        result = self.cli(
+            *self.base_arguments(), "--command", command, "--ignore=vendor", "--co"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.executed(), ["--probe", "--ignore=vendor", "--co", "tests/test_a.py"]
+        )
 
     def test_exits_with_the_pytest_status_and_requires_a_fingerprint(self) -> None:
         write(self.root, {"pytest.py": FAKE_PYTEST})

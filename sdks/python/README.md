@@ -17,6 +17,14 @@ result = tia(
 raise SystemExit(result.status)
 ```
 
+From a shell, `python -m tiacore` (or `tiacore-pytest`) takes the same options:
+`--root`, `--tests`, `--project`, `--change`, `--ignore-change` (each repeatable
+where it lists), `--on-unknown-change full|ignore`, `--command "uv run pytest"`
+(split like a POSIX shell), `--environment-fingerprint` (required), `--graph`
+and `--force-full`. Every other argument goes to pytest. Flags are never
+abbreviated, so pytest's `--ignore` and `--co` reach pytest unchanged. The plan
+is the last line of output, and the exit status is pytest's.
+
 The adapter deliberately does not claim runtime coverage, cached pytest
 outcomes, or case-level selection. Unknown Python or configuration changes run
 the complete discovered suite.
