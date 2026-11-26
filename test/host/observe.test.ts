@@ -97,18 +97,41 @@ describe('observeConfig', () => {
 })
 
 describe('redactUrl', () => {
-  test('hides the user information and keeps the rest as written', () => {
+  test('keeps a URL without user information as written', () => {
     expect(redactUrl('http://collector:4318')).toBe('http://collector:4318')
-    expect(redactUrl('https://user:p@ss@collector:4318/v1?q=1')).toBe(
-      'https://<redacted>@collector:4318/v1?q=1',
-    )
-    expect(redactUrl('ws://token@localhost:1')).toBe(
-      'ws://<redacted>@localhost:1',
-    )
     expect(redactUrl('http://host/path@segment')).toBe(
       'http://host/path@segment',
     )
     expect(redactUrl('not a url')).toBe('not a url')
+  })
+
+  test('hides the user information the URL parser finds', () => {
+    expect(redactUrl('https://user:p@ss@collector:4318/v1?q=1')).toBe(
+      'https://<redacted>@collector:4318/v1?q=1',
+    )
+    expect(redactUrl('ws://token@localhost:1')).toBe(
+      'ws://<redacted>@localhost:1/',
+    )
+  })
+
+  test('hides a percent-encoded password', () => {
+    const redacted = redactUrl('https://user:p%40ss%3Aw%2Frd@collector/otel')
+    expect(redacted).toBe('https://<redacted>@collector/otel')
+    expect(redacted).not.toContain('%40')
+  })
+
+  test('reads a backslash in a special URL as the parser does', () => {
+    // WHATWG URL treats \ as / in http(s) and ws(s) URLs.
+    expect(redactUrl('http://user:secret@collector\\v1')).toBe(
+      'http://<redacted>@collector/v1',
+    )
+    expect(redactUrl('http://collector\\@user:secret@elsewhere')).toBe(
+      'http://collector\\@user:secret@elsewhere',
+    )
+  })
+
+  test('falls back to the text when the URL does not parse', () => {
+    expect(redactUrl('http://user:secret@[bad')).toBe('http://<redacted>@[bad')
   })
 })
 

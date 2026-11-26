@@ -285,11 +285,20 @@ const traceFileLayer = (path: string) =>
   )
 
 /**
- * `url` with its user name and password replaced, for output a person may
- * share. Anything else in the text stays as it was written.
+ * `value` with the user name and password the WHATWG URL parser finds (the
+ * parser the exporters use) replaced, for output a person may share. A URL
+ * without them is returned as written; text that does not parse loses
+ * whatever precedes the last `@` of its authority.
  */
-export function redactUrl(url: string): string {
-  return url.replace(/^([a-z][a-z\d+.-]*:\/\/)[^/?#]*@/iu, '$1<redacted>@')
+export function redactUrl(value: string): string {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return value.replace(/^([a-z][a-z\d+.-]*:\/\/)[^/?#]*@/iu, '$1<redacted>@')
+  }
+  if (url.username === '' && url.password === '') return value
+  return `${url.protocol}//<redacted>@${url.host}${url.pathname}${url.search}${url.hash}`
 }
 
 /** Whether something accepts connections at the host and port of a WebSocket URL. */

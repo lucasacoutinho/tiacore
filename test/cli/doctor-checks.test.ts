@@ -221,7 +221,7 @@ describe('selfCheck', () => {
         cacheDir: '.tia',
         cwd: scratch(),
         env: {
-          TIACORE_DEVTOOLS: 'wss://ops:devtools-secret@devtools.example:443',
+          TIACORE_DEVTOOLS: 'wss://ops:devtools-secret@devtools.example:9443',
           TIACORE_OTLP_URL: 'https://user:p@ss-secret@collector:4318/otel',
         },
         nodeVersion: 'v22.12.0',
@@ -229,7 +229,7 @@ describe('selfCheck', () => {
     )
     const detail = checks.find((check) => check.id === 'observability')?.detail
     expect(detail).toBe(
-      'devtools=wss://<redacted>@devtools.example:443, otlp=https://<redacted>@collector:4318/otel',
+      'devtools=wss://<redacted>@devtools.example:9443/, otlp=https://<redacted>@collector:4318/otel',
     )
     expect(detail).not.toMatch(/secret|user|ops/u)
   })
