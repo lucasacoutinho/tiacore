@@ -1,3 +1,5 @@
+import { dirname } from 'node:path'
+
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 
@@ -16,7 +18,10 @@ export const readJson = Effect.fnUntraced(function* (path: string) {
   })
 })
 
-/** Writes `value` as pretty JSON to stdout (no path or `-`) or to a file. */
+/**
+ * Writes `value` as pretty JSON to stdout (no path or `-`) or to a file,
+ * creating the file's directory first.
+ */
 export const emitJson = Effect.fnUntraced(function* (
   value: unknown,
   output: string | undefined,
@@ -27,6 +32,9 @@ export const emitJson = Effect.fnUntraced(function* (
     return
   }
   const fs = yield* FileSystem.FileSystem
+  yield* fs
+    .makeDirectory(dirname(output), { recursive: true })
+    .pipe(Effect.mapError(systemIoError))
   yield* fs
     .writeFileString(output, serialized)
     .pipe(Effect.mapError(systemIoError))

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -49,6 +49,14 @@ function planInputs(root: string) {
 }
 
 describe('tiacore plan', () => {
+  test('creates the directories of an --output path', async () => {
+    const root = scratch()
+    const output = join(root, 'reports', 'tia', 'plan.json')
+    const outcome = await execute([...planInputs(root), '--output', output])
+    expect(outcome).toEqual({ code: 0 })
+    expect(JSON.parse(readFileSync(output, 'utf8'))).toHaveProperty('selected')
+  })
+
   test('names the policy field that does not decode', async () => {
     const root = scratch()
     const policy = join(root, 'policy.json')
