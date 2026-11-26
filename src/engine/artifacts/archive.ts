@@ -14,10 +14,13 @@ import { parseArtifactGraph } from './portable-graph.ts'
 import { parseArtifactAttestation } from './trust.ts'
 
 // Archives are untrusted input read in memory. Beyond the exact-name allowlist
-// and the per-entry size cap, a reader bounds the entry count, the total
-// inflated size across the archive and any nested archives, the number of
-// nested archives, and how far one entry may expand relative to its stored
-// size. Declared sizes are checked before anything is inflated.
+// and the per-entry size cap (the graph limit, or the archive limit for a
+// nested archive), a reader bounds the entry count, the total inflated size
+// across the archive and any nested archives, the number of nested archives,
+// and how far one entry may expand relative to its stored size. Sizes are
+// checked before anything is inflated, and an entry counts as the larger of its
+// stored and declared sizes: fflate slices a stored entry by its stored size,
+// whatever size the central directory declares.
 
 export { MAX_ARTIFACT_ARCHIVE_BYTES, MAX_ARTIFACT_GRAPH_BYTES }
 
@@ -45,10 +48,15 @@ interface Budget {
   nested: number
 }
 
+/** Stops reading an archive: one broken limit rejects all of it. */
+function rejectArchive(): never {
+  throw new Error('TIA artifact archive breaks a limit')
+}
+
 /**
  * Inflates the entries `wanted` accepts. Null when the archive is corrupt,
  * names an unsafe entry, or breaks a size, count or expansion limit; every
- * entry is checked against its declared sizes before it is inflated.
+ * entry is checked against its sizes before it is inflated.
  */
 function extract(
   archive: Uint8Array,
@@ -56,24 +64,20 @@ function extract(
   nested: boolean,
   budget: Budget,
 ): Record<string, Uint8Array> | null {
+  const entryLimit = nested
+    ? MAX_ARTIFACT_ARCHIVE_BYTES
+    : MAX_ARTIFACT_GRAPH_BYTES
   let listed = 0
-  let rejected = false
-  let entries: Record<string, Uint8Array>
   try {
-    entries = unzipSync(archive, {
+    return unzipSync(archive, {
       filter: (entry) => {
         listed += 1
         if (listed > MAX_ARCHIVE_ENTRIES || !isSafeRelativePath(entry.name)) {
-          rejected = true
-          return false
+          rejectArchive()
         }
-        if (
-          !wanted(entry.name) ||
-          entry.originalSize > MAX_ARTIFACT_GRAPH_BYTES
-        ) {
-          return false
-        }
-        budget.expanded += entry.originalSize
+        const size = Math.max(entry.size, entry.originalSize)
+        if (!wanted(entry.name) || size > entryLimit) return false
+        budget.expanded += size
         if (nested) budget.nested += 1
         if (
           budget.expanded > MAX_ARCHIVE_EXPANDED_BYTES ||
@@ -81,8 +85,7 @@ function extract(
           (entry.originalSize > RATIO_FLOOR_BYTES &&
             entry.originalSize > entry.size * MAX_COMPRESSION_RATIO)
         ) {
-          rejected = true
-          return false
+          rejectArchive()
         }
         return true
       },
@@ -90,7 +93,6 @@ function extract(
   } catch {
     return null
   }
-  return rejected ? null : entries
 }
 
 function readArchive(
@@ -135,7 +137,12 @@ function readArchive(
       let attestation: TiaArtifactAttestationV1 | undefined
       for (const attestationPath of attestationPaths) {
         const value = entries[attestationPath]
-        if (value === undefined) continue
+        if (
+          value === undefined ||
+          value.byteLength > MAX_ARTIFACT_GRAPH_BYTES
+        ) {
+          continue
+        }
         try {
           const parsed = parseArtifactAttestation(JSON.parse(strFromU8(value)))
           if (parsed !== null) {
@@ -211,7 +218,9 @@ export function readArchiveAttestation(
   )
   for (const path of PUBLISHER_ATTESTATION_PATHS) {
     const bytes = entries?.[path]
-    if (bytes === undefined) continue
+    if (bytes === undefined || bytes.byteLength > MAX_ARTIFACT_GRAPH_BYTES) {
+      continue
+    }
     try {
       const parsed = parseArtifactAttestation(JSON.parse(strFromU8(bytes)))
       if (parsed !== null) return parsed
