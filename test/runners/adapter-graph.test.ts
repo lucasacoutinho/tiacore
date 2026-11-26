@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
@@ -21,6 +21,13 @@ afterEach(async () => {
       .map((path) => rm(path, { force: true, recursive: true })),
   )
 })
+
+/** The temporary files a write to `path` left beside it. */
+function leftovers(path: string): string[] {
+  return readdirSync(dirname(path)).filter(
+    (name) => name.startsWith(`${basename(path)}.`) && name.endsWith('.tmp'),
+  )
+}
 
 async function directory(): Promise<string> {
   const path = await mkdtemp(join(tmpdir(), 'tiacore-adapter-graph-'))
@@ -56,7 +63,7 @@ describe('adapter graph files', () => {
     expect(await runPromise(readAdapterGraph(path))).toMatchObject({
       complete: true,
     })
-    expect(existsSync(`${path}.${process.pid}.tmp`)).toBe(false)
+    expect(leftovers(path)).toEqual([])
   })
 
   test('leaves no temporary file when the rename fails', async () => {
@@ -73,6 +80,6 @@ describe('adapter graph files', () => {
     await expect(runPromise(writeAdapterGraph(path, graph))).rejects.toThrow(
       /./u,
     )
-    expect(existsSync(`${path}.${process.pid}.tmp`)).toBe(false)
+    expect(leftovers(path)).toEqual([])
   })
 })
