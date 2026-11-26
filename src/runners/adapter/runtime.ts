@@ -180,6 +180,12 @@ function normalizeExecution(
   }
 }
 
+/**
+ * Whether every selected test has an observation. A baseline test (no longer
+ * in the catalog) without one is accounted for when the adapter vouches that
+ * every test its file currently contains ran: the test is gone, and the commit
+ * removes it with the rest of that file's stale results.
+ */
 function completeSelection(
   selected: readonly TiaAdapterSelectedTest[],
   execution: TiaAdapterExecution,
@@ -187,7 +193,15 @@ function completeSelection(
   const observed = new Set(
     execution.observations.map((observation) => observation.id),
   )
-  return execution.complete && selected.every((test) => observed.has(test.id))
+  const fullyExecuted = new Set(execution.fullyExecutedFiles ?? [])
+  return (
+    execution.complete &&
+    selected.every(
+      (test) =>
+        observed.has(test.id) ||
+        (test.source === 'baseline' && fullyExecuted.has(test.file)),
+    )
+  )
 }
 
 /**
