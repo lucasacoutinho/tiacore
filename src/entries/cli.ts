@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { realpathSync } from 'node:fs'
 import { enableCompileCache } from 'node:module'
 import { pathToFileURL } from 'node:url'
