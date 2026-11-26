@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 import * as Clock from 'effect/Clock'
 import * as Effect from 'effect/Effect'
@@ -168,6 +168,28 @@ export function makeLock(fs: FileSystem.FileSystem) {
     return true
   })
 
+  /**
+   * Deletes locks a crashed release renamed aside but never deleted. A
+   * `.releasing.` directory is never a live lock, so any holder may sweep.
+   */
+  const sweepDiscarded = (path: string) => {
+    const prefix = `${basename(path)}.releasing.`
+    return fs.readDirectory(dirname(path)).pipe(
+      Effect.flatMap((entries) =>
+        Effect.forEach(
+          entries.filter((entry) => entry.startsWith(prefix)),
+          (entry) =>
+            fs.remove(join(dirname(path), entry), {
+              force: true,
+              recursive: true,
+            }),
+          { discard: true },
+        ),
+      ),
+      Effect.ignore,
+    )
+  }
+
   const backOff = Effect.flatMap(Random.nextIntBetween(0, 29), (jitter) =>
     Effect.sleep(20 + jitter),
   )
@@ -221,7 +243,10 @@ export function makeLock(fs: FileSystem.FileSystem) {
         ),
         Effect.uninterruptible,
       )
-      if (published) return Option.some(owner)
+      if (published) {
+        yield* sweepDiscarded(path)
+        return Option.some(owner)
+      }
       const stale = yield* judgeStale(path, staleAfter)
       // Retry at once after a reclaim; wait while another reclaimer works.
       if (Option.isSome(stale) && (yield* reclaim(path, stale.value))) continue

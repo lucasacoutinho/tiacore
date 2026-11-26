@@ -195,5 +195,22 @@ layer(NodeServices.layer, { excludeTestServices: true })(
           }
         }),
     )
+
+    it.effect('deletes locks a crashed release left renamed aside', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = yield* tempDirectory('tia-lock-')
+        const leftover = join(cacheDir, 'state.lock.releasing.crashed')
+        yield* fs.makeDirectory(leftover)
+        yield* fs.writeFileString(join(leftover, 'owner.json'), '{}')
+        const result = yield* makeLock(fs).locked(
+          cacheDir,
+          {},
+          Effect.succeed('held'),
+        )
+        expect(Option.getOrNull(result)).toBe('held')
+        expect(yield* lockEntries(cacheDir)).toEqual([])
+      }),
+    )
   },
 )
