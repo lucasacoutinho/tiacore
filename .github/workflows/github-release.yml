@@ -1,0 +1,70 @@
+name: Sync GitHub release
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Tag or commit of an existing npm publication
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the published commit and sync release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -er .version package.json)
+          tag="v$version"
+          commit=$(git rev-parse HEAD)
+          registry=https://registry.npmjs.org/@lucasacoutinho%2ftiacore
+          metadata="$RUNNER_TEMP/tiacore-npm.json"
+
+          # npm can acknowledge a publication before registry readers see it.
+          for _ in {1..36}; do
+            if curl --fail --silent --show-error --max-time 10 "$registry" -o "$metadata" &&
+               jq -e --arg v "$version" '.versions | has($v)' "$metadata" >/dev/null; then
+              break
+            fi
+            sleep 10
+          done
+          if ! jq -e --arg v "$version" --arg sha "$commit" '.versions[$v].gitHead == $sha' "$metadata" >/dev/null; then
+            echo "::error::npm has not published $version from $commit"
+            exit 1
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            if [[ "$(git rev-parse "refs/tags/$tag^{commit}")" != "$commit" ]]; then
+              echo "::error::Existing tag $tag points to a different commit"
+              exit 1
+            fi
+          else
+            gh api --method POST 'repos/{owner}/{repo}/git/refs' -f ref="refs/tags/$tag" -f sha="$commit" >/dev/null
+          fi
+
+          latest=$(jq -r --arg v "$version" '."dist-tags".latest == $v' "$metadata")
+          prerelease=false
+          if [[ "$version" == *-* ]]; then prerelease=true; latest=false; fi
+          flags=(--latest="$latest" --prerelease="$prerelease")
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --draft=false "${flags[@]}"
+          else
+            gh release create "$tag" --verify-tag --title "tiacore $version" "${flags[@]}" --generate-notes \
+              --notes "[Changelog](https://github.com/$GITHUB_REPOSITORY/blob/$tag/CHANGELOG.md) · [npm package](https://www.npmjs.com/package/@lucasacoutinho/tiacore/v/$version)"
+          fi

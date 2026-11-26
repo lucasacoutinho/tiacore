@@ -114,3 +114,10 @@ runtime/version claims must also update the checked-in compatibility matrix.
 
 Publishing, tagging, and dispatching a release remain maintainer-authorized
 actions and are never part of an ordinary contribution.
+
+A version tag starts the npm publish workflow. After npm confirms the package
+version and source commit, the workflow publishes the matching GitHub Release
+and marks npm's `latest` version as Latest on GitHub. A manual publication from
+a branch also creates the version tag at the published commit if needed. To
+restore release notes for an existing publication, run the **Sync GitHub
+release** workflow from `main` with its tag or commit as the `revision`.
