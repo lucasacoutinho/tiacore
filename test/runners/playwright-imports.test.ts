@@ -1,6 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
@@ -109,27 +116,59 @@ describe('import discovery', () => {
     ])
   })
 
-  describe('1.x resolution quirks kept on purpose', () => {
-    test('a directory import is recorded as the directory, not its index file', async () => {
+  describe("resolution follows Playwright's TypeScript loader", () => {
+    test('a directory import resolves to its index file', async () => {
       const root = project({
         'lib/index.ts': '',
         'spec.ts': "import './lib'\n",
       })
       await expect(closure(root, 'spec.ts')).resolves.toEqual([
-        'lib',
+        'lib/index.ts',
         'spec.ts',
       ])
     })
 
-    test('a dotted name resolves only to a file of exactly that name', async () => {
+    test('a file with the same name wins over the directory', async () => {
       const root = project({
-        'a.service.ts': '',
-        'spec.ts': "import './a.service'\n",
+        'lib.ts': '',
+        'lib/index.ts': '',
+        'spec.ts': "import './lib'\n",
       })
-      await expect(closure(root, 'spec.ts')).resolves.toEqual(['spec.ts'])
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'lib.ts',
+        'spec.ts',
+      ])
+    })
+
+    test('a directory with a package.json resolves its main file, else its index', async () => {
+      const root = project({
+        'bare/index.js': '',
+        'bare/package.json': '{}',
+        'pkg/index.ts': '',
+        'pkg/package.json': JSON.stringify({ main: './src/entry' }),
+        'pkg/src/entry.ts': '',
+        'spec.ts': "import './pkg'\nimport './bare'\n",
+      })
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'bare/index.js',
+        'pkg/src/entry.ts',
+        'spec.ts',
+      ])
+    })
+
+    test('a dotted name gets each extension when no file has exactly that name', async () => {
+      const root = project({
+        'auth.helper.ts': '',
+        'spec.ts': "import './auth.helper'\n",
+      })
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'auth.helper.ts',
+        'spec.ts',
+      ])
 
       const literal = project({
         'a.service': '',
+        'a.service.ts': '',
         'spec.ts': "import './a.service'\n",
       })
       await expect(closure(literal, 'spec.ts')).resolves.toEqual([
@@ -138,12 +177,44 @@ describe('import discovery', () => {
       ])
     })
 
-    test('./x.js does not map to x.ts', async () => {
-      const root = project({ 'spec.ts': "import './x.js'\n", 'x.ts': '' })
-      await expect(closure(root, 'spec.ts')).resolves.toEqual(['spec.ts'])
+    test('a .js, .jsx, .mjs or .cjs specifier names its TypeScript source', async () => {
+      const root = project({
+        'a.ts': '',
+        'b.tsx': '',
+        'c.mts': '',
+        'd.cts': '',
+        'e.tsx': '',
+        'spec.ts': [
+          "import './a.js'",
+          "import './b.js'",
+          "import './c.mjs'",
+          "import './d.cjs'",
+          "import './e.jsx'",
+        ].join('\n'),
+      })
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'a.ts',
+        'b.tsx',
+        'c.mts',
+        'd.cts',
+        'e.tsx',
+        'spec.ts',
+      ])
     })
 
-    test('a bare name tries each extension in order, then index files', async () => {
+    test('a .js file that exists wins over its TypeScript namesake', async () => {
+      const root = project({
+        'spec.ts': "import './x.js'\n",
+        'x.js': '',
+        'x.ts': '',
+      })
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'spec.ts',
+        'x.js',
+      ])
+    })
+
+    test("a bare name tries Playwright's extension order, then index files", async () => {
       const root = project({
         'both.js': '',
         'both.ts': '',
@@ -151,8 +222,64 @@ describe('import discovery', () => {
         'spec.ts': "import './both'\nimport './dir/index'\n",
       })
       await expect(closure(root, 'spec.ts')).resolves.toEqual([
-        'both.ts',
+        'both.js',
         'dir/index.js',
+        'spec.ts',
+      ])
+    })
+
+    test('agrees with the resolver of the installed Playwright', async () => {
+      const { resolveImportSpecifierAfterMapping } = createRequire(
+        import.meta.url,
+      )('playwright/lib/util') as {
+        resolveImportSpecifierAfterMapping(
+          resolved: string,
+          afterPathMapping: boolean,
+        ): string | undefined
+      }
+      const cases: Array<[files: Record<string, string>, specifier: string]> = [
+        [{ 'lib/index.ts': '' }, './lib'],
+        [{ 'lib.ts': '', 'lib/index.ts': '' }, './lib'],
+        [{ 'sub/index.mts': '' }, './sub/'],
+        [{ 'auth.helper.ts': '' }, './auth.helper'],
+        [{ 'a.service': '', 'a.service.ts': '' }, './a.service'],
+        [{ 'a.ts': '' }, './a.js'],
+        [{ 'b.jsx': '', 'b.ts': '' }, './b.js'],
+        [{ 'c.mts': '' }, './c.mjs'],
+        [{ 'd.cts': '' }, './d.cjs'],
+        [{ 'e.tsx': '' }, './e.jsx'],
+        [{ 'x.js': '', 'x.ts': '' }, './x.js'],
+        [{ 'q.js/index.ts': '' }, './q.js'],
+        [{ 'both.js': '', 'both.ts': '' }, './both'],
+        [{ 'one.ts': '' }, './one.ts'],
+        [{ 'other.ts': '' }, './missing'],
+      ]
+      for (const [files, specifier] of cases) {
+        const root = project({ ...files, 'spec.ts': `import '${specifier}'\n` })
+        const expected = resolveImportSpecifierAfterMapping(
+          resolve(root, specifier),
+          false,
+        )
+        const resolved = (await closure(root, 'spec.ts')).filter(
+          (file) => file !== 'spec.ts',
+        )
+        expect({ resolved, specifier }).toEqual({
+          resolved: expected === undefined ? [] : [relative(root, expected)],
+          specifier,
+        })
+      }
+    })
+
+    test('a JSON file is tried last, as Node finds it', async () => {
+      const root = project({
+        'config.json': '{}',
+        'config.ts': '',
+        'data.json': '{}',
+        'spec.ts': "import './config'\nconst data = require('./data')\n",
+      })
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'config.ts',
+        'data.json',
         'spec.ts',
       ])
     })
@@ -168,14 +295,22 @@ describe('import discovery', () => {
     await expect(closure(root, 'spec.ts')).resolves.toEqual(['spec.ts'])
   })
 
-  test('an unreadable file is still recorded', async () => {
-    const root = project({
-      'dir/index.ts': '',
-      'spec.ts': "import './dir'\n",
-    })
-    // The directory resolves, cannot be read as text, and contributes nothing more.
-    await expect(closure(root, 'spec.ts')).resolves.toContain('dir')
-  })
+  test.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'an unreadable file is still recorded',
+    async () => {
+      const root = project({
+        'behind.ts': '',
+        'hidden.ts': "import './behind'\n",
+        'spec.ts': "import './hidden'\n",
+      })
+      chmodSync(join(root, 'hidden.ts'), 0o000)
+      // The import resolves, cannot be read, and contributes nothing more.
+      await expect(closure(root, 'spec.ts')).resolves.toEqual([
+        'hidden.ts',
+        'spec.ts',
+      ])
+    },
+  )
 
   test('a shared memo gives each entry its own closure and reads a helper once', async () => {
     const root = project({
