@@ -1,4 +1,5 @@
 export { installProbe } from './ledger.ts'
+export { mergeTestWindows } from './merge.ts'
 export type {
   CoverageProbe,
   ProbeCounterMap,
