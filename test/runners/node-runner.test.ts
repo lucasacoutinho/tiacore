@@ -72,6 +72,18 @@ import './missing.mjs'
 
 test('never registered', () => {})
 `
+const CRASHING_TEST = `import assert from 'node:assert/strict'
+import test from 'node:test'
+import { value } from '../src/value.mjs'
+
+test('good case', () => {
+  assert.equal(value, 1)
+})
+// The test process dies after reporting its case, before writing coverage.
+if (process.env.TIA_TEST_CRASH === '1') {
+  setTimeout(() => process.kill(process.pid, 'SIGKILL'), 100)
+}
+`
 const HANGING_TEST = `import test from 'node:test'
 
 await new Promise((resolve) => setTimeout(resolve, 60_000))
@@ -179,18 +191,7 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
     vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
     const root = project({
       'src/value.mjs': 'export const value = 1\n',
-      'test/good.test.mjs': `import assert from 'node:assert/strict'
-import test from 'node:test'
-import { value } from '../src/value.mjs'
-
-test('good case', () => {
-  assert.equal(value, 1)
-})
-// The test process dies after reporting its case, before writing coverage.
-if (process.env.TIA_TEST_CRASH === '1') {
-  setTimeout(() => process.kill(process.pid, 'SIGKILL'), 100)
-}
-`,
+      'test/good.test.mjs': CRASHING_TEST,
     })
     const runner = () =>
       tia({ files: ['test/**/*.test.mjs'], log: false, root }).run()
@@ -222,6 +223,33 @@ if (process.env.TIA_TEST_CRASH === '1') {
     expect(result.success).toBe(false)
     expect(result.graphSaved).toBe(false)
     expect(existsSync(join(root, '.tia/node/state.json'))).toBe(false)
+  })
+})
+
+describe('node discovery mode', () => {
+  test('a case whose test process dies after it passed is recorded as failed', async () => {
+    const root = project({
+      'src/value.mjs': 'export const value = 1\n',
+      'test/good.test.mjs': CRASHING_TEST,
+    })
+    const runner = () =>
+      tia({ files: ['test/**/*.test.mjs'], log: false, root }).run()
+    expect((await runner()).success).toBe(true)
+
+    vi.stubEnv('TIA_TEST_CRASH', '1')
+    writeFileSync(
+      join(root, 'src/value.mjs'),
+      'export const value = 1 // changed\n',
+    )
+    const replay = await runner()
+    expect(replay.plan.mode).toBe('replay')
+    expect(replay.success).toBe(false)
+    expect(
+      replay.executedTests.map((observation) => [
+        observation.fullName,
+        observation.state,
+      ]),
+    ).toEqual([['good case', 'failed']])
   })
 })
 

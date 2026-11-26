@@ -225,6 +225,17 @@ function matchesCandidate(candidate: NodeCase, item: NodeCase): boolean {
   )
 }
 
+/**
+ * A case that passed in a child whose test process then failed (it crashed or
+ * was killed after reporting) has evidence that process never finished
+ * writing. It counts as failed, so it runs again next time.
+ */
+function vouched(execution: NodeExecution, testCase: NodeCase): NodeCase {
+  return execution.moduleFailures.length > 0 && testCase.state === 'passed'
+    ? { ...testCase, state: 'failed' }
+    : testCase
+}
+
 const observeCandidate = Effect.fnUntraced(function* (
   context: NodeContext,
   candidate: NodeCase,
@@ -248,14 +259,14 @@ const observeCandidate = Effect.fnUntraced(function* (
   const result: NodeCase =
     executed === undefined
       ? { ...candidate, state: 'failed' }
-      : {
+      : vouched(execution, {
           ...executed,
           column: candidate.column,
           file: candidate.file,
           fullName: candidate.fullName,
           id: candidate.id,
           line: candidate.line,
-        }
+        })
   return observationOf(result, [candidate.file, ...execution.coverageFiles])
 })
 
@@ -315,7 +326,10 @@ const observeCachedCase = Effect.fnUntraced(function* (
   )
   if (moduleFailure && execution.cases.length > 0) {
     return execution.cases.map((testCase) =>
-      observationOf(testCase, [cached.file, ...execution.coverageFiles]),
+      observationOf(vouched(execution, testCase), [
+        cached.file,
+        ...execution.coverageFiles,
+      ]),
     )
   }
   const executed = execution.cases.find(
@@ -326,10 +340,14 @@ const observeCachedCase = Effect.fnUntraced(function* (
   )
   if (executed !== undefined) {
     return [
-      observationOf({ ...executed, fullName: cached.fullName, id: cached.id }, [
-        cached.file,
-        ...execution.coverageFiles,
-      ]),
+      observationOf(
+        vouched(execution, {
+          ...executed,
+          fullName: cached.fullName,
+          id: cached.id,
+        }),
+        [cached.file, ...execution.coverageFiles],
+      ),
     ]
   }
   return execution.moduleFailures.map(moduleFailureObservation)
