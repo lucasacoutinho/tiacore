@@ -60,3 +60,25 @@ func TestGoListBuildFlagsKeepOnlyFlagsThatShapeTheBuild(t *testing.T) {
 		t.Fatalf("goListBuildFlags(nil) = %q", got)
 	}
 }
+
+func TestTheDefaultProjectIsStableAcrossWorkspaceModules(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.work":     "go 1.23\n\nuse (\n\t./a\n\t./b\n)\n",
+		"a/go.mod":    "module example.com/a\n\ngo 1.23\n",
+		"a/a.go":      "package a\n\nfunc A() int { return 1 }\n",
+		"a/a_test.go": "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { _ = A() }\n",
+		"b/go.mod":    "module example.com/b\n\ngo 1.23\n",
+		"b/b.go":      "package b\n\nfunc B() int { return 1 }\n",
+		"b/b_test.go": "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
+	})
+	options := Options{PackagePatterns: []string{"./a/...", "./b/..."}, Stderr: &bytes.Buffer{}}
+	for attempt := 0; attempt < 12; attempt++ {
+		found := discoverFixture(t, options, root)
+		for _, suite := range found.Graph.Suites {
+			if suite.Project != "example.com/a" {
+				t.Fatalf("attempt %d: suite %s has project %q, want the first main module example.com/a", attempt, suite.ID, suite.Project)
+			}
+		}
+	}
+}

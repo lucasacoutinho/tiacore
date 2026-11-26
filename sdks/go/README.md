@@ -29,6 +29,10 @@ arguments, and process environment values. Shell bookkeeping (`PWD`, `OLDPWD`,
 `SHLVL`, and `_`) is excluded because the explicit project root already owns
 path identity and those values change without changing test behavior.
 
+Without `-project`, suites belong to the main module's path; in a `go.work`
+workspace with several main modules, to the module of the first discovered
+package in import-path order.
+
 Use `--packages` more than once to replace the default `./...` pattern,
 `--force` or `TIA_FRESH=1` for a full run, and `--json` for a machine-readable
 plan. Flags after `--` are passed to `go test` before the selected package list.

@@ -95,8 +95,10 @@ func discover(ctx context.Context, options Options, root, environmentFingerprint
 
 	project := options.Project
 	if project == "" {
-		for _, item := range packages {
-			if item.Module != nil && item.Module.Main {
+		// Sorted, not map, order: a workspace has several main modules, and a
+		// project name that changed between runs would change the fingerprint.
+		for _, importPath := range allPackages {
+			if item := packages[importPath]; item.Module != nil && item.Module.Main {
 				project = item.Module.Path
 				break
 			}
