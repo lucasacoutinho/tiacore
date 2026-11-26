@@ -170,4 +170,7 @@ on `TiaCore` inherit that behavior automatically.
 Snapshots use temporary storage by default and are removed after the receipt is
 created. To keep them while debugging a mismatch, pass
 `tiacore verify --artifacts <dir>` or the API option `artifactsDirectory`, and
-retain that directory as a CI diagnostic artifact.
+retain that directory as a CI diagnostic artifact. With `keepArtifacts: true`
+and no directory, the snapshots stay in a temporary directory. Either way, the
+receipt's `artifactsDirectory` field holds the absolute path of the kept
+snapshots.
