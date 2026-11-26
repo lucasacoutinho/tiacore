@@ -27,6 +27,9 @@ function validateLanes(lanes: readonly TiaWorkspaceLane[]): void {
         `TIA workspace lane ${lane.id} must define exactly one command or runner`,
       )
     }
+    if (lane.command?.trim() === '') {
+      throw new Error(`TIA workspace lane ${lane.id} command cannot be empty`)
+    }
     byId.set(lane.id, lane)
   }
   for (const lane of lanes) {

@@ -261,6 +261,14 @@ describe('workspace validation', () => {
       'TIA workspace lane a must define exactly one command or runner',
     ],
     [
+      [{ command: '', id: 'a' }],
+      'TIA workspace lane a command cannot be empty',
+    ],
+    [
+      [{ command: ' \t', id: 'a' }],
+      'TIA workspace lane a command cannot be empty',
+    ],
+    [
       [{ dependsOn: ['b'], id: 'a', runner: ok }],
       'TIA workspace lane a depends on unknown lane b',
     ],
