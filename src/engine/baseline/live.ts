@@ -23,7 +23,7 @@ export const BaselinesLive = Layer.effect(
     const fs = yield* FileSystem.FileSystem
     const vcs = makeGit(yield* ChildProcessSpawner.ChildProcessSpawner)
 
-    return makeBaselines({
+    const baselines = makeBaselines({
       currentSha: vcs.currentSha,
       exists: (root, file) =>
         fs.exists(resolve(root, file)).pipe(Effect.orElseSucceed(() => false)),
@@ -59,6 +59,24 @@ export const BaselinesLive = Layer.effect(
           ),
       trackedChanges: vcs.trackedChanges,
       untracked: vcs.untracked,
+    })
+
+    // git prints the repository top with symlinks resolved, so a project is
+    // listed, relativized and hashed under its real path. A root reached
+    // through a symlink then gets the paths and hashes its real path gets.
+    const realRoot = (root: string) =>
+      fs.realPath(root).pipe(Effect.orElseSucceed(() => root))
+
+    return Baselines.of({
+      ...baselines,
+      capture: (root, ignoredPrefixes) =>
+        Effect.flatMap(realRoot(root), (real) =>
+          baselines.capture(real, ignoredPrefixes),
+        ),
+      changedSince: (root, baseline, ignoredPrefixes) =>
+        Effect.flatMap(realRoot(root), (real) =>
+          baselines.changedSince(real, baseline, ignoredPrefixes),
+        ),
     })
   }),
 )

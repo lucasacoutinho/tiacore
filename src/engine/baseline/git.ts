@@ -175,7 +175,10 @@ export function makeGit(
       ),
     )
 
-  /** Listings run at the repository top and come back relative to `root`. */
+  /**
+   * Listings run at the repository top and come back relative to `root`,
+   * which must be a real path: git prints the top with symlinks resolved.
+   */
   const repositoryPaths = Effect.fnUntraced(function* (
     root: string,
     args: readonly string[],
