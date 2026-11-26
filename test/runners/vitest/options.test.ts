@@ -30,6 +30,11 @@ afterEach(() => {
 })
 
 const argv = (...args: string[]) => ['node', '/bin/vitest.mjs', ...args]
+const script = (...args: string[]) => [
+  'node',
+  '/project/scripts/ci.mjs',
+  ...args,
+]
 
 describe('command-line file filters', () => {
   test.each([
@@ -56,6 +61,20 @@ describe('command-line file filters', () => {
     expect(nativeSelectionLabels(root, {}, argv('run', ...args))).toEqual([
       'file filters',
     ])
+  })
+
+  test('a substring filter on the Vitest command line is a filter', () => {
+    const root = project()
+    expect(hasNativeSelection(root, {}, argv('run', 'a.te'))).toBe(true)
+    expect(nativeSelectionLabels(root, {}, argv('a.te'))).toEqual([
+      'file filters',
+    ])
+  })
+
+  test('another program counts only arguments that name test paths', () => {
+    const root = project()
+    expect(hasNativeSelection(root, {}, script('unit'))).toBe(false)
+    expect(hasNativeSelection(root, {}, script('test/a.test.ts'))).toBe(true)
   })
 
   test('the related command names sources, not test filters', () => {

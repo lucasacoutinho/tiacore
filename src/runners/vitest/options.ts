@@ -332,12 +332,25 @@ function guessedCliFilters(argv: readonly string[]): string[] {
   })
 }
 
-/** True when the command line names test files or directories to run. */
+/** Whether the process is the Vitest command line, not a script that starts Vitest. */
+function isVitestCli(argv: readonly string[]): boolean {
+  const name = argv[1]?.replaceAll('\\', '/').split('/').pop()
+  return name === 'vitest' || name === 'vitest.mjs' || name === 'vitest.js'
+}
+
+/**
+ * True when the command line names test files or directories to run. Vitest
+ * matches every positional filter as a substring of test file paths, so on its
+ * own command line any filter counts. Another program's arguments count only
+ * when they name a test file or an existing path.
+ */
 export function hasCliFileFilter(
   root: string,
   argv: readonly string[],
 ): boolean {
-  return (vitestCliFilters(argv) ?? guessedCliFilters(argv)).some((filter) =>
+  const filters = vitestCliFilters(argv)
+  if (filters !== null && isVitestCli(argv)) return filters.length > 0
+  return (filters ?? guessedCliFilters(argv)).some((filter) =>
     isCliFileArgument(root, filter),
   )
 }
