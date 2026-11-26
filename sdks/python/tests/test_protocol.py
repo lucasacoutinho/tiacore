@@ -93,6 +93,22 @@ class ProtocolVectorTests(unittest.TestCase):
         self.assertEqual(parse_impact_graph(vector["input"]), vector["expected"])
 
 
+class PolicyTests(unittest.TestCase):
+    def test_rejects_an_unknown_on_unknown_change(self) -> None:
+        for value in ("Full", "skip", ""):
+            with self.subTest(value=value), self.assertRaisesRegex(
+                ValueError, "onUnknownChange"
+            ):
+                create_impact_plan(
+                    catalog=[],
+                    changes=[],
+                    environment_fingerprint="e",
+                    fingerprint="f",
+                    graph=None,
+                    on_unknown_change=value,
+                )
+
+
 class NormalizePathTests(unittest.TestCase):
     def test_cleans_separators_dots_and_trailing_slashes(self) -> None:
         self.assertEqual(normalize_path("./a//b\\c/"), "a/b/c")

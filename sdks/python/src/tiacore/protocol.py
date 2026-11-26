@@ -586,6 +586,10 @@ def create_impact_plan(
     Raises ValueError for an invalid catalog, policy or changed path. A stored
     graph that is missing, invalid, incomplete or stale yields a full plan.
     """
+    if on_unknown_change not in ("full", "ignore"):
+        raise ValueError(
+            f"TIA policy onUnknownChange must be full or ignore: {on_unknown_change!r}"
+        )
     suites = _catalog_suites(catalog)
     allowed = set(suites) if allowed_suites is None else set(allowed_suites)
     for suite_id in allowed:
