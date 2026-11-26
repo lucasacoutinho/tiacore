@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
+import * as Stream from 'effect/Stream'
 
 import { byCodeUnit } from '../../core/canonical.ts'
 import type { FingerprintOptions } from './options.ts'
@@ -14,6 +15,8 @@ export const UNAVAILABLE_HASH = '<unavailable>'
 
 /** Files of this size or larger are not hashed (Node cannot read them whole). */
 export const MAX_HASHED_BYTES = 2 ** 31
+const STREAM_HASH_BYTES = 8 * 1024 * 1024
+const HASH_CHUNK_BYTES = 2 * 1024 * 1024
 
 export const STRUCTURAL_FILE_PATTERN =
   /^(?:package\.json|(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)|(?:tsconfig|jsconfig)(?:\.[^.]+)?\.json|(?:vite|vitest)(?:\.[^.]+)?\.config\.[cm]?[jt]s)$/u
@@ -33,6 +36,25 @@ export function hashBytes(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')
 }
 
+function hashLargeFile(fs: FileSystem.FileSystem, path: string) {
+  return Stream.runFold(
+    fs.stream(path, {
+      bytesToRead: MAX_HASHED_BYTES,
+      chunkSize: HASH_CHUNK_BYTES,
+    }),
+    () => ({ bytes: 0, hash: createHash('sha256') }),
+    (state, chunk) => {
+      state.bytes += chunk.length
+      state.hash.update(chunk)
+      return state
+    },
+  ).pipe(
+    Effect.map(({ bytes, hash }) =>
+      bytes >= MAX_HASHED_BYTES ? UNAVAILABLE_HASH : hash.digest('hex'),
+    ),
+  )
+}
+
 /**
  * The content hash of a file, `<deleted>` when it does not exist, and
  * `<unavailable>` when it cannot be hashed: a directory (including a symlink
@@ -44,7 +66,9 @@ export const hashFile = (fs: FileSystem.FileSystem, path: string) =>
     Effect.flatMap((info) =>
       info.type !== 'File' || Number(info.size) >= MAX_HASHED_BYTES
         ? Effect.succeed(UNAVAILABLE_HASH)
-        : fs.readFile(path).pipe(Effect.map(hashBytes)),
+        : Number(info.size) >= STREAM_HASH_BYTES
+          ? hashLargeFile(fs, path)
+          : fs.readFile(path).pipe(Effect.map(hashBytes)),
     ),
     Effect.catch((error) =>
       Effect.succeed(

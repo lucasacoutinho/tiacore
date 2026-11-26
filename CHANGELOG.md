@@ -5,6 +5,25 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.0.4 - 2026-11-26
+
+### Changed
+
+- Recording a large suite now groups test edges by file in one pass. Protocol
+  planning builds its selection indexes from changed paths. Vitest reuses asset
+  dependency lookups across test cases during the same run.
+- The graph store yields between batches of buckets. Baseline hashing reads
+  large files in chunks to reduce peak memory during concurrent checks.
+
+### Fixed
+
+- Vitest releases browser runtime registrations when an instance closes.
+  Rotating trace and metrics files releases closed exporters, and a named pipe
+  with no reader no longer hangs exporter shutdown. See
+  [observability](docs/observability.md) for trace history retention.
+- Validating deeply nested suite dependencies no longer exhausts the JavaScript
+  call stack.
+
 ## 2.0.3 - 2026-10-26
 
 ### Fixed

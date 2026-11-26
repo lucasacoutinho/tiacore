@@ -85,8 +85,30 @@ const sharedStates = registry(
  */
 const runtimeStates = registry(
   'browser-runtime-state',
-  () => new Map<string, TiaRuntime>(),
+  () => new Map<string, WeakRef<TiaRuntime>>(),
 )
+
+const runtimeFinalizers = registry(
+  'browser-runtime-finalizer',
+  () =>
+    new FinalizationRegistry<{ key: string; reference: WeakRef<TiaRuntime> }>(
+      ({ key, reference }) => {
+        if (runtimeStates.get(key) === reference) runtimeStates.delete(key)
+      },
+    ),
+)
+
+function registerRuntime(key: string, runtime: TiaRuntime): () => void {
+  const previous = runtimeStates.get(key)
+  if (previous !== undefined) runtimeFinalizers.unregister(previous)
+  const reference = new WeakRef(runtime)
+  runtimeStates.set(key, reference)
+  runtimeFinalizers.register(runtime, { key, reference }, reference)
+  return () => {
+    if (runtimeStates.get(key) === reference) runtimeStates.delete(key)
+    runtimeFinalizers.unregister(reference)
+  }
+}
 
 function runtimeKey(root: string, cacheDir: string): string {
   return `${slash(root)}\0${slash(resolveCacheDir(root, cacheDir))}`
@@ -328,7 +350,9 @@ export function tia(options: TiaOptions = {}): Plugin {
    * copy no instance configured, the one registered for its project.
    */
   const currentRuntime = (): TiaRuntime =>
-    configured || key === null ? runtime : (runtimeStates.get(key) ?? runtime)
+    configured || key === null
+      ? runtime
+      : (runtimeStates.get(key)?.deref() ?? runtime)
 
   return {
     name: 'tiacore',
@@ -369,75 +393,81 @@ export function tia(options: TiaOptions = {}): Plugin {
       }
       runtime = shared.runtime
       configured = true
-      runtimeStates.set(
+      const releaseRuntime = registerRuntime(
         runtimeKey(resolve(project.config.root), normalized.cacheDir),
         runtime,
       )
-      if (shared.bypassed) return
+      try {
+        vitest.onClose?.(releaseRuntime)
+        if (shared.bypassed) return
 
-      const candidates = [...new Set([...vitest.projects, project])]
-      const hooks = vitest.config.sequence.hooks
-      const selectAll: TiaTestSelection = {
-        hooks,
-        mode: 'all',
-        testIds: [],
-        wholeTestFiles: [],
-      }
+        const candidates = [...new Set([...vitest.projects, project])]
+        const hooks = vitest.config.sequence.hooks
+        const selectAll: TiaTestSelection = {
+          hooks,
+          mode: 'all',
+          testIds: [],
+          wholeTestFiles: [],
+        }
 
-      const root = resolve(vitest.config.root ?? process.cwd())
-      const labels = nativeSelectionLabels(root, vitest.config)
-      if (vitest.config.watch || hasNativeSelection(root, vitest.config)) {
-        for (const candidate of candidates)
-          candidate.provide(TIA_SELECTION_KEY, selectAll)
-        runtime.active = false
-        shared.bypassed = true
-        if (runtime.options.log)
-          vitest.logger.log(`\n ${bypassNotice(vitest.config.watch, labels)}`)
-        return
-      }
+        const root = resolve(vitest.config.root ?? process.cwd())
+        const labels = nativeSelectionLabels(root, vitest.config)
+        if (vitest.config.watch || hasNativeSelection(root, vitest.config)) {
+          for (const candidate of candidates)
+            candidate.provide(TIA_SELECTION_KEY, selectAll)
+          runtime.active = false
+          shared.bypassed = true
+          if (runtime.options.log)
+            vitest.logger.log(`\n ${bypassNotice(vitest.config.watch, labels)}`)
+          return
+        }
 
-      shared.initialization ??= planInstance(
-        runtime,
-        normalized,
-        vitest,
-        candidates,
-      )
-      await shared.initialization
-
-      const plan = runtime.run?.plan
-      if (plan === undefined) return
-      if (plan.mode === 'record') {
-        for (const candidate of candidates)
-          candidate.provide(TIA_SELECTION_KEY, selectAll)
-        return
-      }
-
-      vitest.config.passWithNoTests = true
-      const selection: TiaTestSelection = {
-        hooks,
-        mode: 'tests',
-        testIds: plan.affectedTestIds,
-        wholeTestFiles: plan.wholeTestFiles.map((file) =>
-          slash(resolve(runtime.root, file)),
-        ),
-      }
-      for (const candidate of candidates) {
-        if (shared.selectedProjects.has(candidate)) continue
-        shared.selectedProjects.add(candidate)
-        candidate.provide(TIA_SELECTION_KEY, selection)
-        const candidateConfig = candidate.config
-        const affected = affectedTestsForProject(
-          plan.affectedTests,
-          runtime.root,
-          resolve(candidateConfig.root),
-          candidateConfig.include,
-          candidateConfig.exclude,
+        shared.initialization ??= planInstance(
+          runtime,
+          normalized,
+          vitest,
+          candidates,
         )
-        candidateConfig.include =
-          affected.length === 0
-            ? [impossibleTestPattern(runtime.options.cacheDir)]
-            : affected
-        candidateConfig.passWithNoTests = true
+        await shared.initialization
+
+        const plan = runtime.run?.plan
+        if (plan === undefined) return
+        if (plan.mode === 'record') {
+          for (const candidate of candidates)
+            candidate.provide(TIA_SELECTION_KEY, selectAll)
+          return
+        }
+
+        vitest.config.passWithNoTests = true
+        const selection: TiaTestSelection = {
+          hooks,
+          mode: 'tests',
+          testIds: plan.affectedTestIds,
+          wholeTestFiles: plan.wholeTestFiles.map((file) =>
+            slash(resolve(runtime.root, file)),
+          ),
+        }
+        for (const candidate of candidates) {
+          if (shared.selectedProjects.has(candidate)) continue
+          shared.selectedProjects.add(candidate)
+          candidate.provide(TIA_SELECTION_KEY, selection)
+          const candidateConfig = candidate.config
+          const affected = affectedTestsForProject(
+            plan.affectedTests,
+            runtime.root,
+            resolve(candidateConfig.root),
+            candidateConfig.include,
+            candidateConfig.exclude,
+          )
+          candidateConfig.include =
+            affected.length === 0
+              ? [impossibleTestPattern(runtime.options.cacheDir)]
+              : affected
+          candidateConfig.passWithNoTests = true
+        }
+      } catch (error) {
+        releaseRuntime()
+        throw error
       }
     },
 

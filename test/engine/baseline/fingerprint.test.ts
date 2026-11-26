@@ -1,9 +1,12 @@
-import { symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { fstatSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import * as NodeServices from '@effect/platform-node/NodeServices'
 import * as Effect from 'effect/Effect'
+import * as Deferred from 'effect/Deferred'
+import * as Fiber from 'effect/Fiber'
 import * as FileSystem from 'effect/FileSystem'
+import * as PlatformError from 'effect/PlatformError'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import { VERSION } from '../../../src/core/version.ts'
@@ -122,6 +125,143 @@ describe('hashing', () => {
     writeFileSync(big, '')
     truncateSync(big, 2 ** 31)
     expect(await withFs((fs) => hashFile(fs, big))).toBe(UNAVAILABLE_HASH)
+  })
+
+  test('hashes files on both sides of the streaming threshold', async () => {
+    const root = scratch()
+    const counts = { read: 0, stream: 0 }
+    await withFs((fs) =>
+      Effect.gen(function* () {
+        const measured = FileSystem.FileSystem.of({
+          ...fs,
+          readFile: (path) => {
+            counts.read += 1
+            return fs.readFile(path)
+          },
+          stream: (path, streamOptions) => {
+            counts.stream += 1
+            return fs.stream(path, streamOptions)
+          },
+        })
+        for (const size of [
+          8 * 1024 * 1024 - 1,
+          8 * 1024 * 1024,
+          9 * 1024 * 1024 + 13,
+        ]) {
+          const content = Buffer.alloc(size, size % 251)
+          const path = join(root, String(size))
+          writeFileSync(path, content)
+          expect(yield* hashFile(measured, path)).toBe(hashBytes(content))
+          if (size === 8 * 1024 * 1024) {
+            const effect = hashFile(measured, path)
+            expect(
+              yield* Effect.all([effect, effect], { concurrency: 2 }),
+            ).toEqual([hashBytes(content), hashBytes(content)])
+          }
+        }
+      }),
+    )
+    expect(counts).toEqual({ read: 1, stream: 4 })
+  })
+
+  test('maps stream read failures to sentinels and closes the file', async () => {
+    const root = scratch()
+    const path = join(root, 'large')
+    writeFileSync(path, Buffer.alloc(8 * 1024 * 1024))
+    for (const [tag, expected] of [
+      ['NotFound', DELETED_HASH],
+      ['PermissionDenied', UNAVAILABLE_HASH],
+    ] as const) {
+      await withFs((fs) =>
+        Effect.gen(function* () {
+          let descriptor = -1
+          let reads = 0
+          const controlled = FileSystem.make({
+            ...fs,
+            open: (filePath, openOptions) =>
+              fs.open(filePath, openOptions).pipe(
+                Effect.map((file) => {
+                  descriptor = Reflect.get(file, 'fd') as number
+                  return new Proxy(file, {
+                    get(target, property, receiver) {
+                      if (property === 'readAlloc') {
+                        return (size: number) =>
+                          Effect.suspend(() => {
+                            reads += 1
+                            return reads === 1
+                              ? file.readAlloc(size)
+                              : Effect.fail(
+                                  PlatformError.systemError({
+                                    _tag: tag,
+                                    method: 'read',
+                                    module: 'FileSystem',
+                                  }),
+                                )
+                          })
+                      }
+                      const value: unknown = Reflect.get(
+                        target,
+                        property,
+                        receiver,
+                      )
+                      return typeof value === 'function'
+                        ? value.bind(target)
+                        : value
+                    },
+                  })
+                }),
+              ),
+          })
+          expect(yield* hashFile(controlled, path)).toBe(expected)
+          expect(reads).toBe(2)
+          expect(() => fstatSync(descriptor)).toThrow('EBADF')
+        }),
+      )
+    }
+  })
+
+  test('closes the streamed file when hashing is interrupted', async () => {
+    const root = scratch()
+    const path = join(root, 'large')
+    writeFileSync(path, Buffer.alloc(8 * 1024 * 1024))
+    await withFs((fs) =>
+      Effect.gen(function* () {
+        const entered = yield* Deferred.make<void>()
+        let descriptor = -1
+        const controlled = FileSystem.make({
+          ...fs,
+          open: (filePath, openOptions) =>
+            fs.open(filePath, openOptions).pipe(
+              Effect.map((file) => {
+                descriptor = Reflect.get(file, 'fd') as number
+                return new Proxy(file, {
+                  get(target, property, receiver) {
+                    if (property === 'readAlloc') {
+                      return () =>
+                        Deferred.succeed(entered, undefined).pipe(
+                          Effect.andThen(Effect.never),
+                        )
+                    }
+                    const value: unknown = Reflect.get(
+                      target,
+                      property,
+                      receiver,
+                    )
+                    return typeof value === 'function'
+                      ? value.bind(target)
+                      : value
+                  },
+                })
+              }),
+            ),
+        })
+        const fiber = yield* Effect.forkChild(hashFile(controlled, path))
+        yield* Deferred.await(entered)
+        expect(fstatSync(descriptor).isFile()).toBe(true)
+        yield* Fiber.interrupt(fiber)
+        expect(() => fstatSync(descriptor)).toThrow('EBADF')
+      }),
+    )
   })
 })
 

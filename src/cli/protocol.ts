@@ -5,7 +5,11 @@ import * as Option from 'effect/Option'
 import * as Schema from 'effect/Schema'
 
 import type { TiaExecutionPolicy } from '../core/protocol.ts'
-import { createImpactPlan, mergeImpactGraphs } from '../engine/plan/protocol.ts'
+import {
+  mergeImpactGraphs,
+  planValidatedGraph,
+} from '../engine/plan/protocol.ts'
+import { decodeImpactGraphForPlan } from '../wire/decode.ts'
 import { TiaInvalid } from '../wire/errors.ts'
 import { describeIssue } from '../wire/issue.ts'
 import { SuiteDescriptor } from '../wire/protocol.ts'
@@ -86,10 +90,14 @@ const plan = Command.make(
     const catalog = yield* decodeCatalog(yield* readJson(options.catalog))
     const files = yield* readChanges(options.changes)
     const graph = Option.isSome(options.graph)
-      ? yield* readGraph(options.graph.value)
+      ? yield* readJson(options.graph.value).pipe(
+          Effect.flatMap((value) =>
+            attempt(() => decodeImpactGraphForPlan(value)),
+          ),
+        )
       : null
     const result = yield* attempt(() =>
-      createImpactPlan({
+      planValidatedGraph({
         catalog,
         changes: { files },
         currentEnvironmentFingerprint: options.environmentFingerprint,

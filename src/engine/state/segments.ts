@@ -52,7 +52,10 @@ export interface SerializedSegment {
 }
 
 export function bucketFor(key: string): number {
-  return hash('sha256', key, 'buffer')[0]! % TIA_RUNTIME_STORE_BUCKETS
+  return (
+    parseInt(hash('sha256', key, 'hex').slice(0, 2), 16) %
+    TIA_RUNTIME_STORE_BUCKETS
+  )
 }
 
 const SHA256 = /^[a-f0-9]{64}$/u

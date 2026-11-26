@@ -73,6 +73,7 @@ afterAll(async () => {
 })
 
 function fakeVitest(watch: boolean) {
+  const closeCallbacks: Array<() => void> = []
   const logger = {
     error: () => undefined,
     log: () => undefined,
@@ -93,6 +94,7 @@ function fakeVitest(watch: boolean) {
   }
   const reporters: unknown[] = []
   const vitest = {
+    close: () => closeCallbacks.forEach((callback) => callback()),
     config: {
       coverage: project.config.coverage,
       reporters,
@@ -103,6 +105,7 @@ function fakeVitest(watch: boolean) {
     },
     disableCoverage: () => undefined,
     logger,
+    onClose: (callback: () => void) => closeCallbacks.push(callback),
     projects: [project],
   }
   return { project, reporters, vitest }
@@ -122,36 +125,103 @@ const transformContext = {
   warn: () => undefined,
 }
 
-function runtimes(): Map<string, TiaRuntime> {
+function runtimes(): Map<string, WeakRef<TiaRuntime>> {
   const holder = globalThis as typeof globalThis & Record<symbol, unknown>
   const registry =
     holder[Symbol.for(`tiacore@${VERSION}/browser-runtime-state`)]
   if (!(registry instanceof Map)) throw new Error('no runtime registry')
-  return registry as Map<string, TiaRuntime>
+  return registry as Map<string, WeakRef<TiaRuntime>>
 }
 
 const options = { cacheDir: '.tia', enabled: true, log: false }
 
 describe('the Vitest plugin', () => {
-  test('bypassed watch starts keep one runtime and retain nothing', async () => {
+  test('releases each distinct project root when its instance closes', async () => {
+    const instances = [fakeVitest(true), fakeVitest(true)]
+    for (const [index, { project, vitest }] of instances.entries()) {
+      project.config.root = join(root, `project-${index}`)
+      const hooks = tia(options) as unknown as Hooks
+      await hooks.configureVitest({ project, vitest })
+    }
+    const keys = [...runtimes().keys()].filter((key) =>
+      key.startsWith(join(root, 'project-')),
+    )
+    expect(keys).toHaveLength(2)
+    instances[0]!.vitest.close()
+    expect(runtimes().has(keys[0]!)).toBe(false)
+    expect(runtimes().has(keys[1]!)).toBe(true)
+    instances[1]!.vitest.close()
+    expect(runtimes().has(keys[1]!)).toBe(false)
+  })
+
+  test('an older instance closing cannot remove the newer browser runtime', async () => {
+    const first = fakeVitest(false)
+    const second = fakeVitest(false)
+    for (const instance of [first, second]) {
+      const hooks = tia(options) as unknown as Hooks
+      hooks.config({ root })
+      await hooks.configureVitest(instance)
+    }
+    const key = [...runtimes().keys()].find((item) => item.startsWith(root))!
+    const newer = runtimes().get(key)?.deref()
+    expect(newer).toBeDefined()
+    first.vitest.close()
+    expect(runtimes().get(key)?.deref()).toBe(newer)
+    const browser = tia(options) as unknown as Hooks
+    browser.config({ root })
+    const transformed = browser.transform.call(
+      transformContext,
+      'export const value = 42\n',
+      join(root, 'src/gen.ts'),
+    )
+    expect(transformed).toBeDefined()
+    const hash = instrumentationHash(transformed?.code ?? '')
+    expect(hash).not.toBeNull()
+    expect(
+      newer?.coverageTemplates.unknownFiles(root, {
+        [join(root, 'src/gen.ts')]: { b: {}, f: {}, hash: hash!, s: {} },
+      }),
+    ).toEqual([])
+    second.vitest.close()
+    expect(runtimes().has(key)).toBe(false)
+  })
+
+  test('releases a runtime when configuration fails', async () => {
+    const { project, vitest } = fakeVitest(true)
+    project.provide = () => {
+      throw new Error('configuration failed')
+    }
+    const hooks = tia(options) as unknown as Hooks
+    await expect(hooks.configureVitest({ project, vitest })).rejects.toThrow(
+      'configuration failed',
+    )
+    expect([...runtimes().keys()].some((key) => key.startsWith(root))).toBe(
+      false,
+    )
+    vitest.close()
+  })
+
+  test('bypassed watch starts release their runtime on close', async () => {
     const result = await assertNoLeak(
       async () => {
         const hooks = tia(options) as unknown as Hooks
         const { project, vitest } = fakeVitest(true)
         hooks.config({ root })
         await hooks.configureVitest({ project, vitest })
+        vitest.close()
       },
       { bytesPerOperation: 4_096, iterations: 40 },
     )
     expect(result.bytesPerOperation).toBeLessThan(4_096)
     expect(
       [...runtimes().keys()].filter((key) => key.startsWith(root)),
-    ).toHaveLength(1)
+    ).toHaveLength(0)
   })
 
   test('a new run starts without the previous run’s instrumentation templates', async () => {
     let version = 0
     let stale: { hash: string; path: string } | undefined
+    let latest: TiaRuntime | undefined
     const result = await assertNoLeak(
       async () => {
         version += 1
@@ -167,6 +237,10 @@ describe('the Vitest plugin', () => {
         const hash = instrumentationHash(transformed?.code ?? '')
         if (hash === null) throw new Error('the file was not instrumented')
         stale ??= { hash, path: join(root, 'src/gen.ts') }
+        latest = [...runtimes().entries()]
+          .find(([key]) => key.startsWith(root))?.[1]
+          .deref()
+        vitest.close()
       },
       // A template for 150 functions weighs over 100 kilobytes, so keeping one
       // per run would show here; the limit leaves room for Babel's one-time
@@ -174,9 +248,7 @@ describe('the Vitest plugin', () => {
       { batches: 3, bytesPerOperation: 32_768, iterations: 30 },
     )
     expect(result.bytesPerOperation).toBeLessThan(32_768)
-    const runtime = [...runtimes().entries()].find(([key]) =>
-      key.startsWith(root),
-    )?.[1]
+    const runtime = latest
     expect(runtime).toBeDefined()
     // The first run's template is gone: its counters would be reported unknown.
     expect(

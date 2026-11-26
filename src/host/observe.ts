@@ -1,4 +1,12 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import {
+  closeSync,
+  constants,
+  mkdirSync,
+  openSync,
+  writeFileSync,
+} from 'node:fs'
+import { open } from 'node:fs/promises'
 import { connect } from 'node:net'
 import { dirname } from 'node:path'
 
@@ -23,8 +31,7 @@ import { VERSION } from '../core/version.ts'
  * - TIACORE_TRACE_FILE: a file that receives every finished span as JSON;
  * - TIACORE_METRICS_FILE: a file that receives all metrics in Prometheus text
  *   format.
- * The files are written when the process's runtime is disposed and again when
- * the process exits.
+ * Active files are written when their runtime is disposed or the process exits.
  */
 export interface ObserveConfig {
   readonly devtools?: string
@@ -116,30 +123,102 @@ export function recordingTracer(
 function writeFile(path: string, body: () => string): void {
   try {
     mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(path, body())
+    const contents = body()
+    const fd = openSync(
+      path,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_TRUNC |
+        constants.O_NONBLOCK,
+    )
+    try {
+      writeFileSync(fd, contents)
+    } finally {
+      closeSync(fd)
+    }
   } catch {
     // Nothing to do: the run goes on without its output.
   }
 }
 
-// A process can build the host runtime several times (it closes when idle), and
-// each trace file must hold every span of the process, so the buffers outlive
-// the layers. There is one buffer per configured path: one, in practice.
-const traceBuffers = new Map<string, FinishedSpan[]>()
-let metricsFiles: ReadonlyMap<string, () => string> = new Map()
+interface TraceBuffer {
+  spans: FinishedSpan[] | undefined
+  users: number
+  readonly ready: Promise<FinishedSpan[]>
+}
+
+// Active runtimes share a buffer. Keep only the most recently closed one in
+// memory; older paths can recover their history from this process's output.
+const traceBuffers = new Map<string, TraceBuffer>()
+let recentTrace: { path: string; spans: FinishedSpan[] } | undefined
+const metricsFiles = new Set<{ path: string; format: () => string }>()
 let exitHookInstalled = false
+const processInstance = randomUUID()
+let largestTraceBytes = 0
+
+async function readHistory(path: string): Promise<FinishedSpan[]> {
+  if (largestTraceBytes === 0) return []
+  let file: Awaited<ReturnType<typeof open>> | undefined
+  try {
+    file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK)
+    const stat = await file.stat()
+    if (!stat.isFile() || stat.size > largestTraceBytes) return []
+    const expected = Buffer.from(
+      `{\n  "processInstance": "${processInstance}",\n`,
+    )
+    const prefix = Buffer.alloc(expected.length)
+    const { bytesRead } = await file.read(prefix, 0, prefix.length, 0)
+    if (bytesRead !== expected.length || !prefix.equals(expected)) return []
+    const body = Buffer.alloc(stat.size)
+    let offset = 0
+    while (offset < body.length) {
+      const result = await file.read(body, offset, body.length - offset, offset)
+      if (result.bytesRead === 0) return []
+      offset += result.bytesRead
+    }
+    const trace: { processInstance?: string; spans?: FinishedSpan[] } =
+      JSON.parse(body.toString())
+    return trace.processInstance === processInstance &&
+      Array.isArray(trace.spans)
+      ? trace.spans.slice(-TRACE_FILE_SPAN_LIMIT)
+      : []
+  } catch {
+    return []
+  } finally {
+    await file?.close().catch(() => {})
+  }
+}
+
+function acquireTrace(path: string): TraceBuffer {
+  let buffer = traceBuffers.get(path)
+  if (buffer === undefined) {
+    const recent = recentTrace?.path === path ? recentTrace.spans : undefined
+    if (recent !== undefined) recentTrace = undefined
+    buffer = {
+      spans: recent,
+      users: 0,
+      ready: recent === undefined ? readHistory(path) : Promise.resolve(recent),
+    }
+    traceBuffers.set(path, buffer)
+  }
+  buffer.users += 1
+  return buffer
+}
 
 function writeTraceFile(path: string, spans: readonly FinishedSpan[]): void {
-  writeFile(
-    path,
-    () => `${JSON.stringify({ spans, tiacore: VERSION }, null, 2)}\n`,
-  )
+  writeFile(path, () => {
+    const body = `${JSON.stringify({ processInstance, spans, tiacore: VERSION }, null, 2)}\n`
+    largestTraceBytes = Math.max(largestTraceBytes, Buffer.byteLength(body))
+    return body
+  })
 }
 
 /** Writes the file exporters' output; runs synchronously when the process exits. */
 function flushFiles(): void {
-  for (const [path, spans] of traceBuffers) writeTraceFile(path, spans)
-  for (const [path, format] of metricsFiles) writeFile(path, format)
+  for (const [path, buffer] of traceBuffers) {
+    if (buffer.spans !== undefined) writeTraceFile(path, buffer.spans)
+  }
+  for (const { path, format } of metricsFiles) writeFile(path, format)
 }
 
 function installExitHook(): void {
@@ -152,18 +231,25 @@ const traceFileLayer = (path: string) =>
   Layer.effect(
     Tracer.Tracer,
     Effect.gen(function* () {
-      let finished = traceBuffers.get(path)
-      if (finished === undefined) {
-        finished = []
-        traceBuffers.set(path, finished)
-      }
-      installExitHook()
-      const spans = finished
-      const inner = yield* Effect.tracer
-      yield* Effect.addFinalizer(() =>
-        Effect.sync(() => writeTraceFile(path, spans)),
+      const { spans: finished } = yield* Effect.acquireRelease(
+        Effect.promise(async () => {
+          const buffer = acquireTrace(path)
+          installExitHook()
+          const history = await buffer.ready
+          buffer.spans = history
+          return { buffer, spans: history }
+        }),
+        ({ buffer, spans }) =>
+          Effect.sync(() => {
+            writeTraceFile(path, spans)
+            buffer.users -= 1
+            if (buffer.users === 0) {
+              traceBuffers.delete(path)
+              recentTrace = { path, spans }
+            }
+          }),
       )
-      return recordingTracer(inner, spans)
+      return recordingTracer(yield* Effect.tracer, finished)
     }),
   )
 
@@ -237,10 +323,14 @@ export function observeLayer(config: ObserveConfig): Layer.Layer<never> {
         ).pipe(
           Effect.flatMap((PrometheusMetrics) => {
             const format = () => PrometheusMetrics.formatUnsafe(Context.empty())
-            metricsFiles = new Map([...metricsFiles, [path, format]])
+            const registration = { path, format }
+            metricsFiles.add(registration)
             installExitHook()
             return Effect.addFinalizer(() =>
-              Effect.sync(() => writeFile(path, format)),
+              Effect.sync(() => {
+                writeFile(path, format)
+                metricsFiles.delete(registration)
+              }),
             )
           }),
         ),

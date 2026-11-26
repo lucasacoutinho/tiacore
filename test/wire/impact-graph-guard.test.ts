@@ -4,6 +4,11 @@ import { describe, expect, test } from 'vitest'
 
 import { canonicalGraph } from '../../src/core/canonical.ts'
 import type { TiaImpactGraph } from '../../src/core/protocol.ts'
+import {
+  decodeImpactGraphForPlan,
+  parseArtifactEnvelope,
+  parseImpactGraph,
+} from '../../src/wire/decode.ts'
 import { acceptImpactGraph } from '../../src/wire/impact-graph-guard.ts'
 import { ImpactGraph } from '../../src/wire/protocol.ts'
 
@@ -187,6 +192,13 @@ describe('the impact graph guard', () => {
           `${name}: guard ${actual === null ? 'rejects' : 'accepts'}, Schema ${expected === null ? 'rejects' : 'accepts'}`,
         )
       }
+      if (
+        expected !== null &&
+        JSON.stringify(parseImpactGraph(structuredClone(value))) !==
+          JSON.stringify(expected)
+      ) {
+        disagreements.push(`${name}: canonical decoder differs from Schema`)
+      }
     }
     expect(disagreements).toEqual([])
   })
@@ -207,5 +219,153 @@ describe('the impact graph guard', () => {
       'test/a.test.ts',
       'test/b.test.ts',
     ])
+  })
+
+  test('decodes a deep dependency chain through both graph and envelope schemas', () => {
+    const count = 12_000
+    const graph = {
+      complete: true,
+      environmentFingerprint: '',
+      fingerprint: 'fp',
+      observations: [],
+      protocolVersion: 1,
+      suites: Array.from({ length: count }, (_, index) => ({
+        adapter: 'vitest',
+        ...(index + 1 < count ? { dependsOn: [`suite-${index + 1}`] } : {}),
+        file: `test/${index}.ts`,
+        id: `suite-${index}`,
+        project: 'unit',
+      })),
+    }
+    expect(parseImpactGraph(graph).suites).toHaveLength(count)
+    expect(
+      parseArtifactEnvelope({
+        adapter: 'vitest',
+        artifactId: 'artifact',
+        graph,
+        runId: 'run',
+      }).graph.suites,
+    ).toHaveLength(count)
+
+    graph.suites[count - 1]!.dependsOn = ['suite-0']
+    expect(acceptImpactGraph(graph)).toBeNull()
+    expect(() => parseImpactGraph(graph)).toThrow(
+      'suite dependency cycle includes suite-0',
+    )
+    expect(() =>
+      parseArtifactEnvelope({
+        adapter: 'vitest',
+        artifactId: 'artifact',
+        graph,
+        runId: 'run',
+      }),
+    ).toThrow('suite dependency cycle includes suite-0')
+  }, 30_000)
+
+  test('returns independent objects and arrays on repeated decodes', () => {
+    const input = base()
+    const first = acceptImpactGraph(input)!
+    const second = acceptImpactGraph(input)!
+    ;(input['knownSources'] as string[])[0] = 'changed'
+    ;(
+      (input['suites'] as Record<string, unknown>[])[0]![
+        'dependsOn'
+      ] as string[]
+    )[0] = 'changed'
+    first.knownSources![1] = 'changed'
+    first.suites[0]!.dependsOn![0] = 'changed'
+    expect(second.knownSources).toEqual(['docs/readme.md', 'src/shared.ts'])
+    expect(second.suites[0]!.dependsOn).toEqual(['b'])
+  })
+
+  test('canonical decoding is independent of its input and other results', () => {
+    const input = base()
+    const first = parseImpactGraph(input)
+    const second = parseImpactGraph(input)
+    ;(input['observations'] as Record<string, unknown>[])[0]!['source'] =
+      'changed'
+    ;(
+      (input['suites'] as Record<string, unknown>[])[0]!['tags'] as string[]
+    )[0] = 'changed'
+    first.observations[0]!.source = 'changed'
+    first.suites[0]!.tags![0] = 'changed'
+    expect(second.observations[0]!.source).toBe('src/a.ts')
+    expect(second.suites[0]!.tags).toEqual(['fast', 'smoke'])
+  })
+
+  test('planning decode validates paths and orders invalidators independently', () => {
+    const input = base()
+    ;(input['invalidators'] as unknown[]).reverse()
+    const graph = decodeImpactGraphForPlan(input)
+    expect(graph.invalidators?.map((item) => item.pattern)).toEqual([
+      '**/*.lock',
+      'config/**',
+    ])
+    expect(graph.knownSources).toEqual(['docs/readme.md', 'src/shared.ts'])
+    graph.invalidators![0]!.pattern = 'changed'
+    expect(
+      (input['invalidators'] as Record<string, unknown>[])[1]!['pattern'],
+    ).toBe('**/*.lock')
+    const invalid = base()
+    invalid['unknown'] = true
+    expect(() => decodeImpactGraphForPlan(invalid)).toThrow('TIA impact graph')
+  })
+
+  test('keeps tuple key collision semantics when text contains NUL', () => {
+    const graph = base()
+    graph['invalidators'] = [
+      { pattern: 'a\0b', reason: 'c' },
+      { pattern: 'a', reason: 'b\0c' },
+    ]
+    expect(guard(graph)).toBeNull()
+    expect(schema(graph)).toBeNull()
+  })
+
+  test('detects repeated observations across interleaved and high-degree suites', () => {
+    const graph = base()
+    graph['suites'] = [
+      {
+        adapter: 'vitest',
+        file: 'test/a.ts',
+        id: 'a\0nested',
+        project: 'unit',
+      },
+      { adapter: 'vitest', file: 'test/b.ts', id: 'a', project: 'unit' },
+    ]
+    const items = Array.from({ length: 7 }, (_, index) => ({
+      confidence: 'exact',
+      kind: 'import',
+      source: `src/${index}.ts`,
+      suiteId: 'a\0nested',
+    }))
+    const other = {
+      confidence: 'exact',
+      kind: 'import',
+      source: 'src/0.ts',
+      suiteId: 'a',
+    }
+    graph['observations'] = [items[0], other, ...items.slice(1)]
+    expect(guard(graph)).toEqual(schema(graph))
+    expect(guard(graph)).not.toBeNull()
+    for (const duplicate of [
+      items[0],
+      items[4],
+      { ...items[1], source: './src/1.ts' },
+    ]) {
+      const duplicated = structuredClone(graph)
+      ;(duplicated['observations'] as unknown[]).push(duplicate)
+      expect(guard(duplicated)).toBeNull()
+      expect(schema(duplicated)).toBeNull()
+      expect(() => parseImpactGraph(duplicated)).toThrow(
+        'contains duplicate values',
+      )
+    }
+    const variations = structuredClone(graph)
+    ;(variations['observations'] as unknown[]).push(
+      { ...items[0], kind: 'executed' },
+      { ...items[0], confidence: 'observed' },
+    )
+    expect(guard(variations)).toEqual(schema(variations))
+    expect(guard(variations)).not.toBeNull()
   })
 })
