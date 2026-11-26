@@ -17,6 +17,7 @@ import {
   observeConfig,
   observeLayer,
   recordingTracer,
+  redactUrl,
   TRACE_FILE_SPAN_LIMIT,
 } from '../../src/host/observe.ts'
 import { assertNoLeak } from '../support/leak.ts'
@@ -61,9 +62,102 @@ describe('observeConfig', () => {
       }),
     ).toEqual({ metricsFile: 'm.prom', otlp: 'http://collector:4318' })
   })
+
+  test('reads OTLP headers as comma-separated, percent-encoded pairs', () => {
+    expect(
+      observeConfig({
+        TIACORE_OTLP_HEADERS:
+          ' Authorization = Basic%20dTpw ,x-tenant=a%2Cb,,broken,=nokey,bad=%E0%A4%A',
+        TIACORE_OTLP_URL: 'http://collector:4318',
+      }),
+    ).toEqual({
+      otlp: 'http://collector:4318',
+      otlpHeaders: { Authorization: 'Basic dTpw', 'x-tenant': 'a,b' },
+    })
+  })
+
+  test('ignores OTLP headers without a collector URL or any valid pair', () => {
+    expect(observeConfig({ TIACORE_OTLP_HEADERS: 'a=b' })).toEqual({})
+    expect(
+      observeConfig({
+        TIACORE_OTLP_HEADERS: 'broken',
+        TIACORE_OTLP_URL: 'http://collector:4318',
+      }),
+    ).toEqual({ otlp: 'http://collector:4318' })
+  })
+
+  test('does not read the generic OpenTelemetry header variable', () => {
+    expect(
+      observeConfig({
+        OTEL_EXPORTER_OTLP_HEADERS: 'authorization=Bearer other-vendor',
+        TIACORE_OTLP_URL: 'http://collector:4318',
+      }),
+    ).toEqual({ otlp: 'http://collector:4318' })
+  })
+})
+
+describe('redactUrl', () => {
+  test('keeps a URL without user information as written', () => {
+    expect(redactUrl('http://collector:4318')).toBe('http://collector:4318')
+    expect(redactUrl('http://host/path@segment')).toBe(
+      'http://host/path@segment',
+    )
+    expect(redactUrl('not a url')).toBe('not a url')
+  })
+
+  test('hides the user information the URL parser finds', () => {
+    expect(redactUrl('https://user:p@ss@collector:4318/v1?q=1')).toBe(
+      'https://<redacted>@collector:4318/v1?q=1',
+    )
+    expect(redactUrl('ws://token@localhost:1')).toBe(
+      'ws://<redacted>@localhost:1/',
+    )
+  })
+
+  test('hides a percent-encoded password', () => {
+    const redacted = redactUrl('https://user:p%40ss%3Aw%2Frd@collector/otel')
+    expect(redacted).toBe('https://<redacted>@collector/otel')
+    expect(redacted).not.toContain('%40')
+  })
+
+  test('reads a backslash in a special URL as the parser does', () => {
+    // WHATWG URL treats \ as / in http(s) and ws(s) URLs.
+    expect(redactUrl('http://user:secret@collector\\v1')).toBe(
+      'http://<redacted>@collector/v1',
+    )
+    expect(redactUrl('http://collector\\@user:secret@elsewhere')).toBe(
+      'http://collector\\@user:secret@elsewhere',
+    )
+  })
+
+  test('falls back to the text when the URL does not parse', () => {
+    expect(redactUrl('http://user:secret@[bad')).toBe('http://<redacted>@[bad')
+  })
 })
 
 describe('observeLayer', () => {
+  test('names an absent devtools server without its credentials', async () => {
+    const written: string[] = []
+    const write = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk: string | Uint8Array) => {
+      written.push(String(chunk))
+      return true
+    }
+    try {
+      const runtime = ManagedRuntime.make(
+        observeLayer({ devtools: 'ws://ops:devtools-secret@localhost:1' }),
+      )
+      await runtime.runPromise(Effect.void)
+      await runtime.dispose()
+    } finally {
+      process.stderr.write = write
+    }
+    expect(written.join('')).toContain(
+      'no devtools server at ws://<redacted>@localhost:1',
+    )
+    expect(written.join('')).not.toContain('devtools-secret')
+  })
+
   test('writes finished spans to the trace file when the runtime is disposed', async () => {
     const traceFile = join(directory(), 'trace.json')
     const runtime = ManagedRuntime.make(observeLayer({ traceFile }))

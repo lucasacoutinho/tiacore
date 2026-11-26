@@ -34,12 +34,11 @@ export function renderSummary(
   options: RenderOptions,
 ): string {
   const rows = options.rows ?? 10
-  const failures = summary.failed.length
   const header = [
     options.title,
     `clients ${summary.clients}/${summary.connections}`,
     `spans ${summary.ended} done, ${summary.open} open`,
-    `errors ${failures}`,
+    `errors ${summary.errors}`,
   ].join('   ')
 
   const slowest = summary.slowest
@@ -78,7 +77,7 @@ export function renderSummary(
     .slice(0, rows)
     .map(
       (metric) =>
-        `  ${pad(metric.name, 34)} ${pad(metric.kind.toLowerCase(), 10)} ${metric.value}${metric.attributes === '' ? '' : `  {${metric.attributes}}`}`,
+        `  ${pad(metric.name, 34)} ${pad(metric.kind.toLowerCase(), 10)} ${metric.value}  #${metric.client}${metric.attributes === '' ? '' : `  {${metric.attributes}}`}`,
     )
   const hiddenMetrics = summary.metrics.length - metrics.length
 

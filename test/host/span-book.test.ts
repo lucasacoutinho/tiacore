@@ -132,17 +132,52 @@ describe('SpanBook', () => {
     expect(book.summary().metrics).toEqual([
       {
         attributes: '',
+        client,
         kind: 'Histogram',
         name: 'tia_run_duration_ms',
         value: 'n=2 mean=5.00 min=1 max=9',
       },
       {
         attributes: 'outcome=success',
+        client,
         kind: 'Counter',
         name: 'tia_runs_total',
         value: '4',
       },
     ])
+  })
+
+  test('keeps connected clients’ metrics apart and the latest finished one’s', () => {
+    const book = new SpanBook()
+    const first = book.connect()
+    const second = book.connect()
+    book.ingest(first, snapshot(5))
+    book.ingest(second, snapshot(3))
+    book.disconnect(first)
+    const runs = () =>
+      book
+        .summary()
+        .metrics.filter((metric) => metric.name === 'tia_runs_total')
+        .map(({ client, value }) => ({ client, value }))
+    expect(runs()).toEqual([
+      { client: first, value: '5' },
+      { client: second, value: '3' },
+    ])
+    const text = renderSummary(book.summary(), { title: 'devtools' })
+    expect(text).toMatch(/tia_runs_total +counter +5 +#1 +\{outcome=success\}/u)
+    expect(text).toMatch(/tia_runs_total +counter +3 +#2 +\{outcome=success\}/u)
+    book.disconnect(second)
+    expect(runs()).toEqual([{ client: second, value: '3' }])
+  })
+
+  test('holds no more metric rows however many clients come and go', () => {
+    const book = new SpanBook()
+    for (let index = 0; index < 50; index += 1) {
+      const client = book.connect()
+      book.ingest(client, snapshot(index))
+      book.disconnect(client)
+    }
+    expect(book.summary().metrics).toHaveLength(2)
   })
 
   test('stays within its bounds however many spans arrive', () => {
@@ -169,6 +204,7 @@ describe('SpanBook', () => {
     expect(summary.names.some((stats) => stats.name === OTHER_SPANS)).toBe(true)
     expect(summary.slowest).toHaveLength(SLOWEST_SPANS)
     expect(summary.failed).toHaveLength(FAILED_SPANS)
+    expect(summary.errors).toBe(MAX_SPAN_NAMES + 50)
     const metrics: DevToolsSchema.MetricsSnapshot = {
       _tag: 'MetricsSnapshot',
       metrics: Array.from({ length: MAX_METRICS + 20 }, (_, index) => ({
@@ -226,6 +262,27 @@ describe('renderSummary', () => {
     expect(text).toContain('boom')
     expect(text).toContain('errors 1')
     expect(text.endsWith('Press Ctrl-C to stop.\n')).toBe(true)
+  })
+
+  test('counts every failed span in the header, not only the listed ones', () => {
+    const book = new SpanBook()
+    const client = book.connect()
+    for (let index = 0; index < FAILED_SPANS + 5; index += 1) {
+      book.ingest(
+        client,
+        ended(
+          `f-${index}`,
+          'tia.commit',
+          1,
+          Exit.fail(new TiaIo({ message: 'x' })),
+        ),
+      )
+    }
+    const summary = book.summary()
+    expect(summary.failed).toHaveLength(FAILED_SPANS)
+    expect(summary.errors).toBe(FAILED_SPANS + 5)
+    const text = renderSummary(summary, { title: 'devtools' })
+    expect(text).toContain(`errors ${FAILED_SPANS + 5}`)
   })
 
   test('says it is waiting when nothing has arrived', () => {

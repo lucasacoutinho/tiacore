@@ -5,10 +5,14 @@ import * as OtlpSerialization from 'effect/observability/OtlpSerialization'
 
 import { VERSION } from '../core/version.ts'
 
-/** OTLP/HTTP JSON export of traces, metrics and logs to `baseUrl`. */
-export function otlpLayer(baseUrl: string): Layer.Layer<never> {
+/** OTLP/HTTP JSON export of traces, metrics and logs to `baseUrl`, sending `headers` with each request. */
+export function otlpLayer(
+  baseUrl: string,
+  headers: Readonly<Record<string, string>>,
+): Layer.Layer<never> {
   return Otlp.layer({
     baseUrl,
+    headers,
     resource: { serviceName: 'tiacore', serviceVersion: VERSION },
   }).pipe(
     Layer.provide(OtlpSerialization.layerJson),

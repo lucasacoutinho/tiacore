@@ -160,6 +160,7 @@ export const verify = Effect.fn('tia.verify.run')(function* (
       )
     const receipt: TiaVerificationReceipt = {
       accuracy: accuracyReceipt(comparison.runners),
+      ...(keep ? { artifactsDirectory: directory } : {}),
       command: [command, ...arguments_],
       completedAt: new Date().toISOString(),
       duration: performance.now() - started,

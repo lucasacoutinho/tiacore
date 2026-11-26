@@ -196,7 +196,11 @@ describe('crash reports', () => {
 
 describe('the OTLP exporter', () => {
   let server: Server
-  let received: { body: string; url: string | undefined }[] = []
+  let received: {
+    body: string
+    headers: IncomingMessage['headers']
+    url: string | undefined
+  }[] = []
   let status = 200
 
   let baseline = 0
@@ -210,6 +214,7 @@ describe('the OTLP exporter', () => {
         request.on('end', () => {
           received.push({
             body: Buffer.concat(chunks).toString('utf8'),
+            headers: request.headers,
             url: request.url,
           })
           response.statusCode = status
@@ -245,6 +250,23 @@ describe('the OTLP exporter', () => {
     expect(traces).toHaveLength(1)
     expect(traces[0]?.body).toContain('tia.test.stage')
     expect(traces[0]?.body).toContain('tiacore')
+  })
+
+  test('sends the configured headers with every request', async () => {
+    const runtime = ManagedRuntime.make(
+      observeLayer({
+        otlp: url(),
+        otlpHeaders: { authorization: 'Bearer abc', 'x-tenant': 'team a' },
+      }),
+    )
+    await runtime.runPromise(stage(5))
+    await runtime.dispose()
+    const traces = received.filter((request) => request.url === '/v1/traces')
+    expect(traces).toHaveLength(1)
+    expect(traces[0]?.headers).toMatchObject({
+      authorization: 'Bearer abc',
+      'x-tenant': 'team a',
+    })
   })
 
   test('buffers a bounded number of spans while the collector is down', async () => {

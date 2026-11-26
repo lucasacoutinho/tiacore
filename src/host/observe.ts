@@ -28,6 +28,9 @@ import { VERSION } from '../core/version.ts'
  *   editor extensions listen on); skipped, with a line on stderr, when nothing
  *   is listening;
  * - TIACORE_OTLP_URL: base URL of an OTLP/HTTP collector (traces, metrics, logs);
+ * - TIACORE_OTLP_HEADERS: headers sent with every OTLP request, as
+ *   comma-separated `name=value` pairs with percent-encoded values (the
+ *   OpenTelemetry format); read only when TIACORE_OTLP_URL is set;
  * - TIACORE_TRACE_FILE: a file that receives every finished span as JSON;
  * - TIACORE_METRICS_FILE: a file that receives all metrics in Prometheus text
  *   format.
@@ -37,6 +40,7 @@ export interface ObserveConfig {
   readonly devtools?: string
   readonly metricsFile?: string
   readonly otlp?: string
+  readonly otlpHeaders?: Readonly<Record<string, string>>
   readonly traceFile?: string
 }
 
@@ -47,12 +51,38 @@ function setting(value: string | undefined): string | undefined {
   return trimmed === undefined || trimmed === '' ? undefined : trimmed
 }
 
+/**
+ * The pairs of a `name=value,name=value` header list. A pair with no name, no
+ * `=` or a broken percent escape is skipped; undefined when none is left.
+ */
+function headerList(
+  value: string | undefined,
+): Record<string, string> | undefined {
+  const headers: Record<string, string> = {}
+  let found = false
+  for (const pair of value?.split(',') ?? []) {
+    const equals = pair.indexOf('=')
+    if (equals === -1) continue
+    const name = pair.slice(0, equals).trim()
+    if (name === '') continue
+    try {
+      headers[name] = decodeURIComponent(pair.slice(equals + 1).trim())
+      found = true
+    } catch {
+      // A malformed escape cannot be sent as the user meant it.
+    }
+  }
+  return found ? headers : undefined
+}
+
 export function observeConfig(
   env: Readonly<Record<string, string | undefined>>,
 ): ObserveConfig {
   const devtools = setting(env['TIACORE_DEVTOOLS'])
   const metricsFile = setting(env['TIACORE_METRICS_FILE'])
   const otlp = setting(env['TIACORE_OTLP_URL'])
+  const otlpHeaders =
+    otlp === undefined ? undefined : headerList(env['TIACORE_OTLP_HEADERS'])
   const traceFile = setting(env['TIACORE_TRACE_FILE'])
   return {
     ...(devtools === undefined
@@ -64,6 +94,7 @@ export function observeConfig(
         }),
     ...(metricsFile === undefined ? {} : { metricsFile }),
     ...(otlp === undefined ? {} : { otlp }),
+    ...(otlpHeaders === undefined ? {} : { otlpHeaders }),
     ...(traceFile === undefined ? {} : { traceFile }),
   }
 }
@@ -253,6 +284,23 @@ const traceFileLayer = (path: string) =>
     }),
   )
 
+/**
+ * `value` with the user name and password the WHATWG URL parser finds (the
+ * parser the exporters use) replaced, for output a person may share. A URL
+ * without them is returned as written; text that does not parse loses
+ * whatever precedes the last `@` of its authority.
+ */
+export function redactUrl(value: string): string {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return value.replace(/^([a-z][a-z\d+.-]*:\/\/)[^/?#]*@/iu, '$1<redacted>@')
+  }
+  if (url.username === '' && url.password === '') return value
+  return `${url.protocol}//<redacted>@${url.host}${url.pathname}${url.search}${url.hash}`
+}
+
 /** Whether something accepts connections at the host and port of a WebSocket URL. */
 export function serverReachable(
   url: string,
@@ -289,7 +337,7 @@ const devtoolsLayer = (url: string): Layer.Layer<never> =>
     Effect.promise(async () => {
       if (!(await serverReachable(url))) {
         process.stderr.write(
-          `tiacore: no devtools server at ${url}; spans are not sent. Start one with \`tiacore devtools\`.\n`,
+          `tiacore: no devtools server at ${redactUrl(url)}; spans are not sent. Start one with \`tiacore devtools\`.\n`,
         )
         return Layer.empty
       }
@@ -306,10 +354,11 @@ export function observeLayer(config: ObserveConfig): Layer.Layer<never> {
   if (config.devtools !== undefined) layers.push(devtoolsLayer(config.devtools))
   if (config.otlp !== undefined) {
     const baseUrl = config.otlp
+    const headers = config.otlpHeaders ?? {}
     layers.push(
       Layer.unwrap(
         Effect.promise(() => import('./otlp.ts')).pipe(
-          Effect.map((otlp) => otlp.otlpLayer(baseUrl)),
+          Effect.map((otlp) => otlp.otlpLayer(baseUrl, headers)),
         ),
       ),
     )

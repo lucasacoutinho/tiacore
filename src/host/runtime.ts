@@ -83,7 +83,7 @@ export async function runExit<A, E>(
  * Runs a tiacore program at a public seam. A tagged failure becomes an Error
  * with the failure's message and the tagged error as its cause; defects are
  * rethrown unchanged after a crash report is written (TIACORE_CRASH_DIR,
- * default .tia/crashes). The process-wide runtime holds stateless Node
+ * default .tia/crashes). An interruption is rethrown without a report. The process-wide runtime holds stateless Node
  * services and the exporters `observeConfig` enables, so per-run resources
  * must live in the program's own Scope.
  */
@@ -112,15 +112,18 @@ export async function runPromise<A>(
   if (Option.isSome(failure)) {
     throw new Error(failure.value.message, { cause: failure.value })
   }
-  const report = writeCrashReport(exit.cause, {
-    argv: process.argv.slice(2),
-    directory:
-      process.env['TIACORE_CRASH_DIR'] ??
-      join(process.cwd(), '.tia', 'crashes'),
-    now: new Date(),
-  })
-  if (report !== undefined) {
-    process.stderr.write(`TIA crash report written to ${report}\n`)
+  // An interruption is not a crash; only defects get a report.
+  if (Cause.hasDies(exit.cause)) {
+    const report = writeCrashReport(exit.cause, {
+      argv: process.argv.slice(2),
+      directory:
+        process.env['TIACORE_CRASH_DIR'] ??
+        join(process.cwd(), '.tia', 'crashes'),
+      now: new Date(),
+    })
+    if (report !== undefined) {
+      process.stderr.write(`TIA crash report written to ${report}\n`)
+    }
   }
   throw Cause.squash(exit.cause)
 }

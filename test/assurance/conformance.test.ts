@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -438,6 +438,33 @@ describe('executable adapter certification', () => {
     ).rejects.toThrow(
       'invalid timeout for certification scenario baseline-full',
     )
+  })
+
+  test('rejects a bad timeout before any scenario process starts', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'tiacore-upfront-'))
+    const marker = join(directory, 'ran')
+    const touch = {
+      arguments: [
+        '-e',
+        `require("fs").writeFileSync(${JSON.stringify(marker)}, "")`,
+      ],
+      command: process.execPath,
+      fixture: 'test/fixtures/x',
+      id: 'baseline-full',
+    }
+    try {
+      await expect(
+        executeAdapterCertification({
+          ...options(),
+          scenarios: [touch, { ...touch, id: 'no-change-skip', timeoutMs: 0 }],
+        }),
+      ).rejects.toThrow(
+        'invalid timeout for certification scenario no-change-skip',
+      )
+      expect(existsSync(marker)).toBe(false)
+    } finally {
+      rmSync(directory, { force: true, recursive: true })
+    }
   })
 
   test('rejects the whole run when a command cannot start', async () => {
