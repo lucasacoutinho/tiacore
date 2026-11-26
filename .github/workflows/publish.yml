@@ -11,6 +11,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: npm-publish-${{ github.sha }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -41,4 +45,26 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run release:check
-      - run: npm publish
+      - name: Publish the checked commit
+        run: |
+          version=$(jq -er .version package.json)
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package version $version"
+            exit 1
+          fi
+          metadata=$(curl --fail --silent --show-error --retry 3 https://registry.npmjs.org/@lucasacoutinho%2ftiacore)
+          published=$(jq -r --arg v "$version" '.versions | has($v)' <<< "$metadata")
+          if [[ "$published" == false ]]; then
+            npm publish
+          elif ! jq -e --arg v "$version" --arg sha "$(git rev-parse HEAD)" '.versions[$v].gitHead == $sha' <<< "$metadata" >/dev/null; then
+            echo "::error::npm already has $version from another commit"
+            exit 1
+          fi
+
+  github-release:
+    needs: publish
+    permissions:
+      contents: write
+    uses: ./.github/workflows/github-release.yml
+    with:
+      revision: ${{ github.sha }}
