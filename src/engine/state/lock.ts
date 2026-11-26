@@ -115,19 +115,21 @@ export function makeLock(fs: FileSystem.FileSystem) {
   const dropGuard = (guard: string) =>
     fs.remove(guard, { force: true, recursive: true }).pipe(Effect.ignore)
 
-  /** Takes the reclaim guard, clearing one a crashed reclaimer left behind. */
+  /**
+   * Takes the reclaim guard: true when taken, false while another holds it,
+   * null when it cannot be made (the cache directory is gone, say). A guard a
+   * crashed reclaimer left behind is cleared.
+   */
   const tryGuard = Effect.fnUntraced(function* (guard: string) {
     const taken = yield* fs.makeDirectory(guard).pipe(
       Effect.as(true),
       Effect.orElseSucceed(() => false),
     )
-    if (!taken) {
-      const age = yield* guardAge(guard)
-      if (Option.isSome(age) && age.value >= RECLAIM_GUARD_STALE_MS) {
-        yield* dropGuard(guard)
-      }
-    }
-    return taken
+    if (taken) return true
+    const age = yield* guardAge(guard)
+    if (Option.isNone(age)) return null
+    if (age.value >= RECLAIM_GUARD_STALE_MS) yield* dropGuard(guard)
+    return false
   })
 
   /** Moves the lock aside in one rename, then deletes it there. */
@@ -161,7 +163,7 @@ export function makeLock(fs: FileSystem.FileSystem) {
     judged: string | null,
   ) {
     const guard = `${path}.reclaim`
-    if (!(yield* tryGuard(guard))) return false
+    if ((yield* tryGuard(guard)) !== true) return false
     yield* discardIfOwned(path, judged).pipe(Effect.ensuring(dropGuard(guard)))
     return true
   })
@@ -230,8 +232,8 @@ export function makeLock(fs: FileSystem.FileSystem) {
   /**
    * Removes the lock only while it still holds this owner's token. The check
    * and the removal run under the reclaim guard, so a reclaimer cannot swap
-   * the lock between them; a guard still busy after `RELEASE_GUARD_WAIT_MS`
-   * is not waited for.
+   * the lock between them; a guard still busy after `RELEASE_GUARD_WAIT_MS`,
+   * or one that cannot be made, is not waited for.
    */
   const release = (cacheDir: string, owner: LockOwner) =>
     Effect.gen(function* () {
@@ -239,12 +241,12 @@ export function makeLock(fs: FileSystem.FileSystem) {
       const guard = `${path}.reclaim`
       const deadline = (yield* Clock.currentTimeMillis) + RELEASE_GUARD_WAIT_MS
       let guarded = yield* tryGuard(guard)
-      while (!guarded && (yield* Clock.currentTimeMillis) < deadline) {
+      while (guarded === false && (yield* Clock.currentTimeMillis) < deadline) {
         yield* backOff
         guarded = yield* tryGuard(guard)
       }
       yield* discardIfOwned(path, owner.token).pipe(
-        Effect.ensuring(guarded ? dropGuard(guard) : Effect.void),
+        Effect.ensuring(guarded === true ? dropGuard(guard) : Effect.void),
       )
     }).pipe(Effect.ignore)
 

@@ -112,6 +112,22 @@ layer(NodeServices.layer, { excludeTestServices: true })(
         }),
     )
 
+    it.effect('releases at once when its cache directory is gone', () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem
+        const cacheDir = join(yield* tempDirectory('tia-lock-'), 'cache')
+        const started = Date.now()
+        const result = yield* makeLock(fs).locked(
+          cacheDir,
+          {},
+          fs.remove(cacheDir, { recursive: true }),
+        )
+        const elapsed = Date.now() - started
+        expect(Option.isSome(result)).toBe(true)
+        expect(elapsed).toBeLessThan(1_000)
+      }),
+    )
+
     it.effect('waits instead of spinning while another reclaimer works', () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem
