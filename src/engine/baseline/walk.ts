@@ -2,6 +2,8 @@ import { resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
+import type { PlatformError } from 'effect/PlatformError'
+import * as Semaphore from 'effect/Semaphore'
 
 import { globMatcher } from '../glob.ts'
 import { slash } from '../host-path.ts'
@@ -20,11 +22,12 @@ const ROOT_OUTPUT_DIRECTORIES = new Set([
   'coverage',
   'dist',
 ])
-const WALK_CONCURRENCY = 8
+export const WALK_CONCURRENCY = 8
 
 interface IgnoreRule {
   readonly ignored: boolean
-  readonly matcher: (path: string) => boolean
+  /** Whether the rule matches `path`, which names a directory when `directory` is true. */
+  readonly matches: (path: string, directory: boolean) => boolean
 }
 
 function parseIgnoreRules(source: string): IgnoreRule[] {
@@ -35,28 +38,46 @@ function parseIgnoreRules(source: string): IgnoreRule[] {
     const ignored = !trimmed.startsWith('!')
     const original = ignored ? trimmed : trimmed.slice(1)
     const anchored = original.startsWith('/')
-    const directory = original.endsWith('/')
+    const directoryOnly = original.endsWith('/')
     const pattern = original.replace(/^\/+/u, '').replace(/\/+$/u, '')
     if (pattern === '') return []
 
     const rooted = anchored || pattern.includes('/')
-    const variants = rooted ? [pattern] : [pattern, `**/${pattern}`]
-    if (directory) {
-      variants.push(`${pattern}/**`, ...(rooted ? [] : [`**/${pattern}/**`]))
-    }
-    return [{ ignored, matcher: globMatcher(variants) }]
+    const named = globMatcher(rooted ? [pattern] : [pattern, `**/${pattern}`])
+    if (!directoryOnly) return [{ ignored, matches: (path) => named(path) }]
+    // As in git, `name/` matches a directory called `name` and everything
+    // under one, never a file called `name`. (`name/**` would match the
+    // bare name too, hence `name/**/*`.)
+    const below = globMatcher(
+      rooted ? [`${pattern}/**/*`] : [`${pattern}/**/*`, `**/${pattern}/**/*`],
+    )
+    return [
+      {
+        ignored,
+        matches: (path, directory) => (directory && named(path)) || below(path),
+      },
+    ]
   })
 }
 
-function ignoredByRules(file: string, rules: readonly IgnoreRule[]): boolean {
+function ignoredByRules(
+  file: string,
+  directory: boolean,
+  rules: readonly IgnoreRule[],
+): boolean {
   let ignored = false
   for (const rule of rules) {
-    if (rule.matcher(file)) ignored = rule.ignored
+    if (rule.matches(file, directory)) ignored = rule.ignored
   }
   return ignored
 }
 
-/** Every regular project file under `root`, sorted, or null when a read fails. */
+const isNotFound = (error: PlatformError) => error.reason._tag === 'NotFound'
+
+/**
+ * Every regular project file under `root`, sorted, or null when a read fails.
+ * An entry deleted while the walk runs is skipped; a missing root fails.
+ */
 export const walkProjectFiles = (
   fs: FileSystem.FileSystem,
   root: string,
@@ -67,38 +88,55 @@ export const walkProjectFiles = (
       Effect.map(parseIgnoreRules),
       Effect.orElseSucceed((): IgnoreRule[] => []),
     )
+    // Every directory visits its subdirectories concurrently, so one budget
+    // bounds the file system calls in flight across the whole tree. Only the
+    // calls hold a permit; a visit waiting on its subdirectories holds none.
+    const permits = yield* Semaphore.make(WALK_CONCURRENCY)
     const files: string[] = []
 
     const visit = (
       directory: string,
       prefix: string,
-    ): Effect.Effect<void, unknown> =>
+    ): Effect.Effect<void, PlatformError> =>
       Effect.gen(function* () {
-        const names = yield* fs.readDirectory(directory)
+        const names = yield* permits
+          .withPermit(fs.readDirectory(directory))
+          .pipe(
+            Effect.catchIf(
+              (error) => prefix !== '' && isNotFound(error),
+              () => Effect.succeed<string[]>([]),
+            ),
+          )
         const entries = yield* Effect.forEach(
           names.filter((name) => {
             const file = prefix === '' ? name : `${prefix}/${name}`
             return !isIgnored(file, ignoredPrefixes)
           }),
           (name) =>
-            fs
-              .lstat(resolve(directory, name))
-              .pipe(Effect.map((info) => ({ info, name }))),
+            permits.withPermit(fs.lstat(resolve(directory, name))).pipe(
+              Effect.map((info) => ({ info, name })),
+              Effect.catchIf(isNotFound, () => Effect.succeed(null)),
+            ),
           { concurrency: WALK_CONCURRENCY },
         )
         const subdirectories: Array<[string, string]> = []
-        for (const { info, name } of entries) {
+        for (const entry of entries) {
+          if (entry === null) continue
+          const { info, name } = entry
           const file = prefix === '' ? name : `${prefix}/${name}`
           if (info.type === 'Directory') {
             if (
               ALWAYS_IGNORED_DIRECTORIES.has(name) ||
               (prefix === '' && ROOT_OUTPUT_DIRECTORIES.has(name)) ||
-              ignoredByRules(file, rules)
+              ignoredByRules(file, true, rules)
             ) {
               continue
             }
             subdirectories.push([resolve(directory, name), file])
-          } else if (info.type === 'File' && !ignoredByRules(file, rules)) {
+          } else if (
+            info.type === 'File' &&
+            !ignoredByRules(file, false, rules)
+          ) {
             files.push(slash(file))
           }
         }
