@@ -34,12 +34,69 @@ describe('bun:test JUnit report', () => {
       ['test/a.test.ts:4:passes & <stays>', 'passed', 'passes & <stays>'],
       ['test/a.test.ts:9:fails "loudly"', 'failed', 'fails "loudly"'],
       ['test/a.test.ts:14:is skipped', 'skipped', 'is skipped'],
-      // An <error> element is not recognised: the case reads as passed.
-      ['test/a.test.ts:20:errors', 'passed', 'errors'],
+      // JUnit's <error> is a failed case too (Bun 1.4 itself writes <failure>).
+      ['test/a.test.ts:20:errors', 'failed', 'errors'],
     ])
     expect(cases[0]?.duration).toBeCloseTo(12.5)
     expect(cases[2]?.duration).toBe(0)
     expect(cases.every((item) => item.file === 'test/a.test.ts')).toBe(true)
+  })
+
+  test('decodes numeric character references, and every reference once', () => {
+    const cases = parseBunJunit(
+      ROOT,
+      [
+        '<testcase name="tab&#9;line&#10;return&#13;quote&#x27;&#39;" file="t.test.ts" line="2" />',
+        '<testcase name="literal &amp;#10; &amp;lt;b&amp;gt; &amp;amp;" file="t.test.ts" line="3" />',
+      ].join('\n'),
+    )
+    expect(cases.map((item) => [item.id, item.fullName])).toEqual([
+      ["t.test.ts:2:tab\tline\nreturn\rquote''", "tab\tline\nreturn\rquote''"],
+      [
+        't.test.ts:3:literal &#10; &lt;b&gt; &amp;',
+        'literal &#10; &lt;b&gt; &amp;',
+      ],
+    ])
+  })
+
+  test('keeps the describe blocks around a case, outermost first, without changing its name or id', () => {
+    // Bun nests one <testsuite> per describe block inside the file's suite.
+    const xml = `<testsuites name="bun test">
+  <testsuite name="test/d.test.ts" file="test/d.test.ts">
+    <testcase name="top" classname="" file="test/d.test.ts" line="2" />
+    <testsuite name="group &quot;g&quot;" file="test/d.test.ts" line="3">
+      <testcase name="inside" classname="group &quot;g&quot;" file="test/d.test.ts" line="4" />
+      <testsuite name="inner" file="test/d.test.ts" line="5">
+        <testcase name="deep" classname="inner &gt; group &quot;g&quot;" file="test/d.test.ts" line="6">
+          <failure type="AssertionError" />
+        </testcase>
+      </testsuite>
+    </testsuite>
+    <testcase name="last" classname="" file="test/d.test.ts" line="9" />
+  </testsuite>
+</testsuites>`
+    expect(
+      parseBunJunit(ROOT, xml).map((item) => [
+        item.id,
+        item.fullName,
+        item.describes ?? [],
+        item.state,
+      ]),
+    ).toEqual([
+      ['test/d.test.ts:2:top', 'top', [], 'passed'],
+      ['test/d.test.ts:4:inside', 'inside', ['group "g"'], 'passed'],
+      ['test/d.test.ts:6:deep', 'deep', ['group "g"', 'inner'], 'failed'],
+      ['test/d.test.ts:9:last', 'last', [], 'passed'],
+    ])
+  })
+
+  test('rejects a report that is not well-formed XML', () => {
+    expect(() =>
+      parseBunJunit(
+        ROOT,
+        '<testsuites><testsuite name="f"><testcase name="a" file="a.test.ts" line="1" /><testcase name="b" fi',
+      ),
+    ).toThrow('The bun JUnit report is not well-formed XML')
   })
 
   test('a missing line defaults to 1 and an unparsable time drops the duration', () => {
