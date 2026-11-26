@@ -11,6 +11,7 @@ import { GraphStore } from '../../../src/engine/ports.ts'
 import {
   bucketFor,
   graphDigest,
+  MAX_MANIFEST_BYTES,
   serializeGraph,
   TIA_RUNTIME_STORE_BUCKETS,
   TIA_RUNTIME_STORE_VERSION,
@@ -101,8 +102,8 @@ layer(EngineLive, { excludeTestServices: true })(
         let observed = false
         const observingFs: FileSystem.FileSystem = {
           ...fs,
-          readFile: (path) =>
-            fs.readFile(path).pipe(
+          stat: (path) =>
+            fs.stat(path).pipe(
               Effect.tap(() =>
                 Effect.sync(() => {
                   setImmediate(() => {
@@ -117,6 +118,45 @@ layer(EngineLive, { excludeTestServices: true })(
         expect(observed).toBe(true)
         expect(stored.graph).toEqual(graph)
       }),
+    )
+
+    it.effect(
+      'never reads a manifest past its limit, even one swapped in after the check',
+      () =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem
+          const cacheDir = yield* tempDirectory('tia-seg-')
+          const other = yield* tempDirectory('tia-seg-')
+          yield* write(cacheDir, largeGraph(1))
+          yield* write(other, largeGraph(2))
+          const otherGeneration =
+            yield* makeStateFiles(fs).readGeneration(other)
+          // Valid JSON, the other store's manifest, padded past the limit.
+          const oversized = `${yield* fs.readFileString(join(other, 'state.json'))}${' '.repeat(MAX_MANIFEST_BYTES)}`
+          let swapped = false
+          const swapping: FileSystem.FileSystem = {
+            ...fs,
+            stat: (path) =>
+              fs.stat(path).pipe(
+                Effect.tap(() =>
+                  swapped || !path.endsWith('state.json')
+                    ? Effect.void
+                    : fs.writeFileString(path, oversized).pipe(
+                        Effect.andThen(
+                          Effect.sync(() => {
+                            swapped = true
+                          }),
+                        ),
+                      ),
+                ),
+              ),
+          }
+          const generation =
+            yield* makeStateFiles(swapping).readGeneration(cacheDir)
+          expect(swapped).toBe(true)
+          expect(otherGeneration).not.toBeNull()
+          expect(generation).not.toBe(otherGeneration)
+        }),
     )
 
     it.effect('yields to the event loop while storing many buckets', () =>

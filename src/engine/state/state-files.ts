@@ -143,17 +143,30 @@ const nextSegment = (
   })
 
 export function makeStateFiles(fs: FileSystem.FileSystem) {
-  /** The file's bytes, or null when missing, empty, oversized or unreadable. */
+  /**
+   * The file's bytes, or null when missing, empty, oversized or unreadable.
+   * The size is taken from the open file and only that many bytes are read,
+   * so a file swapped in after the check by path is never read whole.
+   */
   const boundedFile = (path: string, maximum: number) =>
-    fs.stat(path).pipe(
-      Effect.flatMap((info) => {
+    Effect.scoped(
+      Effect.gen(function* () {
+        // Checked by path first: opening a FIFO would block.
+        if ((yield* fs.stat(path)).type !== 'File') return null
+        const file = yield* fs.open(path, { flag: 'r' })
+        const info = yield* file.stat
         const size = Number(info.size)
-        return info.type !== 'File' || size <= 0 || size > maximum
-          ? Effect.succeed(null)
-          : fs.readFile(path)
+        if (info.type !== 'File' || size <= 0 || size > maximum) return null
+        const bytes = new Uint8Array(size)
+        let offset = 0
+        while (offset < size) {
+          const count = Number(yield* file.read(bytes.subarray(offset)))
+          if (count === 0) return null
+          offset += count
+        }
+        return bytes
       }),
-      Effect.orElseSucceed(() => null),
-    )
+    ).pipe(Effect.orElseSucceed(() => null))
 
   const readManifest = Effect.fnUntraced(function* (cacheDir: string) {
     const bytes = yield* boundedFile(statePath(cacheDir), MAX_MANIFEST_BYTES)
