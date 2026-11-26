@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto'
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -409,5 +411,33 @@ describe('collecting', () => {
       'src/a.ts',
     ])
     await expect(evidence.collect('gone')).resolves.toEqual([])
+    expect(existsSync(hashed(evidence.directory, 'gone'))).toBe(false)
+  })
+
+  test('keeps an event still being written when removing', async () => {
+    const evidence = new TiaEvidence({ root: project() })
+    const id = 'inflight'
+    const directory = hashed(evidence.directory, id)
+    await evidence.record(['src/a.ts'], id)
+    seed(evidence, id, '2.tmp', valid(id, ['src/b.ts']))
+    await expect(
+      evidence.collectChecked(id, { remove: true }),
+    ).resolves.toEqual({ complete: false, files: ['src/a.ts'] })
+    expect(readdirSync(directory)).toEqual(['2.tmp'])
+    // The writer finishes its rename after the collection.
+    renameSync(join(directory, '2.tmp'), join(directory, '2.json'))
+    await expect(
+      evidence.collectChecked(id, { remove: true }),
+    ).resolves.toEqual({ complete: true, files: ['src/b.ts'] })
+    expect(existsSync(directory)).toBe(false)
+  })
+
+  test('records into a directory a collection removed', async () => {
+    const evidence = new TiaEvidence({ root: project() })
+    const id = 'again'
+    await evidence.record(['src/a.ts'], id)
+    await evidence.collect(id, { remove: true })
+    await evidence.record(['src/b.ts'], id)
+    await expect(evidence.collect(id)).resolves.toEqual(['src/b.ts'])
   })
 })

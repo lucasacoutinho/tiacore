@@ -1,11 +1,13 @@
 /// <reference types="vitest/config" />
 
+import { randomUUID } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
-  unlinkSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
@@ -157,12 +159,22 @@ function ensureSetupProxy(
   const directory = dirname(proxyPath)
   if (!existsSync(proxyPath) || readFileSync(proxyPath, 'utf8') !== contents) {
     mkdirSync(directory, { recursive: true })
-    writeFileSync(proxyPath, contents)
+    // Replaced in one rename: a Vitest process starting beside this one never
+    // imports a half-written module.
+    const temporary = `${proxyPath}.${process.pid}.${randomUUID()}.tmp`
+    try {
+      writeFileSync(temporary, contents)
+      renameSync(temporary, proxyPath)
+    } catch (error) {
+      rmSync(temporary, { force: true })
+      throw error
+    }
   }
   for (const name of readdirSync(directory)) {
     if (!name.startsWith('setup-') || !name.endsWith('.mjs')) continue
     const stale = resolve(directory, name)
-    if (stale !== proxyPath) unlinkSync(stale)
+    // Another process starting on this project may have removed it first.
+    if (stale !== proxyPath) rmSync(stale, { force: true })
   }
   return proxyPath
 }

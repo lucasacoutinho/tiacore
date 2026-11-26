@@ -34,6 +34,19 @@ export function childEnvironment(
   return inheritedEnvironment({ NODE_TEST_CONTEXT: undefined, ...extra })
 }
 
+/** `observations` with each module failure once: every case of a broken file reports it. */
+export function withSingleModuleFailures(
+  observations: readonly TiaObservation[],
+): TiaObservation[] {
+  const reported = new Set<string>()
+  return observations.filter((observation) => {
+    if (!isModuleFailureId(observation.id)) return true
+    if (reported.has(observation.id)) return false
+    reported.add(observation.id)
+    return true
+  })
+}
+
 /** The failed observation that stands for a test file that did not load or run. */
 export function moduleFailureObservation(file: string): TiaObservation {
   return { ...moduleFailureResult(file), files: [file] }

@@ -1,4 +1,4 @@
-import { basename, dirname, extname, relative, resolve } from 'node:path'
+import { dirname, relative, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
@@ -39,12 +39,22 @@ import type {
   TiaGradleOptions,
 } from './types.ts'
 import { isRecord } from '../../core/record.ts'
+import {
+  dependencyResolver,
+  type JvmSource,
+  parseJvmSource,
+  testClassName,
+} from './sources.ts'
 
 const DEFAULT_TESTS = [
   '**/src/test/**/*.{java,kt}',
   '**/src/androidTest/**/*.{java,kt}',
 ]
 const DEFAULT_SOURCES = ['**/src/main/**/*.{java,kt}']
+const IGNORED = ['**/build/**', '**/node_modules/**']
+// buildSrc holds build logic, which no test imports: as a known source with no
+// dependents, a change to it would select nothing.
+const IGNORED_SOURCES = [...IGNORED, '**/buildSrc/**']
 export const DEFAULT_REPORTS = ['**/build/test-results/**/*.xml']
 const GRADLE_INVALIDATORS: TiaInvalidator[] = [
   { pattern: '**/*.gradle', reason: 'Gradle build configuration changed' },
@@ -54,54 +64,44 @@ const GRADLE_INVALIDATORS: TiaInvalidator[] = [
   { pattern: '**/settings.gradle.kts', reason: 'Gradle settings changed' },
 ]
 
-interface SourceDescriptor {
-  className: string
-  file: string
-  imports: string[]
+interface SourceFile {
+  readonly file: string
+  readonly text: string
 }
 
-function descriptor(file: string, source: string): SourceDescriptor {
-  const packageName = /^\s*package\s+([A-Za-z_][\w.]*)/mu.exec(source)?.[1]
-  const declaredName =
-    /^\s*(?:(?:public|private|protected|internal|abstract|final|open|data|sealed|enum|annotation)\s+)*(?:class|interface|object)\s+([A-Za-z_]\w*)/mu.exec(
-      source,
-    )?.[1] ?? basename(file, extname(file))
-  const imports: string[] = []
-  for (const match of source.matchAll(
-    /^\s*import\s+(?:static\s+)?([A-Za-z_][\w.*]*)/gmu,
-  )) {
-    if (match[1] !== undefined) imports.push(match[1])
-  }
-  return {
-    className: packageName ? `${packageName}.${declaredName}` : declaredName,
-    file,
-    imports,
-  }
-}
-
-const sourceDescriptors = Effect.fnUntraced(function* (
+/** Reads project files; one that no longer exists is left out. */
+const readSourceFiles = Effect.fnUntraced(function* (
   root: string,
-  patterns: readonly string[],
+  files: readonly string[],
 ) {
   const fs = yield* FileSystem.FileSystem
-  const files = yield* globFiles(patterns, {
-    cwd: root,
-    ignore: ['**/build/**', '**/node_modules/**'],
-  })
-  return yield* Effect.forEach(
-    files.sort(),
-    (absolute) =>
-      Effect.gen(function* () {
-        const source = yield* fs
-          .readFileString(absolute)
-          .pipe(Effect.mapError(ioFailure))
-        const file = yield* attempt(() =>
-          normalizeProtocolPath(relative(root, absolute)),
-        )
-        return descriptor(file, source)
-      }),
+  const read = yield* Effect.forEach(
+    files,
+    (file) =>
+      fs.readFileString(resolve(root, file)).pipe(
+        Effect.map((text): SourceFile | undefined => ({ file, text })),
+        Effect.catch((error) =>
+          error.reason._tag === 'NotFound'
+            ? Effect.undefined
+            : Effect.fail(ioFailure(error)),
+        ),
+      ),
     { concurrency: 16 },
   )
+  return read.filter((source) => source !== undefined)
+})
+
+/** Reads the files the patterns match, in path order. */
+const globSourceFiles = Effect.fnUntraced(function* (
+  root: string,
+  patterns: readonly string[],
+  ignore: string[],
+) {
+  const paths = yield* globFiles(patterns, { cwd: root, ignore })
+  const files = yield* attempt(() =>
+    paths.sort().map((path) => normalizeProtocolPath(relative(root, path))),
+  )
+  return yield* readSourceFiles(root, files)
 })
 
 function suiteId(project: string, file: string): string {
@@ -112,11 +112,15 @@ export const discover = Effect.fnUntraced(function* (
   options: DiscoverGradleOptions,
 ) {
   const root = resolve(options.root)
-  const tests = yield* sourceDescriptors(root, options.tests ?? DEFAULT_TESTS)
+  const tests = yield* globSourceFiles(
+    root,
+    options.tests ?? DEFAULT_TESTS,
+    IGNORED,
+  )
   return tests
     .map((test): GradleSuite => ({
       adapter: 'gradle-junit',
-      className: test.className,
+      className: testClassName(test.file, test.text),
       file: test.file,
       id: suiteId(options.project, test.file),
       project: options.project,
@@ -129,48 +133,30 @@ export const createGraph = Effect.fnUntraced(function* (
   options: GradleGraphOptions,
 ) {
   const root = resolve(rootValue)
-  const tests = yield* sourceDescriptors(
-    root,
-    options.suites.map((suite) => suite.file),
-  )
-  const sources = yield* sourceDescriptors(
+  const sources = yield* globSourceFiles(
     root,
     options.sources ?? DEFAULT_SOURCES,
+    IGNORED_SOURCES,
   )
-  const testsByFile = new Map<string, SourceDescriptor>()
-  for (const test of tests) {
-    if (!testsByFile.has(test.file)) testsByFile.set(test.file, test)
+  // The suites' own files are read where they are: a path is not a pattern.
+  const tests = yield* readSourceFiles(root, [
+    ...new Set(options.suites.map((suite) => suite.file)),
+  ])
+  const parsed = new Map<string, JvmSource>()
+  for (const { file, text } of [...sources, ...tests]) {
+    if (!parsed.has(file)) parsed.set(file, parseJvmSource(file, text))
   }
-  const byClass = new Map(sources.map((source) => [source.className, source]))
-  const importedSource = (name: string): SourceDescriptor | undefined => {
-    const parts = name.replace(/\.\*$/u, '').split('.')
-    while (parts.length > 0) {
-      const source = byClass.get(parts.join('.'))
-      if (source) return source
-      parts.pop()
-    }
-    return undefined
-  }
+  const reach = dependencyResolver(parsed.values())
   const observations: TiaDependencyObservation[] = []
   for (const suite of options.suites) {
-    const imported = new Set<string>()
-    const pending = [...(testsByFile.get(suite.file)?.imports ?? [])]
-    while (pending.length > 0) {
-      const name = pending.pop()
-      if (!name) continue
-      const source = importedSource(name)
-      if (source && !imported.has(source.file)) {
-        imported.add(source.file)
-        pending.push(...source.imports)
-      }
-    }
     observations.push({
       confidence: 'exact',
       kind: 'configuration',
       source: suite.file,
       suiteId: suite.id,
     })
-    for (const source of [...imported].sort(byCodeUnit)) {
+    const test = parsed.get(suite.file)
+    for (const source of test === undefined ? [] : reach(test)) {
       observations.push({
         confidence: 'inferred',
         kind: 'import',
@@ -297,6 +283,28 @@ const runMarker = Effect.fnUntraced(function* (directory: string) {
 })
 
 /**
+ * The JUnit cases of each class: its own and those of the classes nested in
+ * it, since JUnit 5 reports the cases of a @Nested class as `Outer$Inner`.
+ */
+function casesByClass(
+  cases: readonly JUnitCase[],
+): ReadonlyMap<string, readonly JUnitCase[]> {
+  const byClass = new Map<string, JUnitCase[]>()
+  for (const item of cases) {
+    let name = item.className
+    let end = name.length
+    while (end > 0) {
+      name = name.slice(0, end)
+      const own = byClass.get(name)
+      if (own === undefined) byClass.set(name, [item])
+      else own.push(item)
+      end = name.lastIndexOf('$')
+    }
+  }
+  return byClass
+}
+
+/**
  * How each selected class ended, from the JUnit cases of the run: failed when
  * a case failed, passed when it reported cases that all held, and unknown when
  * it reported none.
@@ -305,9 +313,10 @@ function classOutcomes(
   selected: readonly GradleSuite[],
   cases: readonly JUnitCase[],
 ): Record<string, TiaSuiteOutcome> {
+  const byClass = casesByClass(cases)
   return Object.fromEntries(
     selected.map((suite): [string, TiaSuiteOutcome] => {
-      const own = cases.filter((item) => item.className === suite.className)
+      const own = byClass.get(suite.className) ?? []
       return [
         suite.id,
         own.length === 0
@@ -391,7 +400,7 @@ export const run = Effect.fn('tia.gradle.run')(function* (
       return { cases: reported, forOutcomes: attributable, status: exit }
     }),
   )
-  const reportedClasses = new Set(cases.map((testCase) => testCase.className))
+  const reportedClasses = casesByClass(cases)
   const missingReports =
     (options.requireReports ?? true) &&
     classes.some((className) => !reportedClasses.has(className))

@@ -6,6 +6,7 @@ import {
   groupBy,
   moduleFailureObservation,
   observationOf,
+  withSingleModuleFailures,
 } from '../../src/runners/shared/observations.ts'
 import { baseGraph } from '../engine/support/graphs.ts'
 
@@ -100,4 +101,20 @@ describe('groupBy', () => {
       ['a', ['a1', 'a2']],
     ])
   })
+})
+
+test('lists each module failure once and keeps every other observation', () => {
+  const passed = observationOf(
+    { file: 'test/b.test.ts', fullName: 'b', id: 'b', state: 'passed' },
+    [],
+  )
+  expect(
+    withSingleModuleFailures([
+      moduleFailureObservation('test/a.test.ts'),
+      passed,
+      moduleFailureObservation('test/a.test.ts'),
+      passed,
+      moduleFailureObservation('test/c.test.ts'),
+    ]).map((observation) => observation.id),
+  ).toEqual(['module:test/a.test.ts', 'b', 'b', 'module:test/c.test.ts'])
 })

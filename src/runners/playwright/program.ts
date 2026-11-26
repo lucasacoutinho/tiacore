@@ -110,17 +110,26 @@ export function planFilters(plan: RunPlan, root: string): PlaywrightFilters {
   }
 }
 
-function runnerFingerprint(
+/**
+ * The lane's part of the graph fingerprint. The engine sorts the files it is
+ * given, and the run arguments are among them, so `--grep a --grep-invert b`
+ * and `--grep b --grep-invert a` would share one graph; the arguments also
+ * enter here, in the order given. Without arguments the value is the one
+ * earlier releases computed, so such a lane keeps its graph.
+ */
+export function runnerFingerprint(
   configFingerprint: string,
   adapters: ReturnType<typeof frameworkAdapters>,
   evidenceDirectory: string | undefined,
   evidenceHeader: string | undefined,
+  runArguments: readonly string[],
 ): string {
   return createHash('sha256')
     .update(configFingerprint)
     .update(frameworkFingerprint(adapters))
     .update(
       JSON.stringify({
+        ...(runArguments.length === 0 ? {} : { arguments: runArguments }),
         correlatedEvidence: evidenceDirectory === undefined ? 0 : 1,
         evidenceHeader: evidenceHeader ?? '',
         version: 1,
@@ -235,6 +244,7 @@ export const run = Effect.fn('tia.playwright.run')(function* (
       adapters,
       settings.evidenceDirectory,
       settings.evidenceHeader,
+      runArguments,
     ),
     ...(options.fresh === undefined ? {} : { fresh: options.fresh }),
     ...(options.ignoreChanges === undefined

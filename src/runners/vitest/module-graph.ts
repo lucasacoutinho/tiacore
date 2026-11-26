@@ -14,6 +14,9 @@ export interface ModuleGraphLike {
 }
 
 const EXECUTABLE_SOURCE_PATTERN = /\.[cm]?[jt]sx?$/iu
+/** Vite queries that import a file as text, a URL or a worker, so it never runs here. */
+const ASSET_QUERY_PATTERN =
+  /[?&](?:inline|raw|sharedworker|url|worker)(?:[&=]|$)/u
 
 function cleanId(id: string): string {
   return id.split('?', 1)[0] ?? id
@@ -22,6 +25,16 @@ function cleanId(id: string): string {
 function moduleFile(node: ModuleNodeLike): string | null {
   const value = node.file ?? node.id
   return value === null ? null : cleanId(value)
+}
+
+/**
+ * The file a module stands for when it is not instrumented code that runs in
+ * the test: a non-script file, or a script imported through an asset query.
+ */
+function assetFile(node: ModuleNodeLike): string | null {
+  const file = moduleFile(node)
+  if (file === null || !EXECUTABLE_SOURCE_PATTERN.test(file)) return file
+  return node.id !== null && ASSET_QUERY_PATTERN.test(node.id) ? file : null
 }
 
 function entryModules(
@@ -52,10 +65,8 @@ export function importedAssetFiles(
     for (const imported of current.importedModules) {
       modules.add(imported)
 
-      const file = moduleFile(imported)
-      if (file === null || EXECUTABLE_SOURCE_PATTERN.test(file)) {
-        continue
-      }
+      const file = assetFile(imported)
+      if (file === null) continue
 
       const relative = trackedFile(root, file, repositoryRoot)
       if (relative !== null) {
@@ -103,10 +114,8 @@ export function directlyImportedAssetFiles(
 
   for (const entry of entryModules(graph, moduleId)) {
     for (const imported of entry.importedModules) {
-      const file = moduleFile(imported)
-      if (file === null || EXECUTABLE_SOURCE_PATTERN.test(file)) {
-        continue
-      }
+      const file = assetFile(imported)
+      if (file === null) continue
 
       const relative = trackedFile(root, file, repositoryRoot)
       if (relative !== null) {

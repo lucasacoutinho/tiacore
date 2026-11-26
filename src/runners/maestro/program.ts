@@ -9,6 +9,7 @@ import type {
   TiaDependencyObservation,
   TiaImpactGraph,
 } from '../../core/protocol.ts'
+import { normalizePath } from '../../core/path.ts'
 import { normalizeProtocolPath } from '../../engine/plan/protocol.ts'
 import { TiaInvalid } from '../../wire/errors.ts'
 import {
@@ -37,21 +38,36 @@ function stringArray(value: unknown): string[] {
     : []
 }
 
-function runFlowPaths(value: unknown, paths: Set<string>): void {
+/** The files a flow names, by what it does with them. */
+interface References {
+  /** Flows it runs with `runFlow`. */
+  readonly flows: Set<string>
+  /** Scripts it runs with `runScript` and media it adds with `addMedia`. */
+  readonly files: Set<string>
+}
+
+function addFile(value: unknown, into: Set<string>): void {
+  if (typeof value === 'string') {
+    into.add(value)
+  } else if (isRecord(value) && typeof value['file'] === 'string') {
+    into.add(value['file'])
+  }
+}
+
+function collectReferences(value: unknown, references: References): void {
   if (Array.isArray(value)) {
-    for (const item of value) runFlowPaths(item, paths)
+    for (const item of value) collectReferences(item, references)
     return
   }
   if (!isRecord(value)) return
   for (const [key, child] of Object.entries(value)) {
-    if (key === 'runFlow') {
-      if (typeof child === 'string') {
-        paths.add(child)
-      } else if (isRecord(child) && typeof child['file'] === 'string') {
-        paths.add(child['file'])
-      }
+    if (key === 'runFlow') addFile(child, references.flows)
+    if (key === 'runScript') addFile(child, references.files)
+    if (key === 'addMedia') {
+      const media = isRecord(child) ? child['files'] : child
+      for (const path of stringArray(media)) references.files.add(path)
     }
-    runFlowPaths(child, paths)
+    collectReferences(child, references)
   }
 }
 
@@ -74,18 +90,53 @@ function isWorkspaceConfig(flowsRoot: string, path: string): boolean {
   return inside === 'config.yaml' || inside === 'config.yml'
 }
 
-export const discover = Effect.fnUntraced(function* (
+/** The project path of a file, or undefined when it is outside the project. */
+function projectPath(root: string, absolute: string): string | undefined {
+  const result = normalizePath(relative(root, absolute))
+  return result._tag === 'Rejected' ? undefined : result.path
+}
+
+/**
+ * The project path of a file a flow names relative to itself, or undefined
+ * when it cannot be followed: it is outside the project or comes from a
+ * variable.
+ */
+function followable(
+  root: string,
+  flowPath: string,
+  reference: string,
+): string | undefined {
+  return reference.includes('${')
+    ? undefined
+    : projectPath(root, resolve(dirname(flowPath), reference))
+}
+
+/** A flow file, whether or not its tags make it a suite. */
+interface Flow {
+  readonly file: string
+  readonly included: boolean
+  readonly metadata: Readonly<Record<string, unknown>>
+  /** The project paths of the flows it runs. */
+  readonly runs: readonly string[]
+  readonly tags: string[]
+  /** The project paths of the scripts and media it uses. */
+  readonly uses: readonly string[]
+}
+
+/**
+ * Reads every flow under the flow root, in path order. Tags decide which flows
+ * are suites, but every flow is read, so a suite still depends on what it
+ * reaches through a helper flow the tags leave out. A flow that is not a suite
+ * cannot fail discovery with a reference that leaves the repository.
+ */
+const readFlows = Effect.fnUntraced(function* (
   options: DiscoverMaestroOptions,
 ) {
   const fs = yield* FileSystem.FileSystem
   const root = resolve(options.root)
   const flowsRoot = resolve(root, options.flows)
   const paths = yield* globFiles(['**/*.yaml', '**/*.yml'], { cwd: flowsRoot })
-  const discovered = new Map<
-    string,
-    MaestroSuite & { readonly runFlows: string[] }
-  >()
-
+  const flows = new Map<string, Flow>()
   for (const path of paths.sort()) {
     if (isWorkspaceConfig(flowsRoot, path)) continue
     const source = yield* fs
@@ -101,48 +152,92 @@ export const discover = Effect.fnUntraced(function* (
     const parsed: unknown = documents[0]?.toJS() ?? {}
     const metadata = isRecord(parsed) ? parsed : {}
     const tags = stringArray(metadata['tags']).sort(byCodeUnit)
-    if (
-      !includesTags(tags, options.includeTags ?? [], options.excludeTags ?? [])
-    ) {
-      continue
-    }
-    const projectFile = yield* attempt(() =>
-      normalizeProtocolPath(relative(root, path)),
+    const included = includesTags(
+      tags,
+      options.includeTags ?? [],
+      options.excludeTags ?? [],
     )
-    const referenced = new Set<string>()
+    const references: References = { files: new Set(), flows: new Set() }
     for (const document of documents) {
       const content: unknown = document.toJS()
-      runFlowPaths(content, referenced)
+      collectReferences(content, references)
     }
-    const runFlows = yield* attempt(() =>
-      [...referenced].map((flow) =>
-        normalizeProtocolPath(relative(root, resolve(dirname(path), flow))),
-      ),
-    )
-    const appId = metadata['appId']
-    const name = metadata['name']
-    discovered.set(projectFile, {
-      adapter: 'maestro',
-      ...(typeof appId === 'string' ? { appId } : {}),
-      file: projectFile,
-      id: suiteId(options.project, projectFile),
-      name: typeof name === 'string' && name.trim() !== '' ? name : projectFile,
-      project: options.project,
-      resourceLocks: ['maestro-device'],
-      runFlows,
+    const followed = (names: ReadonlySet<string>) =>
+      [...names].flatMap((name) => followable(root, path, name) ?? [])
+    const file = included
+      ? yield* attempt(() => normalizeProtocolPath(relative(root, path)))
+      : projectPath(root, path)
+    if (file === undefined) continue
+    const runs = included
+      ? yield* attempt(() =>
+          [...references.flows].map((flow) =>
+            normalizeProtocolPath(relative(root, resolve(dirname(path), flow))),
+          ),
+        )
+      : followed(references.flows)
+    flows.set(file, {
+      file,
+      included,
+      metadata,
+      runs,
       tags,
+      uses: followed(references.files),
     })
   }
+  return flows
+})
 
-  return [...discovered.values()]
-    .map(({ runFlows, ...suite }): MaestroSuite => ({
-      ...suite,
-      dependsOn: runFlows
-        .map((flow) => discovered.get(flow)?.id)
-        .filter((id): id is string => id !== undefined)
-        .sort(byCodeUnit),
-    }))
-    .sort((left, right) => byCodeUnit(left.id, right.id))
+/**
+ * The suites a flow runs: the suites it names with `runFlow`, and those it
+ * reaches through flows that are not suites.
+ */
+function suiteDependencies(
+  flow: Flow,
+  flows: ReadonlyMap<string, Flow>,
+  project: string,
+): string[] {
+  const dependsOn = new Set<string>()
+  const seen = new Set<string>()
+  const pending = [...flow.runs]
+  while (pending.length > 0) {
+    const file = pending.pop()
+    if (file === undefined || seen.has(file)) continue
+    seen.add(file)
+    const target = flows.get(file)
+    if (target?.included === true) dependsOn.add(suiteId(project, file))
+    else if (target !== undefined) pending.push(...target.runs)
+  }
+  return [...dependsOn].sort(byCodeUnit)
+}
+
+function suitesOf(
+  flows: ReadonlyMap<string, Flow>,
+  project: string,
+): MaestroSuite[] {
+  const suites: MaestroSuite[] = []
+  for (const flow of flows.values()) {
+    if (!flow.included) continue
+    const appId = flow.metadata['appId']
+    const name = flow.metadata['name']
+    suites.push({
+      adapter: 'maestro',
+      ...(typeof appId === 'string' ? { appId } : {}),
+      file: flow.file,
+      id: suiteId(project, flow.file),
+      name: typeof name === 'string' && name.trim() !== '' ? name : flow.file,
+      project,
+      resourceLocks: ['maestro-device'],
+      tags: flow.tags,
+      dependsOn: suiteDependencies(flow, flows, project),
+    })
+  }
+  return suites.sort((left, right) => byCodeUnit(left.id, right.id))
+}
+
+export const discover = Effect.fnUntraced(function* (
+  options: DiscoverMaestroOptions,
+) {
+  return suitesOf(yield* readFlows(options), options.project)
 })
 
 /** Every suite a flow runs, directly or through other flows, nearest first. */

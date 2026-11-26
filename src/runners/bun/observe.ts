@@ -13,6 +13,7 @@ import {
   groupBy,
   moduleFailureObservation,
   observationOf,
+  withSingleModuleFailures,
 } from '../shared/observations.ts'
 import type { FileObservations } from '../shared/run.ts'
 import { parseBunJunit, parseBunLcov, type BunCase } from './report.ts'
@@ -41,8 +42,8 @@ function escapeRegExp(value: string): string {
 
 /**
  * Runs `bun test` over `files` filtered by `pattern`. Anything that leaves no
- * usable report (spawn error, missing results.xml, missing lcov.info when
- * coverage is requested) is a failed execution with no cases.
+ * usable report (spawn error, missing or malformed results.xml, missing
+ * lcov.info when coverage is requested) is a failed execution with no cases.
  */
 const executeBun = (
   context: BunContext,
@@ -78,10 +79,8 @@ const executeBun = (
         stdio: 'capture',
         timeoutMs: context.timeoutMs ?? EXECUTION_TIMEOUT_MS,
       })
-      const cases = parseBunJunit(
-        context.root,
-        yield* fs.readFileString(junitPath),
-      )
+      const report = yield* fs.readFileString(junitPath)
+      const cases = yield* Effect.try(() => parseBunJunit(context.root, report))
       const coverageFiles = coverage
         ? parseBunLcov(
             context.root,
@@ -104,31 +103,45 @@ const executeBun = (
     })),
   )
 
+/**
+ * What a run that selected one case shows about it. Only the case's own entry
+ * counts: Bun lists every case the pattern left out as skipped, and a run that
+ * selects nothing still exits 0 when the file has a describe.skip or
+ * describe.todo group. A passed or skipped entry counts only from a clean run.
+ * Anything else (the file did not load, the run failed outside the case, the
+ * case never ran) is a module failure, so the file runs whole next time.
+ */
+function selectedCaseObservation(
+  execution: BunExecution,
+  selected: { readonly file: string; readonly id: string },
+): TiaObservation {
+  const result = execution.cases.find((item) => item.id === selected.id)
+  if (
+    result === undefined ||
+    result.describes !== undefined ||
+    (!execution.success && result.state !== 'failed')
+  ) {
+    return moduleFailureObservation(selected.file)
+  }
+  return observationOf(result, [selected.file, ...execution.coverageFiles])
+}
+
 const observeCandidate = Effect.fnUntraced(function* (
   context: BunContext,
   candidate: BunCase,
 ) {
+  // Bun matches the pattern against "<describe> <name>" but reports only the
+  // name, so a case inside describe cannot be selected on its own.
+  if (candidate.describes !== undefined) {
+    return moduleFailureObservation(candidate.file)
+  }
   const execution = yield* executeBun(
     context,
     [resolve(context.root, candidate.file)],
     `^${escapeRegExp(candidate.fullName)}$`,
     true,
   )
-  const result = execution.cases.find(
-    (item) => item.id === candidate.id || item.fullName === candidate.fullName,
-  )
-  // A failed process without a failed test result is a module failure: the
-  // file did not load, or the selected case never ran (describe, skip, todo).
-  if (
-    !execution.success &&
-    (result === undefined || result.state !== 'failed')
-  ) {
-    return moduleFailureObservation(candidate.file)
-  }
-  return observationOf(result ?? { ...candidate, state: 'failed' }, [
-    candidate.file,
-    ...execution.coverageFiles,
-  ])
+  return selectedCaseObservation(execution, candidate)
 })
 
 /**
@@ -185,7 +198,10 @@ export const observeBunFiles = Effect.fnUntraced(function* (
     { concurrency: context.concurrency },
   )
   observations.push(...perFile.flat())
-  return { complete: true, observations } satisfies FileObservations
+  return {
+    complete: true,
+    observations: withSingleModuleFailures(observations),
+  } satisfies FileObservations
 })
 
 const observeCachedCase = Effect.fnUntraced(function* (
@@ -198,16 +214,7 @@ const observeCachedCase = Effect.fnUntraced(function* (
     `^${escapeRegExp(cached.fullName)}$`,
     true,
   )
-  const result = execution.cases.find(
-    (item) => item.id === cached.id || item.fullName === cached.fullName,
-  )
-  if (
-    result !== undefined &&
-    (execution.success || result.state === 'failed')
-  ) {
-    return [observationOf(result, [cached.file, ...execution.coverageFiles])]
-  }
-  return execution.success ? [] : [moduleFailureObservation(cached.file)]
+  return selectedCaseObservation(execution, cached)
 })
 
 /** Re-runs affected cached cases, grouped by file: files in parallel, cases in order. */
@@ -222,11 +229,14 @@ export const observeBunCachedCases = Effect.fnUntraced(function* (
       Effect.gen(function* () {
         const observations: TiaObservation[] = []
         for (const result of results) {
-          observations.push(...(yield* observeCachedCase(context, result)))
+          observations.push(yield* observeCachedCase(context, result))
         }
         return observations
       }),
     { concurrency: context.concurrency },
   )
-  return perFile.flat()
+  return {
+    complete: true,
+    observations: withSingleModuleFailures(perFile.flat()),
+  } satisfies FileObservations
 })

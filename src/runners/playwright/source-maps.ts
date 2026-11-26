@@ -7,8 +7,16 @@ import { FlattenMap, eachMapping } from '@jridgewell/trace-mapping'
 import { byCodeUnit } from '../../core/canonical.ts'
 import { projectFile } from '../../engine/host-path.ts'
 
-const MAX_SOURCE_MAP_BYTES = 32 * 1024 * 1024
-const SOURCE_MAP_SUFFIX = /(?:\.bundle|\.m?js)$/iu
+/** The most bytes read from one script or map response. */
+export const MAX_SOURCE_MAP_BYTES = 32 * 1024 * 1024
+const BUNDLE_SUFFIX = /\.bundle$/iu
+const SCRIPT_SUFFIX = /\.m?js$/iu
+/**
+ * Turbopack names a project file `turbopack:///[project]/<path>`; older
+ * releases wrote `turbopack://[project]/<path>`, which is not a valid URL.
+ * Its `[turbopack]` and `[next]` roots name runtime code, not project files.
+ */
+const TURBOPACK_PROJECT = /^turbopack:\/\/\/?\[project\]\//u
 /** Entries each memo keeps; the oldest-used entry is dropped past this. */
 export const SOURCE_MAP_CACHE_LIMIT = 256
 
@@ -131,11 +139,24 @@ async function uncachedBoundedText(url: string): Promise<string | null> {
       await response.body?.cancel()
       return null
     }
+    if (response.body === null) return ''
 
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    return bytes.byteLength > MAX_SOURCE_MAP_BYTES
-      ? null
-      : Buffer.from(bytes).toString('utf8')
+    // A body without a length is read only up to the cap, so an endless or
+    // huge stream is dropped instead of buffered.
+    const reader = response.body.getReader()
+    const chunks: Uint8Array[] = []
+    let size = 0
+    for (;;) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      size += chunk.value.byteLength
+      if (size > MAX_SOURCE_MAP_BYTES) {
+        await reader.cancel()
+        return null
+      }
+      chunks.push(chunk.value)
+    }
+    return Buffer.concat(chunks, size).toString('utf8')
   } catch {
     return null
   }
@@ -145,20 +166,65 @@ function boundedText(url: string): Promise<string | null> {
   return textMemo.get(url, () => uncachedBoundedText(url))
 }
 
-function sourceMapUrl(scriptUrl: string, script: string): string | null {
+/**
+ * Where a script's map may be, in the order to try: the URL its
+ * `sourceMappingURL` directive names; else, by the script's suffix, the
+ * sibling `app.js.map` that bundlers write next to `app.js` and then
+ * `app.map`, or for a Metro `.bundle` only `index.map`.
+ */
+function sourceMapUrls(scriptUrl: string, script: string): string[] {
   const directive =
     /(?:\/\/[#@]\s*sourceMappingURL=([^\s]+)|\/\*[#@]\s*sourceMappingURL=([^*]+)\*\/)\s*$/u.exec(
       script,
     )
   const value = directive?.[1] ?? directive?.[2]?.trim()
   if (value !== undefined) {
-    return value.startsWith('data:') ? value : new URL(value, scriptUrl).href
+    if (value.startsWith('data:')) return [value]
+    try {
+      return [new URL(value, scriptUrl).href]
+    } catch {
+      return []
+    }
   }
 
   const url = new URL(scriptUrl)
-  if (!SOURCE_MAP_SUFFIX.test(url.pathname)) return null
-  url.pathname = url.pathname.replace(SOURCE_MAP_SUFFIX, '.map')
-  return url.href
+  const { pathname } = url
+  const guess = (path: string): string => {
+    url.pathname = path
+    return url.href
+  }
+  if (BUNDLE_SUFFIX.test(pathname)) {
+    return [guess(pathname.replace(BUNDLE_SUFFIX, '.map'))]
+  }
+  if (!SCRIPT_SUFFIX.test(pathname)) return []
+  return [
+    guess(`${pathname}.map`),
+    guess(pathname.replace(SCRIPT_SUFFIX, '.map')),
+  ]
+}
+
+interface LoadedMap {
+  /** The map's text, as `FlattenMap` reads it. */
+  readonly source: string
+  /** The candidate it came from; a relative source name resolves against it. */
+  readonly url: string
+  readonly value: unknown
+}
+
+/** The first candidate that is a readable JSON map, or null. */
+async function firstMap(
+  candidates: readonly string[],
+): Promise<LoadedMap | null> {
+  for (const url of candidates) {
+    const source = decodedDataUrl(url) ?? (await boundedText(url))
+    if (source === null) continue
+    try {
+      return { source, url, value: JSON.parse(source) as unknown }
+    } catch {
+      // A server that answers every path with a page is not serving a map.
+    }
+  }
+  return null
 }
 
 /** True when the path runs through a `node_modules` directory. */
@@ -182,6 +248,10 @@ function sourcePath(
     if (value.startsWith('file:')) {
       candidate = fileURLToPath(value)
       filesystemUrl = true
+    } else if (TURBOPACK_PROJECT.test(value)) {
+      candidate = decodeURIComponent(
+        new URL(value.replace(TURBOPACK_PROJECT, 'turbopack:///')).pathname,
+      ).replace(/^\/+/u, '')
     } else if (/^[a-z][a-z\d+.-]*:\/\//iu.test(value)) {
       const url = new URL(value)
       if (url.protocol !== 'webpack:' && url.protocol !== 'vite:') return null
@@ -230,32 +300,28 @@ async function uncachedSourceMapFiles(
   root: string,
 ): Promise<string[]> {
   const direct = sourcePath(root, new URL(scriptUrl).pathname)
-  let script = ''
-  let mapUrl = sourceMapUrl(scriptUrl, script)
+  const own = direct === null ? [] : [direct]
+  let candidates = sourceMapUrls(scriptUrl, '')
 
-  if (mapUrl === null || !scriptUrl.includes('.bundle')) {
-    script = (await boundedText(scriptUrl)) ?? ''
-    mapUrl = sourceMapUrl(scriptUrl, script)
+  // A bundle's map is guessed from its URL, so the bundle is not downloaded.
+  if (candidates.length === 0 || !scriptUrl.includes('.bundle')) {
+    candidates = sourceMapUrls(scriptUrl, (await boundedText(scriptUrl)) ?? '')
   }
 
-  if (mapUrl === null) return direct === null ? [] : [direct]
-
-  const source = decodedDataUrl(mapUrl) ?? (await boundedText(mapUrl))
-  if (source === null) return direct === null ? [] : [direct]
-
+  const map = await firstMap(candidates)
+  if (map === null) return own
   try {
-    const map: unknown = JSON.parse(source)
-    const sourceBase = mapUrl.startsWith('data:') ? scriptUrl : mapUrl
+    const sourceBase = map.url.startsWith('data:') ? scriptUrl : map.url
     return [
       ...new Set([
-        ...(direct === null ? [] : [direct]),
-        ...mappedSources(map)
+        ...own,
+        ...mappedSources(map.value)
           .map((file) => sourcePath(root, file, sourceBase))
           .filter((file): file is string => file !== null),
       ]),
     ].sort(byCodeUnit)
   } catch {
-    return direct === null ? [] : [direct]
+    return own
   }
 }
 
@@ -355,18 +421,15 @@ export async function coveredSourceMapFiles(
     item.ranges.some((range) => range.count > 0),
   )
   const own = direct !== null && hasExecutedRange ? [direct] : []
-  const mapUrl = sourceMapUrl(scriptUrl, script)
-  if (mapUrl === null) return own
-  const source = decodedDataUrl(mapUrl) ?? (await boundedText(mapUrl))
-  if (source === null) return own
+  const map = await firstMap(sourceMapUrls(scriptUrl, script))
+  if (map === null) return own
 
   try {
-    JSON.parse(source)
-    const sourceBase = mapUrl.startsWith('data:') ? scriptUrl : mapUrl
+    const sourceBase = map.url.startsWith('data:') ? scriptUrl : map.url
     return [
       ...new Set([
         ...own,
-        ...executedMappedSources(source, script, functions)
+        ...executedMappedSources(map.source, script, functions)
           .map((file) => sourcePath(root, file, sourceBase))
           .filter((file): file is string => file !== null),
       ]),

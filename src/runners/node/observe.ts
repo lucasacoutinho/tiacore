@@ -15,6 +15,7 @@ import {
   groupBy,
   moduleFailureObservation,
   observationOf,
+  withSingleModuleFailures,
 } from '../shared/observations.ts'
 import type { FileObservations } from '../shared/run.ts'
 import {
@@ -146,12 +147,15 @@ const discoverFile = Effect.fnUntraced(function* (
   file: string,
   output: string,
 ) {
+  // Loading a test file can hang (a top-level await, a handle that only an
+  // `after` hook closes); past the execution limit it is a module failure.
   const outcome = yield* runProcess({
     args: ['--import', pathToFileURL(context.helpers.register).href, file],
     command: process.execPath,
     cwd: context.root,
     env: childEnvironment({ TIACORE_NODE_DISCOVERY_FILE: output }),
     stdio: context.log ? 'forward' : 'discard',
+    timeoutMs: context.timeoutMs ?? EXECUTION_TIMEOUT_MS,
   }).pipe(Effect.orElseSucceed(() => ({ code: null })))
   return outcome.code === 0 ? null : slash(relative(context.root, file))
 })
@@ -171,17 +175,24 @@ const discoverWithHooks = (
       const temporary = yield* fs.makeTempDirectoryScoped({
         prefix: 'tiacore-node-discovery-',
       })
-      const output = join(temporary, 'cases.jsonl')
-      yield* fs.writeFileString(output, '')
-      const failed = yield* Effect.forEach(
+      // One record file per child: a child killed mid-write cannot leave a
+      // partial line that swallows another file's record.
+      const discovered = yield* Effect.forEach(
         files,
-        (file) => discoverFile(context, file, output),
+        (file, index) =>
+          Effect.gen(function* () {
+            const output = join(temporary, `${index}.jsonl`)
+            yield* fs.writeFileString(output, '')
+            const failure = yield* discoverFile(context, file, output)
+            return { failure, records: yield* fs.readFileString(output) }
+          }),
         { concurrency: context.concurrency },
       )
-      const moduleFailures = failed.filter((file) => file !== null)
-      const cases = parseNodeDiscoveryRecords(
-        context.root,
-        yield* fs.readFileString(output),
+      const moduleFailures = discovered.flatMap(({ failure }) =>
+        failure === null ? [] : [failure],
+      )
+      const cases = discovered.flatMap(({ records }) =>
+        parseNodeDiscoveryRecords(context.root, records),
       )
       if (cases.length === 0 && moduleFailures.length === 0) return null
       return {
@@ -225,6 +236,17 @@ function matchesCandidate(candidate: NodeCase, item: NodeCase): boolean {
   )
 }
 
+/**
+ * A case that passed in a child whose test process then failed (it crashed or
+ * was killed after reporting) has evidence that process never finished
+ * writing. It counts as failed, so it runs again next time.
+ */
+function vouched(execution: NodeExecution, testCase: NodeCase): NodeCase {
+  return execution.moduleFailures.length > 0 && testCase.state === 'passed'
+    ? { ...testCase, state: 'failed' }
+    : testCase
+}
+
 const observeCandidate = Effect.fnUntraced(function* (
   context: NodeContext,
   candidate: NodeCase,
@@ -248,14 +270,14 @@ const observeCandidate = Effect.fnUntraced(function* (
   const result: NodeCase =
     executed === undefined
       ? { ...candidate, state: 'failed' }
-      : {
+      : vouched(execution, {
           ...executed,
           column: candidate.column,
           file: candidate.file,
           fullName: candidate.fullName,
           id: candidate.id,
           line: candidate.line,
-        }
+        })
   return observationOf(result, [candidate.file, ...execution.coverageFiles])
 })
 
@@ -315,7 +337,10 @@ const observeCachedCase = Effect.fnUntraced(function* (
   )
   if (moduleFailure && execution.cases.length > 0) {
     return execution.cases.map((testCase) =>
-      observationOf(testCase, [cached.file, ...execution.coverageFiles]),
+      observationOf(vouched(execution, testCase), [
+        cached.file,
+        ...execution.coverageFiles,
+      ]),
     )
   }
   const executed = execution.cases.find(
@@ -326,10 +351,14 @@ const observeCachedCase = Effect.fnUntraced(function* (
   )
   if (executed !== undefined) {
     return [
-      observationOf({ ...executed, fullName: cached.fullName, id: cached.id }, [
-        cached.file,
-        ...execution.coverageFiles,
-      ]),
+      observationOf(
+        vouched(execution, {
+          ...executed,
+          fullName: cached.fullName,
+          id: cached.id,
+        }),
+        [cached.file, ...execution.coverageFiles],
+      ),
     ]
   }
   return execution.moduleFailures.map(moduleFailureObservation)
@@ -346,17 +375,20 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
 ) {
   if (!nodeDiscoveryHooksSupported()) {
     const files = [...new Set(cached.map((result) => result.file))]
-    const { observations } = yield* observeFilesWhole(
+    const { complete, observations } = yield* observeFilesWhole(
       context,
       files.map((file) => resolve(context.root, file)),
     )
     const observed = new Set(observations.map((item) => item.file))
-    return [
-      ...observations,
-      ...files
-        .filter((file) => !observed.has(file))
-        .map(moduleFailureObservation),
-    ]
+    return {
+      complete,
+      observations: [
+        ...observations,
+        ...files
+          .filter((file) => !observed.has(file))
+          .map(moduleFailureObservation),
+      ],
+    } satisfies FileObservations
   }
   const groups = groupBy(cached, (result) => result.file)
   const perFile = yield* Effect.forEach(
@@ -371,5 +403,8 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
       }),
     { concurrency: context.concurrency },
   )
-  return perFile.flat()
+  return {
+    complete: true,
+    observations: withSingleModuleFailures(perFile.flat()),
+  } satisfies FileObservations
 })

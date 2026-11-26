@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
+import { parseCLI } from 'vitest/node'
+
 import type {
   TiaArtifactSource,
   TiaArtifactTrustPolicy,
@@ -289,23 +291,10 @@ function isCliFileArgument(root: string, argument: string): boolean {
   )
 }
 
-/** True when the command line names test files or directories to run. */
-export function hasCliFileFilter(
-  root: string,
-  argv: readonly string[],
-): boolean {
-  const args = argv.slice(2)
-  return args.some((argument, index) => {
-    if (argument.startsWith('-')) return false
-    const previous = args[index - 1]
-    if (previous !== undefined && OPTION_VALUES.has(previous)) return false
-    return isCliFileArgument(root, argument)
-  })
-}
-
 /**
  * Flags whose next argv token is the flag's value. That token can look like a
  * test file (`--exclude test/b.test.ts`) without the user naming a file filter.
+ * Only used when Vitest's own parser cannot read the command line.
  */
 const SELECTION_VALUE_FLAGS = new Set([
   '--exclude',
@@ -316,26 +305,54 @@ const SELECTION_VALUE_FLAGS = new Set([
   '-t',
 ])
 
-function hasPositionalFileFilter(
+/**
+ * The positional filters of a Vitest command line, read with Vitest's own
+ * parser so that every flag's value (`--outputFile report.json`) is skipped
+ * as Vitest skips it. Null when the parser rejects the command line.
+ */
+function vitestCliFilters(argv: readonly string[]): string[] | null {
+  try {
+    return parseCLI(['vitest', ...argv.slice(2)]).filter
+  } catch {
+    return null
+  }
+}
+
+/** The positional arguments a flag does not consume, for an unparsable command line. */
+function guessedCliFilters(argv: readonly string[]): string[] {
+  const args = argv.slice(2)
+  if (args[0] === 'related') return []
+  return args.filter((argument, index) => {
+    if (argument.startsWith('-')) return false
+    const previous = args[index - 1]
+    return (
+      previous === undefined ||
+      !(OPTION_VALUES.has(previous) || SELECTION_VALUE_FLAGS.has(previous))
+    )
+  })
+}
+
+/** Whether the process is the Vitest command line, not a script that starts Vitest. */
+function isVitestCli(argv: readonly string[]): boolean {
+  const name = argv[1]?.replaceAll('\\', '/').split('/').pop()
+  return name === 'vitest' || name === 'vitest.mjs' || name === 'vitest.js'
+}
+
+/**
+ * True when the command line names test files or directories to run. Vitest
+ * matches every positional filter as a substring of test file paths, so on its
+ * own command line any filter counts. Another program's arguments count only
+ * when they name a test file or an existing path.
+ */
+export function hasCliFileFilter(
   root: string,
   argv: readonly string[],
 ): boolean {
-  const args = argv.slice(2)
-  let relatedCommand = false
-  return args.some((argument, index) => {
-    if (argument === 'related' && index === 0) {
-      relatedCommand = true
-      return false
-    }
-    if (argument.startsWith('-') || relatedCommand) return false
-    const previous = args[index - 1]
-    if (
-      previous !== undefined &&
-      (OPTION_VALUES.has(previous) || SELECTION_VALUE_FLAGS.has(previous))
-    )
-      return false
-    return isCliFileArgument(root, argument)
-  })
+  const filters = vitestCliFilters(argv)
+  if (filters !== null && isVitestCli(argv)) return filters.length > 0
+  return (filters ?? guessedCliFilters(argv)).some((filter) =>
+    isCliFileArgument(root, filter),
+  )
 }
 
 /** The Vitest selection options that make tiacore step aside. */
@@ -356,7 +373,7 @@ export function nativeSelectionLabels(
 ): string[] {
   const labels: string[] = []
   if ((config.cliExclude?.length ?? 0) > 0) labels.push('--exclude')
-  if ((config.filters?.length ?? 0) > 0 || hasPositionalFileFilter(root, argv))
+  if ((config.filters?.length ?? 0) > 0 || hasCliFileFilter(root, argv))
     labels.push('file filters')
   if (config.testNamePattern !== undefined) labels.push('-t')
   if (config.changed) labels.push('--changed')

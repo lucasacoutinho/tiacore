@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { resolve } from 'node:path'
 
 import type {
   BrowserContext,
   Fixtures,
   Page,
   PlaywrightTestArgs,
+  Response as PageResponse,
   Route,
   TestInfo,
   TestType,
@@ -15,6 +17,7 @@ import {
   TIA_EVIDENCE_DIRECTORY_ENV,
   TIA_EVIDENCE_HEADER_ENV,
 } from '../../evidence/index.ts'
+import { projectRelative } from '../../evidence/project-relative.ts'
 
 import {
   PLAYWRIGHT_DEPENDENCIES_ATTACHMENT,
@@ -75,6 +78,7 @@ async function recordDependencies(
   const pages = new Set<Page>()
   const coverageStarts = new Map<Page, Promise<boolean>>()
   const fallbackFiles = new Map<Page, Map<string, Set<string>>>()
+  const responseListeners = new Map<Page, (response: PageResponse) => void>()
 
   const observe = (page: Page): void => {
     if (pages.has(page)) {
@@ -91,7 +95,7 @@ async function recordDependencies(
         ),
       )
     }
-    page.on('response', (response) => {
+    const onResponse = (response: PageResponse): void => {
       const url = response.url()
       if (!tracksSource(url, response.request().resourceType())) {
         return
@@ -111,86 +115,103 @@ async function recordDependencies(
         })
         .finally(() => pending.delete(task))
       pending.add(task)
-    })
+    }
+    responseListeners.set(page, onResponse)
+    page.on('response', onResponse)
   }
 
   observe(initialPage)
   for (const page of context.pages()) {
     observe(page)
   }
-  await (coverageStarts.get(initialPage) ?? Promise.resolve(false))
-  if (correlatedRoute !== null) {
-    await context.route('**/*', correlatedRoute)
-  }
-  context.on('page', observe)
+  // A page or context that the project's fixtures share between tests outlives
+  // this test. Its listeners go when the test ends, so a later test's pages
+  // and responses are not added to this test's files.
   try {
-    await use()
-  } finally {
+    await (coverageStarts.get(initialPage) ?? Promise.resolve(false))
     if (correlatedRoute !== null) {
-      await context.unroute('**/*', correlatedRoute)
+      await context.route('**/*', correlatedRoute)
     }
-  }
-  await Promise.allSettled(pending)
-
-  let evidenceComplete = true
-  if (evidence !== null && correlationId !== undefined) {
-    const collected = await evidence.collectChecked(correlationId, {
-      remove: true,
-    })
-    evidenceComplete = collected.complete
-    for (const file of collected.files) files.add(file)
-  }
-
-  for (const page of pages) {
-    const coverageStarted =
-      preciseCoverage &&
-      (await (coverageStarts.get(page) ?? Promise.resolve(false)))
-    if (!coverageStarted) {
-      for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
-        for (const file of dependencies) {
-          files.add(file)
-        }
-      }
-      continue
-    }
-
+    context.on('page', observe)
     try {
-      const coverage = await page.coverage.stopJSCoverage()
-      const coveredUrls = new Set(coverage.map((entry) => entry.url))
-      for (const entry of coverage) {
-        for (const file of await coveredSourceMapFiles(
-          entry.url,
-          entry.source,
-          entry.functions,
-          root,
-        )) {
-          files.add(file)
-        }
+      await use()
+    } finally {
+      if (correlatedRoute !== null) {
+        await context.unroute('**/*', correlatedRoute)
       }
-      for (const [url, dependencies] of fallbackFiles.get(page) ?? []) {
-        if (coveredUrls.has(url)) {
-          continue
-        }
-        for (const file of dependencies) {
-          files.add(file)
-        }
+    }
+    await Promise.allSettled(pending)
+
+    let evidenceComplete = true
+    if (evidence !== null && correlationId !== undefined) {
+      const collected = await evidence.collectChecked(correlationId, {
+        remove: true,
+      })
+      evidenceComplete = collected.complete
+      // Event files are written by other processes; a path that does not
+      // name a project file is no dependency.
+      for (const file of collected.files) {
+        const relative = projectRelative(root, resolve(root, file))
+        if (relative !== null && relative !== '') files.add(relative)
       }
-    } catch {
-      for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
-        for (const file of dependencies) {
-          files.add(file)
+    }
+
+    for (const page of pages) {
+      const coverageStarted =
+        preciseCoverage &&
+        (await (coverageStarts.get(page) ?? Promise.resolve(false)))
+      if (!coverageStarted) {
+        for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
+          for (const file of dependencies) {
+            files.add(file)
+          }
+        }
+        continue
+      }
+
+      try {
+        const coverage = await page.coverage.stopJSCoverage()
+        const coveredUrls = new Set(coverage.map((entry) => entry.url))
+        for (const entry of coverage) {
+          for (const file of await coveredSourceMapFiles(
+            entry.url,
+            entry.source,
+            entry.functions,
+            root,
+          )) {
+            files.add(file)
+          }
+        }
+        for (const [url, dependencies] of fallbackFiles.get(page) ?? []) {
+          if (coveredUrls.has(url)) {
+            continue
+          }
+          for (const file of dependencies) {
+            files.add(file)
+          }
+        }
+      } catch {
+        for (const dependencies of fallbackFiles.get(page)?.values() ?? []) {
+          for (const file of dependencies) {
+            files.add(file)
+          }
         }
       }
     }
-  }
 
-  // Without the attachment the reporter marks the test's dependencies
-  // incomplete, so a lost evidence event never shrinks the selection.
-  if (!evidenceComplete) return
-  await testInfo.attach(PLAYWRIGHT_DEPENDENCIES_ATTACHMENT, {
-    body: Buffer.from(JSON.stringify([...files].sort())),
-    contentType: 'application/json',
-  })
+    // Without the attachment the reporter marks the test's dependencies
+    // incomplete, so a lost evidence event never shrinks the selection.
+    if (!evidenceComplete) return
+    await testInfo.attach(PLAYWRIGHT_DEPENDENCIES_ATTACHMENT, {
+      body: Buffer.from(JSON.stringify([...files].sort())),
+      contentType: 'application/json',
+    })
+  } finally {
+    context.off('page', observe)
+    for (const [page, listener] of responseListeners) {
+      page.off('response', listener)
+    }
+  }
 }
 
 export function withTiaFixture<

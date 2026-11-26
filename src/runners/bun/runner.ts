@@ -72,11 +72,11 @@ class BunTiaRunner implements TiaRunner {
 
 /**
  * A runner that records and replays `bun:test` suites per test case. A case
- * declared inside `describe(...)`, and any `test.skip` or `test.todo` case,
- * cannot be re-run on its own: Bun reports the leaf name but matches
- * `--test-name-pattern` against the full "<describe> <name>", and skipped
- * tests never match. Such a case is recorded as a failed module failure of its
- * file, so the file reruns whole.
+ * declared inside `describe(...)` cannot be re-run on its own: Bun reports the
+ * leaf name but matches `--test-name-pattern` against the full
+ * "<describe> <name>". Such a case is recorded as a failed module failure of
+ * its file, as is a selected case whose run fails outside it or does not
+ * report it, so the file reruns whole.
  */
 export function tia(options: TiaBunRunnerOptions = {}): TiaRunner {
   return new BunTiaRunner(options)
