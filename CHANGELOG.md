@@ -5,6 +5,14 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.1.1 - 2026-11-27
+
+### Fixed
+
+- Importing `@lucasacoutinho/tiacore` or `@lucasacoutinho/tiacore/vitest` no
+  longer fails when `vitest` is not installed. 2.1.0 loaded `vitest/node` when
+  the module loaded; it now loads it when Vitest configures the plugin.
+
 ## 2.1.0 - 2026-11-27
 
 ### Performance

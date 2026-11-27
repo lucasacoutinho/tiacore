@@ -1,8 +1,6 @@
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-import { parseCLI } from 'vitest/node'
-
 import type {
   TiaArtifactSource,
   TiaArtifactTrustPolicy,
@@ -311,10 +309,29 @@ const SELECTION_VALUE_FLAGS = new Set([
  * as Vitest skips it. Null when the parser rejects the command line.
  */
 function vitestCliFilters(argv: readonly string[]): string[] | null {
+  if (cliParser === null) return null
   try {
-    return parseCLI(['vitest', ...argv.slice(2)]).filter
+    return cliParser(['vitest', ...argv.slice(2)]).filter
   } catch {
     return null
+  }
+}
+
+type CliParser = (argv: string[]) => { filter: string[] }
+let cliParser: CliParser | null = null
+
+/**
+ * Loads Vitest's command-line parser for `hasCliFileFilter`. It is loaded on
+ * demand because `vitest` is an optional peer: importing the plugin must not
+ * require it. Without the parser, filters are guessed from known flags.
+ */
+export async function loadVitestCliParser(): Promise<void> {
+  if (cliParser !== null) return
+  try {
+    const { parseCLI } = await import('vitest/node')
+    cliParser = (argv) => parseCLI(argv)
+  } catch {
+    cliParser = null
   }
 }
 

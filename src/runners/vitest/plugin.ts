@@ -44,6 +44,7 @@ import {
   bypassNotice,
   coverageRuntime,
   hasNativeSelection,
+  loadVitestCliParser,
   nativeSelectionLabels,
   normalizeOptions,
   type NormalizedOptions,
@@ -409,6 +410,9 @@ export function tia(options: TiaOptions = {}): Plugin {
       const setupFiles = normalizeSetupFiles(config.test.setupFiles)
       if (!setupFiles.includes(setupProxy))
         config.test.setupFiles = [...setupFiles, setupProxy]
+      // Vite awaits this before configureVitest, which reads the parser
+      // synchronously so concurrent projects decide a bypass only once.
+      return loadVitestCliParser()
     },
 
     async configureVitest({ project, vitest }) {

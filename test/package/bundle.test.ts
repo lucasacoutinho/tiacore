@@ -65,6 +65,29 @@ function staticInputs(output: string): Set<string> {
   return inputs
 }
 
+/** The packages an output imports statically, through its chunks. */
+function staticExternals(output: string): Set<string> {
+  const externals = new Set<string>()
+  const pending = [output]
+  const visited = new Set<string>()
+  while (pending.length > 0) {
+    const current = pending.pop()
+    if (current === undefined || visited.has(current)) continue
+    visited.add(current)
+    const meta = metafile.outputs[current]
+    if (meta === undefined) continue
+    for (const imported of meta.imports) {
+      if (imported.kind !== 'import-statement') continue
+      if (metafile.outputs[imported.path] === undefined) {
+        externals.add(imported.path)
+      } else {
+        pending.push(imported.path)
+      }
+    }
+  }
+  return externals
+}
+
 describe('built package', () => {
   test('public declarations never reference Effect', () => {
     for (const target of Object.values(manifest.exports)) {
@@ -89,6 +112,23 @@ describe('built package', () => {
     ].filter((input) => input.includes('node_modules/effect/'))
     expect(effectInputs).toEqual([])
     expect(staticInputs('dist/entries/vitest-setup.js').size).toBeGreaterThan(0)
+  })
+
+  // vitest is an optional peer: only the worker setup, which Vitest itself
+  // loads, may import it before a hook runs.
+  test('no entry but the Vitest worker setup imports vitest when it loads', () => {
+    const entries = Object.entries(metafile.outputs)
+      .filter(([, meta]) => meta.entryPoint !== undefined)
+      .map(([output]) => output)
+      .filter((output) => !output.endsWith('vitest-setup.js'))
+    expect(entries).toContain('dist/entries/vitest.js')
+    for (const entry of entries) {
+      const vitestImports = [...staticExternals(entry)].filter(
+        (specifier) =>
+          specifier === 'vitest' || specifier.startsWith('vitest/'),
+      )
+      expect({ entry, vitestImports }).toEqual({ entry, vitestImports: [] })
+    }
   })
 
   test('the CLI version path loads no Effect module', () => {
