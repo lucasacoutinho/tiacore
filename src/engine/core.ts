@@ -17,7 +17,8 @@ export type { TiaCoreEngineOptions, TiaCoreOptions, TiaObservation }
  * The runner-neutral core that the Node, Bun, Playwright and generic adapters
  * share: prepare plans the run from the stored graph, commit records what the
  * run observed. A commit is skipped (null) when the project changed during the
- * run or another writer committed an incompatible graph.
+ * run, another writer committed an incompatible graph, or a selected test
+ * reported no result in a file the run does not declare fully executed.
  */
 export class TiaCore {
   readonly cacheDir: string

@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type {
+  FullConfig,
   FullResult,
   Suite,
   TestCase,
@@ -86,6 +87,10 @@ function fakeResult(
   return { attachments, duration, status } as unknown as TestResult
 }
 
+function config(shard: FullConfig['shard'] = null): FullConfig {
+  return { shard } as unknown as FullConfig
+}
+
 function fakeSuite(ids: string[]): Suite {
   return {
     allTests: () => ids.map((id) => ({ id })),
@@ -113,7 +118,7 @@ describe('the reporter', () => {
     delete process.env[PLAYWRIGHT_ROOT_ENV]
     delete process.env[PLAYWRIGHT_SESSION_ENV]
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['t1']))
+    reporter.onBegin(config(), fakeSuite(['t1']))
     reporter.onTestEnd(fakeTest({ id: 't1' }), fakeResult('passed', []))
     reporter.onEnd(finished('passed'))
     expect(existsSync(join(directory, 'runtime'))).toBe(false)
@@ -122,19 +127,20 @@ describe('the reporter', () => {
   test('records nothing without a root but still writes the session', () => {
     delete process.env[PLAYWRIGHT_ROOT_ENV]
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['t1']))
+    reporter.onBegin(config(), fakeSuite(['t1']))
     reporter.onTestEnd(fakeTest({ id: 't1' }), fakeResult('passed', []))
     reporter.onEnd(finished('passed'))
     expect(written()).toEqual({
       configuredTestIds: ['t1'],
       observations: [],
+      sharded: false,
       status: 'passed',
     })
   })
 
   test('writes the configured ids sorted and one observation per test', () => {
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['t2', 't1']))
+    reporter.onBegin(config(), fakeSuite(['t2', 't1']))
     reporter.onTestEnd(
       fakeTest({ id: 't1' }),
       fakeResult('passed', ['src/a.js']),
@@ -153,6 +159,7 @@ describe('the reporter', () => {
           state: 'passed',
         },
       ],
+      sharded: false,
       status: 'passed',
     })
     expect(
@@ -162,7 +169,7 @@ describe('the reporter', () => {
 
   test('skips specs outside the root and the root itself', () => {
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['t1', 't2']))
+    reporter.onBegin(config(), fakeSuite(['t1', 't2']))
     reporter.onTestEnd(
       fakeTest({ file: join(directory, 'elsewhere/a.spec.ts'), id: 't1' }),
       fakeResult('passed', []),
@@ -177,7 +184,7 @@ describe('the reporter', () => {
 
   test('accepts only an array of strings from the attachment', () => {
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['a', 'b', 'c', 'd']))
+    reporter.onBegin(config(), fakeSuite(['a', 'b', 'c', 'd']))
     reporter.onTestEnd(fakeTest({ id: 'a' }), fakeResult('passed', [1, 2]))
     reporter.onTestEnd(fakeTest({ id: 'b' }), fakeResult('passed', { a: 1 }))
     reporter.onTestEnd(fakeTest({ id: 'c' }), fakeResult('passed'))
@@ -213,7 +220,7 @@ describe('the reporter', () => {
       name: PLAYWRIGHT_DEPENDENCIES_ATTACHMENT,
       path,
     })
-    reporter.onBegin(undefined, fakeSuite(['t1']))
+    reporter.onBegin(config(), fakeSuite(['t1']))
     reporter.onTestEnd(fakeTest({ id: 't1' }), result)
     reporter.onEnd(finished('passed'))
     expect(written().observations[0]).toMatchObject({
@@ -224,7 +231,7 @@ describe('the reporter', () => {
 
   test('a skipped test is complete without evidence', () => {
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['t1']))
+    reporter.onBegin(config(), fakeSuite(['t1']))
     reporter.onTestEnd(fakeTest({ id: 't1' }), fakeResult('skipped'))
     reporter.onEnd(finished('passed'))
     expect(written().observations[0]).toMatchObject({
@@ -245,7 +252,7 @@ describe('the reporter', () => {
     'maps a %s attempt with ok()=%s to %s',
     (status, ok, expected) => {
       const reporter = new Reporter()
-      reporter.onBegin(undefined, fakeSuite(['t1']))
+      reporter.onBegin(config(), fakeSuite(['t1']))
       reporter.onTestEnd(fakeTest({ id: 't1', ok }), fakeResult(status, []))
       reporter.onEnd(finished('passed'))
       expect(written().observations[0]?.state).toBe(expected)
@@ -255,7 +262,7 @@ describe('the reporter', () => {
   test('with retries only the last attempt is recorded', () => {
     const reporter = new Reporter()
     const test1 = fakeTest({ id: 't1' })
-    reporter.onBegin(undefined, fakeSuite(['t1']))
+    reporter.onBegin(config(), fakeSuite(['t1']))
     reporter.onTestEnd(test1, fakeResult('failed', ['src/first.js'], 5))
     reporter.onTestEnd(test1, fakeResult('passed', ['src/second.js'], 9))
     reporter.onEnd(finished('passed'))
@@ -268,24 +275,36 @@ describe('the reporter', () => {
     ])
   })
 
+  test('says whether Playwright ran one shard', () => {
+    const reporter = new Reporter()
+    reporter.onBegin(config({ current: 2, total: 2 }), fakeSuite([]))
+    reporter.onEnd(finished('passed'))
+    expect(written().sharded).toBe(true)
+
+    reporter.onBegin(config(), fakeSuite([]))
+    reporter.onEnd(finished('passed'))
+    expect(written().sharded).toBe(false)
+  })
+
   test('writes the run status as Playwright reports it', () => {
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite([]))
+    reporter.onBegin(config(), fakeSuite([]))
     reporter.onEnd(finished('timedout'))
     expect(written().status).toBe('timedout')
   })
 
   test('a second run in the same process starts clean', () => {
     const reporter = new Reporter()
-    reporter.onBegin(undefined, fakeSuite(['t1']))
+    reporter.onBegin(config(), fakeSuite(['t1']))
     reporter.onTestEnd(fakeTest({ id: 't1' }), fakeResult('passed', []))
     reporter.onEnd(finished('passed'))
 
-    reporter.onBegin(undefined, fakeSuite(['t2']))
+    reporter.onBegin(config(), fakeSuite(['t2']))
     reporter.onEnd(finished('passed'))
     expect(written()).toEqual({
       configuredTestIds: ['t2'],
       observations: [],
+      sharded: false,
       status: 'passed',
     })
   })
@@ -297,7 +316,7 @@ describe('the reporter', () => {
     const result = fakeResult('passed', ['src/a.js', 'src/b.js'])
     const measured = await assertNoLeak(
       () => {
-        reporter.onBegin(undefined, fakeSuite(ids))
+        reporter.onBegin(config(), fakeSuite(ids))
         for (const subject of subjects) reporter.onTestEnd(subject, result)
         reporter.onEnd(finished('passed'))
       },

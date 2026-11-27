@@ -16,6 +16,29 @@ follow Semantic Versioning.
   adds with `addMedia`, and the helper flows it reaches, so a change to one
   selects only those flows. When any flow names a script or media file through a
   variable, scripts and media stay unlinked and a change runs every flow.
+- A run that leaves out a test tiacore selected no longer saves the graph. A
+  programmatic Vitest filter or `include`, or a Playwright `--shard` or
+  `--last-failed` run, could leave a selected test out. The commit then kept its
+  old result and moved the baseline past the change that selected it, so the
+  test was never selected again. Such a run now warns "TIA graph was not updated
+  because N selected tests reported no result; the next run selects them again"
+  with the missing tests' names. Two Vitest instances that split one selection
+  with disjoint `include` patterns therefore no longer save their halves.
+  `TiaCore.commit` returns `null` for such a commit unless the run declares the
+  test's file fully executed.
+
+### Fixed
+
+- The Playwright runner warns when it does not save the graph and adds the
+  reason to the run's notes. A sharded or `--last-failed` run no longer deletes
+  the cached results of tests in a spec that it ran only in part.
+- The Node runner drops a row removed from a data-driven `node:test` file whose
+  rows come from another module. The row's old result stayed in the graph and
+  was replayed, and with the change above every later run would refuse to save.
+  A file that runs cleanly without one of its selected cases now runs whole, so
+  its current cases are recorded and the removed one is dropped.
+- The Node and Bun runners and the TypeScript adapter warn with the reason when
+  a run does not save the graph, instead of only returning `graphSaved: false`.
 
 ## 2.1.1 - 2026-11-27
 

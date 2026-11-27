@@ -2,11 +2,17 @@ import { resolve } from 'node:path'
 
 import { byCodeUnit } from '../../core/canonical.ts'
 import type { CachedTestResult, RunPlan } from '../../core/runtime.ts'
-import { TiaCore, type TiaObservation } from '../../engine/core.ts'
+import type { TiaObservation } from '../../engine/core.ts'
+import { CoreRun } from '../../engine/core-run.ts'
+import {
+  skippedCommitMessage,
+  type CommitOutcome,
+} from '../../engine/lifecycle.ts'
 import {
   normalizeProtocolPath,
   normalizeProtocolPaths,
 } from '../../engine/plan/protocol.ts'
+import { runPromise } from '../../host/runtime.ts'
 import {
   TIA_TYPESCRIPT_ADAPTER_VERSION,
   type TiaAdapterCatalog,
@@ -181,27 +187,38 @@ function normalizeExecution(
 }
 
 /**
- * Whether every selected test has an observation. A baseline test (no longer
- * in the catalog) without one is accounted for when the adapter vouches that
- * every test its file currently contains ran: the test is gone, and the commit
- * removes it with the rest of that file's stale results.
+ * Why an execution cannot be committed: the adapter did not vouch for it, or
+ * it left a selected test without an observation. Null when it can. A baseline
+ * test (no longer in the catalog) without one is accounted for when the adapter
+ * vouches that every test its file currently contains ran: the test is gone,
+ * and the commit removes it with the rest of that file's stale results.
  */
-function completeSelection(
+function uncommittable(
+  name: string,
   selected: readonly TiaAdapterSelectedTest[],
   execution: TiaAdapterExecution,
-): boolean {
+): string | null {
+  if (!execution.complete) {
+    return `TIA graph was not updated because the ${name} adapter reported an incomplete execution.`
+  }
   const observed = new Set(
     execution.observations.map((observation) => observation.id),
   )
   const fullyExecuted = new Set(execution.fullyExecutedFiles ?? [])
-  return (
-    execution.complete &&
-    selected.every(
+  const missing = selected
+    .filter(
       (test) =>
-        observed.has(test.id) ||
-        (test.source === 'baseline' && fullyExecuted.has(test.file)),
+        !observed.has(test.id) &&
+        !(test.source === 'baseline' && fullyExecuted.has(test.file)),
     )
-  )
+    .map((test) => test.fullName)
+  return missing.length === 0
+    ? null
+    : skippedCommitMessage({ _tag: 'SelectionUnobserved', missing })
+}
+
+function skipWarning(outcome: CommitOutcome): string | null {
+  return outcome._tag === 'Committed' ? null : skippedCommitMessage(outcome)
 }
 
 /**
@@ -247,7 +264,7 @@ export class TiaAdapter<Metadata = unknown> {
     const testFiles = normalizeProtocolPaths(
       catalog.tests.map((test) => test.file),
     )
-    const core = new TiaCore({
+    const core = new CoreRun({
       ...(options.artifacts === undefined
         ? {}
         : { artifacts: options.artifacts }),
@@ -279,12 +296,13 @@ export class TiaAdapter<Metadata = unknown> {
       runner: this.definition.name,
       testFiles,
     })
-    const plan = await core.prepare()
+    const plan = await runPromise(core.prepare())
     const selected = selectedTests(plan, catalog.tests)
     const defaultWholeFiles =
       plan.mode === 'record' ? testFiles : plan.wholeTestFiles
 
-    if (options.log ?? true) {
+    const log = options.log ?? true
+    if (log) {
       console.log(
         `TIA ${this.definition.name}: ${plan.reason}; ${selected.length} selected, ${plan.replayedTests} replayed.`,
       )
@@ -301,14 +319,21 @@ export class TiaAdapter<Metadata = unknown> {
               wholeTestFiles: [...defaultWholeFiles],
             }),
           )
-    const complete = completeSelection(selected, execution)
     const wholeFiles = normalizeProtocolPaths([
       ...defaultWholeFiles,
       ...(execution.fullyExecutedFiles ?? []),
     ])
-    const graph = complete
-      ? await core.commit(execution.observations, wholeFiles)
-      : null
+    const refused = uncommittable(this.definition.name, selected, execution)
+    const outcome =
+      refused === null
+        ? await runPromise(
+            core.commitOutcome(execution.observations, wholeFiles),
+          )
+        : null
+    const warning = refused ?? (outcome === null ? null : skipWarning(outcome))
+    if (warning !== null && log) console.warn(warning)
+    const complete = refused === null
+    const graph = outcome?._tag === 'Committed' ? outcome.graph : null
     const success =
       complete &&
       execution.observations.every(

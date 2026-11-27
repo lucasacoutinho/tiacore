@@ -9,7 +9,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { tia } from '../../src/entries/bun.ts'
 import { initRepository } from '../support/runner-project.ts'
@@ -18,6 +18,7 @@ const hasBun = spawnSync('bun', ['--version']).status === 0
 const temporaryDirectories: string[] = []
 
 afterEach(() => {
+  vi.restoreAllMocks()
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true })
   }
@@ -71,6 +72,72 @@ describe('bun runner options', () => {
 })
 
 describe.skipIf(!hasBun)('bun runner with bun installed', () => {
+  test('says why it saved no graph', async () => {
+    const root = project({
+      'src/a.ts': 'export const a = 1\n',
+      'src/out.txt': 'initial\n',
+      'test/writes.test.ts': `import { writeFileSync } from 'node:fs'
+import { expect, test } from 'bun:test'
+import { a } from '../src/a'
+
+test('writes a tracked file', () => {
+  expect(a).toBe(1)
+  writeFileSync(new URL('../src/out.txt', import.meta.url), \`\${process.hrtime.bigint()}\\n\`)
+})
+`,
+    })
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await tia({ ...OPTIONS, log: true, root }).run()
+    expect(result.success).toBe(true)
+    expect(result.graphSaved).toBe(false)
+    expect(warn.mock.calls).toEqual([
+      [
+        'TIA graph was not updated because project files changed during the run. Changed: src/out.txt.',
+      ],
+    ])
+  })
+
+  // Bun cannot tell a removed case from a case that did not run: the run that
+  // selects it matches no test, a module failure of its file. That run fails
+  // but saves the graph, and the next run runs the file whole.
+  test('a data-driven file that loses a row fails once, then runs whole', async () => {
+    const root = project({
+      'src/rows.ts': "export const rows = ['a', 'b', 'c']\n",
+      'test/rows.test.ts': `import { test } from 'bun:test'
+import { rows } from '../src/rows'
+
+for (const row of rows) {
+  test(row, () => {})
+}
+`,
+    })
+    const runner = () => tia({ ...OPTIONS, root }).run()
+    expect((await runner()).graphSaved).toBe(true)
+
+    writeFileSync(join(root, 'src/rows.ts'), "export const rows = ['a', 'c']\n")
+    const removed = await runner()
+    expect(removed.plan.affectedTestIds).toHaveLength(3)
+    expect(removed.success).toBe(false)
+    expect(removed.graphSaved).toBe(true)
+    expect(
+      removed.executedTests.map((item) => [item.fullName, item.state]).sort(),
+    ).toEqual([
+      ['a', 'passed'],
+      ['c', 'passed'],
+      ['test/rows.test.ts (module failure)', 'failed'],
+    ])
+
+    const rerun = await runner()
+    expect(rerun.plan.wholeTestFiles).toEqual(['test/rows.test.ts'])
+    expect(rerun.success).toBe(true)
+    expect(rerun.graphSaved).toBe(true)
+    expect(rerun.executedTests.map((item) => item.fullName).sort()).toEqual([
+      'a',
+      'c',
+    ])
+  })
+
   test('records a genuinely failing test as a failed case with its coverage', async () => {
     const root = project({
       'src/a.ts': 'export const a = () => 1\n',

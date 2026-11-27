@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 import type {
+  FullConfig,
   FullResult,
   Reporter,
   Suite,
@@ -61,9 +62,11 @@ function observationState(
 export default class TiaPlaywrightReporter implements Reporter {
   private configuredTestIds: string[] = []
   private readonly observations = new Map<string, PlaywrightObservation>()
+  private sharded = false
 
-  onBegin(_config: unknown, suite: Suite): void {
+  onBegin(config: FullConfig, suite: Suite): void {
     this.observations.clear()
+    this.sharded = config.shard !== null
     this.configuredTestIds = suite
       .allTests()
       .map((test) => test.id)
@@ -92,14 +95,16 @@ export default class TiaPlaywrightReporter implements Reporter {
   onEnd(result: FullResult): void {
     const target = process.env[PLAYWRIGHT_SESSION_ENV]
     const observations = [...this.observations.values()]
-    const configuredTestIds = this.configuredTestIds
+    const { configuredTestIds, sharded } = this
     this.observations.clear()
     this.configuredTestIds = []
+    this.sharded = false
     if (target === undefined) return
 
     const report: PlaywrightRunReport = {
       configuredTestIds,
       observations,
+      sharded,
       status: result.status,
     }
     const temporary = `${target}.${process.pid}.tmp`

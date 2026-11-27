@@ -38,6 +38,19 @@ const PLAIN_SPEC = `import { test } from '@playwright/test'
 test('uses the plain test', async () => {})
 `
 
+const TRIO_SPEC = `import { appendFileSync } from 'node:fs'
+
+import { expect, test } from './fixture'
+
+for (const name of ['t1', 't2', 't3']) {
+  test(name, async ({ page }) => {
+    appendFileSync('executions.log', \`\${name}\\n\`)
+    await page.goto('/')
+    await expect(page.locator('#shared')).toHaveText('shared ready')
+  })
+}
+`
+
 function executions(root: string): string[] {
   const path = join(root, 'executions.log')
   return existsSync(path)
@@ -180,6 +193,62 @@ describe.skipIf(!installed)('Playwright adapter', () => {
     expect(run.output).toContain('TIA replay: 0 affected files, 1 cached test.')
     expect(executions(root)).toEqual([])
   }, 120_000)
+
+  // Playwright shards the specs tiacore selected, so the shard that selected a
+  // test can leave it to another shard. Saving that run would keep the test's
+  // old result, or drop the test, and the next run would not select it.
+  test('a shard that runs none of the specs it selected leaves the graph for the next run', async () => {
+    const root = fixtureProject('playwright-runtime')
+    const shard = ['--shard', '2/2']
+    expect(runTia(root, shard).status).toBe(0)
+    // The second shard of the two specs is shared.spec.ts.
+    expect(executions(root)).toEqual(['shared'])
+
+    reset(root)
+    appendFileSync(join(root, 'src/shared.js'), '\n// revision two\n')
+    const replay = runTia(root, shard)
+    expect(replay.status, replay.output).toBe(0)
+    // The one selected spec is the first shard of a one-spec list.
+    expect(executions(root)).toEqual([])
+    expect(replay.output).toContain(
+      'TIA graph was not updated because 1 selected test reported no result; the next run selects it again. Missing: shared.spec.ts › renders the shared application shell.',
+    )
+
+    const next = runTia(root, shard)
+    expect(next.output).toContain(
+      'TIA replay: 1 affected file, 0 cached tests.',
+    )
+  }, 180_000)
+
+  test('a fully parallel shard keeps a selected test that another shard ran', async () => {
+    const root = fixtureProject('playwright-runtime')
+    rmSync(join(root, 'test/shared.spec.ts'))
+    writeFileSync(join(root, 'test/trio.spec.ts'), TRIO_SPEC)
+    const config = join(root, 'playwright.config.ts')
+    writeFileSync(
+      config,
+      readFileSync(config, 'utf8').replace(
+        'workers: 2,',
+        'workers: 2,\n  fullyParallel: true,',
+      ),
+    )
+    const shard = ['--shard', '2/2']
+    expect(runTia(root, shard).status).toBe(0)
+    expect(executions(root)).toEqual(['t2', 't3'])
+
+    reset(root)
+    appendFileSync(join(root, 'src/shared.js'), '\n// revision two\n')
+    const replay = runTia(root, shard)
+    expect(replay.status, replay.output).toBe(0)
+    // Resharded, trio.spec.ts gives t1 and t2 to the first shard.
+    expect(executions(root)).toEqual(['t3'])
+    expect(replay.output).toContain('Missing: trio.spec.ts › t2.')
+    expect(
+      Object.values((await storedGraph(root))?.results ?? {})
+        .map((result) => result.fullName)
+        .sort(),
+    ).toEqual(['trio.spec.ts › t2', 'trio.spec.ts › t3'])
+  }, 180_000)
 
   test('run arguments belong to the graph fingerprint', () => {
     const root = fixtureProject('playwright-runtime')

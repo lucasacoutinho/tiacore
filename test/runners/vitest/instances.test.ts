@@ -146,30 +146,26 @@ describe('Vitest instances in one process', () => {
     async () => {
       const root = instancesProject()
 
+      // Both run the whole selection; whichever commits second merges its
+      // graph onto the one the first committed.
       const { output, waves } = drive(root, [
         { phase: 'one' },
         { wave: [{}] },
         { phase: 'two' },
         { append: 'src/a.ts' },
         { append: 'src/b.ts' },
-        {
-          concurrent: true,
-          wave: [
-            { include: ['test/a.test.ts'] },
-            { include: ['test/b.test.ts'] },
-          ],
-        },
+        { concurrent: true, wave: [{}, {}] },
       ])
 
       expect(waves[1]).toEqual({
-        executions: ['a', 'b'],
+        executions: ['a', 'a', 'b', 'b'],
         instances: [
           { failed: 0, reporters: 1 },
           { failed: 0, reporters: 1 },
         ],
       })
       expect(output).not.toContain('TIA graph was not updated')
-      // Neither update was lost: each test's new dependency is stored.
+      // Each test's new dependency is stored.
       const graph = await readGraph(root)
       const dependencies = (testFile: string): string[] =>
         Object.values(graph.testEdges)
@@ -179,6 +175,34 @@ describe('Vitest instances in one process', () => {
       expect(dependencies('test/a.test.ts')).not.toContain('src/a.ts')
       expect(dependencies('test/b.test.ts')).toContain('src/d.ts')
       expect(dependencies('test/b.test.ts')).not.toContain('src/b.ts')
+    },
+  )
+
+  test(
+    'an instance whose include leaves out an affected test leaves the graph for the next run',
+    { timeout: 120_000 },
+    async () => {
+      const root = instancesProject()
+
+      const { output, waves } = drive(root, [
+        { phase: 'one' },
+        { wave: [{}] },
+        { append: 'src/a.ts' },
+        { append: 'src/b.ts' },
+        { wave: [{ include: ['test/a.test.ts'] }] },
+        { wave: [{}] },
+      ])
+
+      // Committing the filtered run would keep b's old result under the new
+      // baseline, and the last instance would not run b.
+      expect(waves.map((wave) => wave.executions)).toEqual([
+        ['a', 'b'],
+        ['a'],
+        ['a', 'b'],
+      ])
+      expect(output).toContain(
+        'TIA graph was not updated because 1 selected test reported no result; the next run selects it again. Missing: b.',
+      )
     },
   )
 

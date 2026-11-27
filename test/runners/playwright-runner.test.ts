@@ -12,6 +12,7 @@ import { runExit } from '../../src/host/runtime.ts'
 import {
   MAX_FILTER_CHARACTERS,
   cachedTestCount,
+  fullyExecutedSpecs,
   planFilters,
   run,
   runnerFingerprint,
@@ -178,6 +179,7 @@ const report = (overrides: Partial<PlaywrightRunReport> = {}) => ({
       state: 'passed' as const,
     },
   ],
+  sharded: false,
   status: 'passed' as const,
   ...overrides,
 })
@@ -225,6 +227,37 @@ describe('cached test count', () => {
       cachedTestCount(plan({ graph: graph(results), mode: 'record' })),
     ).toBe(0)
     expect(cachedTestCount(plan({ graph: graph(results) }))).toBe(2)
+  })
+})
+
+const observed = (file: string, id: string) => ({
+  dependenciesComplete: true,
+  file,
+  files: [],
+  fullName: id,
+  id: `playwright:${id}`,
+  state: 'passed' as const,
+})
+
+describe('fully executed specs', () => {
+  const twoSpecs = report({
+    configuredTestIds: ['b1', 'a1', 'a2'],
+    observations: [
+      observed('b.spec.ts', 'b1'),
+      observed('a.spec.ts', 'a1'),
+      observed('a.spec.ts', 'a2'),
+    ],
+  })
+
+  test('are the specs that reported a test, once each', () => {
+    expect(fullyExecutedSpecs(twoSpecs, [])).toEqual(['a.spec.ts', 'b.spec.ts'])
+  })
+
+  // A test of the spec ran on another shard, or passed last time; dropping its
+  // cached result would also stop the next run from selecting it.
+  test('are none when the run can split a spec', () => {
+    expect(fullyExecutedSpecs({ ...twoSpecs, sharded: true }, [])).toEqual([])
+    expect(fullyExecutedSpecs(twoSpecs, ['--last-failed'])).toEqual([])
   })
 })
 
@@ -297,6 +330,9 @@ describe('session report', () => {
         path,
         JSON.stringify(report({ status: 'exploded' as 'failed' })),
       )
+      expect(readReport(path)).toBeNull()
+      const { sharded: _sharded, ...unsharded } = report()
+      writeFileSync(path, JSON.stringify(unsharded))
       expect(readReport(path)).toBeNull()
     } finally {
       rmSync(directory, { force: true, recursive: true })

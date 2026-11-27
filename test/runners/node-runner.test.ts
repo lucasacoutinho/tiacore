@@ -26,6 +26,7 @@ import { initRepository } from '../support/runner-project.ts'
 const temporaryDirectories: string[] = []
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllEnvs()
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true })
@@ -272,6 +273,142 @@ test('never reached', () => {})
         observation.state,
       ]),
     ).toEqual([['good case', 'failed']])
+  })
+})
+
+const ROWS_TEST = `import test from 'node:test'
+import { rows } from '../src/rows.mjs'
+
+for (const row of rows) {
+  test(row, () => {})
+}
+`
+
+function fullNames(tests: ReadonlyArray<{ readonly fullName: string }>) {
+  return tests.map((item) => item.fullName).sort()
+}
+
+/**
+ * Records rows a, b and c of a data-driven file, then removes b from the
+ * module the rows come from. That change selects every recorded case, b
+ * included, and the file no longer has b. Returns what each run did.
+ */
+async function removeARow() {
+  const root = project({
+    'src/rows.mjs': "export const rows = ['a', 'b', 'c']\n",
+    'test/rows.test.mjs': ROWS_TEST,
+  })
+  const run = async () => {
+    const result = await tia({
+      files: ['test/**/*.test.mjs'],
+      log: false,
+      root,
+    }).run()
+    return {
+      affected: result.plan.affectedTestIds.length,
+      executed: fullNames(result.executedTests),
+      graph: fullNames(Object.values(result.plan.graph?.results ?? {})),
+      saved: result.graphSaved,
+      success: result.success,
+      whole: result.plan.wholeTestFiles,
+    }
+  }
+  const recorded = await run()
+  writeFileSync(join(root, 'src/rows.mjs'), "export const rows = ['a', 'c']\n")
+  const removed = await run()
+  const unchanged = await run()
+  writeFileSync(
+    join(root, 'src/rows.mjs'),
+    "export const rows = ['a', 'c'] // changed\n",
+  )
+  const changed = await run()
+  return { changed, recorded, removed, unchanged }
+}
+
+const ROW_REMOVED = {
+  // The next dependency change selects only the rows that are left.
+  changed: {
+    affected: 2,
+    executed: ['a', 'c'],
+    graph: ['a', 'c'],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+  recorded: {
+    affected: 0,
+    executed: ['a', 'b', 'c'],
+    graph: [],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+  // b is selected as a case, not through a whole-file fallback; the run
+  // observes a and c once each and saves a graph without b.
+  removed: {
+    affected: 3,
+    executed: ['a', 'c'],
+    graph: ['a', 'b', 'c'],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+  unchanged: {
+    affected: 0,
+    executed: [],
+    graph: ['a', 'c'],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+}
+
+describe('a data-driven node:test file that loses a row', () => {
+  test.skipIf(!nodeDiscoveryHooksSupported())(
+    'with discovery hooks, runs the file whole and drops the row',
+    async () => {
+      expect(await removeARow()).toEqual(ROW_REMOVED)
+    },
+    30_000,
+  )
+
+  test('without discovery hooks, drops the row from the whole-file run', async () => {
+    vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
+    expect(await removeARow()).toEqual(ROW_REMOVED)
+  }, 30_000)
+})
+
+describe('node runner commits', () => {
+  test('says why it saved no graph', async () => {
+    const root = project({
+      'src/out.txt': 'initial\n',
+      'test/writes.test.mjs': `import { writeFileSync } from 'node:fs'
+import test from 'node:test'
+
+test('writes a tracked file', () => {
+  writeFileSync(new URL('../src/out.txt', import.meta.url), \`\${process.hrtime.bigint()}\\n\`)
+})
+`,
+    })
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await tia({ files: ['test/**/*.test.mjs'], root }).run()
+    expect(result.success).toBe(true)
+    expect(result.graphSaved).toBe(false)
+    expect(warn.mock.calls).toEqual([
+      [
+        'TIA graph was not updated because project files changed during the run. Changed: src/out.txt.',
+      ],
+    ])
+
+    warn.mockClear()
+    const quiet = await tia({
+      files: ['test/**/*.test.mjs'],
+      log: false,
+      root,
+    }).run()
+    expect(quiet.graphSaved).toBe(false)
+    expect(warn).not.toHaveBeenCalled()
   })
 })
 

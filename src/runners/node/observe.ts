@@ -323,6 +323,10 @@ export const observeNodeFiles = Effect.fnUntraced(function* (
   return { complete: true, observations } satisfies FileObservations
 })
 
+/**
+ * Re-runs one cached case. Null when its file ran cleanly without it: the file
+ * no longer has that case.
+ */
 const observeCachedCase = Effect.fnUntraced(function* (
   context: NodeContext,
   cached: CachedTestResult,
@@ -361,13 +365,35 @@ const observeCachedCase = Effect.fnUntraced(function* (
       ),
     ]
   }
+  if (
+    !moduleFailure &&
+    execution.success &&
+    execution.moduleFailures.length === 0
+  ) {
+    return null
+  }
   return execution.moduleFailures.map(moduleFailureObservation)
 })
 
 /**
+ * Observes a test file as a whole-file fallback does, and declares it fully
+ * executed: every case it has now is observed, so its cached cases that it no
+ * longer has are dropped.
+ */
+const observeWholeFile = (context: NodeContext, file: string) =>
+  observeNodeFiles(context, [resolve(context.root, file)]).pipe(
+    Effect.map((observed): FileObservations => ({
+      ...observed,
+      fullyExecuted: [file],
+    })),
+  )
+
+/**
  * Re-runs affected cached cases, grouped by file: files in parallel, cases in
- * order. Without discovery hooks a fresh run cannot run cases alone, so this
- * runs each affected file whole too: both paths then record the same evidence.
+ * order. A file that ran cleanly without one of its cached cases no longer has
+ * it (a data-driven test lost a row), so that file runs whole instead. Without
+ * discovery hooks a fresh run cannot run cases alone, so this runs each
+ * affected file whole too: both paths then record the same evidence.
  */
 export const observeNodeCachedCases = Effect.fnUntraced(function* (
   context: NodeContext,
@@ -382,6 +408,7 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
     const observed = new Set(observations.map((item) => item.file))
     return {
       complete,
+      fullyExecuted: files,
       observations: [
         ...observations,
         ...files
@@ -392,19 +419,24 @@ export const observeNodeCachedCases = Effect.fnUntraced(function* (
   }
   const groups = groupBy(cached, (result) => result.file)
   const perFile = yield* Effect.forEach(
-    [...groups.values()],
-    (results) =>
+    [...groups],
+    ([file, results]) =>
       Effect.gen(function* () {
         const observations: TiaObservation[] = []
         for (const result of results) {
-          observations.push(...(yield* observeCachedCase(context, result)))
+          const observed = yield* observeCachedCase(context, result)
+          if (observed === null) return yield* observeWholeFile(context, file)
+          observations.push(...observed)
         }
-        return observations
+        return { complete: true, observations } satisfies FileObservations
       }),
     { concurrency: context.concurrency },
   )
   return {
-    complete: true,
-    observations: withSingleModuleFailures(perFile.flat()),
+    complete: perFile.every((batch) => batch.complete),
+    fullyExecuted: perFile.flatMap((batch) => batch.fullyExecuted ?? []),
+    observations: withSingleModuleFailures(
+      perFile.flatMap((batch) => batch.observations),
+    ),
   } satisfies FileObservations
 })

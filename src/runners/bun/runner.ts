@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 
-import { TiaCore } from '../../engine/core.ts'
+import { CoreRun } from '../../engine/core-run.ts'
 import { normalizedConcurrency } from '../../engine/scheduling.ts'
 import {
   relativeTestFiles,
@@ -30,7 +30,7 @@ export interface TiaBunRunnerOptions extends TiaRunnerOptions {
 
 class BunTiaRunner implements TiaRunner {
   private readonly context: BunContext
-  private readonly core: TiaCore
+  private readonly core: CoreRun
   private readonly files: string[]
   private readonly log: boolean
   private readonly root: string
@@ -47,7 +47,7 @@ class BunTiaRunner implements TiaRunner {
       root: this.root,
     }
     const { binary: _binary, ...coreOptions } = options
-    this.core = new TiaCore({
+    this.core = new CoreRun({
       ...coreOptions,
       files: options.files ?? DEFAULT_BUN_TESTS,
       root: this.root,

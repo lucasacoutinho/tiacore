@@ -3,7 +3,9 @@ import { resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import type * as FileSystem from 'effect/FileSystem'
+import * as Match from 'effect/Match'
 
+import { sortByKey } from '../core/canonical.ts'
 import type {
   Baseline,
   RunPlan,
@@ -240,16 +242,82 @@ export type CommitSkipped =
   | { readonly _tag: 'FingerprintChanged' }
   | { readonly _tag: 'BaselineUnavailable' }
   | { readonly _tag: 'FilesChanged'; readonly changed: readonly string[] }
+  | {
+      readonly _tag: 'SelectionUnobserved'
+      /** Full names of the selected tests that reported no result, in id order. */
+      readonly missing: readonly string[]
+    }
   | { readonly _tag: 'Conflict' }
 
 export type CommitOutcome =
   | { readonly _tag: 'Committed'; readonly graph: TiaRuntimeGraph }
   | CommitSkipped
 
+function listed(items: readonly string[]): string {
+  return `${items.slice(0, 10).join(', ')}${items.length > 10 ? ', …' : ''}`
+}
+
+/** The warning for a commit that left the stored graph untouched. */
+export function skippedCommitMessage(skipped: CommitSkipped): string {
+  return Match.valueTags(skipped, {
+    BaselineUnavailable: () =>
+      'TIA graph was not updated because the Git baseline is unavailable.',
+    Conflict: () =>
+      'TIA graph was not updated because another process committed a conflicting graph.',
+    FilesChanged: ({ changed }) =>
+      `TIA graph was not updated because project files changed during the run.${
+        changed.length === 0 ? '' : ` Changed: ${listed(changed)}.`
+      }`,
+    FingerprintChanged: () =>
+      'TIA graph was not updated because project structure changed during the run.',
+    SelectionUnobserved: ({ missing }) =>
+      `TIA graph was not updated because ${missing.length} selected test${
+        missing.length === 1 ? '' : 's'
+      } reported no result; the next run selects ${
+        missing.length === 1 ? 'it' : 'them'
+      } again. Missing: ${listed(missing)}.`,
+  })
+}
+
 /**
- * Commits what a run observed, unless the project changed underneath it or
- * another writer committed an incompatible graph: its observations then no
- * longer describe the files the next run will see.
+ * The selected tests whose cached result a commit would keep although they
+ * reported no result: affected cases, and cases of whole-file fallbacks, in
+ * files the run does not declare fully executed. A filter or a shard can leave
+ * such a test out of the run. Its old result would then stand for the new
+ * baseline, and the next run would not select it again. In a fully executed
+ * file the update drops the result instead, as for a test that no longer
+ * exists.
+ */
+function unobservedSelection(
+  plan: RunPlan,
+  update: CommitRunInput['update'],
+): string[] {
+  if (
+    plan.mode !== 'replay' ||
+    plan.graph === null ||
+    (plan.affectedTestIds.length === 0 && plan.wholeTestFiles.length === 0)
+  ) {
+    return []
+  }
+  const affected = new Set(plan.affectedTestIds)
+  const wholeFiles = new Set(plan.wholeTestFiles)
+  const fullyExecuted = new Set(update.fullyExecutedFiles)
+  return sortByKey(
+    Object.values(plan.graph.results).filter(
+      (result) =>
+        (affected.has(result.id) || wholeFiles.has(result.file)) &&
+        !update.results.has(result.id) &&
+        !fullyExecuted.has(result.file),
+    ),
+    (result) => result.id,
+  ).map((result) => result.fullName)
+}
+
+/**
+ * Commits what a run observed, unless the project changed underneath it,
+ * another writer committed an incompatible graph, or a selected test reported
+ * no result: the observations then no longer describe the files the next run
+ * will see, or the commit would keep a stale result as current.
  */
 export const commitRun = Effect.fn('tia.commit')(function* (
   input: CommitRunInput,
@@ -280,6 +348,8 @@ export const commitRun = Effect.fn('tia.commit')(function* (
   }
 
   const { plan } = run
+  const missing = unobservedSelection(plan, input.update)
+  if (missing.length > 0) return { _tag: 'SelectionUnobserved', missing }
   const graph = yield* updateGraph({
     ...input.update,
     header: {
