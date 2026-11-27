@@ -76,12 +76,15 @@ The execution callback receives only the selected tests. A test sourced from
 adapter should attempt it using the supplied ID, file, and name so a stale or
 failed case cannot disappear silently.
 
-Every selected test needs one observation. `files` is the runtime dependency set
-reached by that test. Set `complete` only when discovery and the native runner
-finished without losing results. Declare a file in `fullyExecutedFiles` only
-when every test it currently contains ran. Missing observations, duplicate IDs,
-invalid paths, or incomplete execution prevent graph commit. Failed observations
-are committed so they are forced to rerun next time.
+Every selected test needs one observation, except a `baseline` test whose file
+the run declares in `fullyExecutedFiles`: that test no longer exists, and the
+commit removes its stale result. `files` is the runtime dependency set reached
+by that test. Set `complete` only when discovery and the native runner finished
+without losing results. Declare a file in `fullyExecutedFiles` only when every
+test it currently contains ran; otherwise a removed test's earlier failure could
+disappear. Missing observations, duplicate IDs, invalid paths, or incomplete
+execution prevent graph commit. Failed observations are committed so they are
+forced to rerun next time.
 
 The adapter owns native workers, filters, retries, and process management. TIA
 owns baseline comparison, conservative fallback, cached failures, artifact

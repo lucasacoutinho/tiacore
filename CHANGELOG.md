@@ -5,6 +5,18 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Changed
+
+- Custom adapters: a test removed from the catalog no longer blocks every later
+  commit when the run declares its file in `fullyExecutedFiles`; the commit
+  removes its stale result.
+- Gradle: `src/testFixtures` sources are known sources, so a change there
+  selects the tests that use it instead of running every test.
+- Maestro: a flow depends on the scripts it runs with `runScript`, the media it
+  adds with `addMedia`, and the helper flows it reaches, so a change to one
+  selects only those flows. When any flow names a script or media file through a
+  variable, scripts and media stay unlinked and a change runs every flow.
+
 ## 2.1.1 - 2026-11-27
 
 ### Fixed
