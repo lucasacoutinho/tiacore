@@ -81,10 +81,16 @@ const executeBun = (
       })
       const report = yield* fs.readFileString(junitPath)
       const cases = yield* Effect.try(() => parseBunJunit(context.root, report))
+      // Bun omits lcov.info when a test file imports no project source files.
       const coverageFiles = coverage
         ? parseBunLcov(
             context.root,
-            yield* fs.readFileString(join(temporary, 'lcov.info')),
+            yield* fs.readFileString(join(temporary, 'lcov.info')).pipe(
+              Effect.catchIf(
+                (error) => error.reason._tag === 'NotFound',
+                () => Effect.succeed(''),
+              ),
+            ),
           )
         : []
       return {
@@ -107,9 +113,11 @@ const executeBun = (
  * What a run that selected one case shows about it. Only the case's own entry
  * counts: Bun lists every case the pattern left out as skipped, and a run that
  * selects nothing still exits 0 when the file has a describe.skip or
- * describe.todo group. A passed or skipped entry counts only from a clean run.
- * Anything else (the file did not load, the run failed outside the case, the
- * case never ran) is a module failure, so the file runs whole next time.
+ * describe.todo group. Because skipped/todo cases look identical in JUnit XML
+ * to unmatched cases, they stay fail-closed as module failures. A passed entry
+ * counts only from a clean run. Anything else (the file did not load, the run
+ * failed outside the case, the case never ran) is a module failure, so the
+ * file runs whole next time.
  */
 function selectedCaseObservation(
   execution: BunExecution,
@@ -118,7 +126,7 @@ function selectedCaseObservation(
   const result = execution.cases.find((item) => item.id === selected.id)
   if (
     result === undefined ||
-    result.describes !== undefined ||
+    result.state === 'skipped' ||
     (!execution.success && result.state !== 'failed')
   ) {
     return moduleFailureObservation(selected.file)
@@ -130,11 +138,6 @@ const observeCandidate = Effect.fnUntraced(function* (
   context: BunContext,
   candidate: BunCase,
 ) {
-  // Bun matches the pattern against "<describe> <name>" but reports only the
-  // name, so a case inside describe cannot be selected on its own.
-  if (candidate.describes !== undefined) {
-    return moduleFailureObservation(candidate.file)
-  }
   const execution = yield* executeBun(
     context,
     [resolve(context.root, candidate.file)],

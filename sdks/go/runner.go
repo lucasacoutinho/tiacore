@@ -161,10 +161,36 @@ func goEnvironmentFingerprint(ctx context.Context, options Options, root string)
 	_, _ = hash.Write(output)
 	environment := commandEnvironment(options.Environment)
 	sort.Strings(environment)
+	var allow map[string]struct{}
+	if len(options.EnvironmentAllowlist) > 0 {
+		allow = make(map[string]struct{}, len(options.EnvironmentAllowlist))
+		sortedAllow := make([]string, 0, len(options.EnvironmentAllowlist))
+		for _, name := range options.EnvironmentAllowlist {
+			if name == "" {
+				continue
+			}
+			if _, seen := allow[name]; !seen {
+				allow[name] = struct{}{}
+				sortedAllow = append(sortedAllow, name)
+			}
+		}
+		sort.Strings(sortedAllow)
+		_, _ = hash.Write([]byte("allowlist\x00"))
+		for _, name := range sortedAllow {
+			_, _ = hash.Write([]byte(name))
+			_, _ = hash.Write([]byte{0})
+		}
+	}
 	for _, value := range environment {
 		name, _, _ := strings.Cut(value, "=")
-		if name == "TIA_FRESH" || name == "PWD" || name == "OLDPWD" || name == "SHLVL" || name == "_" ||
-			name == verificationDirectoryEnv || name == verificationPhaseEnv {
+		if name == "TIA_FRESH" || name == verificationDirectoryEnv || name == verificationPhaseEnv {
+			continue
+		}
+		if allow != nil {
+			if _, ok := allow[name]; !ok {
+				continue
+			}
+		} else if name == "PWD" || name == "OLDPWD" || name == "SHLVL" || name == "_" {
 			continue
 		}
 		_, _ = hash.Write([]byte(value))

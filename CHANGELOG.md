@@ -5,6 +5,42 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.3.0 - 2026-11-27
+
+### Added
+
+- Go SDK: added opt-in `Options.EnvironmentAllowlist` and the repeatable
+  `-env-allow` flag on `tiacore-go`, so CI pipelines with dynamic per-job
+  variables can hash only named process variables alongside Go's build
+  environment.
+- `tiacore doctor` warns when the working directory is reached through a
+  symbolic link while using Vitest with Vite 6 or 7, where Vite drops source
+  dependencies.
+
+### Changed
+
+- Go SDK: moved the Go module path in `go.mod` to
+  `github.com/lucasacoutinho/tiacore/v2` so Go tooling can install tagged `v2`
+  releases directly instead of pinning commit SHAs.
+- Bun: tests inside nested `describe(...)` blocks are now recorded, selected,
+  and replayed individually by their full describe path, and pure test files
+  that import no project source no longer fail on a missing `lcov.info`. Skipped
+  and todo cases stay fail-closed as module failures. Existing Bun caches
+  re-record once.
+- Gradle: `**/gradle/*.versions.toml` and `**/buildSrc/**` are now explicit
+  invalidators, so version catalog and build-logic edits trigger a full run even
+  with `onUnknownChange: 'ignore'`.
+- Evidence: `TiaEvidence.collect()` and `collectChecked()` now normalize stored
+  paths and drop paths outside the project root, matching `record()`.
+
+### Fixed
+
+- Playwright: a cold run with `--shard`, `--last-failed`, or `--only-changed`
+  and no existing baseline no longer saves a partial graph.
+- Git change detection passes `--ignore-submodules=none`, so submodule edits and
+  untracked submodule files are detected even when git configures
+  `diff.ignoreSubmodules`.
+
 ## 2.2.0 - 2026-11-27
 
 ### Changed

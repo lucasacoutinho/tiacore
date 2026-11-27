@@ -390,18 +390,25 @@ describe('collecting', () => {
     expect(files).toContain('f9999.ts')
   })
 
-  test('returns stored file strings without containment checks', async () => {
-    const evidence = new TiaEvidence({ root: project() })
+  test('normalizes stored file paths and drops paths outside the root', async () => {
+    const root = project()
+    const evidence = new TiaEvidence({ root })
     seed(
       evidence,
       'raw',
       '1.json',
-      valid('raw', ['../../etc/passwd', '/abs.ts']),
+      valid('raw', [
+        '../../etc/passwd',
+        '/abs.ts',
+        '.',
+        './src/a.ts',
+        join(root, 'src/b.ts'),
+      ]),
     )
-    await expect(evidence.collect('raw')).resolves.toEqual([
-      '../../etc/passwd',
-      '/abs.ts',
-    ])
+    await expect(evidence.collectChecked('raw')).resolves.toEqual({
+      complete: true,
+      files: ['src/a.ts', 'src/b.ts'],
+    })
   })
 
   test('removes the directory when asked', async () => {

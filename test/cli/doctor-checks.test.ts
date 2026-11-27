@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -293,6 +294,60 @@ describe('selfCheck', () => {
     expect(checks.find((check) => check.id === 'node')?.title).toBe(
       'Node.js compatibility',
     )
+  })
+
+  test('warns when cwd is a symlink under Vite 6 or 7 with Vitest installed, and stays quiet on Vite 8', async () => {
+    const host = scratch()
+    const real = join(host, 'real')
+    const link = join(host, 'link')
+    mkdirSync(join(real, 'node_modules/vitest'), { recursive: true })
+    mkdirSync(join(real, 'node_modules/vite'), { recursive: true })
+    writeFileSync(
+      join(real, 'node_modules/vitest/package.json'),
+      JSON.stringify({ name: 'vitest', version: '4.1.0' }),
+    )
+    writeFileSync(
+      join(real, 'node_modules/vite/package.json'),
+      JSON.stringify({ name: 'vite', version: '7.1.0' }),
+    )
+    symlinkSync(real, link, 'dir')
+
+    const warned = await run(
+      selfCheck({
+        bunVersion: undefined,
+        cacheDir: '.tia',
+        cwd: link,
+        env: {},
+        nodeVersion: 'v26.3.0',
+      }),
+    )
+    expect(warned.find((check) => check.id === 'vitest-symlink-root')).toEqual({
+      detail: expect.stringContaining('Vite 6 and 7 drop source dependencies'),
+      id: 'vitest-symlink-root',
+      status: 'warn',
+      title: 'Vitest symlinked root',
+    })
+
+    writeFileSync(
+      join(real, 'node_modules/vitest/package.json'),
+      JSON.stringify({ name: 'vitest', version: '5.1.1' }),
+    )
+    writeFileSync(
+      join(real, 'node_modules/vite/package.json'),
+      JSON.stringify({ name: 'vite', version: '8.3.8' }),
+    )
+    const modern = await run(
+      selfCheck({
+        bunVersion: undefined,
+        cacheDir: '.tia',
+        cwd: link,
+        env: {},
+        nodeVersion: 'v26.3.0',
+      }),
+    )
+    expect(
+      modern.find((check) => check.id === 'vitest-symlink-root'),
+    ).toBeUndefined()
   })
 })
 

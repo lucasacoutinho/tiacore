@@ -308,8 +308,66 @@ afterAll(() => {
     ])
   })
 
-  // A documented limitation, kept fail-closed.
-  test('cases inside describe, and skip or todo cases, stay file-level module failures', async () => {
+  test('records and replays cases inside nested describe blocks individually', async () => {
+    const root = project({
+      'src/a.ts': 'export const a = () => 1\n',
+      'src/b.ts': 'export const b = () => 2\n',
+      'test/grouped.test.ts': `import { describe, expect, test } from 'bun:test'
+
+describe('outer', () => {
+  describe('inner [1]', () => {
+    test('uses a', async () => {
+      const { a } = await import('../src/a')
+      expect(a()).toBe(1)
+    })
+    test('uses b', async () => {
+      const { b } = await import('../src/b')
+      expect(b()).toBe(2)
+    })
+  })
+})
+`,
+    })
+    const recorded = await tia({ ...OPTIONS, root }).run()
+    expect(recorded.success).toBe(true)
+    expect(recorded.graphSaved).toBe(true)
+    expect(
+      recorded.executedTests.map((item) => [item.fullName, item.state]).sort(),
+    ).toEqual([
+      ['outer inner [1] uses a', 'passed'],
+      ['outer inner [1] uses b', 'passed'],
+    ])
+
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = () => 1 + 0\n')
+    const replayed = await tia({ ...OPTIONS, root }).run()
+    expect(replayed.plan.mode).toBe('replay')
+    expect(
+      replayed.executedTests.map((item) => [item.fullName, item.state]),
+    ).toEqual([['outer inner [1] uses a', 'passed']])
+    expect(replayed.success).toBe(true)
+    expect(replayed.graphSaved).toBe(true)
+  })
+
+  test('records a pure test file that imports no project source without failing on missing lcov', async () => {
+    const root = project({
+      'test/pure.test.ts': `import { expect, test } from 'bun:test'
+
+test('pure math', () => {
+  expect(1 + 1).toBe(2)
+})
+`,
+    })
+    const result = await tia({ ...OPTIONS, root }).run()
+    expect(result.success).toBe(true)
+    expect(result.graphSaved).toBe(true)
+    expect(
+      result.executedTests.map((item) => [item.fullName, item.state]),
+    ).toEqual([['pure math', 'passed']])
+  })
+
+  // Skipped and todo cases cannot be distinguished in Bun's JUnit output from
+  // cases excluded by a name filter, so they stay fail-closed.
+  test('skip and todo cases stay file-level module failures while describe cases pass', async () => {
     const root = project({
       'src/a.ts': 'export const a = () => 1\n',
       'test/mixed.test.ts': `import { describe, test } from 'bun:test'
@@ -319,7 +377,9 @@ test('top level', () => {
   a()
 })
 describe('group', () => {
-  test('inside describe', () => {})
+  test('inside describe', () => {
+    a()
+  })
 })
 test.skip('skipped', () => {})
 test.todo('todo')
@@ -330,6 +390,11 @@ test.todo('todo')
     expect(ids).toContain('module:test/mixed.test.ts')
     expect(
       result.executedTests.find((item) => item.fullName === 'top level'),
+    ).toMatchObject({ state: 'passed' })
+    expect(
+      result.executedTests.find(
+        (item) => item.fullName === 'group inside describe',
+      ),
     ).toMatchObject({ state: 'passed' })
     expect(result.success).toBe(false)
     expect(result.graphSaved).toBe(true)

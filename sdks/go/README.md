@@ -5,10 +5,10 @@ granularity. It asks the Go toolchain for the real package and test inventory,
 follows transitive local imports, and passes the affected packages back to
 `go test`.
 
-Install or run it from an exact reviewed revision:
+Install or run it from a released v2 tag or exact reviewed revision:
 
 ```sh
-go run github.com/lucasacoutinho/tiacore/sdks/go/cmd/tiacore-go@<exact-commit> \
+go run github.com/lucasacoutinho/tiacore/v2/sdks/go/cmd/tiacore-go@v2.3.0 \
   -- -timeout=30m
 ```
 
@@ -27,7 +27,10 @@ coverage reconstruction.
 The environment fingerprint includes Go's build environment, forwarded test
 arguments, and process environment values. Shell bookkeeping (`PWD`, `OLDPWD`,
 `SHLVL`, and `_`) is excluded because the explicit project root already owns
-path identity and those values change without changing test behavior.
+path identity and those values change without changing test behavior. On CI
+systems that inject per-run environment variables, set
+`Options.EnvironmentAllowlist` (or repeatable `-env-allow` flags) to hash only
+named process variables in addition to Go's build environment.
 
 Without `-project`, suites belong to the main module's path; in a `go.work`
 workspace with several main modules, to the module of the first discovered

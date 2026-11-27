@@ -194,60 +194,77 @@ describe.skipIf(!installed)('Playwright adapter', () => {
     expect(executions(root)).toEqual([])
   }, 120_000)
 
-  // Playwright shards the specs tiacore selected, so the shard that selected a
-  // test can leave it to another shard. Saving that run would keep the test's
-  // old result, or drop the test, and the next run would not select it.
-  test('a shard that runs none of the specs it selected leaves the graph for the next run', async () => {
+  // A cold --shard run with no existing baseline must not save a partial graph,
+  // and a sharded replay against an existing baseline must not drop or keep
+  // stale results for selected tests that another shard ran.
+  test('a cold shard run does not save a partial baseline', async () => {
     const root = fixtureProject('playwright-runtime')
-    const shard = ['--shard', '2/2']
-    expect(runTia(root, shard).status).toBe(0)
-    // The second shard of the two specs is shared.spec.ts.
+    const run = runTia(root, ['--shard', '2/2'])
+    expect(run.status, run.output).toBe(0)
     expect(executions(root)).toEqual(['shared'])
-
-    reset(root)
-    appendFileSync(join(root, 'src/shared.js'), '\n// revision two\n')
-    const replay = runTia(root, shard)
-    expect(replay.status, replay.output).toBe(0)
-    // The one selected spec is the first shard of a one-spec list.
-    expect(executions(root)).toEqual([])
-    expect(replay.output).toContain(
-      'TIA graph was not updated because 1 selected test reported no result; the next run selects it again. Missing: shared.spec.ts › renders the shared application shell.',
+    expect(run.output).toContain(
+      'TIA graph was not updated because Playwright ran a partial suite (--shard) without a baseline.',
     )
-
-    const next = runTia(root, shard)
-    expect(next.output).toContain(
-      'TIA replay: 1 affected file, 0 cached tests.',
-    )
+    expect(await storedGraph(root)).toBeNull()
   }, 180_000)
 
-  test('a fully parallel shard keeps a selected test that another shard ran', async () => {
+  test('a sharded replay that runs none of the specs it selected leaves the graph for the next run', async () => {
+    const root = fixtureProject('playwright-runtime')
+    const config = join(root, 'playwright.config.ts')
+    writeFileSync(
+      config,
+      readFileSync(config, 'utf8').replace(
+        'workers: 2,',
+        'workers: 2,\n  shard: process.env.PW_SHARD ? { current: 2, total: 2 } : null,',
+      ),
+    )
+    // Record a complete unsharded baseline first.
+    expect(runTia(root).status).toBe(0)
+
+    reset(root)
+    appendFileSync(join(root, 'src/lazy.js'), '\n// revision two\n')
+    const replay = runTia(root, [], { PW_SHARD: '1' })
+    expect(replay.status, replay.output).toBe(0)
+    // Only lazy.spec.ts is affected, so shard 2 of 2 runs zero specs.
+    expect(executions(root)).toEqual([])
+    expect(replay.output).toContain(
+      'TIA graph was not updated because 1 selected test reported no result; the next run selects it again. Missing: lazy.spec.ts › loads a dynamic browser module.',
+    )
+
+    const next = runTia(root, [], { PW_SHARD: '1' })
+    expect(next.output).toContain('TIA replay: 1 affected file, 1 cached test.')
+  }, 180_000)
+
+  test('a fully parallel sharded replay keeps selected tests that another shard ran', async () => {
     const root = fixtureProject('playwright-runtime')
     rmSync(join(root, 'test/shared.spec.ts'))
+    rmSync(join(root, 'test/lazy.spec.ts'))
     writeFileSync(join(root, 'test/trio.spec.ts'), TRIO_SPEC)
     const config = join(root, 'playwright.config.ts')
     writeFileSync(
       config,
       readFileSync(config, 'utf8').replace(
         'workers: 2,',
-        'workers: 2,\n  fullyParallel: true,',
+        'workers: 2,\n  fullyParallel: true,\n  shard: process.env.PW_SHARD ? { current: 2, total: 2 } : null,',
       ),
     )
-    const shard = ['--shard', '2/2']
-    expect(runTia(root, shard).status).toBe(0)
-    expect(executions(root)).toEqual(['t2', 't3'])
+    expect(runTia(root).status).toBe(0)
+    expect(executions(root)).toEqual(['t1', 't2', 't3'])
 
     reset(root)
     appendFileSync(join(root, 'src/shared.js'), '\n// revision two\n')
-    const replay = runTia(root, shard)
+    const replay = runTia(root, [], { PW_SHARD: '1' })
     expect(replay.status, replay.output).toBe(0)
-    // Resharded, trio.spec.ts gives t1 and t2 to the first shard.
+    // Resharded, trio.spec.ts gives t1 and t2 to shard 1 and only t3 to shard 2.
     expect(executions(root)).toEqual(['t3'])
-    expect(replay.output).toContain('Missing: trio.spec.ts › t2.')
+    expect(replay.output).toContain(
+      'Missing: trio.spec.ts › t1, trio.spec.ts › t2.',
+    )
     expect(
       Object.values((await storedGraph(root))?.results ?? {})
         .map((result) => result.fullName)
         .sort(),
-    ).toEqual(['trio.spec.ts › t2', 'trio.spec.ts › t3'])
+    ).toEqual(['trio.spec.ts › t1', 'trio.spec.ts › t2', 'trio.spec.ts › t3'])
   }, 180_000)
 
   test('run arguments belong to the graph fingerprint', () => {

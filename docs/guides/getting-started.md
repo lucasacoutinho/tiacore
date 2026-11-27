@@ -74,6 +74,11 @@ line that names the bypass, such as
 `tiacore: bypassed, native selection (--exclude) in use; graph not updated`, and
 leaves the graph unchanged. `log: false` hides the line.
 
+On Vitest 4.1 with Vite 6 or 7, running from a project root reached through a
+symbolic link drops source dependencies because Vite leaves `config.root` in the
+symlink spelling while module IDs use the real path. `tiacore doctor` warns when
+it sees that setup; run from the real path or upgrade to Vite 8 / Vitest 5.
+
 ### Testing with `@effect/vitest`
 
 The plugin needs no extra setup. Tiacore attributes coverage to the test whose

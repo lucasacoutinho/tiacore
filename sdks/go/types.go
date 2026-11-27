@@ -69,6 +69,11 @@ type Options struct {
 	Project                      string
 	TestArguments                []string
 	Environment                  map[string]string
+	// EnvironmentAllowlist restricts which process environment variables enter
+	// the cache fingerprint. When empty (the default), every variable except
+	// shell bookkeeping enters the fingerprint. Go's build environment (GOOS,
+	// GOARCH, CGO_ENABLED, GOVERSION, GOFLAGS, GOWORK) is always hashed.
+	EnvironmentAllowlist         []string
 	EnvironmentFingerprintSuffix string
 	ForceFull                    bool
 	// IgnoreChanges lists globs of changed files that never select a package.

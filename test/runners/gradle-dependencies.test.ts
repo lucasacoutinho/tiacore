@@ -228,13 +228,13 @@ describe('Gradle declarations', () => {
         changes: ['buildSrc/src/main/kotlin/Deps.kt'],
         currentEnvironmentFingerprint: 'env',
         graph,
+        onUnknownChange: 'ignore',
         project: 'app',
         root,
       }),
     ).toMatchObject({
       mode: 'full',
-      reason:
-        'changed file is unknown to the impact graph: buildSrc/src/main/kotlin/Deps.kt',
+      reason: 'Gradle build logic changed: buildSrc/src/main/kotlin/Deps.kt',
     })
   })
 })

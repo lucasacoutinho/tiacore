@@ -136,9 +136,15 @@ describe('bun observation of recorded files', () => {
     ])
   })
 
-  test('a same-named case at the top level does not stand in for a case inside describe', async () => {
-    // Bun matches the pattern against "g same", so ^same$ runs only line 2.
+  test('a same-named case at the top level and inside describe are selected independently', async () => {
     const bun = fakeBun({
+      '^g same$': {
+        code: 0,
+        xml: report(
+          testCase('same', 2, SKIPPED),
+          group('g', 3, testCase('same', 4)),
+        ),
+      },
       '^same$': {
         code: 0,
         xml: report(
@@ -158,11 +164,11 @@ describe('bun observation of recorded files', () => {
     const observed = await runPromise(observeBunFiles(bun.context, [bun.file]))
     expect(observed.observations.map((item) => [item.id, item.state])).toEqual([
       [`${FILE}:2:same`, 'passed'],
-      [MODULE_FAILURE, 'failed'],
+      [`${FILE}:4:g same`, 'passed'],
     ])
   })
 
-  test('a case inside describe is a module failure even when bun exits cleanly', async () => {
+  test('a skipped case stays a module failure even when bun exits cleanly', async () => {
     // A describe.skip or describe.todo group makes a run that matches nothing
     // exit 0, with every case reported as a bare <skipped />.
     const everythingSkipped = report(
@@ -170,8 +176,8 @@ describe('bun observation of recorded files', () => {
       group('parked', 5, testCase('later', 6, SKIPPED)),
     )
     const bun = fakeBun({
-      '^inside$': { code: 0, xml: everythingSkipped },
-      '^later$': { code: 0, xml: everythingSkipped },
+      '^g inside$': { code: 0, xml: everythingSkipped },
+      '^parked later$': { code: 0, xml: everythingSkipped },
       'a^': { code: 0, xml: everythingSkipped },
     })
     const observed = await runPromise(observeBunFiles(bun.context, [bun.file]))

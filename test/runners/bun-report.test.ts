@@ -59,7 +59,7 @@ describe('bun:test JUnit report', () => {
     ])
   })
 
-  test('keeps the describe blocks around a case, outermost first, without changing its name or id', () => {
+  test('includes enclosing describe blocks in fullName and id, outermost first', () => {
     // Bun nests one <testsuite> per describe block inside the file's suite.
     const xml = `<testsuites name="bun test">
   <testsuite name="test/d.test.ts" file="test/d.test.ts">
@@ -84,8 +84,18 @@ describe('bun:test JUnit report', () => {
       ]),
     ).toEqual([
       ['test/d.test.ts:2:top', 'top', [], 'passed'],
-      ['test/d.test.ts:4:inside', 'inside', ['group "g"'], 'passed'],
-      ['test/d.test.ts:6:deep', 'deep', ['group "g"', 'inner'], 'failed'],
+      [
+        'test/d.test.ts:4:group "g" inside',
+        'group "g" inside',
+        ['group "g"'],
+        'passed',
+      ],
+      [
+        'test/d.test.ts:6:group "g" inner deep',
+        'group "g" inner deep',
+        ['group "g"', 'inner'],
+        'failed',
+      ],
       ['test/d.test.ts:9:last', 'last', [], 'passed'],
     ])
   })

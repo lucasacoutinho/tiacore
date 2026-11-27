@@ -231,11 +231,13 @@ assign the same `group` to candidates from one partition set.
 
 Playwright does not yet write shard fragments. Do not pass `--shard`,
 `--last-failed` or `--only-changed` to a Playwright lane that tiacore manages.
-Playwright applies those options after tiacore selects the affected tests, so a
-run can leave out a selected test. tiacore then does not save the graph, warns
-which selected tests reported no result, and selects them again in the next run,
-where the same shard can leave them out again. Split Playwright work across
-lanes with separate `--cache-dir` and `--runner` values instead.
+When no baseline exists yet, tiacore refuses to save a partial baseline for
+those runs. When a baseline exists, Playwright applies those options after
+tiacore selects the affected tests, so a run can leave out a selected test;
+tiacore then does not save the graph, warns which selected tests reported no
+result, and selects them again in the next run, where the same shard can leave
+them out again. Split Playwright work across lanes with separate `--cache-dir`
+and `--runner` values instead.
 
 ## Runner and lane parallelism
 

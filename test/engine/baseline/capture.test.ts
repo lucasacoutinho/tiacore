@@ -487,4 +487,26 @@ describe('commits and ancestry', () => {
       'src/renamed.ts',
     ])
   })
+
+  test('forces a full run for untracked submodule changes even when git configures diff.ignoreSubmodules=all', async () => {
+    const sub = repository({ 'lib.ts': 'export const x = 1\n' })
+    const root = repository(FILES)
+    vcs(
+      root,
+      '-c',
+      'protocol.file.allow=always',
+      'submodule',
+      'add',
+      sub,
+      'vendor/sub',
+    )
+    commit(root, 'add submodule')
+    vcs(root, 'config', 'diff.ignoreSubmodules', 'all')
+    const baseline = (await capture(root))!
+    expect(await changedSince(root, baseline)).toEqual([])
+    put(join(root, 'vendor/sub'), 'untracked.ts', 'export const y = 2\n')
+    // The submodule path is a directory, so hashing it returns unavailable (null),
+    // which forces a full run instead of silently skipping.
+    expect(await changedSince(root, baseline)).toBeNull()
+  })
 })

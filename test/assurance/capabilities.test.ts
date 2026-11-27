@@ -48,7 +48,7 @@ describe('adapter capability contract', () => {
         expect(packageJson.exports).toHaveProperty([exportKey])
       } else {
         expect([
-          'go:github.com/lucasacoutinho/tiacore/sdks/go',
+          'go:github.com/lucasacoutinho/tiacore/v2/sdks/go',
           'python:tiacore',
         ]).toContain(adapter.entryPoint)
       }

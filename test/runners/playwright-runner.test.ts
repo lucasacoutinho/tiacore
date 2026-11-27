@@ -258,6 +258,8 @@ describe('fully executed specs', () => {
   test('are none when the run can split a spec', () => {
     expect(fullyExecutedSpecs({ ...twoSpecs, sharded: true }, [])).toEqual([])
     expect(fullyExecutedSpecs(twoSpecs, ['--last-failed'])).toEqual([])
+    expect(fullyExecutedSpecs(twoSpecs, ['--only-changed'])).toEqual([])
+    expect(fullyExecutedSpecs(twoSpecs, ['--only-changed=main'])).toEqual([])
   })
 })
 

@@ -153,10 +153,38 @@ const installedVersion = Effect.fnUntraced(function* (
   }
 })
 
+const symlinkedVitestCheck = Effect.fnUntraced(function* (
+  cwd: string,
+  vitest: string | null,
+  vite: string | null,
+) {
+  if (vitest === null) return null
+  const oldVite =
+    vite !== null
+      ? satisfiesRange(vite, '<8.0.0') === true
+      : satisfiesRange(vitest, '<5.0.0') === true
+  if (!oldVite) return null
+  const fs = yield* FileSystem.FileSystem
+  const resolvedCwd = resolve(cwd)
+  const realCwd = yield* fs
+    .realPath(resolvedCwd)
+    .pipe(Effect.orElseSucceed(() => resolvedCwd))
+  if (realCwd === resolvedCwd) return null
+  const viteLabel = vite === null ? `Vitest ${vitest}` : `Vite ${vite}`
+  return check(
+    'vitest-symlink-root',
+    'Vitest symlinked root',
+    'warn',
+    `${resolvedCwd} resolves to ${realCwd} under ${viteLabel}; Vite 6 and 7 drop source dependencies under a symlinked root. Run from ${realCwd} or upgrade to Vite 8 / Vitest 5.`,
+  )
+})
+
 const peerChecks = Effect.fnUntraced(function* (cwd: string) {
   const checks: DoctorCheck[] = []
+  const versions: Record<string, string | null> = {}
   for (const [name, range] of Object.entries(PEER_RANGES)) {
     const version = yield* installedVersion(name, cwd)
+    versions[name] = version
     if (version === null) {
       checks.push(
         check(
@@ -182,6 +210,12 @@ const peerChecks = Effect.fnUntraced(function* (cwd: string) {
           : check(`peer:${name}`, name, 'warn', `cannot compare ${version}`),
     )
   }
+  const symlinkWarning = yield* symlinkedVitestCheck(
+    cwd,
+    versions['vitest'] ?? null,
+    versions['vite'] ?? null,
+  )
+  if (symlinkWarning !== null) checks.push(symlinkWarning)
   const typescript = yield* installedVersion('typescript', cwd)
   checks.push(
     typescript === null

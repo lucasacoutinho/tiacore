@@ -66,6 +66,11 @@ const GRADLE_INVALIDATORS: TiaInvalidator[] = [
   { pattern: '**/gradle.properties', reason: 'Gradle properties changed' },
   { pattern: '**/settings.gradle', reason: 'Gradle settings changed' },
   { pattern: '**/settings.gradle.kts', reason: 'Gradle settings changed' },
+  {
+    pattern: '**/gradle/*.versions.toml',
+    reason: 'Gradle version catalog changed',
+  },
+  { pattern: '**/buildSrc/**', reason: 'Gradle build logic changed' },
 ]
 
 interface SourceFile {

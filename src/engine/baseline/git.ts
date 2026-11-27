@@ -206,6 +206,7 @@ export function makeGit(
         'diff',
         '--name-only',
         '--no-renames',
+        '--ignore-submodules=none',
         '--diff-filter=ACDMRTUXB',
         '-z',
         revision,
