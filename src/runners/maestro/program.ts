@@ -121,6 +121,8 @@ interface Flow {
   readonly tags: string[]
   /** The project paths of the scripts and media it uses. */
   readonly uses: readonly string[]
+  /** It names a script or media file through a variable, which cannot be followed. */
+  readonly variableUses: boolean
 }
 
 /**
@@ -182,6 +184,7 @@ const readFlows = Effect.fnUntraced(function* (
       runs,
       tags,
       uses: followed(references.files),
+      variableUses: [...references.files].some((name) => name.includes('${')),
     })
   }
   return flows
@@ -243,6 +246,10 @@ function usedFiles(
   suites: readonly MaestroSuite[],
   flows: ReadonlyMap<string, Flow>,
 ): TiaDependencyObservation[] {
+  // A script named through a variable could be any script. Linking the others
+  // would make a change to it select only their flows, so then no script or
+  // media is linked and a change to one stays unknown (a full run by default).
+  const followUses = ![...flows.values()].some((flow) => flow.variableUses)
   const observations: TiaDependencyObservation[] = []
   for (const suite of suites) {
     const used = new Set<string>()
@@ -254,7 +261,7 @@ function usedFiles(
       if (file === undefined || flow === undefined || seen.has(file)) continue
       seen.add(file)
       if (!flow.included) used.add(file)
-      for (const path of flow.uses) used.add(path)
+      if (followUses) for (const path of flow.uses) used.add(path)
       pending.push(...flow.runs)
     }
     for (const file of seen) {

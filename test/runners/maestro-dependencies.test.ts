@@ -156,6 +156,22 @@ describe('Maestro files a flow uses', () => {
     }
   })
 
+  test('a script named through a variable keeps every script change unknown', async () => {
+    const root = await project({
+      'e2e/a.yaml': 'appId: app\n---\n- runScript: scripts/seed.js\n',
+      'e2e/b.yaml': 'appId: app\n---\n- runScript: ${DIR}/seed.js\n',
+      'e2e/scripts/seed.js': 'output.seeded = true\n',
+    })
+    const graph = await recordedGraph(root)
+    expect(edgesOf(graph, 'e2e/a.yaml')).toEqual([
+      ['e2e/a.yaml', 'configuration'],
+    ])
+    expect(await selected(root, graph, ['e2e/scripts/seed.js'])).toEqual([
+      'maestro:p:e2e/a.yaml',
+      'maestro:p:e2e/b.yaml',
+    ])
+  })
+
   test('references that cannot be followed are skipped without failing the run', async () => {
     const root = await project({
       'e2e/a.yaml': [
