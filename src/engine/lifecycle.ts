@@ -19,7 +19,7 @@ import {
   runtimePlanCandidates,
   type RuntimePlanInput,
 } from './plan/runtime.ts'
-import { Baselines, GraphStore } from './ports.ts'
+import { Baselines, GraphStore, type StoredGraph } from './ports.ts'
 import {
   updateGraph,
   type GraphHeader,
@@ -29,6 +29,11 @@ import {
 /** What an artifact restore reports to the plan's baseline line. */
 export interface RestoreOutcome {
   readonly artifactId?: Array<number | string> | number | string
+  /**
+   * The graph the restore read from the cache directory when it left that
+   * graph in place, so the plan need not read it again.
+   */
+  readonly local?: StoredGraph
   readonly provider?: string
   readonly reason: string
   readonly restored: boolean
@@ -142,7 +147,10 @@ export const beginRun = Effect.fn('tia.prepare')(function* <R>(
     })
   }
 
-  const stored = yield* store.read(writeCacheDir)
+  const stored =
+    restore?.local !== undefined && writeCacheDir === input.cacheDir
+      ? restore.local
+      : yield* store.read(writeCacheDir)
   const planInput: RuntimePlanInput = {
     baseline: planBaseline(stored.graph, restore, input.partitioned ?? false),
     ...(input.coverageRequested === undefined
