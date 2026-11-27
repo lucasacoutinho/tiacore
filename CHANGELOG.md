@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.1.0 - 2026-11-27
+
 ### Performance
 
 - Committing after a small run is much faster on large graphs: the graph update
