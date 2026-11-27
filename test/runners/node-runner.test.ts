@@ -275,6 +275,108 @@ test('never reached', () => {})
   })
 })
 
+const ROWS_TEST = `import test from 'node:test'
+import { rows } from '../src/rows.mjs'
+
+for (const row of rows) {
+  test(row, () => {})
+}
+`
+
+function fullNames(tests: ReadonlyArray<{ readonly fullName: string }>) {
+  return tests.map((item) => item.fullName).sort()
+}
+
+/**
+ * Records rows a, b and c of a data-driven file, then removes b from the
+ * module the rows come from. That change selects every recorded case, b
+ * included, and the file no longer has b. Returns what each run did.
+ */
+async function removeARow() {
+  const root = project({
+    'src/rows.mjs': "export const rows = ['a', 'b', 'c']\n",
+    'test/rows.test.mjs': ROWS_TEST,
+  })
+  const run = async () => {
+    const result = await tia({
+      files: ['test/**/*.test.mjs'],
+      log: false,
+      root,
+    }).run()
+    return {
+      affected: result.plan.affectedTestIds.length,
+      executed: fullNames(result.executedTests),
+      graph: fullNames(Object.values(result.plan.graph?.results ?? {})),
+      saved: result.graphSaved,
+      success: result.success,
+      whole: result.plan.wholeTestFiles,
+    }
+  }
+  const recorded = await run()
+  writeFileSync(join(root, 'src/rows.mjs'), "export const rows = ['a', 'c']\n")
+  const removed = await run()
+  const unchanged = await run()
+  writeFileSync(
+    join(root, 'src/rows.mjs'),
+    "export const rows = ['a', 'c'] // changed\n",
+  )
+  const changed = await run()
+  return { changed, recorded, removed, unchanged }
+}
+
+const ROW_REMOVED = {
+  // The next dependency change selects only the rows that are left.
+  changed: {
+    affected: 2,
+    executed: ['a', 'c'],
+    graph: ['a', 'c'],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+  recorded: {
+    affected: 0,
+    executed: ['a', 'b', 'c'],
+    graph: [],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+  // b is selected as a case, not through a whole-file fallback; the run
+  // observes a and c once each and saves a graph without b.
+  removed: {
+    affected: 3,
+    executed: ['a', 'c'],
+    graph: ['a', 'b', 'c'],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+  unchanged: {
+    affected: 0,
+    executed: [],
+    graph: ['a', 'c'],
+    saved: true,
+    success: true,
+    whole: [],
+  },
+}
+
+describe('a data-driven node:test file that loses a row', () => {
+  test.skipIf(!nodeDiscoveryHooksSupported())(
+    'with discovery hooks, runs the file whole and drops the row',
+    async () => {
+      expect(await removeARow()).toEqual(ROW_REMOVED)
+    },
+    30_000,
+  )
+
+  test('without discovery hooks, drops the row from the whole-file run', async () => {
+    vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
+    expect(await removeARow()).toEqual(ROW_REMOVED)
+  }, 30_000)
+})
+
 describe('node runner options', () => {
   test('rejects a NaN or infinite concurrency instead of dropping or unbounding work', () => {
     expect(() => tia({ concurrency: Number.NaN })).toThrow(

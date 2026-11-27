@@ -19,6 +19,12 @@ export interface FileObservations {
    * succeeds nor commits a graph.
    */
   readonly complete: boolean
+  /**
+   * Test files the batch ran whole beyond those the plan asked for: it
+   * observed every case they have now, so a cached case they did not report
+   * no longer exists.
+   */
+  readonly fullyExecuted?: readonly string[]
   readonly observations: TiaObservation[]
 }
 
@@ -102,16 +108,23 @@ export async function runKernel(
     const cases = yield* kernel.observeCachedCases(cached)
     return {
       complete: whole.complete && cases.complete,
+      fullyExecuted: [
+        ...(whole.fullyExecuted ?? []),
+        ...(cases.fullyExecuted ?? []),
+      ],
       observations: [...whole.observations, ...cases.observations],
     } satisfies FileObservations
   })
-  const { complete, observations } = await runPromise(observe)
+  const { complete, fullyExecuted, observations } = await runPromise(observe)
 
   let saved = false
   if (complete) {
     const graph = await core.commit(
       observations,
-      fullyExecutedFiles(plan, observations, wholeFiles),
+      fullyExecutedFiles(plan, observations, [
+        ...wholeFiles,
+        ...(fullyExecuted ?? []),
+      ]),
     )
     saved = graph !== null
   } else if (kernel.log) {
