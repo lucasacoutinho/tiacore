@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.2.0 - 2026-11-27
+
 ### Changed
 
 - Custom adapters: a test removed from the catalog no longer blocks every later
