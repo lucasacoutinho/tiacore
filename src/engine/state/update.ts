@@ -224,15 +224,15 @@ function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
 
   const executed = new Set(input.executedFiles)
   if (executed.size === 0) return graph
-  const edgesByFile = new Map<string, string[]>()
+  const idsByFile = new Map<string, string[]>()
   for (const [id, edge] of Object.entries(graph.testEdges)) {
     if (!executed.has(edge.file)) continue
-    const ids = edgesByFile.get(edge.file)
-    if (ids === undefined) edgesByFile.set(edge.file, [id])
+    const ids = idsByFile.get(edge.file)
+    if (ids === undefined) idsByFile.set(edge.file, [id])
     else ids.push(id)
   }
   for (const file of executed) {
-    const ids = edgesByFile.get(file) ?? []
+    const ids = idsByFile.get(file) ?? []
     updateCollection(graph, input, file, fully.has(file), ids)
     const dependencies = ids.flatMap((id) => graph.testEdges[id]!.files)
     graph.edges[file] =

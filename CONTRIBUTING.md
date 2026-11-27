@@ -69,7 +69,7 @@ scale with the rounds.
 | `vitest`   | `vitest run` of 50 files x 5 tests: no plugin, recording, and replaying one changed module                  | 57 s  |
 | `effect`   | the same with `@effect/vitest` tests that fork fibers, plus the cost of the fiber tracking on 10,000 fibers | 104 s |
 | `protocol` | `createImpactPlan` and graph decoding on 25,000 suites, in-process                                          | 10 s  |
-| `store`    | graph store first commit, read, one-test update and small commit on 5,000 tests with coverage, in-process   | 15 s  |
+| `store`    | graph store first commit, read, one-test update and small commit on 5,000 tests with coverage, in-process   | 19 s  |
 | `restore`  | prepare with a stored graph of 5,000 tests, with and without an artifact source configured, in-process      | 9 s   |
 | `cli`      | `tiacore --version` and `plan` on a small catalog and on 25,000 suites, in new processes                    | 34 s  |
 
