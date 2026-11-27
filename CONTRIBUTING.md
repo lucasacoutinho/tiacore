@@ -70,12 +70,13 @@ scale with the rounds.
 | `effect`   | the same with `@effect/vitest` tests that fork fibers, plus the cost of the fiber tracking on 10,000 fibers | 104 s |
 | `protocol` | `createImpactPlan` and graph decoding on 25,000 suites, in-process                                          | 10 s  |
 | `store`    | graph store first commit, read, one-test update and small commit on 5,000 tests with coverage, in-process   | 15 s  |
+| `restore`  | prepare with a stored graph of 5,000 tests, with and without an artifact source configured, in-process      | 9 s   |
 | `cli`      | `tiacore --version` and `plan` on a small catalog and on 25,000 suites, in new processes                    | 34 s  |
 
-Everything except `protocol` and `store` runs in fresh processes, because
-start-up is what a user waits for. Where 1.x has the same operation, both
-versions run in every round and the one that goes first alternates, so a load
-spike hits both.
+Everything except `protocol`, `store` and `restore` runs in fresh processes,
+because start-up is what a user waits for. Where 1.x has the same operation,
+both versions run in every round and the one that goes first alternates, so a
+load spike hits both.
 
 **Reading the output.** Each metric prints its median, minimum and MAD (median
 absolute deviation) over the rounds. Metrics ending in `.v1` are 1.x, and
