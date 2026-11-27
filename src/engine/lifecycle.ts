@@ -292,7 +292,13 @@ function unobservedSelection(
   plan: RunPlan,
   update: CommitRunInput['update'],
 ): string[] {
-  if (plan.mode !== 'replay' || plan.graph === null) return []
+  if (
+    plan.mode !== 'replay' ||
+    plan.graph === null ||
+    (plan.affectedTestIds.length === 0 && plan.wholeTestFiles.length === 0)
+  ) {
+    return []
+  }
   const affected = new Set(plan.affectedTestIds)
   const wholeFiles = new Set(plan.wholeTestFiles)
   const fullyExecuted = new Set(update.fullyExecutedFiles)
