@@ -50,7 +50,11 @@ const DEFAULT_TESTS = [
   '**/src/test/**/*.{java,kt}',
   '**/src/androidTest/**/*.{java,kt}',
 ]
-const DEFAULT_SOURCES = ['**/src/main/**/*.{java,kt}']
+// Test fixtures are the shared test code of the java-test-fixtures plugin.
+const DEFAULT_SOURCES = [
+  '**/src/main/**/*.{java,kt}',
+  '**/src/testFixtures/**/*.{java,kt}',
+]
 const IGNORED = ['**/build/**', '**/node_modules/**']
 // buildSrc holds build logic, which no test imports: as a known source with no
 // dependents, a change to it would select nothing.

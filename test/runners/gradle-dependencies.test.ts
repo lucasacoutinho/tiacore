@@ -183,16 +183,26 @@ describe('Gradle declarations', () => {
     ])
   })
 
-  test('helpers shared by tests are dependencies, and a test has no import edge to itself', async () => {
+  test('helpers and fixtures shared by tests are dependencies, and a test has no import edge to itself', async () => {
     const root = await project({
       'src/test/java/support/Fixtures.java':
         'package support;\n\nimport app.UsesFixturesTest;\n\npublic class Fixtures {}\n',
       'src/test/java/app/UsesFixturesTest.java':
         'package app;\n\nimport support.Fixtures;\n\nclass UsesFixturesTest {}\n',
+      'src/testFixtures/java/fx/Builders.java':
+        'package fx;\n\npublic class Builders {}\n',
+      'src/test/java/app/UsesBuildersTest.java':
+        'package app;\n\nimport fx.Builders;\n\nclass UsesBuildersTest {}\n',
     })
     const graph = await graphOf(root)
     expect(importsOf(graph, 'src/test/java/app/UsesFixturesTest.java')).toEqual(
       ['src/test/java/support/Fixtures.java'],
+    )
+    expect(importsOf(graph, 'src/test/java/app/UsesBuildersTest.java')).toEqual(
+      ['src/testFixtures/java/fx/Builders.java'],
+    )
+    expect(graph.knownSources).toContain(
+      'src/testFixtures/java/fx/Builders.java',
     )
     expect(
       await selected(root, graph, ['src/test/java/support/Fixtures.java']),
@@ -200,6 +210,9 @@ describe('Gradle declarations', () => {
       'gradle-junit:app:src/test/java/app/UsesFixturesTest.java',
       'gradle-junit:app:src/test/java/support/Fixtures.java',
     ])
+    expect(
+      await selected(root, graph, ['src/testFixtures/java/fx/Builders.java']),
+    ).toEqual(['gradle-junit:app:src/test/java/app/UsesBuildersTest.java'])
   })
 
   test('build logic under buildSrc is not a production source', async () => {

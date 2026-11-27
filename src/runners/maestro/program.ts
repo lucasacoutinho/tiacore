@@ -121,6 +121,8 @@ interface Flow {
   readonly tags: string[]
   /** The project paths of the scripts and media it uses. */
   readonly uses: readonly string[]
+  /** It names a script or media file through a variable, which cannot be followed. */
+  readonly variableUses: boolean
 }
 
 /**
@@ -182,6 +184,7 @@ const readFlows = Effect.fnUntraced(function* (
       runs,
       tags,
       uses: followed(references.files),
+      variableUses: [...references.files].some((name) => name.includes('${')),
     })
   }
   return flows
@@ -233,6 +236,57 @@ function suitesOf(
   }
   return suites.sort((left, right) => byCodeUnit(left.id, right.id))
 }
+
+/**
+ * The files each suite uses beyond the suites it runs, which the graph already
+ * links: the flows it reaches that are not suites, and the scripts and media of
+ * every flow it reaches.
+ */
+function usedFiles(
+  suites: readonly MaestroSuite[],
+  flows: ReadonlyMap<string, Flow>,
+): TiaDependencyObservation[] {
+  // A script named through a variable could be any script. Linking the others
+  // would make a change to it select only their flows, so then no script or
+  // media is linked and a change to one stays unknown (a full run by default).
+  const followUses = ![...flows.values()].some((flow) => flow.variableUses)
+  const observations: TiaDependencyObservation[] = []
+  for (const suite of suites) {
+    const used = new Set<string>()
+    const seen = new Set<string>()
+    const pending = [suite.file]
+    while (pending.length > 0) {
+      const file = pending.pop()
+      const flow = file === undefined ? undefined : flows.get(file)
+      if (file === undefined || flow === undefined || seen.has(file)) continue
+      seen.add(file)
+      if (!flow.included) used.add(file)
+      if (followUses) for (const path of flow.uses) used.add(path)
+      pending.push(...flow.runs)
+    }
+    for (const file of seen) {
+      if (flows.get(file)?.included === true) used.delete(file)
+    }
+    for (const source of [...used].sort(byCodeUnit)) {
+      observations.push({
+        confidence: 'exact',
+        kind: 'fixture',
+        source,
+        suiteId: suite.id,
+      })
+    }
+  }
+  return observations
+}
+
+/** The suites, and what they use that a graph of suites alone cannot know. */
+export const discoverFlows = Effect.fnUntraced(function* (
+  options: DiscoverMaestroOptions,
+) {
+  const flows = yield* readFlows(options)
+  const suites = suitesOf(flows, options.project)
+  return { observations: usedFiles(suites, flows), suites }
+})
 
 export const discover = Effect.fnUntraced(function* (
   options: DiscoverMaestroOptions,
@@ -305,7 +359,7 @@ export const run = Effect.fn('tia.maestro.run')(function* (
     name: 'maestro',
     options,
     prepare: Effect.fnUntraced(function* (graph) {
-      const suites = yield* discover(options)
+      const { observations, suites } = yield* discoverFlows(options)
       const plan = yield* planSuites(suites, { ...planning, graph })
       return {
         plan,
@@ -315,6 +369,7 @@ export const run = Effect.fn('tia.maestro.run')(function* (
             ...(options.currentFingerprint === undefined
               ? {}
               : { fingerprint: options.currentFingerprint }),
+            observations,
             suites,
           }),
         suites,

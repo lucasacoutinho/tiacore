@@ -435,6 +435,73 @@ describe('adapter execution contract', () => {
     expect(seen[1]).toContain('custom:value:baseline')
   })
 
+  test('a test removed from the catalog does not block a file the adapter ran fully', async () => {
+    const root = project()
+    let catalogIds = ['custom:kept', 'custom:removed']
+    const seen: string[][] = []
+    const adapter = definition([])
+    adapter.discover = () => ({
+      files: ['package.json'],
+      tests: catalogIds.map((id) => ({
+        file: 'test/value.test.ts',
+        fullName: `case ${id}`,
+        id,
+      })),
+    })
+    // A native runner can run only the tests that still exist, and vouches
+    // that it ran every one of them.
+    adapter.execute = ({ tests }) => {
+      seen.push(tests.map((entry) => `${entry.id}:${entry.source}`))
+      return {
+        complete: true,
+        fullyExecutedFiles: ['test/value.test.ts'],
+        observations: tests
+          .filter((entry) => catalogIds.includes(entry.id))
+          .map((entry) =>
+            observation({ fullName: entry.fullName, id: entry.id }),
+          ),
+      }
+    }
+    await tia(adapter, { ...OPTIONS, root }).run()
+    catalogIds = ['custom:kept']
+    writeFileSync(join(root, 'src/value.ts'), 'export const value = 2\n')
+    const removed = await tia(adapter, { ...OPTIONS, root }).run()
+    expect(seen[1]).toEqual(['custom:kept:catalog', 'custom:removed:baseline'])
+    expect(removed).toMatchObject({ complete: true, graphSaved: true })
+    expect(Object.keys(removed.graph?.results ?? {})).toEqual(['custom:kept'])
+
+    const quiet = await tia(adapter, { ...OPTIONS, root }).run()
+    expect(quiet).toMatchObject({ selectedTests: 0, success: true })
+  })
+
+  test('a baseline test without an observation still blocks a file not run fully', async () => {
+    const root = project()
+    let catalogIds = ['custom:kept', 'custom:removed']
+    const adapter = definition([])
+    adapter.discover = () => ({
+      files: ['package.json'],
+      tests: catalogIds.map((id) => ({
+        file: 'test/value.test.ts',
+        fullName: `case ${id}`,
+        id,
+      })),
+    })
+    adapter.execute = ({ tests }) => ({
+      complete: true,
+      observations: tests
+        .filter((entry) => catalogIds.includes(entry.id))
+        .map((entry) =>
+          observation({ fullName: entry.fullName, id: entry.id }),
+        ),
+    })
+    await tia(adapter, { ...OPTIONS, root }).run()
+    catalogIds = ['custom:kept']
+    writeFileSync(join(root, 'src/value.ts'), 'export const value = 2\n')
+    await expect(
+      tia(adapter, { ...OPTIONS, root }).run(),
+    ).resolves.toMatchObject({ complete: false, graphSaved: false })
+  })
+
   test('a changed feature list invalidates the stored graph', async () => {
     const root = project()
     await tia(definition([]), { ...OPTIONS, root }).run()
