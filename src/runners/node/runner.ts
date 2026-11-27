@@ -1,4 +1,4 @@
-import { TiaCore } from '../../engine/core.ts'
+import { CoreRun } from '../../engine/core-run.ts'
 import { normalizedConcurrency } from '../../engine/scheduling.ts'
 import {
   relativeTestFiles,
@@ -39,7 +39,7 @@ function helpers(): NodeHelpers {
 
 class NodeTiaRunner implements TiaRunner {
   private readonly concurrency: number
-  private readonly core: TiaCore
+  private readonly core: CoreRun
   private readonly files: string[]
   private readonly log: boolean
   private readonly root: string
@@ -52,7 +52,7 @@ class NodeTiaRunner implements TiaRunner {
       options.files ?? DEFAULT_NODE_TESTS,
     )
     this.log = options.log ?? true
-    this.core = new TiaCore({
+    this.core = new CoreRun({
       ...options,
       files: options.files ?? DEFAULT_NODE_TESTS,
       root: this.root,

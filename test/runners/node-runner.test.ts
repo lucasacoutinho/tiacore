@@ -26,6 +26,7 @@ import { initRepository } from '../support/runner-project.ts'
 const temporaryDirectories: string[] = []
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllEnvs()
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true })
@@ -375,6 +376,40 @@ describe('a data-driven node:test file that loses a row', () => {
     vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
     expect(await removeARow()).toEqual(ROW_REMOVED)
   }, 30_000)
+})
+
+describe('node runner commits', () => {
+  test('says why it saved no graph', async () => {
+    const root = project({
+      'src/out.txt': 'initial\n',
+      'test/writes.test.mjs': `import { writeFileSync } from 'node:fs'
+import test from 'node:test'
+
+test('writes a tracked file', () => {
+  writeFileSync(new URL('../src/out.txt', import.meta.url), \`\${process.hrtime.bigint()}\\n\`)
+})
+`,
+    })
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await tia({ files: ['test/**/*.test.mjs'], root }).run()
+    expect(result.success).toBe(true)
+    expect(result.graphSaved).toBe(false)
+    expect(warn.mock.calls).toEqual([
+      [
+        'TIA graph was not updated because project files changed during the run. Changed: src/out.txt.',
+      ],
+    ])
+
+    warn.mockClear()
+    const quiet = await tia({
+      files: ['test/**/*.test.mjs'],
+      log: false,
+      root,
+    }).run()
+    expect(quiet.graphSaved).toBe(false)
+    expect(warn).not.toHaveBeenCalled()
+  })
 })
 
 describe('node runner options', () => {

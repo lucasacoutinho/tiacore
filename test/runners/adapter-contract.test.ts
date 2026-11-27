@@ -120,6 +120,58 @@ describe('TypeScript adapter contract', () => {
     })
   })
 
+  test('says why it saved no graph unless log is false', async () => {
+    const root = project()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const adapter = definition([])
+    const execute = adapter.execute
+    const run = async (
+      replace: TiaAdapterDefinition['execute'],
+      log?: boolean,
+    ) => {
+      warn.mockClear()
+      const result = await tia(
+        { ...adapter, execute: replace },
+        { fresh: false, root, ...(log === undefined ? {} : { log }) },
+      ).run()
+      expect(result.graphSaved).toBe(false)
+      return warn.mock.calls
+    }
+
+    expect(
+      await run((context) => {
+        writeFileSync(
+          join(root, 'src/value.ts'),
+          `export const value = ${Date.now()}\n`,
+        )
+        return execute(context)
+      }),
+    ).toEqual([
+      [
+        'TIA graph was not updated because project files changed during the run. Changed: src/value.ts.',
+      ],
+    ])
+    expect(await run(() => ({ complete: true, observations: [] }))).toEqual([
+      [
+        'TIA graph was not updated because 1 selected test reported no result; the next run selects it again. Missing: custom value case.',
+      ],
+    ])
+    expect(
+      await run(async (context) => ({
+        ...(await execute(context)),
+        complete: false,
+      })),
+    ).toEqual([
+      [
+        'TIA graph was not updated because the fixture-adapter adapter reported an incomplete execution.',
+      ],
+    ])
+    expect(
+      await run(() => ({ complete: true, observations: [] }), false),
+    ).toEqual([])
+  })
+
   test('rejects unsafe names, duplicate ids, and escaping paths', async () => {
     const root = project()
     expect(() =>

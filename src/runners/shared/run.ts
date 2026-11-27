@@ -4,9 +4,11 @@ import * as Effect from 'effect/Effect'
 import { globSync } from 'tinyglobby'
 
 import type { CachedTestResult } from '../../core/runtime.ts'
-import type { TiaCore, TiaObservation } from '../../engine/core.ts'
+import type { TiaObservation } from '../../engine/core.ts'
+import type { CoreRun } from '../../engine/core-run.ts'
 import { formatRunPlanDetails } from '../../engine/explain.ts'
 import { slash } from '../../engine/host-path.ts'
+import { skippedCommitMessage } from '../../engine/lifecycle.ts'
 import { runPromise, type HostServices } from '../../host/runtime.ts'
 import { fullyExecutedFiles } from './observations.ts'
 import type { TiaRunnerResult } from './types.ts'
@@ -29,7 +31,7 @@ export interface FileObservations {
 }
 
 export interface RunnerKernel {
-  readonly core: TiaCore
+  readonly core: CoreRun
   /** Absolute resolved test files. */
   readonly files: readonly string[]
   readonly label: 'bun' | 'node'
@@ -80,7 +82,7 @@ export async function runKernel(
   kernel: RunnerKernel,
 ): Promise<TiaRunnerResult> {
   const { core, label } = kernel
-  const plan = await core.prepare()
+  const plan = await runPromise(core.prepare())
   print(
     kernel,
     plan.mode === 'record'
@@ -119,14 +121,17 @@ export async function runKernel(
 
   let saved = false
   if (complete) {
-    const graph = await core.commit(
-      observations,
-      fullyExecutedFiles(plan, observations, [
-        ...wholeFiles,
-        ...(fullyExecuted ?? []),
-      ]),
+    const outcome = await runPromise(
+      core.commitOutcome(
+        observations,
+        fullyExecutedFiles(plan, observations, [
+          ...wholeFiles,
+          ...(fullyExecuted ?? []),
+        ]),
+      ),
     )
-    saved = graph !== null
+    if (outcome._tag === 'Committed') saved = true
+    else if (kernel.log) console.warn(skippedCommitMessage(outcome))
   } else if (kernel.log) {
     console.error(
       `TIA ${label} could not vouch for this run (a module failed to load, a child crashed or timed out); the graph was not saved.`,
