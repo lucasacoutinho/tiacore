@@ -18,7 +18,11 @@ export interface CommitBackend {
   ) => Effect.Effect<Option.Option<A>, TiaIo>
   readonly read: Effect.Effect<StoredGraph>
   readonly readGeneration: Effect.Effect<string | null>
-  readonly write: (graph: TiaRuntimeGraph) => Effect.Effect<void, TiaIo>
+  /** `base` is the graph the caller read and derived `graph` from, if any. */
+  readonly write: (
+    graph: TiaRuntimeGraph,
+    base: TiaRuntimeGraph | null,
+  ) => Effect.Effect<void, TiaIo>
 }
 
 const conflict = (graph: TiaRuntimeGraph | null): GraphCommitResult => ({
@@ -60,7 +64,7 @@ export const commitProtocol = Effect.fnUntraced(function* (
         ? { digest: commit.expectedDigest, graph: null }
         : yield* backend.read
       if (unchanged || current.digest === commit.expectedDigest) {
-        yield* backend.write(commit.graph)
+        yield* backend.write(commit.graph, commit.expected)
         return landed('committed', commit.graph)
       }
       if (current.graph === null) {
@@ -74,7 +78,7 @@ export const commitProtocol = Effect.fnUntraced(function* (
       if (merged === null) {
         return conflict(current.graph)
       }
-      yield* backend.write(merged)
+      yield* backend.write(merged, null)
       return landed('merged', merged)
     }),
   )

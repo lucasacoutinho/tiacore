@@ -177,7 +177,7 @@ layer(EngineLive, { excludeTestServices: true })(
         }
         setImmediate(observe)
         yield* makeStateFiles(fs)
-          .write(cacheDir, graph)
+          .write(cacheDir, graph, null)
           .pipe(
             Effect.ensuring(
               Effect.sync(() => {
