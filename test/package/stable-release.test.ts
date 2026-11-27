@@ -158,8 +158,8 @@ describe('stable release contract', () => {
       name: '@lucasacoutinho/tiacore',
       version: VERSION,
     })
-    expect(VERSION).toBe('2.2.0')
-    expect(pythonVersion(packageJson.version)).toBe('2.2.0')
+    expect(VERSION).toBe('2.3.0')
+    expect(pythonVersion(packageJson.version)).toBe('2.3.0')
     expect(pythonProject).toContain(
       `\nversion = "${pythonVersion(packageJson.version)}"\n`,
     )

@@ -5,6 +5,8 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+## 2.3.0 - 2026-11-27
+
 ### Added
 
 - Go SDK: added opt-in `Options.EnvironmentAllowlist` and the repeatable

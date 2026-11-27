@@ -1,4 +1,4 @@
-export const VERSION = '2.2.0'
+export const VERSION = '2.3.0'
 
 /** The Node.js versions tiacore supports; `package.json` `engines.node` repeats it. */
 export const NODE_ENGINES = '^22.12.0 || >=24.0.0'
