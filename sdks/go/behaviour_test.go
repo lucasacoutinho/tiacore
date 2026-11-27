@@ -190,6 +190,50 @@ func TestEnvironmentFingerprintTracksInputsButNotShellBookkeeping(t *testing.T) 
 	}
 }
 
+func TestEnvironmentFingerprintAllowlist(t *testing.T) {
+	root, options := rootPackageProject(t)
+	resolved, _ := resolveRoot(root)
+	options.GoBinary = "go"
+	fingerprint := func(allowlist []string, env map[string]string) string {
+		copied := options
+		copied.Environment = env
+		copied.EnvironmentAllowlist = allowlist
+		value, err := goEnvironmentFingerprint(context.Background(), copied, resolved)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	base := fingerprint([]string{"APP_ENV"}, map[string]string{
+		"APP_ENV":       "staging",
+		"GITHUB_RUN_ID": "1001",
+	})
+	if got := fingerprint([]string{"APP_ENV"}, map[string]string{
+		"APP_ENV":       "staging",
+		"GITHUB_RUN_ID": "2002",
+	}); got != base {
+		t.Fatalf("unlisted CI variable changed allowlisted fingerprint")
+	}
+	if got := fingerprint([]string{"APP_ENV"}, map[string]string{
+		"APP_ENV":       "prod",
+		"GITHUB_RUN_ID": "1001",
+	}); got == base {
+		t.Fatalf("allowlisted variable did not change fingerprint")
+	}
+	if got := fingerprint([]string{"APP_ENV", "OTHER"}, map[string]string{
+		"APP_ENV":       "staging",
+		"GITHUB_RUN_ID": "1001",
+	}); got == base {
+		t.Fatalf("changing the allowlist set did not change fingerprint")
+	}
+	if got := fingerprint(nil, map[string]string{
+		"APP_ENV":       "staging",
+		"GITHUB_RUN_ID": "1001",
+	}); got == base {
+		t.Fatalf("allowlist mode collided with default full-environment mode")
+	}
+}
+
 func TestTIAFreshForcesAFullRunWhenItIsOneTrueYesOrOn(t *testing.T) {
 	_, options := rootPackageProject(t)
 	if result := New(options).Run(context.Background()); !result.Success {

@@ -113,8 +113,9 @@ function stateOf(
  * Cases from Bun's JUnit report, in report order; a testcase needs `name` and
  * `file`. A `<failure>` or `<error>` child fails the case and `<skipped>`
  * skips it (Bun also lists every case a name pattern left out as skipped).
- * `fullName` is the leaf name; the describe blocks around a case are kept
- * apart. Throws when the report is not well-formed XML.
+ * `fullName` includes enclosing `describe` blocks separated by spaces, which is
+ * the string Bun matches against `--test-name-pattern`. Throws when the report
+ * is not well-formed XML.
  */
 export function parseBunJunit(root: string, xml: string): BunCase[] {
   let document: unknown
@@ -135,12 +136,14 @@ export function parseBunJunit(root: string, xml: string): BunCase[] {
     const file = slash(relative(root, absoluteFile))
     const line = Number(stringAttribute(attributes, 'line') ?? 1)
     const duration = Number(stringAttribute(attributes, 'time') ?? 0) * 1_000
+    const fullName =
+      describes.length === 0 ? name : `${describes.join(' ')} ${name}`
     cases.push({
       ...(describes.length === 0 ? {} : { describes }),
       ...(Number.isFinite(duration) ? { duration } : {}),
       file,
-      fullName: name,
-      id: bunTestId(file, line, name),
+      fullName,
+      id: bunTestId(file, line, fullName),
       line,
       state: stateOf(children),
     })

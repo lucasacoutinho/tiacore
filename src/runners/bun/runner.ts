@@ -50,6 +50,7 @@ class BunTiaRunner implements TiaRunner {
     this.core = new CoreRun({
       ...coreOptions,
       files: options.files ?? DEFAULT_BUN_TESTS,
+      fingerprint: 'bun-v2',
       root: this.root,
       runner: 'bun',
       testFiles: relativeTestFiles(this.root, this.files),
@@ -71,12 +72,11 @@ class BunTiaRunner implements TiaRunner {
 }
 
 /**
- * A runner that records and replays `bun:test` suites per test case. A case
- * declared inside `describe(...)` cannot be re-run on its own: Bun reports the
- * leaf name but matches `--test-name-pattern` against the full
- * "<describe> <name>". Such a case is recorded as a failed module failure of
- * its file, as is a selected case whose run fails outside it or does not
- * report it, so the file reruns whole.
+ * A runner that records and replays `bun:test` suites per test case, including
+ * cases inside nested `describe(...)` blocks. Skipped and todo cases cannot be
+ * distinguished in Bun's JUnit output from cases excluded by a name filter, so
+ * they stay fail-closed as a module failure of their file, as does any
+ * selected case whose run fails outside it or does not report it.
  */
 export function tia(options: TiaBunRunnerOptions = {}): TiaRunner {
   return new BunTiaRunner(options)

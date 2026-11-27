@@ -144,18 +144,33 @@ export function runnerFingerprint(
     .digest('hex')
 }
 
+function partialRunFlag(runArguments: readonly string[]): string | null {
+  for (const argument of runArguments) {
+    if (
+      argument === '--shard' ||
+      argument.startsWith('--shard=') ||
+      argument === '--last-failed' ||
+      argument === '--only-changed' ||
+      argument.startsWith('--only-changed=')
+    ) {
+      return argument
+    }
+  }
+  return null
+}
+
 /**
  * The specs a commit may treat as fully executed, so that a cached test that
  * one of them did not report is dropped as deleted: every spec that reported a
  * test, unless the run can split a spec. A shard (under fullyParallel or a
- * parallel describe) and `--last-failed` run part of a spec, and the tests
- * they leave out still exist.
+ * parallel describe), `--last-failed`, and `--only-changed` run part of a
+ * spec, and the tests they leave out still exist.
  */
 export function fullyExecutedSpecs(
   report: PlaywrightRunReport,
   runArguments: readonly string[],
 ): string[] {
-  if (report.sharded || runArguments.includes('--last-failed')) return []
+  if (report.sharded || partialRunFlag(runArguments) !== null) return []
   return [...new Set(report.observations.map((entry) => entry.file))].sort(
     byCodeUnit,
   )
@@ -367,6 +382,18 @@ export const run = Effect.fn('tia.playwright.run')(function* (
       return skipped(
         problems,
         'TIA graph was not updated because Playwright dependency evidence was incomplete.',
+      )
+    }
+
+    const partialFlag = report.sharded
+      ? '--shard'
+      : partialRunFlag(runArguments)
+    if (plan.mode === 'record' && partialFlag !== null) {
+      return skipped(
+        [
+          `Playwright ran a partial suite (${partialFlag}) with no reusable baseline`,
+        ],
+        `TIA graph was not updated because Playwright ran a partial suite (${partialFlag}) without a baseline.`,
       )
     }
 

@@ -41,7 +41,7 @@ describe('Go SDK', () => {
     })
     const output = `${completed.stdout}${completed.stderr}`
     expect(completed.status, output).toBe(0)
-    expect(output).toContain('github.com/lucasacoutinho/tiacore/sdks/go')
+    expect(output).toContain('github.com/lucasacoutinho/tiacore/v2/sdks/go')
   })
 
   // `npm run check:go` runs vet after the tests; keep both in one gate.

@@ -280,8 +280,14 @@ export class TiaEvidence {
           JSON.parse(await readFile(path, 'utf8')) as unknown,
           id,
         )
-        if (parsed === null) complete = false
-        for (const file of parsed?.files ?? []) files.add(file)
+        if (parsed === null) {
+          complete = false
+          continue
+        }
+        for (const file of parsed.files) {
+          const relative = projectRelative(this.root, resolve(this.root, file))
+          if (relative !== null && relative !== '') files.add(relative)
+        }
       } catch {
         complete = false
       }

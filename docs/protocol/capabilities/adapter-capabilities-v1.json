@@ -132,7 +132,7 @@
     },
     {
       "id": "go-test",
-      "entryPoint": "go:github.com/lucasacoutinho/tiacore/sdks/go",
+      "entryPoint": "go:github.com/lucasacoutinho/tiacore/v2/sdks/go",
       "factory": "New",
       "capabilityLevel": "static-impact",
       "selectionGranularity": "package",

@@ -67,13 +67,22 @@ describe('Gradle against 1.x', () => {
       environmentFingerprint: 'env',
       suites,
     })
+    const legacyGraph = await old.createGradleGraph(fixture, {
+      environmentFingerprint: 'env',
+      suites,
+    })
     expect(JSON.stringify(graph)).toBe(
-      JSON.stringify(
-        await old.createGradleGraph(fixture, {
-          environmentFingerprint: 'env',
-          suites,
-        }),
-      ),
+      JSON.stringify({
+        ...legacyGraph,
+        invalidators: [
+          ...(legacyGraph.invalidators ?? []),
+          {
+            pattern: '**/gradle/*.versions.toml',
+            reason: 'Gradle version catalog changed',
+          },
+          { pattern: '**/buildSrc/**', reason: 'Gradle build logic changed' },
+        ],
+      }),
     )
   })
 
@@ -194,13 +203,14 @@ describe('Gradle graph', () => {
     expect((await plan(['src/main/java/a/Lonely.java'])).mode).toBe('skip')
     expect(await plan(['gradle/libs.versions.toml'])).toMatchObject({
       mode: 'full',
-      reason:
-        'changed file is unknown to the impact graph: gradle/libs.versions.toml',
+      reason: 'Gradle version catalog changed: gradle/libs.versions.toml',
     })
     expect(
-      (await plan(['gradle/libs.versions.toml'], { onUnknownChange: 'ignore' }))
-        .mode,
-    ).toBe('skip')
+      await plan(['gradle/libs.versions.toml'], { onUnknownChange: 'ignore' }),
+    ).toMatchObject({
+      mode: 'full',
+      reason: 'Gradle version catalog changed: gradle/libs.versions.toml',
+    })
     expect(await plan(['app/build.gradle.kts'])).toMatchObject({
       mode: 'full',
       reason: 'Gradle build configuration changed: app/build.gradle.kts',

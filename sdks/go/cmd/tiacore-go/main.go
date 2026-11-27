@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	tiacore "github.com/lucasacoutinho/tiacore/sdks/go"
+	tiacore "github.com/lucasacoutinho/tiacore/v2/sdks/go"
 )
 
 type repeatedFlag []string
@@ -19,7 +19,7 @@ func (values *repeatedFlag) Set(value string) error {
 }
 
 func main() {
-	var patterns, ignoreChanges repeatedFlag
+	var patterns, ignoreChanges, envAllow repeatedFlag
 	root := flag.String("root", ".", "Go project root")
 	cacheDirectory := flag.String("cache-dir", ".tia/go", "project-relative tiacore state directory")
 	goBinary := flag.String("go", "go", "Go command")
@@ -28,6 +28,7 @@ func main() {
 	jsonPlan := flag.Bool("json", false, "print the plan as JSON")
 	flag.Var(&patterns, "packages", "Go package pattern; repeat for multiple patterns")
 	flag.Var(&ignoreChanges, "ignore-change", "glob of changed files that never select a package; repeat for multiple globs")
+	flag.Var(&envAllow, "env-allow", "process environment variable to include in the cache fingerprint; when set, unlisted variables are ignored; repeat for multiple names")
 	onUnknownChange := flag.String("on-unknown-change", "full", "what a change the stored graph does not know triggers: full or ignore")
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "usage: tiacore-go [adapter flags] [-- go-test-flags]")
@@ -41,18 +42,19 @@ func main() {
 	}
 
 	result := tiacore.New(tiacore.Options{
-		Root:            *root,
-		CacheDirectory:  *cacheDirectory,
-		GoBinary:        *goBinary,
-		PackagePatterns: patterns,
-		Project:         *project,
-		TestArguments:   flag.Args(),
-		ForceFull:       *force,
-		IgnoreChanges:   ignoreChanges,
-		OnUnknownChange: *onUnknownChange,
-		JSONPlan:        *jsonPlan,
-		Stdout:          os.Stdout,
-		Stderr:          os.Stderr,
+		Root:                 *root,
+		CacheDirectory:       *cacheDirectory,
+		GoBinary:             *goBinary,
+		PackagePatterns:      patterns,
+		Project:              *project,
+		TestArguments:        flag.Args(),
+		EnvironmentAllowlist: envAllow,
+		ForceFull:            *force,
+		IgnoreChanges:        ignoreChanges,
+		OnUnknownChange:      *onUnknownChange,
+		JSONPlan:             *jsonPlan,
+		Stdout:               os.Stdout,
+		Stderr:               os.Stderr,
 	}).Run(context.Background())
 	os.Exit(result.Status)
 }
