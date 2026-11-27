@@ -22,18 +22,21 @@ import { hashBytes } from '../baseline/fingerprint.ts'
 import { parseRuntimeGraph } from '../../wire/runtime-graph.ts'
 import {
   assembleGraph,
+  graphSegments,
   MAX_MANIFEST_BYTES,
   manifestBody,
   parseManifest,
   noteGraphDigest,
+  noteGraphSegments,
   parseSegment,
   referencedObjects,
   SEGMENT_DOMAINS,
-  serializeGraph,
+  segmentsOf,
+  type PendingSegment,
   type RuntimeStateManifest,
   type SegmentDomain,
   type SegmentReference,
-  type SerializedSegment,
+  type StoredSegment,
 } from './segments.ts'
 import type { TiaRuntimeGraph } from '../../core/runtime.ts'
 
@@ -102,23 +105,43 @@ function readObject(path: string, length: number): Buffer | null {
 }
 
 /**
- * Stores one bucket object unless an intact copy exists (a corrupt object of
- * the same name is replaced). Reuse refreshes the object's mtime, so garbage
- * collection retains an object for 24 hours after it was last referenced.
- * Synchronous for the same reason as the read loop: it runs once per bucket.
+ * True when an intact copy of the object exists. Reuse refreshes the object's
+ * mtime, so garbage collection retains an object for 24 hours after it was
+ * last referenced.
  */
-function storeObjectSync(cacheDir: string, segment: SerializedSegment): void {
-  const path = objectPath(cacheDir, segment.reference.sha256)
-  const current = readObject(path, segment.reference.bytes)
-  if (current !== null && hashBytes(current) === segment.reference.sha256) {
-    const now = new Date()
-    try {
-      utimesSync(path, now, now)
-    } catch {
-      // Refreshing the retention time is best effort.
-    }
-    return
+function keepIntactObject(
+  cacheDir: string,
+  reference: SegmentReference,
+): boolean {
+  const path = objectPath(cacheDir, reference.sha256)
+  const current = readObject(path, reference.bytes)
+  if (current === null || hashBytes(current) !== reference.sha256) return false
+  const now = new Date()
+  try {
+    utimesSync(path, now, now)
+  } catch {
+    // Refreshing the retention time is best effort.
   }
+  return true
+}
+
+/**
+ * Stores one bucket object unless an intact copy exists (a corrupt object of
+ * the same name is replaced) and returns its reference. A bucket that holds
+ * the records of a known object is serialized only when that object is not
+ * intact here. Synchronous for the same reason as the read loop: it runs once
+ * per bucket.
+ */
+function storeObjectSync(
+  cacheDir: string,
+  pending: PendingSegment,
+): SegmentReference {
+  if (pending.stored !== null && keepIntactObject(cacheDir, pending.stored)) {
+    return pending.stored
+  }
+  const segment = pending.serialize()
+  if (keepIntactObject(cacheDir, segment.reference)) return segment.reference
+  const path = objectPath(cacheDir, segment.reference.sha256)
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
   try {
     writeFileSync(temporary, segment.body)
@@ -126,20 +149,23 @@ function storeObjectSync(cacheDir: string, segment: SerializedSegment): void {
   } finally {
     rmSync(temporary, { force: true })
   }
+  return segment.reference
 }
 
-const storeObject = (cacheDir: string, segment: SerializedSegment) =>
+const storeObject = (cacheDir: string, pending: PendingSegment) =>
   Effect.try({
     catch: ioError,
-    try: () => storeObjectSync(cacheDir, segment),
+    try: () => storeObjectSync(cacheDir, pending),
   })
 
 const nextSegment = (
-  generator: Generator<SerializedSegment, RuntimeStateManifest, undefined>,
+  generator: Generator<PendingSegment, RuntimeStateManifest, SegmentReference>,
+  stored?: SegmentReference,
 ) =>
   Effect.try({
     catch: ioError,
-    try: () => generator.next(),
+    try: () =>
+      stored === undefined ? generator.next() : generator.next(stored),
   })
 
 export function makeStateFiles(fs: FileSystem.FileSystem) {
@@ -186,7 +212,11 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
       manifest.segments[domain].map((reference) => ({ domain, reference })),
     )
     const records = {} as Record<SegmentDomain, Record<string, unknown>[]>
-    for (const domain of SEGMENT_DOMAINS) records[domain] = []
+    const segments = {} as Record<SegmentDomain, Map<number, StoredSegment>>
+    for (const domain of SEGMENT_DOMAINS) {
+      records[domain] = []
+      segments[domain] = new Map()
+    }
     // Synchronous reads avoid the per-file thread-pool overhead. Yield between
     // batches so a large store does not monopolize the event loop.
     for (const [index, { domain, reference }] of jobs.entries()) {
@@ -196,10 +226,12 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
       const segment = readSegmentSync(cacheDir, domain, reference)
       if (segment === null) return NO_GRAPH
       records[domain].push(segment)
+      segments[domain].set(reference.bucket, { records: segment, reference })
     }
     const graph = parseRuntimeGraph(assembleGraph(manifest, records))
     if (graph === null) return NO_GRAPH
     noteGraphDigest(graph, manifest.generation)
+    noteGraphSegments(graph, segments)
     return { digest: manifest.generation, graph } satisfies StoredGraph
   })
 
@@ -249,24 +281,27 @@ export function makeStateFiles(fs: FileSystem.FileSystem) {
    * Stores every bucket object as it is serialized, checks the manifest size,
    * then renames the manifest into place (the commit point) and collects
    * garbage. A failure before the rename leaves the previous manifest in force.
+   * `base` is a graph this store read that `graph` was derived from: buckets
+   * that hold the same records reuse its objects without serializing them.
    */
   const write = Effect.fnUntraced(function* (
     cacheDir: string,
     graph: TiaRuntimeGraph,
+    base: TiaRuntimeGraph | null,
   ) {
     yield* fs
       .makeDirectory(objectsPath(cacheDir), { recursive: true })
       .pipe(Effect.mapError(ioError))
-    const generator = serializeGraph(graph)
+    const generator = segmentsOf(graph, graphSegments(base))
     let step = yield* nextSegment(generator)
     let stored = 0
     while (step.done !== true) {
       if (stored > 0 && stored % SEGMENTS_PER_TURN === 0) {
         yield* yieldToEventLoop()
       }
-      yield* storeObject(cacheDir, step.value)
+      const reference = yield* storeObject(cacheDir, step.value)
       stored += 1
-      step = yield* nextSegment(generator)
+      step = yield* nextSegment(generator, reference)
     }
     const manifest = step.value
     noteGraphDigest(graph, manifest.generation)

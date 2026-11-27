@@ -224,9 +224,18 @@ def _dependencies(
     root: Path,
     test_file: Path,
     modules: Mapping[str, Path] | None = None,
+    imports: dict[Path, set[str]] | None = None,
 ) -> list[str]:
+    """Return the project files in the static import closure of a test file.
+
+    ``imports`` caches each file's imported modules. Share one cache only
+    across the test files of a single graph build: files can change between
+    builds.
+    """
     if modules is None:
         modules = _module_index(root)
+    if imports is None:
+        imports = {}
     entries = [test_file, *_conftests(root, test_file)]
     pending = [
         *entries,
@@ -238,7 +247,9 @@ def _dependencies(
         if path in visited:
             continue
         visited.add(path)
-        for module in _imported_modules(root, path):
+        if path not in imports:
+            imports[path] = _imported_modules(root, path)
+        for module in imports[path]:
             pending.extend(_module_files(module, modules))
     return sorted_utf16(_relative(root, path) for path in visited)
 
@@ -294,9 +305,10 @@ def create_pytest_graph(
 ) -> dict[str, Any]:
     root = Path(options.root).resolve()
     modules = _module_index(root)
+    imports: dict[Path, set[str]] = {}
     observations = []
     for suite in suites:
-        for source in _dependencies(root, root / suite["file"], modules):
+        for source in _dependencies(root, root / suite["file"], modules, imports):
             observations.append(
                 {
                     "confidence": "exact",

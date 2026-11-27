@@ -30,7 +30,7 @@ export const GraphStoreLive = Layer.effect(
               ),
             read: files.read(cacheDir),
             readGeneration: files.readGeneration(cacheDir),
-            write: (graph) => files.write(cacheDir, graph),
+            write: (graph, base) => files.write(cacheDir, graph, base),
           },
           commit,
         ).pipe(Effect.withSpan('tia.store.commit')),

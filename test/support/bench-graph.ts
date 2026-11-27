@@ -1,8 +1,10 @@
 import type {
+  CachedTestResult,
   TiaCoverageHits,
   TiaCoverageRecord,
   TiaCoverageTemplate,
   TiaRuntimeGraph,
+  TiaTestEdge,
 } from '../../src/core/runtime.ts'
 import { GRAPH_SCHEMA_VERSION } from '../../src/core/runtime.ts'
 
@@ -105,7 +107,8 @@ function hits(
 }
 
 const sourceName = (source: number) => `src/module${source}.ts`
-const testFileName = (file: number) => `test/file${file}.test.ts`
+/** The project path of test file `file`. */
+export const testFileName = (file: number) => `test/file${file}.test.ts`
 
 /** The source files test `test` touches: distinct, spread over the project. */
 export function sourcesOf(shape: GraphShape, test: number): number[] {
@@ -193,34 +196,43 @@ export function legacyLayout(graph: TiaRuntimeGraph): LegacyRuntimeGraph {
   return { ...rest, schema: 4 }
 }
 
+/** What a selective run observes when one test of a large graph reruns. */
+export interface OneTestRerun {
+  readonly coverage: TiaCoverageRecord
+  readonly edge: TiaTestEdge
+  readonly file: string
+  readonly id: string
+  readonly result: CachedTestResult
+}
+
 /**
- * The same graph after one test reran: its result, its coverage and the
- * timestamp change, everything else is the very same objects. That is what a
- * selective run's commit proposes.
+ * One test rerunning on top of `graph`: a new duration and one more statement
+ * hit in each file it covers, as fresh objects the run owns. The test file has
+ * other tests that were not rerun.
  */
-export function afterOneTestReran<
-  G extends Pick<TiaRuntimeGraph, 'results' | 'testCoverage' | 'updatedAt'>,
->(graph: G, shape: GraphShape): G {
+export function oneTestReran(
+  graph: Pick<TiaRuntimeGraph, 'results' | 'testCoverage' | 'testEdges'>,
+  shape: GraphShape,
+): OneTestRerun {
   const test = Math.floor(shape.tests / 2)
   const file = testFileName(test % shape.testFiles)
   const id = `${file}::case ${test}`
   const result = graph.results[id]
   const coverage = graph.testCoverage[id]
-  if (result === undefined || coverage === undefined) {
+  const edge = graph.testEdges[id]
+  if (result === undefined || coverage === undefined || edge === undefined) {
     throw new Error(`the graph has no test ${id}`)
   }
   return {
-    ...graph,
-    results: { ...graph.results, [id]: { ...result, duration: 999 } },
-    testCoverage: {
-      ...graph.testCoverage,
-      [id]: Object.fromEntries(
-        Object.entries(coverage).map(([source, record]) => [
-          source,
-          { ...record, s: { ...record.s, '0': 1 } },
-        ]),
-      ),
-    },
-    updatedAt: '2026-01-02T00:00:00.000Z',
+    coverage: Object.fromEntries(
+      Object.entries(coverage).map(([source, record]) => [
+        source,
+        { ...structuredClone(record), s: { ...record.s, '0': 1 } },
+      ]),
+    ),
+    edge: { file: edge.file, files: [...edge.files] },
+    file,
+    id,
+    result: { ...result, duration: 999 },
   }
 }

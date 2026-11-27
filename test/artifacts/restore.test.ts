@@ -1,11 +1,22 @@
+import { join } from 'node:path'
+
+import * as NodeServices from '@effect/platform-node/NodeServices'
+import * as Effect from 'effect/Effect'
+import * as Layer from 'effect/Layer'
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, test } from 'vitest'
 
 import type {
   TiaArtifactCandidate,
   TiaArtifactProvider,
+  TiaArtifactSource,
 } from '../../src/core/artifacts.ts'
 import type { TiaRuntimeGraph } from '../../src/core/runtime.ts'
+import { artifactRestore } from '../../src/engine/artifacts/restore-step.ts'
+import { baselinesMemory } from '../../src/engine/baseline/memory.ts'
+import { beginRun } from '../../src/engine/lifecycle.ts'
+import { GraphStore } from '../../src/engine/ports.ts'
+import { GraphStoreLive } from '../../src/engine/state/graph-store.ts'
 import {
   archive as archiveOf,
   archiveGraph,
@@ -13,6 +24,8 @@ import {
   graph,
   readStored,
   restore,
+  temporaryRoot,
+  writeStored,
 } from './support.ts'
 
 // Restore policy and ancestry selection.
@@ -307,5 +320,93 @@ describe('archive entry names', () => {
 
   test('a runner namespace that climbs out of the archive finds nothing', () => {
     expect(archiveGraph(archiveOf('current'), '../escape')).toBeNull()
+  })
+})
+
+/**
+ * Prepares in a fresh project with `source` as its only artifact source and
+ * `stored` in its cache, over a graph store that counts its reads.
+ */
+async function prepare(
+  source: TiaArtifactSource,
+  stored: TiaRuntimeGraph | null,
+) {
+  const root = temporaryRoot()
+  const cacheDir = join(root, '.tia')
+  if (stored !== null) await writeStored(cacheDir, stored)
+  let reads = 0
+  const counted = Layer.effect(
+    GraphStore,
+    Effect.gen(function* () {
+      const store = yield* GraphStore
+      return GraphStore.of({
+        ...store,
+        read: (directory) => {
+          reads += 1
+          return store.read(directory)
+        },
+      })
+    }),
+  ).pipe(Layer.provide(GraphStoreLive))
+  const projects = new Map([
+    [root, { commits: [{ files: {}, sha: 'abc' }], files: {} }],
+  ])
+  const begun = await Effect.runPromise(
+    Effect.gen(function* () {
+      const step = yield* artifactRestore([source], false, unsigned)
+      return yield* beginRun({
+        cacheDir,
+        ignoredPrefixes: ['.tia'],
+        options: { fresh: false, ignoreChanges: [], onUnknownChange: 'full' },
+        ...(step === undefined ? {} : { restore: step }),
+        root,
+        snapshot: { baseline: null, fingerprint: 'current' },
+      })
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(counted, baselinesMemory(projects)).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+      ),
+    ),
+  )
+  return { begun, reads }
+}
+
+describe('the prepare after a restore', () => {
+  test('plans from the local graph the restore kept, read once', async () => {
+    let calls = 0
+    const never: TiaArtifactProvider = {
+      load: () => {
+        calls += 1
+        return null
+      },
+      name: 'never',
+    }
+    const { begun, reads } = await prepare(never, graph('current'))
+    expect(calls).toBe(0)
+    expect(begun.plan.baseline).toMatchObject({
+      origin: 'local',
+      reason: 'compatible local graph exists',
+    })
+    expect(begun.graph).toEqual(graph('current'))
+    expect(reads).toBe(1)
+  })
+
+  test('reads the graph once when no provider has one either', async () => {
+    const { begun, reads } = await prepare(provider('empty', null), null)
+    expect(begun.plan.baseline).toMatchObject({ origin: 'none' })
+    expect(begun.graph).toBeNull()
+    expect(reads).toBe(1)
+  })
+
+  test('reads the graph again after committing an artifact', async () => {
+    const { begun, reads } = await prepare(
+      provider('ci', { graph: graph('current'), id: 'ci' }),
+      null,
+    )
+    expect(begun.plan.baseline).toMatchObject({ origin: 'artifact' })
+    expect(begun.graph).toEqual(graph('current'))
+    expect(reads).toBe(2)
   })
 })

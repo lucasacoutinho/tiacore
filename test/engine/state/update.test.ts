@@ -4,7 +4,12 @@ import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
 import { expect, layer, test } from '@effect/vitest'
 
-import type { TiaRuntimeGraph } from '../../../src/core/runtime.ts'
+import type {
+  CachedTestResult,
+  TiaCoverageRecord,
+  TiaRuntimeGraph,
+  TiaTestEdge,
+} from '../../../src/core/runtime.ts'
 import { GRAPH_SCHEMA_VERSION } from '../../../src/core/runtime.ts'
 import {
   emptyGraph,
@@ -135,6 +140,131 @@ const outerOnly = {
       },
     ],
   ]),
+}
+
+// Random graphs and runs over a few files, for the copy-on-write property. The
+// last file does not exist on disk, so updates also prune.
+const SCENARIO_FILES = [
+  'test/a.test.ts',
+  'test/b.test.ts',
+  'test/c.test.ts',
+  'test/gone.test.ts',
+]
+const SCENARIO_SOURCES = ['src/setup.ts', 'src/x.ts', 'src/y.ts', 'src/z.ts']
+const SCENARIO_MAPS = ['m1', 'm2', 'm3']
+
+/** A deterministic generator of numbers in [0, 1) (mulberry32). */
+function seeded(seed: number): () => number {
+  let state = seed
+  return () => {
+    state = (state + 0x6d2b79f5) | 0
+    let value = Math.imul(state ^ (state >>> 15), 1 | state)
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const pick = <T>(random: () => number, values: readonly T[]): T =>
+  values[Math.floor(random() * values.length)]!
+const some = <T>(random: () => number, values: readonly T[]): T[] =>
+  values.filter(() => random() < 0.5)
+
+function randomCoverage(random: () => number): TiaCoverageRecord {
+  return Object.fromEntries(
+    some(random, SCENARIO_SOURCES).map((source) => [
+      source,
+      {
+        b: random() < 0.5 ? {} : { 0: [Math.floor(random() * 3), 1] },
+        f: { 0: Math.floor(random() * 3) },
+        map: pick(random, SCENARIO_MAPS.slice(0, 2)),
+        s: { 0: Math.floor(random() * 3), 1: 1 },
+      },
+    ]),
+  )
+}
+
+function randomGraph(random: () => number): TiaRuntimeGraph {
+  const generated = baseGraph({
+    collectionCoverage: {},
+    collectionFiles: {},
+    coverageMaps: Object.fromEntries(
+      SCENARIO_MAPS.map((map) => [map, TEMPLATE]),
+    ),
+    edges: {},
+    results: {},
+    testCoverage: {},
+    testEdges: {},
+  })
+  for (let index = 0; index < 8; index += 1) {
+    const id = `t${index}`
+    const file = pick(random, SCENARIO_FILES)
+    const state = pick(random, ['passed', 'failed', 'skipped'] as const)
+    generated.results[id] = { file, fullName: id, id, state }
+    if (random() < 0.8) {
+      generated.testEdges[id] = {
+        file,
+        files: union(some(random, SCENARIO_SOURCES), [file]),
+      }
+    }
+    if (random() < 0.7) generated.testCoverage[id] = randomCoverage(random)
+    generated.edges[file] = union(
+      generated.edges[file] ?? [file],
+      generated.testEdges[id]?.files ?? [],
+    )
+  }
+  for (const file of some(random, Object.keys(generated.edges))) {
+    generated.collectionFiles[file] = some(random, SCENARIO_SOURCES)
+    generated.collectionCoverage[file] = randomCoverage(random)
+  }
+  return generated
+}
+
+function randomRun(random: () => number, root: string) {
+  const executed = some(random, SCENARIO_FILES.slice(0, -1))
+  const results = new Map<string, CachedTestResult>()
+  const testEdges = new Map<string, TiaTestEdge>()
+  const testCoverage = new Map<string, TiaCoverageRecord>()
+  for (const file of executed) {
+    for (let index = 0; index < 3; index += 1) {
+      if (random() < 0.4) continue
+      const id = random() < 0.5 ? `t${Math.floor(random() * 8)}` : `n${index}`
+      results.set(id, { file, fullName: id, id, state: 'passed' })
+      testEdges.set(id, {
+        file,
+        files: union(some(random, SCENARIO_SOURCES), [file]),
+      })
+      if (random() < 0.7) testCoverage.set(id, randomCoverage(random))
+    }
+  }
+  const observed = some(random, executed)
+  return {
+    ...(random() < 0.7
+      ? {
+          collectionCoverage: new Map(
+            observed.map((file) => [file, randomCoverage(random)]),
+          ),
+          collectionFiles: new Map(
+            observed.map((file) => [file, some(random, SCENARIO_SOURCES)]),
+          ),
+        }
+      : {}),
+    coverageMaps: { m4: TEMPLATE },
+    executedFiles: executed,
+    fallbackEdges: new Map(
+      some(random, executed).map((file) => [file, ['src/fallback.ts', file]]),
+    ),
+    fullyExecutedFiles: some(random, executed),
+    header,
+    presentFiles: some(random, SCENARIO_FILES),
+    results,
+    root,
+    testCoverage,
+    testEdges,
+  }
+}
+
+function union(...lists: ReadonlyArray<readonly string[]>): string[] {
+  return [...new Set(lists.flat())].sort()
 }
 
 layer(EngineLive, { excludeTestServices: true })(
@@ -511,7 +641,7 @@ layer(EngineLive, { excludeTestServices: true })(
     )
 
     it.effect(
-      'shares coverage records with the caller and templates with the previous graph',
+      'shares coverage records with the caller and unchanged records with the previous graph',
       () =>
         Effect.gen(function* () {
           const root = yield* projectWith('test/a.test.ts')
@@ -533,7 +663,37 @@ layer(EngineLive, { excludeTestServices: true })(
           })
           expect(updated.testCoverage.new).toBe(record)
           expect(updated.coverageMaps.m).toBe(TEMPLATE)
-          expect(updated.testCoverage.old).not.toBe(previous.testCoverage.old)
+          expect(updated.testCoverage.old).toBe(previous.testCoverage.old)
+          expect(updated.results.old).toBe(previous.results.old)
+          expect(updated.testCoverage).not.toBe(previous.testCoverage)
+        }),
+    )
+
+    it.effect(
+      'never changes the previous graph and matches an update of a deep copy',
+      () =>
+        Effect.gen(function* () {
+          const root = yield* projectWith(...SCENARIO_FILES.slice(0, -1))
+          const random = seeded(0x7a11)
+          for (let round = 0; round < 300; round += 1) {
+            const previous = randomGraph(random)
+            const snapshot = structuredClone(previous)
+            const input = randomRun(random, root)
+            const updated = yield* updateGraph({ ...input, previous })
+            const copied = yield* updateGraph({
+              ...input,
+              previous: structuredClone(previous),
+            })
+            expect(previous).toStrictEqual(snapshot)
+            expect(updated).toStrictEqual(copied)
+            // The next run updates this one's graph and must not change it.
+            const kept = structuredClone(updated)
+            yield* updateGraph({
+              ...randomRun(random, root),
+              previous: updated,
+            })
+            expect(updated).toStrictEqual(kept)
+          }
         }),
     )
   },

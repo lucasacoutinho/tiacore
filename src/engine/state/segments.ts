@@ -261,14 +261,57 @@ function serializeSegment(
 }
 
 /**
- * Serializes the graph one bucket at a time. Each body is yielded and may be
- * released before the next is built; the generator returns the manifest.
- * Throws when a bucket exceeds the storage limit or the graph cannot be
- * serialized.
+ * The bucket objects a store read, per domain and bucket: each one's
+ * reference and the records it held. The records are the very values of the
+ * graph the store assembled from them.
  */
-export function* serializeGraph(
+export type StoredSegments = Readonly<
+  Record<SegmentDomain, ReadonlyMap<number, StoredSegment>>
+>
+
+export interface StoredSegment {
+  readonly records: Readonly<Record<string, unknown>>
+  readonly reference: SegmentReference
+}
+
+/**
+ * One bucket of a graph being written. `stored` is the reference of a stored
+ * object that holds exactly this bucket's records, when one is known; the
+ * bucket then serializes to that object's body, and a writer that finds the
+ * object intact need not serialize it.
+ */
+export interface PendingSegment {
+  readonly serialize: () => SerializedSegment
+  readonly stored: SegmentReference | null
+}
+
+/** True when `entries` are exactly the records `stored` held, value for value. */
+function holdsExactly(
+  stored: StoredSegment,
+  entries: ReadonlyArray<readonly [string, unknown]>,
+): boolean {
+  if (entries.length !== stored.reference.entries) return false
+  for (const [key, value] of entries) {
+    if (!Object.hasOwn(stored.records, key) || stored.records[key] !== value) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * The graph's buckets, one at a time, each matched against the buckets
+ * `known` (from the store's read of an earlier graph) by key and value
+ * identity. Graph values are never changed in place, so an identical bucket
+ * still serializes to the object it was read from. The caller passes the
+ * reference it stored each bucket at to `next`; the generator returns the
+ * manifest. Throws when a bucket exceeds the storage limit or the graph cannot
+ * be serialized.
+ */
+export function* segmentsOf(
   graph: TiaRuntimeGraph,
-): Generator<SerializedSegment, RuntimeStateManifest, undefined> {
+  known: StoredSegments | null,
+): Generator<PendingSegment, RuntimeStateManifest, SegmentReference> {
   const [metadata, records] = stateRecords(graph)
   const segments = {} as Record<SegmentDomain, SegmentReference[]>
   for (const domain of SEGMENT_DOMAINS) {
@@ -281,9 +324,17 @@ export function* serializeGraph(
     }
     const references: SegmentReference[] = []
     for (const bucket of [...buckets.keys()].sort((a, b) => a - b)) {
-      const segment = serializeSegment(domain, bucket, buckets.get(bucket)!)
-      references.push(segment.reference)
-      yield segment
+      const entries = buckets.get(bucket)!
+      const stored = known?.[domain].get(bucket)
+      references.push(
+        yield {
+          serialize: () => serializeSegment(domain, bucket, entries),
+          stored:
+            stored !== undefined && holdsExactly(stored, entries)
+              ? stored.reference
+              : null,
+        },
+      )
     }
     segments[domain] = references
   }
@@ -297,6 +348,25 @@ export function* serializeGraph(
 }
 
 /**
+ * Serializes the graph one bucket at a time. Each body is yielded and may be
+ * released before the next is built; the generator returns the manifest.
+ * Throws when a bucket exceeds the storage limit or the graph cannot be
+ * serialized.
+ */
+export function* serializeGraph(
+  graph: TiaRuntimeGraph,
+): Generator<SerializedSegment, RuntimeStateManifest, undefined> {
+  const pending = segmentsOf(graph, null)
+  let step = pending.next()
+  while (step.done !== true) {
+    const segment = step.value.serialize()
+    yield segment
+    step = pending.next(segment.reference)
+  }
+  return step.value
+}
+
+/**
  * The manifest generation the store would record for this graph. It
  * identifies graph content without serializing the graph into one string.
  */
@@ -306,6 +376,27 @@ export function graphGeneration(graph: TiaRuntimeGraph): string {
     const step = segments.next()
     if (step.done === true) return step.value.generation
   }
+}
+
+/**
+ * The bucket objects each graph the store read was assembled from, so a write
+ * of a graph derived from it can recognise the buckets it left unchanged.
+ */
+const knownSegments = new WeakMap<TiaRuntimeGraph, StoredSegments>()
+
+/** Records the bucket objects the store assembled `graph` from. */
+export function noteGraphSegments(
+  graph: TiaRuntimeGraph,
+  segments: StoredSegments,
+): void {
+  knownSegments.set(graph, segments)
+}
+
+/** The bucket objects the store assembled `graph` from, when it read it. */
+export function graphSegments(
+  graph: TiaRuntimeGraph | null,
+): StoredSegments | null {
+  return graph === null ? null : (knownSegments.get(graph) ?? null)
 }
 
 /**

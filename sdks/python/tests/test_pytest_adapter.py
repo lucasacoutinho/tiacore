@@ -85,6 +85,38 @@ class PytestAdapterTests(unittest.TestCase):
             "tests/test_a.py\n",
         )
 
+    def test_parses_each_file_once_per_graph(self) -> None:
+        from tiacore import pytest_adapter
+
+        example = self.root / "src" / "example"
+        (example / "shared.py").write_text("VALUE = 1\n", encoding="utf-8")
+        for name in ("a", "b"):
+            (example / f"{name}.py").write_text(
+                "from example.shared import VALUE\n\n\n"
+                f"def value() -> str:\n    return {name!r} * VALUE\n",
+                encoding="utf-8",
+            )
+        suites = pytest_adapter.discover_pytest_suites(self.options)
+        with mock.patch.object(
+            pytest_adapter,
+            "_imported_modules",
+            wraps=pytest_adapter._imported_modules,
+        ) as parse:
+            graph = pytest_adapter.create_pytest_graph(self.options, suites)
+        parsed = [call.args[1] for call in parse.call_args_list]
+        root = self.root.resolve()
+        self.assertIn(root / "src" / "example" / "shared.py", parsed)
+        self.assertEqual(len(parsed), len(set(parsed)))
+        for suite in suites:
+            self.assertEqual(
+                [
+                    observation["source"]
+                    for observation in graph["observations"]
+                    if observation["suiteId"] == suite["id"]
+                ],
+                pytest_adapter._dependencies(root, root / suite["file"]),
+            )
+
     def test_unknown_changes_expand_to_the_full_suite(self) -> None:
         self.assertTrue(tia(self.options).run().success)
         self.log.write_text("", encoding="utf-8")

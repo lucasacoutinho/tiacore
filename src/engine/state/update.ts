@@ -8,13 +8,14 @@ import {
   GRAPH_SCHEMA_VERSION,
   type Baseline,
   type CachedTestResult,
+  type RecordFamily,
   type TiaCoverageRecord,
   type TiaCoverageTemplate,
   type TiaRuntimeGraph,
   type TiaRuntimeGraphPartition,
   type TiaTestEdge,
 } from '../../core/runtime.ts'
-import { cloneGraph, pruneCoverageMaps } from './coverage.ts'
+import { pruneCoverageMaps } from './coverage.ts'
 
 /**
  * What a run states about the graph it leaves. Every field is required and
@@ -71,6 +72,25 @@ export function emptyGraph(): TiaRuntimeGraph {
     testEdges: {},
     updatedAt: '',
   }
+}
+
+/**
+ * The graph with copies of its record tables, so records can be added and
+ * removed without touching `graph`. The records themselves are shared: an
+ * update replaces a record it changes and never changes one in place. Sharing
+ * them also lets the store recognise the records a commit left unchanged.
+ */
+function copyTables(graph: TiaRuntimeGraph): TiaRuntimeGraph {
+  const tables: Pick<TiaRuntimeGraph, RecordFamily> = {
+    collectionCoverage: { ...graph.collectionCoverage },
+    collectionFiles: { ...graph.collectionFiles },
+    coverageMaps: { ...graph.coverageMaps },
+    edges: { ...graph.edges },
+    results: { ...graph.results },
+    testCoverage: { ...graph.testCoverage },
+    testEdges: { ...graph.testEdges },
+  }
+  return { ...graph, ...tables }
 }
 
 function deleteFileRecords(
@@ -147,14 +167,15 @@ function mergeCollectionCoverage(
  * collection file selects every test of the file (each test edge contains the
  * collection), so a replayed test means none of them changed. Collection that
  * a partial run does not reach, such as a layer built only by replayed tests,
- * is therefore still valid. Every test edge of the file gets the collection.
+ * is therefore still valid. Every test edge of the file (`ids`) gets the
+ * collection.
  */
 function updateCollection(
   graph: TiaRuntimeGraph,
   input: GraphUpdateInput,
   file: string,
   full: boolean,
-  edges: readonly TiaTestEdge[],
+  ids: readonly string[],
 ): void {
   const observedCoverage = input.collectionCoverage?.get(file) ?? {}
   if (input.collectionCoverage !== undefined) {
@@ -175,12 +196,15 @@ function updateCollection(
     return
   }
   graph.collectionFiles[file] = collection
-  for (const edge of edges) edge.files = union(edge.files, collection)
+  for (const id of ids) {
+    const edge = graph.testEdges[id]!
+    graph.testEdges[id] = { ...edge, files: union(edge.files, collection) }
+  }
 }
 
 function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
   const graph =
-    input.previous === null ? emptyGraph() : cloneGraph(input.previous)
+    input.previous === null ? emptyGraph() : copyTables(input.previous)
 
   const fully = new Set(input.fullyExecutedFiles)
   deleteFileRecords(graph, fully)
@@ -200,17 +224,17 @@ function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
 
   const executed = new Set(input.executedFiles)
   if (executed.size === 0) return graph
-  const edgesByFile = new Map<string, TiaTestEdge[]>()
-  for (const edge of Object.values(graph.testEdges)) {
+  const idsByFile = new Map<string, string[]>()
+  for (const [id, edge] of Object.entries(graph.testEdges)) {
     if (!executed.has(edge.file)) continue
-    const edges = edgesByFile.get(edge.file)
-    if (edges === undefined) edgesByFile.set(edge.file, [edge])
-    else edges.push(edge)
+    const ids = idsByFile.get(edge.file)
+    if (ids === undefined) idsByFile.set(edge.file, [id])
+    else ids.push(id)
   }
   for (const file of executed) {
-    const edges = edgesByFile.get(file) ?? []
-    updateCollection(graph, input, file, fully.has(file), edges)
-    const dependencies = edges.flatMap((edge) => edge.files)
+    const ids = idsByFile.get(file) ?? []
+    updateCollection(graph, input, file, fully.has(file), ids)
+    const dependencies = ids.flatMap((id) => graph.testEdges[id]!.files)
     graph.edges[file] =
       dependencies.length === 0
         ? [...(input.fallbackEdges?.get(file) ?? graph.edges[file] ?? [file])]
@@ -224,7 +248,7 @@ function applyObservations(input: GraphUpdateInput): TiaRuntimeGraph {
  * lose their old results first, tests that were not rerun keep theirs, and any
  * test file that no longer exists under `root` is pruned with its records.
  * Stamps the graph with the schema and the input's header.
- * The previous graph is never mutated.
+ * The previous graph is never mutated; the result shares its unchanged records.
  */
 export const updateGraph = Effect.fnUntraced(function* (
   input: GraphUpdateInput,

@@ -5,6 +5,20 @@ follow Semantic Versioning.
 
 ## Unreleased
 
+### Performance
+
+- Committing after a small run is much faster on large graphs: the graph update
+  no longer deep-copies the previous graph, and the store reuses the objects of
+  buckets the run left unchanged. On a 5,000-test graph with coverage, the
+  update went from about 230 ms to 22 ms and the commit from about 134 ms to 48
+  ms. The graph `TiaCore.commit` returns shares unchanged records with the
+  plan's graph, so do not mutate either.
+- With an artifact source configured and a usable local graph, prepare no longer
+  reads the stored graph twice (about 225 ms to 120 ms on 5,000 tests).
+- The pytest adapter parses each project file once per graph build instead of
+  once per importing test file: up to 15x faster on large projects, with the
+  same graph.
+
 ### Security
 
 - Artifact downloads no longer forward request headers, such as GitLab's

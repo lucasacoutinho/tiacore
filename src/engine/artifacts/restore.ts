@@ -17,7 +17,7 @@ import type {
   TiaRuntimeGraphPartition,
 } from '../../core/runtime.ts'
 import { TiaInvalid, TiaIo } from '../../wire/errors.ts'
-import { Baselines, GraphStore } from '../ports.ts'
+import { Baselines, GraphStore, type StoredGraph } from '../ports.ts'
 import { mergePartitionedFragments } from '../state/merge.ts'
 import { createFilesystemArtifactProvider } from './filesystem.ts'
 import { createGitHubActionsArtifactProvider } from './github-actions.ts'
@@ -30,6 +30,16 @@ import {
 } from './trust.ts'
 
 export type { RestoreArtifactResult, RestoreArtifactsInput }
+
+/**
+ * A restore's result, and the graph it read from the cache directory when it
+ * committed nothing there (null after a commit was tried), so a caller need
+ * not read that graph again.
+ */
+export interface RestoreKeeping {
+  readonly kept: StoredGraph | null
+  readonly result: RestoreArtifactResult
+}
 
 type ArtifactId = number | string
 
@@ -132,9 +142,13 @@ const loadCandidates = (
  * and only the fragments merged are reported. A provider that fails is
  * skipped; restoring is an optimisation.
  */
-export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
+export const restoreGraph = (input: RestoreArtifactsInput) =>
+  restoreKeeping(input).pipe(Effect.map(({ result }) => result))
+
+/** `restoreGraph`, also returning the local graph it kept. */
+export const restoreKeeping = Effect.fn('tia.artifacts.restore')(function* (
   input: RestoreArtifactsInput,
-): Effect.fn.Return<RestoreArtifactResult, TiaInvalid, Baselines | GraphStore> {
+): Effect.fn.Return<RestoreKeeping, TiaInvalid, Baselines | GraphStore> {
   if (input.runner !== undefined && !isSafeRunner(input.runner)) {
     return yield* new TiaInvalid({
       message: 'TIA artifact runner must be a safe relative path',
@@ -147,8 +161,8 @@ export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
   const coverageRequested = input.coverageRequested ?? false
   if (usableGraph(local.graph, input.fingerprint, coverageRequested)) {
     return {
-      reason: 'compatible local graph exists',
-      restored: false,
+      kept: local,
+      result: { reason: 'compatible local graph exists', restored: false },
     }
   }
 
@@ -169,6 +183,8 @@ export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
   })
 
   let rejectedForTrust = false
+  // Once a commit was tried, the cache directory may hold another graph.
+  let committing = false
   const tryProvider = Effect.fnUntraced(function* (
     provider: TiaArtifactProvider,
   ) {
@@ -242,6 +258,7 @@ export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
     }
     if (!usableGraph(graph, input.fingerprint, coverageRequested)) return null
 
+    committing = true
     const committed = yield* store.commit(input.cacheDir, {
       expected: local.graph,
       expectedDigest: local.digest,
@@ -288,13 +305,16 @@ export const restoreGraph = Effect.fn('tia.artifacts.restore')(function* (
     const outcome = yield* tryProvider(provider).pipe(
       Effect.orElseSucceed(() => null),
     )
-    if (outcome !== null) return outcome
+    if (outcome !== null) return { kept: null, result: outcome }
   }
 
   return {
-    reason: rejectedForTrust
-      ? 'no provider returned a trusted compatible artifact'
-      : 'no provider returned a compatible artifact',
-    restored: false,
+    kept: committing ? null : local,
+    result: {
+      reason: rejectedForTrust
+        ? 'no provider returned a trusted compatible artifact'
+        : 'no provider returned a compatible artifact',
+      restored: false,
+    },
   }
 })

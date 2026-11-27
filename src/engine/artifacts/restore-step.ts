@@ -4,7 +4,7 @@ import type {
   TiaArtifactSource,
   TiaArtifactTrustPolicy,
 } from '../../core/artifacts.ts'
-import type { RestoreRequest } from '../lifecycle.ts'
+import type { RestoreOutcome, RestoreRequest } from '../lifecycle.ts'
 
 /**
  * The lifecycle's restore step for `sources`, or undefined when there are
@@ -17,10 +17,14 @@ export const artifactRestore = Effect.fnUntraced(function* (
   trust: TiaArtifactTrustPolicy,
 ) {
   if (sources.length === 0) return undefined
-  const { artifactProviders, restoreGraph } = yield* Effect.promise(
+  const { artifactProviders, restoreKeeping } = yield* Effect.promise(
     () => import('./restore.ts'),
   )
   const providers = artifactProviders([...sources])
   return (request: RestoreRequest) =>
-    restoreGraph({ ...request, log, providers, trust })
+    restoreKeeping({ ...request, log, providers, trust }).pipe(
+      Effect.map(({ kept, result }): RestoreOutcome =>
+        kept === null ? result : { ...result, local: kept },
+      ),
+    )
 })
