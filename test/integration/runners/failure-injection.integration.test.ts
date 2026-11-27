@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, test } from 'vitest'
 
+import { nodeDiscoveryHooksSupported } from '../../../src/runners/node/discovery.ts'
 import {
   cleanupProjects,
   createFixtureProject,
@@ -44,11 +45,20 @@ describe('runner failure injection', () => {
       { TIACORE_INJECT_WORKER_CRASH: '1' },
     )
     expect(crashed.status, crashed.output).toBe(1)
+    // With discovery hooks the crashed case is recorded as a module failure.
+    // Without them (Node before 22.15) the file runs whole, and a replay whose
+    // test process died saves no graph: the earlier result stays and the
+    // changed file is selected again.
     expect(Object.values((await readGraph(root, 'node')).results)).toEqual([
-      expect.objectContaining({
-        fullName: 'test/crash.test.mjs (module failure)',
-        state: 'failed',
-      }),
+      nodeDiscoveryHooksSupported()
+        ? expect.objectContaining({
+            fullName: 'test/crash.test.mjs (module failure)',
+            state: 'failed',
+          })
+        : expect.objectContaining({
+            fullName: 'worker crash case',
+            state: 'passed',
+          }),
     ])
 
     resetExecutions(root)
