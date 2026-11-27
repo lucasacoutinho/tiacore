@@ -15,6 +15,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { runPromise } from '../../src/host/runtime.ts'
 import { tia } from '../../src/entries/node.ts'
 import { nodeHelperPath } from '../../src/runners/node/assets.ts'
+import { nodeDiscoveryHooksSupported } from '../../src/runners/node/discovery.ts'
 import {
   executeNode,
   observeNodeFiles,
@@ -226,7 +227,9 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
   })
 })
 
-describe('node discovery mode', () => {
+// Discovery mode needs module.registerHooks (Node 22.15); older Node runs whole
+// files, which the aggregate-mode tests above cover.
+describe.skipIf(!nodeDiscoveryHooksSupported())('node discovery mode', () => {
   test('a test file that never finishes loading is a module failure', async () => {
     const root = project({
       'test/stuck.test.mjs': `import test from 'node:test'
