@@ -51,9 +51,11 @@ export interface TiaCoreEngineOptions
   readonly replayAdapters: readonly TiaReplayAdapter[]
 }
 
+/** `env` is where TIA_FRESH is read from when `options.fresh` is unset. */
 export function normalizedOptions(
   root: string,
   options: TiaCoreOptions,
+  env: Readonly<Record<string, string | undefined>> = process.env,
 ): TiaCoreEngineOptions {
   return {
     artifacts:
@@ -66,7 +68,7 @@ export function normalizedOptions(
     cacheDir: resolveCacheDir(root, options.cacheDir ?? DEFAULT_CACHE_DIR),
     exclude: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
     frameworkFingerprint: '',
-    fresh: options.fresh ?? freshRequested(process.env),
+    fresh: options.fresh ?? freshRequested(env),
     ignoreChanges: options.ignoreChanges ?? [],
     include: options.include ?? DEFAULT_INCLUDE,
     log: options.log ?? true,

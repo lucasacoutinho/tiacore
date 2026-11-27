@@ -9,15 +9,18 @@ tiacore loads no exporter code and pays no cost.
 
 ## Environment variables
 
-| Variable               | Value                              | What it does                                                                                              |
-| ---------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `TIACORE_DEVTOOLS`     | `1`, `true`, `yes`, `on`, or a URL | Sends spans and metrics to a devtools server. A truthy word means `ws://localhost:34437`.                 |
-| `TIACORE_OTLP_URL`     | Base URL of an OTLP/HTTP collector | Sends traces, metrics and logs to `<url>/v1/traces`, `<url>/v1/metrics` and `<url>/v1/logs`.              |
-| `TIACORE_TRACE_FILE`   | A file path                        | Writes every finished span as JSON. Keeps the newest 10,000 spans.                                        |
-| `TIACORE_METRICS_FILE` | A file path                        | Writes all metrics in Prometheus text format.                                                             |
-| `TIACORE_CRASH_DIR`    | A directory                        | Where crash reports go. The default is `.tia/crashes`. Crash reports are always on; this only moves them. |
+| Variable               | Value                              | What it does                                                                                                                                      |
+| ---------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TIACORE_DEVTOOLS`     | `1`, `true`, `yes`, `on`, or a URL | Sends spans and metrics to a devtools server. A truthy word means `ws://localhost:34437`.                                                         |
+| `TIACORE_OTLP_URL`     | Base URL of an OTLP/HTTP collector | Sends traces, metrics and logs to `<url>/v1/traces`, `<url>/v1/metrics` and `<url>/v1/logs`.                                                      |
+| `TIACORE_OTLP_HEADERS` | `name=value,name=value`            | Headers sent with every OTLP export, such as `Authorization=Bearer%20<token>`. Values are percent-decoded. `tiacore doctor` shows the names only. |
+| `TIACORE_TRACE_FILE`   | A file path                        | Writes every finished span as JSON. Keeps the newest 10,000 spans.                                                                                |
+| `TIACORE_METRICS_FILE` | A file path                        | Writes all metrics in Prometheus text format.                                                                                                     |
+| `TIACORE_CRASH_DIR`    | A directory                        | Where crash reports go. The default is `.tia/crashes`. Crash reports are always on; this only moves them.                                         |
 
-A blank value counts as unset. You can combine the first four.
+A blank value counts as unset. You can combine the devtools, OTLP, trace file
+and metrics file outputs. tiacore does not read `OTEL_EXPORTER_OTLP_HEADERS`, so
+credentials meant for another collector never reach this one.
 
 Example:
 

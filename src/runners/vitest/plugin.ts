@@ -1,17 +1,20 @@
 /// <reference types="vitest/config" />
 
+import { randomUUID } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
-  unlinkSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import * as Effect from 'effect/Effect'
+import * as FileSystem from 'effect/FileSystem'
 import { ChildProcessSpawner } from 'effect/process'
 import { createInstrumenter } from 'istanbul-lib-instrument'
 import type { Plugin } from 'vite'
@@ -157,12 +160,22 @@ function ensureSetupProxy(
   const directory = dirname(proxyPath)
   if (!existsSync(proxyPath) || readFileSync(proxyPath, 'utf8') !== contents) {
     mkdirSync(directory, { recursive: true })
-    writeFileSync(proxyPath, contents)
+    // Replaced in one rename: a Vitest process starting beside this one never
+    // imports a half-written module.
+    const temporary = `${proxyPath}.${process.pid}.${randomUUID()}.tmp`
+    try {
+      writeFileSync(temporary, contents)
+      renameSync(temporary, proxyPath)
+    } catch (error) {
+      rmSync(temporary, { force: true })
+      throw error
+    }
   }
   for (const name of readdirSync(directory)) {
     if (!name.startsWith('setup-') || !name.endsWith('.mjs')) continue
     const stale = resolve(directory, name)
-    if (stale !== proxyPath) unlinkSync(stale)
+    // Another process starting on this project may have removed it first.
+    if (stale !== proxyPath) rmSync(stale, { force: true })
   }
   return proxyPath
 }
@@ -224,6 +237,29 @@ export function instrumentationName(
 }
 
 /**
+ * The repository top in the spelling of `root`, which bounds the files the
+ * run tracks outside the root. git prints the top with symlinks resolved, but
+ * with `resolve.preserveSymlinks` Vite keeps a root reached through a symlink
+ * as given and names modules under it. Such a root gets the top under the same
+ * symlink, when that spelling leads back to the top; otherwise the root itself
+ * bounds the tracked files.
+ */
+const repositoryRootOf = Effect.fnUntraced(function* (
+  root: string,
+  top: string | null,
+) {
+  if (top === null) return root
+  if (isInside(top, root)) return top
+  const fs = yield* FileSystem.FileSystem
+  const realPath = (path: string) =>
+    fs.realPath(path).pipe(Effect.orElseSucceed(() => path))
+  const realRoot = yield* realPath(root)
+  if (!isInside(top, realRoot)) return root
+  const spelled = resolve(root, relative(realRoot, top))
+  return projectRelative(top, yield* realPath(spelled)) === '' ? spelled : root
+})
+
+/**
  * Plans the instance's run once: reads the stored graph, decides what runs and
  * adds the instance's reporter. Vitest starts the `configureVitest` hook of
  * every project at once, so the projects of one instance wait for this single
@@ -278,8 +314,7 @@ async function planInstance(
       const top = yield* makeGit(
         yield* ChildProcessSpawner.ChildProcessSpawner,
       ).repositoryTop(current.root)
-      current.repositoryRoot =
-        top !== null && isInside(top, current.root) ? top : current.root
+      current.repositoryRoot = yield* repositoryRootOf(current.root, top)
       current.verification = yield* verificationTarget(process.env)
       const fingerprint = yield* projectFingerprint(
         current.root,

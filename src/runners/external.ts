@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { dirname, relative, resolve, sep } from 'node:path'
 
 import * as Effect from 'effect/Effect'
@@ -175,13 +175,17 @@ export const readAdapterGraph = Effect.fnUntraced(function* (path: string) {
   )
 })
 
-/** Promotes a graph atomically: write a temporary file, then rename it. */
+/**
+ * Promotes a graph atomically: write a temporary file, then rename it. Each
+ * write has its own temporary file, so two runs of one process that share a
+ * graph path (two k6 lanes, say) cannot rename each other's file away.
+ */
 export const writeAdapterGraph = Effect.fnUntraced(function* (
   path: string,
   graph: TiaImpactGraph,
 ) {
   const fs = yield* FileSystem.FileSystem
-  const temporary = `${path}.${process.pid}.tmp`
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
   yield* Effect.gen(function* () {
     yield* fs.makeDirectory(dirname(path), { recursive: true })
     yield* fs.writeFileString(temporary, `${JSON.stringify(graph, null, 2)}\n`)

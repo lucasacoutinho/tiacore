@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { appendFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
@@ -22,8 +23,20 @@ type DefinitionFunction = Definition & {
   todo: Definition
 }
 
+interface Suite {
+  readonly name: string
+  readonly skipped: boolean
+}
+
 const output = process.env['TIACORE_NODE_DISCOVERY_FILE']
-const suites: Array<{ name: string; skipped: boolean }> = []
+// The enclosing describe blocks. An async describe callback keeps defining
+// tests after its first await, when its caller has long returned; node:test
+// still nests those tests, and the async context carries the stack to them.
+const suites = new AsyncLocalStorage<readonly Suite[]>()
+
+function enclosingSuites(): readonly Suite[] {
+  return suites.getStore() ?? []
+}
 const ownLocations = [import.meta.url, fileURLToPath(import.meta.url)]
 
 const FRAME = /\(?((?:file:\/\/\/|[a-z]:[\\/]|\/).+):(\d+):(\d+)\)?$/iu
@@ -85,14 +98,17 @@ function defineTest(forcedSkipped: boolean, arguments_: unknown[]): void {
   const definition = definitionArguments(arguments_)
   const location = sourceLocation()
   if (location === null) return
+  const enclosing = enclosingSuites()
   write({
     ...location,
-    fullName: [...suites.map((suite) => suite.name), definition.name].join(' '),
+    fullName: [...enclosing.map((suite) => suite.name), definition.name].join(
+      ' ',
+    ),
     name: definition.name,
     skipped:
       forcedSkipped ||
       definition.skipped ||
-      suites.some((suite) => suite.skipped),
+      enclosing.some((suite) => suite.skipped),
   })
 }
 
@@ -115,19 +131,18 @@ const test: DefinitionFunction = Object.assign(
 
 function defineSuite(forcedSkipped: boolean, arguments_: unknown[]): void {
   const definition = definitionArguments(arguments_)
-  if (definition.callback === null) return
-  suites.push({
-    name: definition.name,
-    skipped: forcedSkipped || definition.skipped,
-  })
-  try {
-    definition.callback.call({
+  const callback = definition.callback
+  if (callback === null) return
+  const stack = [
+    ...enclosingSuites(),
+    { name: definition.name, skipped: forcedSkipped || definition.skipped },
+  ]
+  suites.run(stack, () =>
+    callback.call({
       name: definition.name,
       signal: new AbortController().signal,
-    })
-  } finally {
-    suites.pop()
-  }
+    }),
+  )
 }
 
 const describe: DefinitionFunction = Object.assign(

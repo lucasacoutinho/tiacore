@@ -18,8 +18,9 @@ import {
 import { TIA_TYPESCRIPT_ADAPTER_VERSION } from '../../src/runners/adapter/types.ts'
 
 // The release contract of the manifest:
-// - `@types/istanbul-lib-instrument` is a development dependency only, because
-//   no public declaration references that package;
+// - `@types/istanbul-lib-coverage` and `@types/istanbul-lib-instrument` are
+//   development dependencies only, because no public declaration references
+//   those packages;
 // - the exports are the ESM-only `dist/entries/*` layout;
 // - the toolchain is pinned exactly.
 
@@ -145,11 +146,12 @@ describe('stable release contract', () => {
       'utf8',
     )
 
+    expect(packageJson.dependencies).not.toHaveProperty(
+      '@types/istanbul-lib-coverage',
+    )
     expect(packageJson).toMatchObject({
-      dependencies: {
-        '@types/istanbul-lib-coverage': '^2.0.6',
-      },
       devDependencies: {
+        '@types/istanbul-lib-coverage': '^2.0.6',
         '@types/istanbul-lib-instrument': '^1.7.8',
       },
       license: 'Apache-2.0',
@@ -185,7 +187,7 @@ describe('stable release contract', () => {
     const packageJson = json<PackageManifest>('package.json')
     const referenced = publicDeclarationPackages(packageJson)
 
-    expect(referenced.has('istanbul-lib-coverage')).toBe(true)
+    expect(referenced.has('istanbul-lib-coverage')).toBe(false)
     expect(referenced.has('istanbul-lib-instrument')).toBe(false)
   })
 

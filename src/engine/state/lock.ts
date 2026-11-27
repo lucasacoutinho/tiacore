@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 import * as Clock from 'effect/Clock'
 import * as Effect from 'effect/Effect'
@@ -13,8 +13,11 @@ import { ioError, type TiaIo } from '../../wire/errors.ts'
 // The commit lock: the directory <cacheDir>/state.lock holding owner.json.
 // A lock is stale when its owner is a dead process on this host, or when it is
 // older than the stale threshold. A new lock is published by renaming a
-// directory that already holds owner.json, and a stale lock is removed only
-// under the reclaim guard after its owner is read again (see reclaim).
+// directory that already holds owner.json. A lock is removed, on release or as
+// stale, only under the reclaim guard after its owner is read again, and by
+// renaming it aside before deleting it: POSIX rename replaces an empty
+// directory, so a lock emptied in place could be published over and then
+// deleted with the new owner inside.
 
 export interface LockOwner {
   readonly createdAt: number
@@ -27,6 +30,8 @@ export const DEFAULT_LOCK_TIMEOUT_MS = 10_000
 export const DEFAULT_STALE_LOCK_MS = 120_000
 /** A reclaim guard older than this was left by a reclaimer that crashed. */
 const RECLAIM_GUARD_STALE_MS = 5_000
+/** How long a release waits for the reclaim guard before removing unguarded. */
+const RELEASE_GUARD_WAIT_MS = 2 * RECLAIM_GUARD_STALE_MS
 
 export const lockPath = (cacheDir: string): string =>
   join(cacheDir, 'state.lock')
@@ -36,9 +41,13 @@ function parseOwner(text: string): LockOwner | null {
     const value: unknown = JSON.parse(text)
     if (typeof value !== 'object' || value === null) return null
     const owner = value as Partial<LockOwner>
-    return typeof owner.createdAt === 'number' &&
+    // A pid of 0 or below names a process group to kill(2), and a createdAt of
+    // 1e999 parses as Infinity and would keep the lock young forever; such an
+    // owner is unreadable and the lock is judged by its directory's age.
+    return Number.isFinite(owner.createdAt) &&
       typeof owner.hostname === 'string' &&
-      typeof owner.pid === 'number' &&
+      Number.isSafeInteger(owner.pid) &&
+      (owner.pid ?? 0) > 0 &&
       typeof owner.token === 'string'
       ? (owner as LockOwner)
       : null
@@ -95,44 +104,6 @@ export function makeLock(fs: FileSystem.FileSystem) {
       : Option.none<string | null>()
   })
 
-  /**
-   * Removes the lock if it still holds the owner judged stale. Reclaimers take
-   * a guard directory first, so one at a time re-reads the owner and removes
-   * the lock. A new lock cannot appear while the stale one exists, so a
-   * confirmed stale owner means the lock removed is the stale one.
-   */
-  const reclaim = Effect.fnUntraced(function* (
-    path: string,
-    judged: string | null,
-  ) {
-    const guard = `${path}.reclaim`
-    const guarded = yield* fs.makeDirectory(guard).pipe(
-      Effect.as(true),
-      Effect.orElseSucceed(() => false),
-    )
-    if (!guarded) {
-      // A reclaimer that crashed inside the guard leaves it behind.
-      const age = yield* guardAge(guard)
-      if (Option.isSome(age) && age.value >= RECLAIM_GUARD_STALE_MS) {
-        yield* fs
-          .remove(guard, { force: true, recursive: true })
-          .pipe(Effect.ignore)
-      }
-      return
-    }
-    yield* readOwner(path).pipe(
-      Effect.flatMap((owner) =>
-        (owner?.token ?? null) === judged
-          ? fs.remove(path, { force: true, recursive: true })
-          : Effect.void,
-      ),
-      Effect.ignore,
-      Effect.ensuring(
-        fs.remove(guard, { force: true, recursive: true }).pipe(Effect.ignore),
-      ),
-    )
-  })
-
   const guardAge = (guard: string) =>
     Effect.all([fs.stat(guard), Clock.currentTimeMillis]).pipe(
       Effect.map(([info, now]) =>
@@ -140,6 +111,88 @@ export function makeLock(fs: FileSystem.FileSystem) {
       ),
       Effect.orElseSucceed(() => Option.none<number>()),
     )
+
+  const dropGuard = (guard: string) =>
+    fs.remove(guard, { force: true, recursive: true }).pipe(Effect.ignore)
+
+  /**
+   * Takes the reclaim guard: true when taken, false while another holds it,
+   * null when it cannot be made (the cache directory is gone, say). A guard a
+   * crashed reclaimer left behind is cleared.
+   */
+  const tryGuard = Effect.fnUntraced(function* (guard: string) {
+    const taken = yield* fs.makeDirectory(guard).pipe(
+      Effect.as(true),
+      Effect.orElseSucceed(() => false),
+    )
+    if (taken) return true
+    const age = yield* guardAge(guard)
+    if (Option.isNone(age)) return null
+    if (age.value >= RECLAIM_GUARD_STALE_MS) yield* dropGuard(guard)
+    return false
+  })
+
+  /** Moves the lock aside in one rename, then deletes it there. */
+  const discard = (path: string) => {
+    const trash = `${path}.releasing.${randomUUID()}`
+    return fs
+      .rename(path, trash)
+      .pipe(
+        Effect.andThen(fs.remove(trash, { force: true, recursive: true })),
+        Effect.ignore,
+      )
+  }
+
+  /** Discards the lock if it still holds `token` (null: an unreadable owner). */
+  const discardIfOwned = (path: string, token: string | null) =>
+    readOwner(path).pipe(
+      Effect.flatMap((owner) =>
+        (owner?.token ?? null) === token ? discard(path) : Effect.void,
+      ),
+    )
+
+  /**
+   * Removes the lock if it still holds the owner judged stale; false when
+   * another reclaimer holds the guard. Reclaimers take a guard directory
+   * first, so one at a time re-reads the owner and removes the lock. A new
+   * lock cannot appear while the stale one exists, so a confirmed stale owner
+   * means the lock removed is the stale one.
+   */
+  const reclaim = Effect.fnUntraced(function* (
+    path: string,
+    judged: string | null,
+  ) {
+    const guard = `${path}.reclaim`
+    if ((yield* tryGuard(guard)) !== true) return false
+    yield* discardIfOwned(path, judged).pipe(Effect.ensuring(dropGuard(guard)))
+    return true
+  })
+
+  /**
+   * Deletes locks a crashed release renamed aside but never deleted. A
+   * `.releasing.` directory is never a live lock, so any holder may sweep.
+   */
+  const sweepDiscarded = (path: string) => {
+    const prefix = `${basename(path)}.releasing.`
+    return fs.readDirectory(dirname(path)).pipe(
+      Effect.flatMap((entries) =>
+        Effect.forEach(
+          entries.filter((entry) => entry.startsWith(prefix)),
+          (entry) =>
+            fs.remove(join(dirname(path), entry), {
+              force: true,
+              recursive: true,
+            }),
+          { discard: true },
+        ),
+      ),
+      Effect.ignore,
+    )
+  }
+
+  const backOff = Effect.flatMap(Random.nextIntBetween(0, 29), (jitter) =>
+    Effect.sleep(20 + jitter),
+  )
 
   /** Takes the lock, or returns none once `timeout` milliseconds have passed. */
   const acquire = Effect.fnUntraced(function* (
@@ -190,24 +243,36 @@ export function makeLock(fs: FileSystem.FileSystem) {
         ),
         Effect.uninterruptible,
       )
-      if (published) return Option.some(owner)
-      const stale = yield* judgeStale(path, staleAfter)
-      if (Option.isSome(stale)) {
-        yield* reclaim(path, stale.value)
-        continue
+      if (published) {
+        yield* sweepDiscarded(path)
+        return Option.some(owner)
       }
-      yield* Effect.sleep(20 + (yield* Random.nextIntBetween(0, 29)))
+      const stale = yield* judgeStale(path, staleAfter)
+      // Retry at once after a reclaim; wait while another reclaimer works.
+      if (Option.isSome(stale) && (yield* reclaim(path, stale.value))) continue
+      yield* backOff
     }
   })
 
-  /** Removes the lock only while it still holds this owner's token. */
+  /**
+   * Removes the lock only while it still holds this owner's token. The check
+   * and the removal run under the reclaim guard, so a reclaimer cannot swap
+   * the lock between them; a guard still busy after `RELEASE_GUARD_WAIT_MS`,
+   * or one that cannot be made, is not waited for.
+   */
   const release = (cacheDir: string, owner: LockOwner) =>
     Effect.gen(function* () {
       const path = lockPath(cacheDir)
-      const current = yield* readOwner(path)
-      if (current?.token === owner.token) {
-        yield* fs.remove(path, { force: true, recursive: true })
+      const guard = `${path}.reclaim`
+      const deadline = (yield* Clock.currentTimeMillis) + RELEASE_GUARD_WAIT_MS
+      let guarded = yield* tryGuard(guard)
+      while (guarded === false && (yield* Clock.currentTimeMillis) < deadline) {
+        yield* backOff
+        guarded = yield* tryGuard(guard)
       }
+      yield* discardIfOwned(path, owner.token).pipe(
+        Effect.ensuring(guarded === true ? dropGuard(guard) : Effect.void),
+      )
     }).pipe(Effect.ignore)
 
   /**

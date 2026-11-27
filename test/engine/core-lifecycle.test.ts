@@ -601,6 +601,26 @@ describe('TiaCore options and lifecycle', () => {
     ).not.toBeNull()
     expect(existsSync(join(root, 'verification'))).toBe(false)
   })
+
+  test('a run given its own environment reads TIA_FRESH from it', async () => {
+    const root = project()
+    const recording = new TiaCore({ ...OPTIONS, root })
+    await recording.prepare()
+    await recording.commit([observation('a')], ['test/a.test.ts'])
+
+    vi.stubEnv('TIA_FRESH', '1')
+    const inherited = new CoreRun({ ...OPTIONS, root }, {})
+    expect((await runPromise(inherited.prepare())).reason).not.toBe(
+      'fresh graph requested',
+    )
+
+    vi.stubEnv('TIA_FRESH', undefined)
+    const fresh = new CoreRun({ ...OPTIONS, root }, { TIA_FRESH: '1' })
+    expect(await runPromise(fresh.prepare())).toMatchObject({
+      mode: 'record',
+      reason: 'fresh graph requested',
+    })
+  })
 })
 
 describe('beginRun for a partitioned run', () => {

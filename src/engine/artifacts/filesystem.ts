@@ -1,4 +1,4 @@
-import { dirname, resolve } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
 
 import * as Effect from 'effect/Effect'
 import * as FileSystem from 'effect/FileSystem'
@@ -32,7 +32,7 @@ const artifactFiles = Effect.fnUntraced(function* (
   if (Option.isNone(info)) return
   if (info.value.type === 'File') {
     if (
-      (path.endsWith('state.json') || path.endsWith('.zip')) &&
+      (basename(path) === 'state.json' || path.endsWith('.zip')) &&
       Number(info.value.size) <= MAX_ARTIFACT_ARCHIVE_BYTES
     ) {
       files.push(path)

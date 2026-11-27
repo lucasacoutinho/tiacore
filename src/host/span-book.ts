@@ -44,6 +44,8 @@ export interface FailedSpan {
 
 export interface MetricRow {
   readonly attributes: string
+  /** The client whose latest snapshot holds this value. */
+  readonly client: number
   readonly kind: DevToolsSchema.Metric['type']
   readonly name: string
   readonly value: string
@@ -53,6 +55,8 @@ export interface SpanSummary {
   readonly clients: number
   readonly connections: number
   readonly ended: number
+  /** Every failed span, including those `failed` no longer lists. */
+  readonly errors: number
   readonly failed: readonly FailedSpan[]
   readonly metrics: readonly MetricRow[]
   readonly names: readonly SpanStats[]
@@ -122,6 +126,7 @@ export class SpanBook {
   private slowest: SlowSpan[] = []
   private connections = 0
   private ended = 0
+  private errors = 0
   private started = 0
   private revision = 0
 
@@ -138,16 +143,29 @@ export class SpanBook {
     return this.connections
   }
 
-  /** Forgets the client's spans that never ended; their statistics stay. */
+  /**
+   * Forgets the client's spans that never ended; their statistics stay. Its
+   * metrics stay as the latest values of a finished client, which the next
+   * client to finish replaces.
+   */
   disconnect(client: number): void {
     this.clients.delete(client)
+    const prefix = `${client}\0`
+    // The scan visits the rows it adds, but none of them has the prefix.
+    for (const [key, row] of this.metrics) {
+      if (!key.startsWith(prefix)) continue
+      this.metrics.delete(key)
+      const finished = `\0${row.name}\0${row.attributes}`
+      this.metrics.delete(finished)
+      this.metrics.set(finished, row)
+    }
     this.revision += 1
   }
 
   ingest(client: number, request: DevToolsSchema.Request.WithoutPing): void {
     this.revision += 1
     Match.valueTags(request, {
-      MetricsSnapshot: (snapshot) => this.ingestMetrics(snapshot),
+      MetricsSnapshot: (snapshot) => this.ingestMetrics(client, snapshot),
       Span: (span) => this.ingestSpan(client, span),
       SpanEvent: () => {},
     })
@@ -160,6 +178,7 @@ export class SpanBook {
       clients: this.clients.size,
       connections: this.connections,
       ended: this.ended,
+      errors: this.errors,
       failed: this.failed,
       metrics: [...this.metrics.values()].sort(compareMetrics),
       names: [...this.byName.values()].sort(
@@ -192,6 +211,7 @@ export class SpanBook {
     this.addStats(span.name, durationMs, status === 'failure')
     this.addSlowest({ client, durationMs, name: span.name, status })
     if (status === 'failure' && Exit.isFailure(exit)) {
+      this.errors += 1
       this.failed = [
         {
           client,
@@ -235,14 +255,22 @@ export class SpanBook {
     this.slowest = next.slice(0, SLOWEST_SPANS)
   }
 
-  private ingestMetrics(snapshot: DevToolsSchema.MetricsSnapshot): void {
+  /**
+   * Each client's snapshot holds its own process's values, so a connected
+   * client's rows never replace another's.
+   */
+  private ingestMetrics(
+    client: number,
+    snapshot: DevToolsSchema.MetricsSnapshot,
+  ): void {
     for (const metric of snapshot.metrics) {
       const attributes = attributeText(metric.attributes)
-      const key = `${metric.id}\0${attributes}`
+      const key = `${client}\0${metric.id}\0${attributes}`
       // Re-inserting moves the metric to the end, so the oldest is evicted.
       this.metrics.delete(key)
       this.metrics.set(key, {
         attributes,
+        client,
         kind: metric.type,
         name: metric.id,
         value: metricValue(metric),
@@ -259,6 +287,7 @@ export class SpanBook {
 function compareMetrics(left: MetricRow, right: MetricRow): number {
   return (
     byCodeUnit(left.name, right.name) ||
-    byCodeUnit(left.attributes, right.attributes)
+    byCodeUnit(left.attributes, right.attributes) ||
+    left.client - right.client
   )
 }

@@ -141,28 +141,30 @@ export function verifyArtifactAttestation(
     return reject('artifact runner does not match its attestation')
   }
 
+  // Each time check negates the condition a valid artifact meets, so a NaN
+  // clock or policy value fails it: every comparison with NaN is false.
   const now = (input.now ?? new Date()).getTime()
   const issuedAt = timestamp(claim.issuedAt) ?? Number.NaN
   const expiresAt = timestamp(claim.expiresAt) ?? Number.NaN
-  if (issuedAt > now + CLOCK_SKEW_MS) {
+  if (!(issuedAt <= now + CLOCK_SKEW_MS)) {
     return reject('artifact attestation is not valid yet')
   }
-  if (expiresAt <= now) {
+  if (!(expiresAt > now)) {
     return reject('artifact attestation has expired')
   }
-  if (expiresAt <= issuedAt) {
+  if (!(expiresAt > issuedAt)) {
     return reject('artifact attestation has an invalid validity window')
   }
 
   if (
     policy.maxAgeSeconds !== undefined &&
-    now - issuedAt > policy.maxAgeSeconds * 1_000
+    !(now - issuedAt <= policy.maxAgeSeconds * 1_000)
   ) {
     return reject('artifact attestation exceeds the allowed age')
   }
   if (
     policy.notBefore !== undefined &&
-    issuedAt < (timestamp(policy.notBefore) ?? Number.POSITIVE_INFINITY)
+    !(issuedAt >= (timestamp(policy.notBefore) ?? Number.POSITIVE_INFINITY))
   ) {
     return reject('artifact predates the trust policy')
   }

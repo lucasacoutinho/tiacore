@@ -5,8 +5,8 @@ import * as Option from 'effect/Option'
 import * as Predicate from 'effect/Predicate'
 
 import { loadWorkspace } from '../assurance/workspace/config.ts'
-import { errorMessage, TiaFailed, TiaInvalid } from '../wire/errors.ts'
-import { emitJson } from './io.ts'
+import { errorMessage, TiaInvalid } from '../wire/errors.ts'
+import { emitJson, failedReceipt } from './io.ts'
 
 export const runCommand = Command.make(
   'run',
@@ -26,14 +26,12 @@ export const runCommand = Command.make(
       catch: (error) => new TiaInvalid({ message: errorMessage(error) }),
       try: () => workspace.run(),
     })
-    yield* emitJson(result, Option.getOrUndefined(options.output))
+    const output = Option.getOrUndefined(options.output)
+    yield* emitJson(result, output)
     const succeeded =
       Predicate.hasProperty(result, 'success') && Boolean(result.success)
     if (!succeeded) {
-      return yield* new TiaFailed({
-        message: 'TIA workspace run did not succeed',
-        silent: true,
-      })
+      return yield* failedReceipt('TIA workspace run did not succeed', output)
     }
   }),
 ).pipe(Command.withDescription('Run configured workspace lanes'))

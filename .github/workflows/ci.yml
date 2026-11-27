@@ -10,6 +10,24 @@ permissions:
   contents: read
 
 jobs:
+  # Formatting, lint, types, architecture and package contents do not depend
+  # on the Node version, so they run once instead of on every test leg.
+  static:
+    name: Static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          cache: npm
+          node-version: 26
+      - run: npm ci
+      - run: npm run fmt:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run check:architecture
+      - run: npm run check:package
+
   check:
     name: Check / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
@@ -35,11 +53,7 @@ jobs:
       - run: npm ci
       # Without a browser and Bun the Playwright and Bun suites skip.
       - run: npx playwright install --with-deps chromium
-      - run: npm run check
-      # Archer needs Node 22.18 or newer to load archer.config.ts.
-      - run: npm run check:architecture
-        if: matrix.node != '22.12.0'
-      - run: npm run check:package
+      - run: npm test
 
   perf:
     name: Performance budgets / Node ${{ matrix.node }}
@@ -79,14 +93,30 @@ jobs:
   sdks:
     name: Python and Go SDKs
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest versions sdks/python/pyproject.toml and go.mod accept.
+          - python: '3.10'
+            go: '1.23.x'
+          - python: '3.14'
+            go: '1.27.x'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: ${{ matrix.python }}
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.27.x'
+          go-version: ${{ matrix.go }}
       - run: python -B -m unittest discover -s sdks/python/tests -v
-      - run: go test -count=1 ./... && go vet ./...
+      - name: Build the Python package and run the installed wheel
+        run: |
+          python -m pip install build
+          python -m build --outdir "$RUNNER_TEMP/python-dist" sdks/python
+          python -m venv "$RUNNER_TEMP/wheel-env"
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install "$RUNNER_TEMP"/python-dist/*.whl
+          "$RUNNER_TEMP/wheel-env/bin/tiacore-pytest" --help
+      - run: go test -race -count=1 ./... && go vet ./...
         working-directory: sdks/go

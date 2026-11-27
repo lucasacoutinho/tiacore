@@ -17,6 +17,9 @@ import (
 
 func (runner *Runner) run(ctx context.Context) Result {
 	options := runner.options
+	if options.OnUnknownChange != "" && options.OnUnknownChange != "full" && options.OnUnknownChange != "ignore" {
+		return failedResult(options, fmt.Errorf("OnUnknownChange must be full or ignore, not %q", options.OnUnknownChange))
+	}
 	target, err := readVerificationTarget()
 	if err != nil {
 		return failedResult(options, err)
@@ -76,7 +79,11 @@ func (runner *Runner) run(ctx context.Context) Result {
 		EnvironmentFingerprint: currentCatalog.Graph.EnvironmentFingerprint,
 		Fingerprint:            currentCatalog.Graph.Fingerprint,
 		Graph:                  storedGraph,
-		Policy:                 Policy{ForceFull: options.ForceFull || FreshRequested(os.Getenv("TIA_FRESH"))},
+		Policy: Policy{
+			ForceFull:       options.ForceFull || FreshRequested(os.Getenv("TIA_FRESH")),
+			IgnoreChanges:   options.IgnoreChanges,
+			OnUnknownChange: options.OnUnknownChange,
+		},
 	})
 	if planErr != nil {
 		return failedResult(options, fmt.Errorf("plan Go impact: %w", planErr))

@@ -30,6 +30,7 @@ import {
 } from 'vitest'
 
 import { installProbe } from '../../probe/ledger.ts'
+import { mergeTestWindows } from '../../probe/merge.ts'
 import type { ProbeCoverageMap, ProbeTestWindow } from '../../probe/types.ts'
 import { trackLeftoverWork } from './leftover.ts'
 import {
@@ -124,6 +125,11 @@ aroundEach(async (runTest, context) => {
       : windows.get(context.task.id)
     windows.delete(context.task.id)
     probe.gap()
-    context.task.meta[TIA_TEST_META_KEY] = window ?? { coverage: {}, files: [] }
+    // Each retry and repeat runs this hook again; the test depends on what
+    // every attempt touched, not only the last one.
+    const attempt = window ?? { coverage: {}, files: [] }
+    const earlier = context.task.meta[TIA_TEST_META_KEY]
+    context.task.meta[TIA_TEST_META_KEY] =
+      earlier === undefined ? attempt : mergeTestWindows(earlier, attempt)
   }
 })

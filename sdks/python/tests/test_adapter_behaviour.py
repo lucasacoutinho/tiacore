@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -185,6 +186,7 @@ class ImportGraphTests(ProjectCase):
             self.sources("tests/test_a.py"),
             [
                 "conftest.py",
+                "src/other.py",
                 "src/pkg/__init__.py",
                 "src/pkg/core.py",
                 "src/pkg/helpers.py",
@@ -195,7 +197,7 @@ class ImportGraphTests(ProjectCase):
             ],
         )
 
-    def test_conftest_imports_are_not_followed_and_nested_conftests_count(
+    def test_conftest_imports_are_followed_and_nested_conftests_count(
         self,
     ) -> None:
         sources = self.sources("tests/inner/test_d.py")
@@ -203,6 +205,7 @@ class ImportGraphTests(ProjectCase):
             sources,
             [
                 "conftest.py",
+                "src/other.py",
                 "tests/conftest.py",
                 "tests/inner/conftest.py",
                 "tests/inner/test_d.py",
@@ -212,18 +215,24 @@ class ImportGraphTests(ProjectCase):
     def test_unparseable_modules_contribute_no_imports(self) -> None:
         self.assertEqual(
             self.sources("tests/test_c.py"),
-            ["conftest.py", "src/broken.py", "tests/conftest.py", "tests/test_c.py"],
+            [
+                "conftest.py",
+                "src/broken.py",
+                "src/other.py",
+                "tests/conftest.py",
+                "tests/test_c.py",
+            ],
         )
 
     def test_src_prefixed_and_plain_names_resolve_to_the_first_sorted_file(
         self,
     ) -> None:
-        write(self.root, {"pkg/core.py": "# shadow\n"})
+        write(self.root, {"other.py": "# shadow\n"})
         suites = discover_pytest_suites(self.options())
         suite = next(s for s in suites if s["file"] == "tests/test_a.py")
         sources = _dependencies(self.root.resolve(), self.root.resolve() / suite["file"])
-        self.assertIn("pkg/core.py", sources)
-        self.assertNotIn("src/pkg/core.py", sources)
+        self.assertIn("other.py", sources)
+        self.assertNotIn("src/other.py", sources)
 
     def test_kind_marks_the_suite_file_as_configuration(self) -> None:
         suites = discover_pytest_suites(self.options())
@@ -243,10 +252,72 @@ class ImportGraphTests(ProjectCase):
         )
 
 
+class ImplicitImportTests(ProjectCase):
+    """Files Python runs for a test without the test file importing them."""
+
+    files = {
+        "src/shared.py": "VALUE = 1\n",
+        "src/app/__init__.py": "",
+        "src/app/sub/__init__.py": "SETTING = 1\n",
+        "src/app/sub/mod.py": "VALUE = 1\n",
+        "tests/test_direct.py": (
+            "import shared\nfrom app import sub\nimport tests.grouped\n"
+        ),
+        "tests/test_deep.py": "import app.sub.mod\n",
+        "tests/fixtures/conftest.py": "import shared\n",
+        "tests/fixtures/test_fixture.py": "def test_fixture(): pass\n",
+        "tests/grouped/__init__.py": "MARKER = 1\n",
+        "tests/grouped/test_grouped.py": "def test_grouped(): pass\n",
+    }
+
+    def selected_after(self, change: str) -> list[str]:
+        self.assertTrue(tia(self.options()).run().success)
+        plan = tia(self.options(changes=(change,))).run().plan
+        self.assertEqual(plan["mode"], "selective")
+        return plan["selected"]
+
+    def test_a_module_imported_by_a_conftest_selects_the_tests_it_serves(
+        self,
+    ) -> None:
+        self.assertEqual(
+            self.selected_after("src/shared.py"),
+            [
+                "pytest:pytest:tests/fixtures/test_fixture.py",
+                "pytest:pytest:tests/test_direct.py",
+            ],
+        )
+
+    def test_a_parent_package_init_selects_tests_importing_a_submodule(
+        self,
+    ) -> None:
+        self.assertEqual(
+            self.selected_after("src/app/sub/__init__.py"),
+            [
+                "pytest:pytest:tests/test_deep.py",
+                "pytest:pytest:tests/test_direct.py",
+            ],
+        )
+        self.assertIn(
+            "pytest:pytest:tests/test_deep.py",
+            tia(self.options(changes=("src/app/__init__.py",))).run().plan[
+                "selected"
+            ],
+        )
+
+    def test_the_package_init_of_a_test_file_selects_that_test(self) -> None:
+        self.assertEqual(
+            self.selected_after("tests/grouped/__init__.py"),
+            [
+                "pytest:pytest:tests/grouped/test_grouped.py",
+                "pytest:pytest:tests/test_direct.py",
+            ],
+        )
+
+
 class GraphShapeTests(ProjectCase):
     files = {"tests/test_a.py": "def test_a(): pass\n"}
 
-    def test_graph_carries_the_six_fixed_invalidators_and_no_known_sources(
+    def test_graph_carries_the_fixed_invalidators_and_no_known_sources(
         self,
     ) -> None:
         graph = create_pytest_graph(self.options(), discover_pytest_suites(self.options()))
@@ -264,6 +335,12 @@ class GraphShapeTests(ProjectCase):
                     "tox.ini",
                     "uv.lock",
                     "requirements*.txt",
+                    "poetry.lock",
+                    "pdm.lock",
+                    "Pipfile",
+                    "Pipfile.lock",
+                    "pylock.toml",
+                    "pylock.*.toml",
                 )
             ],
         )
@@ -278,9 +355,22 @@ class GraphShapeTests(ProjectCase):
 
     def test_configuration_changes_trip_the_invalidators(self) -> None:
         self.assertTrue(tia(self.options()).run().success)
-        for change in ("pyproject.toml", "requirements-dev.txt", "uv.lock"):
+        for change in (
+            "pyproject.toml",
+            "requirements-dev.txt",
+            "uv.lock",
+            "poetry.lock",
+            "pdm.lock",
+            "Pipfile",
+            "Pipfile.lock",
+            "pylock.toml",
+            "pylock.dev.toml",
+        ):
             with self.subTest(change):
-                result = tia(self.options(changes=(change,))).run()
+                # The invalidator applies even when unknown changes are ignored.
+                result = tia(
+                    self.options(changes=(change,), on_unknown_change="ignore")
+                ).run()
                 self.assertEqual(result.plan["mode"], "full")
                 self.assertEqual(
                     result.plan["reason"],
@@ -546,6 +636,53 @@ class CommandLineTests(ProjectCase):
             ["pytest:demo:extra/check_test.py", "pytest:demo:tests/test_a.py"],
         )
         self.assertTrue((self.root / "custom/graph.json").is_file())
+
+    def test_ignore_change_and_on_unknown_change_shape_the_plan(self) -> None:
+        write(self.root, {"pytest.py": FAKE_PYTEST})
+        self.assertEqual(self.cli(*self.base_arguments()).returncode, 0)
+
+        def mode(*arguments: str) -> str:
+            result = self.cli(*self.base_arguments(), *arguments)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout.splitlines()[-1])["mode"]
+
+        changed = ("--change", "src/lib.py")
+        self.assertEqual(mode(*changed), "selective")
+        self.assertEqual(
+            mode(*changed, "--ignore-change", "docs/**", "--ignore-change", "src/*.py"),
+            "skip",
+        )
+        readme = ("--change", "README.md")
+        self.assertEqual(mode(*readme, "--on-unknown-change", "ignore"), "skip")
+        self.assertEqual(mode(*readme, "--on-unknown-change", "full"), "full")
+        invalid = self.cli(*self.base_arguments(), "--on-unknown-change", "maybe")
+        self.assertEqual(invalid.returncode, 2)
+        self.assertIn("--on-unknown-change", invalid.stderr)
+        for command in ("", "'unbalanced"):
+            with self.subTest(command=command):
+                rejected = self.cli(*self.base_arguments(), "--command", command)
+                self.assertEqual(rejected.returncode, 2)
+                self.assertIn("--command", rejected.stderr)
+
+    def test_command_replaces_pytest_and_pytest_flags_are_never_abbreviations(
+        self,
+    ) -> None:
+        write(
+            self.root,
+            {
+                "probe.py": "import os, pathlib, sys\n"
+                "pathlib.Path(os.environ['TIA_LOG'])"
+                ".write_text('\\n'.join(sys.argv[1:]))\n"
+            },
+        )
+        command = shlex.join([sys.executable, str(self.root / "probe.py"), "--probe"])
+        result = self.cli(
+            *self.base_arguments(), "--command", command, "--ignore=vendor", "--co"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.executed(), ["--probe", "--ignore=vendor", "--co", "tests/test_a.py"]
+        )
 
     def test_exits_with_the_pytest_status_and_requires_a_fingerprint(self) -> None:
         write(self.root, {"pytest.py": FAKE_PYTEST})

@@ -5,7 +5,7 @@ import * as FileSystem from 'effect/FileSystem'
 
 import { NODE_ENGINES, PEER_RANGES, VERSION } from '../core/version.ts'
 import { inheritedEnvironment, runProcess } from '../engine/process.ts'
-import { observeConfig } from '../host/observe.ts'
+import { observeConfig, redactUrl } from '../host/observe.ts'
 import { satisfiesRange } from './semver-range.ts'
 
 export type CheckStatus = 'fail' | 'info' | 'ok' | 'warn'
@@ -235,8 +235,14 @@ export const writableCheck = Effect.fnUntraced(function* (
 const observabilityCheck = (
   env: Readonly<Record<string, string | undefined>>,
 ): DoctorCheck => {
-  const config = observeConfig(env)
-  const active = Object.entries(config).map(([key, value]) => `${key}=${value}`)
+  const { otlpHeaders, ...urls } = observeConfig(env)
+  // Header values are credentials; only their names are shown.
+  const active = [
+    ...Object.entries(urls).map(([key, value]) => `${key}=${redactUrl(value)}`),
+    ...(otlpHeaders === undefined
+      ? []
+      : [`otlpHeaders=${Object.keys(otlpHeaders).join(' ')}`]),
+  ]
   return active.length === 0
     ? check(
         'observability',

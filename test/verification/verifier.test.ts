@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TiaVerifier, tia } from '../../src/entries/verification.ts'
 import { execute } from '../../src/cli/main.ts'
@@ -120,6 +120,7 @@ describe('TiaVerifier', () => {
     expect(log.map((entry) => entry.fresh)).toEqual([null, '1'])
     expect(log[0]?.dir).toBe(log[1]?.dir)
     expect(existsSync(log[0]?.dir ?? root)).toBe(false)
+    expect(receipt).not.toHaveProperty('artifactsDirectory')
     expect(
       JSON.parse(readFileSync(join(root, 'out/receipt.json'), 'utf8')),
     ).toEqual(receipt)
@@ -271,9 +272,10 @@ describe('TiaVerifier', () => {
   test('an artifacts directory keeps the phase snapshots', async () => {
     const { full, selective } = pair()
     await phases(selective, full)
-    await verifier({ artifactsDirectory: 'kept' }).run()
+    const receipt = await verifier({ artifactsDirectory: 'kept' }).run()
     const [run] = readdirSync(join(root, 'kept'))
     expect(run).toMatch(/^run-/u)
+    expect(receipt.artifactsDirectory).toBe(join(root, 'kept', run ?? ''))
     expect(readdirSync(join(root, 'kept', run ?? '', 'selective'))).toEqual([
       'a.json',
     ])
@@ -285,11 +287,12 @@ describe('TiaVerifier', () => {
   test('keepArtifacts leaves the temporary directory', async () => {
     const { full, selective } = pair()
     await phases(selective, full)
-    await verifier({ keepArtifacts: true }).run()
+    const receipt = await verifier({ keepArtifacts: true }).run()
     const { dir } = environmentLog()[0] ?? { dir: '' }
     try {
       expect(existsSync(dir)).toBe(true)
       expect(dir).toContain('tiacore-verify-')
+      expect(receipt.artifactsDirectory).toBe(dir)
     } finally {
       await rm(dir, { force: true, recursive: true })
     }
@@ -334,10 +337,18 @@ describe('tiacore verify', () => {
 
   test('exits 1 silently when the receipt reports failure', async () => {
     await phases({}, {})
-    expect(await execute(argv('--output', 'receipt.json'))).toEqual({
-      code: 1,
-      silent: true,
-    })
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    try {
+      expect(await execute(argv('--output', 'receipt.json'))).toEqual({
+        code: 1,
+        silent: true,
+      })
+      expect(stderr.mock.calls.map(([chunk]) => String(chunk))).toContain(
+        `TIA verification did not succeed; see ${join(root, 'receipt.json')}\n`,
+      )
+    } finally {
+      stderr.mockRestore()
+    }
     expect(existsSync(join(root, 'receipt.json'))).toBe(true)
   })
 

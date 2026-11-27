@@ -200,7 +200,9 @@ test('b', async () => {
   return root
 }
 
-export function createSiblingWorkspace(): {
+export function createSiblingWorkspace(
+  options: { config?: string; pluginOptions?: string } = {},
+): {
   packageDir: string
   repo: string
 } {
@@ -255,7 +257,8 @@ test('other stays inside the package', () => {
 import { tia } from '${pluginSpecifier}'
 
 export default defineConfig({
-  plugins: [tia({ log: true })],
+  plugins: [tia(${options.pluginOptions ?? '{ log: true }'})],
+  ${options.config ?? ''}
   test: {
     include: ['src/**/*.test.ts'],
   },
@@ -272,6 +275,15 @@ export default defineConfig({
   git(repo, ['add', '.'])
   git(repo, ['commit', '-qm', 'baseline'])
   return { packageDir, repo }
+}
+
+/** A symlink to `target`, in a temporary directory of its own. */
+export function symlinkTo(target: string): string {
+  const parent = mkdtempSync(join(tmpdir(), 'tiacore-link-'))
+  temporaryDirectories.push(parent)
+  const link = join(parent, 'link')
+  symlinkSync(target, link)
+  return link
 }
 
 export function createFixtureProject(name: string): string {

@@ -4,9 +4,11 @@ import * as Flag from 'effect/cli/Flag'
 import * as Effect from 'effect/Effect'
 import * as Option from 'effect/Option'
 
+import { resolve } from 'node:path'
+
 import { verify } from '../assurance/verify/runner.ts'
-import { TiaFailed, TiaInvalid } from '../wire/errors.ts'
-import { emitJson } from './io.ts'
+import { TiaInvalid } from '../wire/errors.ts'
+import { emitJson, failedReceipt } from './io.ts'
 
 const optional = (name: string, description: string) =>
   Flag.String(name).pipe(Flag.withDescription(description), Flag.optional)
@@ -45,10 +47,10 @@ export const verifyCommand = Command.make(
     })
     if (output === undefined) yield* emitJson(receipt, undefined)
     if (!receipt.success) {
-      return yield* new TiaFailed({
-        message: 'TIA verification did not succeed',
-        silent: true,
-      })
+      return yield* failedReceipt(
+        'TIA verification did not succeed',
+        output === undefined ? undefined : resolve(cwd ?? '.', output),
+      )
     }
   }),
 ).pipe(Command.withDescription('Compare selective and fresh full results'))

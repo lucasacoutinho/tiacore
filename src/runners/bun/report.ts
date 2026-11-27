@@ -1,9 +1,14 @@
 import { relative, resolve } from 'node:path'
 
+import { XMLParser } from 'fast-xml-parser'
+
 import { byCodeUnit } from '../../core/canonical.ts'
+import { isRecord } from '../../core/record.ts'
 import { isInside, slash } from '../../engine/host-path.ts'
 
 export interface BunCase {
+  /** The describe blocks around the case, outermost first; absent at the top level. */
+  describes?: string[]
   duration?: number
   file: string
   fullName: string
@@ -12,55 +17,132 @@ export interface BunCase {
   state: 'failed' | 'passed' | 'skipped'
 }
 
-function decodeXml(value: string): string {
-  return value
-    .replaceAll('&quot;', '"')
-    .replaceAll('&apos;', "'")
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&amp;', '&')
-}
-
-function attribute(source: string, name: string): string | null {
-  const match = new RegExp(`\\b${name}="([^"]*)"`, 'u').exec(source)
-  return match === null ? null : decodeXml(match[1] ?? '')
-}
-
 /** The persisted bun:test id: `<file>:<line>:<name>` (Bun reports no column). */
 export function bunTestId(file: string, line: number, name: string): string {
   return `${file}:${line}:${name}`
 }
 
+// Bun writes a control character in a name as a numeric reference (&#10;),
+// which fast-xml-parser decodes with its HTML entities. Values stay untrimmed
+// strings.
+const parser = new XMLParser({
+  attributeNamePrefix: '',
+  htmlEntities: true,
+  ignoreAttributes: false,
+  parseAttributeValue: false,
+  parseTagValue: false,
+  preserveOrder: true,
+  trimValues: false,
+})
+
+/** A testcase element and the describe blocks around it. */
+interface ReportedCase {
+  readonly attributes: Record<string, unknown>
+  readonly children: Record<string, unknown>[]
+  readonly describes: string[]
+}
+
+/** The elements of a node list in fast-xml-parser's ordered output. */
+function elements(nodes: unknown): Record<string, unknown>[] {
+  return Array.isArray(nodes) ? nodes.filter(isRecord) : []
+}
+
+function attributesOf(
+  element: Record<string, unknown>,
+): Record<string, unknown> {
+  const attributes = element[':@']
+  return isRecord(attributes) ? attributes : {}
+}
+
+function stringAttribute(
+  attributes: Record<string, unknown>,
+  name: string,
+): string | undefined {
+  const value = attributes[name]
+  return typeof value === 'string' ? value : undefined
+}
+
 /**
- * Cases from Bun's JUnit report. The report is scanned with a regular
- * expression, not an XML parser; a testcase needs `name` and `file`. The
- * enclosing describe in `classname` is ignored, so `fullName` is the leaf name.
+ * Collects the testcase elements of `nodes` in report order. Bun puts each
+ * file in a testsuite and nests one testsuite per describe block in it, so a
+ * suite inside a file's suite is a describe block.
+ */
+function collectCases(
+  nodes: readonly Record<string, unknown>[],
+  describes: readonly string[],
+  inFile: boolean,
+  cases: ReportedCase[],
+): void {
+  for (const node of nodes) {
+    if (node['testcase'] !== undefined) {
+      cases.push({
+        attributes: attributesOf(node),
+        children: elements(node['testcase']),
+        describes: [...describes],
+      })
+    } else if (node['testsuite'] !== undefined) {
+      const name = stringAttribute(attributesOf(node), 'name') ?? ''
+      collectCases(
+        elements(node['testsuite']),
+        inFile ? [...describes, name] : describes,
+        true,
+        cases,
+      )
+    } else if (node['testsuites'] !== undefined) {
+      collectCases(elements(node['testsuites']), describes, inFile, cases)
+    }
+  }
+}
+
+function stateOf(
+  children: readonly Record<string, unknown>[],
+): BunCase['state'] {
+  if (
+    children.some(
+      (child) => child['failure'] !== undefined || child['error'] !== undefined,
+    )
+  ) {
+    return 'failed'
+  }
+  return children.some((child) => child['skipped'] !== undefined)
+    ? 'skipped'
+    : 'passed'
+}
+
+/**
+ * Cases from Bun's JUnit report, in report order; a testcase needs `name` and
+ * `file`. A `<failure>` or `<error>` child fails the case and `<skipped>`
+ * skips it (Bun also lists every case a name pattern left out as skipped).
+ * `fullName` is the leaf name; the describe blocks around a case are kept
+ * apart. Throws when the report is not well-formed XML.
  */
 export function parseBunJunit(root: string, xml: string): BunCase[] {
+  let document: unknown
+  try {
+    document = parser.parse(xml, true)
+  } catch (cause) {
+    throw new Error('The bun JUnit report is not well-formed XML', { cause })
+  }
+  const reported: ReportedCase[] = []
+  collectCases(elements(document), [], false, reported)
   const cases: BunCase[] = []
-  const expression = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/gu
-  for (const match of xml.matchAll(expression)) {
-    const attributes = match[1] ?? ''
-    const body = match[2] ?? ''
-    const name = attribute(attributes, 'name')
-    const sourceFile = attribute(attributes, 'file')
-    if (name === null || sourceFile === null) continue
+  for (const { attributes, children, describes } of reported) {
+    const name = stringAttribute(attributes, 'name')
+    const sourceFile = stringAttribute(attributes, 'file')
+    if (name === undefined || sourceFile === undefined) continue
     const absoluteFile = resolve(root, sourceFile)
     if (!isInside(root, absoluteFile)) continue
     const file = slash(relative(root, absoluteFile))
-    const line = Number(attribute(attributes, 'line') ?? 1)
-    const duration = Number(attribute(attributes, 'time') ?? 0) * 1_000
+    const line = Number(stringAttribute(attributes, 'line') ?? 1)
+    const duration = Number(stringAttribute(attributes, 'time') ?? 0) * 1_000
     cases.push({
+      ...(describes.length === 0 ? {} : { describes }),
       ...(Number.isFinite(duration) ? { duration } : {}),
       file,
       fullName: name,
       id: bunTestId(file, line, name),
       line,
-      state: body.includes('<failure')
-        ? 'failed'
-        : body.includes('<skipped')
-          ? 'skipped'
-          : 'passed',
+      state: stateOf(children),
     })
   }
   return cases

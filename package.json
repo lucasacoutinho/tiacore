@@ -135,7 +135,6 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
-    "@types/istanbul-lib-coverage": "^2.0.6",
     "es-module-lexer": "^3.0.5",
     "fast-xml-parser": "^5.12.1",
     "fflate": "^0.8.3",
@@ -156,6 +155,7 @@
     "@lucasacoutinho/archer": "0.3.0",
     "@playwright/test": "^1.65.1",
     "@testing-library/react": "^16.3.3",
+    "@types/istanbul-lib-coverage": "^2.0.6",
     "@types/istanbul-lib-instrument": "^1.7.8",
     "@types/istanbul-lib-report": "^3.0.3",
     "@types/istanbul-reports": "^3.0.4",

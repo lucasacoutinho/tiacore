@@ -789,6 +789,20 @@ describe('filesystem provider', () => {
     await expect(missing.load({ fingerprint: 'x', root })).resolves.toEqual([])
   })
 
+  test('only a file named state.json marks a graph store', async () => {
+    const root = temporaryRoot()
+    const store = join(root, 'saved')
+    await writeStored(store, graph('stored'))
+    writeFileSync(join(store, 'old-state.json'), '{}')
+    writeFileSync(join(store, 'backup-state.json'), '{}')
+    const candidates = (await createFilesystemArtifactProvider({
+      paths: ['saved'],
+    }).load({ fingerprint: 'stored', root })) as TiaArtifactCandidate[]
+    expect(candidates.map((candidate) => candidate.id)).toEqual([
+      join(store, 'state.json'),
+    ])
+  })
+
   test('restores partition fragments of one group and refuses to mix groups', async () => {
     const root = temporaryRoot()
     const zip = (name: string, value: ReturnType<typeof fragment>) =>

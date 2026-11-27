@@ -15,6 +15,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { runPromise } from '../../src/host/runtime.ts'
 import { tia } from '../../src/entries/node.ts'
 import { nodeHelperPath } from '../../src/runners/node/assets.ts'
+import { nodeDiscoveryHooksSupported } from '../../src/runners/node/discovery.ts'
 import {
   executeNode,
   observeNodeFiles,
@@ -71,6 +72,18 @@ const BROKEN_TEST = `import test from 'node:test'
 import './missing.mjs'
 
 test('never registered', () => {})
+`
+const CRASHING_TEST = `import assert from 'node:assert/strict'
+import test from 'node:test'
+import { value } from '../src/value.mjs'
+
+test('good case', () => {
+  assert.equal(value, 1)
+})
+// The test process dies after reporting its case, before writing coverage.
+if (process.env.TIA_TEST_CRASH === '1') {
+  setTimeout(() => process.kill(process.pid, 'SIGKILL'), 100)
+}
 `
 const HANGING_TEST = `import test from 'node:test'
 
@@ -175,6 +188,27 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
     )
   })
 
+  test('a replay whose affected file dies after its cases saves no graph', async () => {
+    vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
+    const root = project({
+      'src/value.mjs': 'export const value = 1\n',
+      'test/good.test.mjs': CRASHING_TEST,
+    })
+    const runner = () =>
+      tia({ files: ['test/**/*.test.mjs'], log: false, root }).run()
+    expect((await runner()).graphSaved).toBe(true)
+
+    vi.stubEnv('TIA_TEST_CRASH', '1')
+    writeFileSync(
+      join(root, 'src/value.mjs'),
+      'export const value = 1 // changed\n',
+    )
+    const replay = await runner()
+    expect(replay.plan.mode).toBe('replay')
+    expect(replay.success).toBe(false)
+    expect(replay.graphSaved).toBe(false)
+  })
+
   test('a run with a module failure neither succeeds nor saves a graph', async () => {
     vi.stubEnv('TIACORE_NODE_DISCOVERY_HOOKS', '0')
     const root = project({
@@ -190,6 +224,54 @@ describe('node aggregate mode (Node without discovery hooks)', () => {
     expect(result.success).toBe(false)
     expect(result.graphSaved).toBe(false)
     expect(existsSync(join(root, '.tia/node/state.json'))).toBe(false)
+  })
+})
+
+// Discovery mode needs module.registerHooks (Node 22.15); older Node runs whole
+// files, which the aggregate-mode tests above cover.
+describe.skipIf(!nodeDiscoveryHooksSupported())('node discovery mode', () => {
+  test('a test file that never finishes loading is a module failure', async () => {
+    const root = project({
+      'test/stuck.test.mjs': `import test from 'node:test'
+
+setInterval(() => {}, 1_000)
+await new Promise(() => {})
+test('never reached', () => {})
+`,
+    })
+    const observed = await runPromise(
+      observeNodeFiles(context(root, { timeoutMs: 1_500 }), [
+        join(root, 'test/stuck.test.mjs'),
+      ]),
+    )
+    expect(observed.observations.map((item) => [item.id, item.state])).toEqual([
+      ['module:test/stuck.test.mjs', 'failed'],
+    ])
+  }, 20_000)
+
+  test('a case whose test process dies after it passed is recorded as failed', async () => {
+    const root = project({
+      'src/value.mjs': 'export const value = 1\n',
+      'test/good.test.mjs': CRASHING_TEST,
+    })
+    const runner = () =>
+      tia({ files: ['test/**/*.test.mjs'], log: false, root }).run()
+    expect((await runner()).success).toBe(true)
+
+    vi.stubEnv('TIA_TEST_CRASH', '1')
+    writeFileSync(
+      join(root, 'src/value.mjs'),
+      'export const value = 1 // changed\n',
+    )
+    const replay = await runner()
+    expect(replay.plan.mode).toBe('replay')
+    expect(replay.success).toBe(false)
+    expect(
+      replay.executedTests.map((observation) => [
+        observation.fullName,
+        observation.state,
+      ]),
+    ).toEqual([['good case', 'failed']])
   })
 })
 

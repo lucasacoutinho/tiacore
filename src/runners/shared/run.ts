@@ -30,7 +30,7 @@ export interface RunnerKernel {
   readonly log: boolean
   readonly observeCachedCases: (
     results: readonly CachedTestResult[],
-  ) => Effect.Effect<TiaObservation[], never, HostServices>
+  ) => Effect.Effect<FileObservations, never, HostServices>
   readonly observeFiles: (
     files: readonly string[],
   ) => Effect.Effect<FileObservations, never, HostServices>
@@ -101,8 +101,8 @@ export async function runKernel(
     })
     const cases = yield* kernel.observeCachedCases(cached)
     return {
-      complete: whole.complete,
-      observations: [...whole.observations, ...cases],
+      complete: whole.complete && cases.complete,
+      observations: [...whole.observations, ...cases.observations],
     } satisfies FileObservations
   })
   const { complete, observations } = await runPromise(observe)

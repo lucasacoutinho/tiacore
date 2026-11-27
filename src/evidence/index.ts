@@ -7,6 +7,7 @@ import {
   readdir,
   rename,
   rm,
+  rmdir,
   writeFile,
 } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -67,6 +68,65 @@ function headerValue(
     return Array.isArray(value) ? (value[0] ?? null) : (value ?? null)
   }
   return null
+}
+
+function errorCode(error: unknown): unknown {
+  return error instanceof Error && 'code' in error ? error.code : undefined
+}
+
+/**
+ * Writes one event under a temporary name and renames it, so a reader never
+ * sees a partial event under its final name. A collector that removed the
+ * emptied directory in between does not lose the event, and a failed rename
+ * leaves no temporary file that would make every later collection incomplete.
+ */
+async function writeEvent(
+  directory: string,
+  name: string,
+  text: string,
+): Promise<void> {
+  const temporary = resolve(directory, `${name}.tmp`)
+  const write = () =>
+    writeFile(temporary, text, { encoding: 'utf8', flag: 'wx' })
+  try {
+    await write()
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error
+    await mkdir(directory, { recursive: true })
+    await write()
+  }
+  try {
+    await rename(temporary, resolve(directory, `${name}.json`))
+  } catch (error) {
+    await rm(temporary, { force: true })
+    throw error
+  }
+}
+
+/**
+ * Removes what a collection listed. An event still being written (`.tmp`)
+ * stays, and so does the directory while anything is left in it, so a writer
+ * that is mid-way through `record` can still finish.
+ */
+async function removeCollected(
+  directory: string,
+  entries: readonly string[],
+): Promise<void> {
+  await Promise.all(
+    entries
+      .filter((name) => !name.endsWith('.tmp'))
+      .map((name) =>
+        rm(resolve(directory, name), { force: true, recursive: true }),
+      ),
+  )
+  try {
+    await rmdir(directory)
+  } catch (error) {
+    const code = errorCode(error)
+    if (code !== 'ENOENT' && code !== 'ENOTEMPTY' && code !== 'EEXIST') {
+      throw error
+    }
+  }
 }
 
 function event(value: unknown, id: string): TiaEvidenceEvent | null {
@@ -154,11 +214,6 @@ export class TiaEvidence {
     }
     const targetDirectory = correlationDirectory(this.directory, id)
     await mkdir(targetDirectory, { recursive: true })
-    const name = `${Date.now()}-${process.pid}-${randomUUID()}`
-    // Written under a temporary name and renamed, so a reader never sees a
-    // partial event under its final name.
-    const temporary = resolve(targetDirectory, `${name}.tmp`)
-    const target = resolve(targetDirectory, `${name}.json`)
     const payload: TiaEvidenceEvent = {
       correlationId: id,
       files: normalized,
@@ -166,11 +221,11 @@ export class TiaEvidence {
       producer: this.producer,
       schema: 1,
     }
-    await writeFile(temporary, `${JSON.stringify(payload)}\n`, {
-      encoding: 'utf8',
-      flag: 'wx',
-    })
-    await rename(temporary, target)
+    await writeEvent(
+      targetDirectory,
+      `${Date.now()}-${process.pid}-${randomUUID()}`,
+      `${JSON.stringify(payload)}\n`,
+    )
   }
 
   /** The files recorded for `correlationId`. See `collectChecked`. */
@@ -201,9 +256,7 @@ export class TiaEvidence {
       }
       entries = (await readdir(directory)).sort()
     } catch (error) {
-      const missing =
-        error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      return { complete: missing, files: [] }
+      return { complete: errorCode(error) === 'ENOENT', files: [] }
     }
     let complete = entries.length <= MAX_EVENTS
     const files = new Set<string>()
@@ -233,9 +286,7 @@ export class TiaEvidence {
         complete = false
       }
     }
-    if (options.remove === true) {
-      await rm(directory, { force: true, recursive: true })
-    }
+    if (options.remove === true) await removeCollected(directory, entries)
     return { complete, files: [...files].sort() }
   }
 }

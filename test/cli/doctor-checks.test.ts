@@ -65,6 +65,26 @@ describe('satisfiesRange', () => {
     expect(satisfiesRange(version, range)).toBe(expected)
   })
 
+  test.each([
+    ['4.1.0-beta.1', '>=4.1.0', false],
+    ['4.1.0', '>=4.1.0-beta.1', true],
+    ['4.1.0-beta.2', '>=4.1.0-beta.1', true],
+    ['4.1.0-beta.1', '>=4.1.0-beta.2', false],
+    ['4.1.0-beta.10', '>=4.1.0-beta.9', true],
+    ['4.1.0-1', '>=4.1.0-alpha', false],
+    ['4.1.0-alpha.1', '>4.1.0-alpha', true],
+    ['4.1.0+build.5', '>=4.1.0 <6.0.0', true],
+    ['4.1.0-rc.1+build.5', '>=4.1.0', false],
+    ['4.0.0-beta.1', '^3.0.0', false],
+    ['3.9.0-beta.1', '^3.0.0', true],
+    ['1.3.0-rc.1', '~1.2.3', false],
+    ['6.0.0-beta.1', '>=4.1.0 <6.0.0', false],
+    ['6.0.0-beta.1', '<6.0.0-rc.1', true],
+    ['v24.0.0-rc.1', '^22.12.0 || >=24.0.0', false],
+  ])('prerelease %s against %s is %s', (version, range, expected) => {
+    expect(satisfiesRange(version, range)).toBe(expected)
+  })
+
   test('answers null for what it cannot read', () => {
     expect(satisfiesRange('not-a-version', '>=1.0.0')).toBeNull()
     expect(satisfiesRange('1.0.0', '>=1.x')).toBeNull()
@@ -211,6 +231,44 @@ describe('selfCheck', () => {
     )
     expect(checks.find((check) => check.id === 'observability')?.detail).toBe(
       'otlp=http://collector:4318',
+    )
+  })
+
+  test('hides credentials in the observability URLs it lists', async () => {
+    const checks = await run(
+      selfCheck({
+        bunVersion: undefined,
+        cacheDir: '.tia',
+        cwd: scratch(),
+        env: {
+          TIACORE_DEVTOOLS: 'wss://ops:devtools-secret@devtools.example:9443',
+          TIACORE_OTLP_URL: 'https://user:p@ss-secret@collector:4318/otel',
+        },
+        nodeVersion: 'v22.12.0',
+      }),
+    )
+    const detail = checks.find((check) => check.id === 'observability')?.detail
+    expect(detail).toBe(
+      'devtools=wss://<redacted>@devtools.example:9443/, otlp=https://<redacted>@collector:4318/otel',
+    )
+    expect(detail).not.toMatch(/secret|user|ops/u)
+  })
+
+  test('names the OTLP headers without their values', async () => {
+    const checks = await run(
+      selfCheck({
+        bunVersion: undefined,
+        cacheDir: '.tia',
+        cwd: scratch(),
+        env: {
+          TIACORE_OTLP_HEADERS: 'authorization=Bearer%20secret,x-tenant=a',
+          TIACORE_OTLP_URL: 'http://collector:4318',
+        },
+        nodeVersion: 'v22.12.0',
+      }),
+    )
+    expect(checks.find((check) => check.id === 'observability')?.detail).toBe(
+      'otlp=http://collector:4318, otlpHeaders=authorization x-tenant',
     )
   })
 
